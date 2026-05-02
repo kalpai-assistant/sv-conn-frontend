@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>ServiceConnect — No Connection</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --purple: #7c3aed;
+        --purple-dark: #6d28d9;
+        --purple-light: #ede9fe;
+        --text: #1e1b4b;
+        --muted: #6b7280;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+        background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .card {
+        background: white;
+        border-radius: 24px;
+        padding: 3rem 2.5rem;
+        text-align: center;
+        max-width: 360px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(109, 40, 217, 0.15);
+      }
+
+      .icon-wrap {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--purple-dark), var(--purple));
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+      }
+
+      .icon-wrap svg {
+        width: 40px;
+        height: 40px;
+        color: white;
+        stroke: white;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.02em;
+      }
+
+      p {
+        font-size: 0.9375rem;
+        color: var(--muted);
+        line-height: 1.6;
+        margin-bottom: 2rem;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: linear-gradient(135deg, var(--purple-dark), var(--purple));
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 0.875rem 2rem;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        text-decoration: none;
+        box-shadow: 0 4px 15px rgba(109, 40, 217, 0.35);
+      }
+
+      .btn:active {
+        transform: scale(0.97);
+        box-shadow: 0 2px 8px rgba(109, 40, 217, 0.3);
+      }
+
+      .dots {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 2rem;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--purple-light);
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+
+      .dot:nth-child(2) { animation-delay: 0.2s; }
+      .dot:nth-child(3) { animation-delay: 0.4s; }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 0.4; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.2); background: var(--purple); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="icon-wrap">
+        <!-- WiFi off icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="1" y1="1" x2="23" y2="23"/>
+          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
+          <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
+          <path d="M10.71 5.05A16 16 0 0 1 22.56 9"/>
+          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+          <circle cx="12" cy="20" r="1" fill="white"/>
+        </svg>
+      </div>
+
+      <h1>You're Offline</h1>
+      <p>No internet connection detected. Please check your network and try again.</p>
+
+      <button class="btn" onclick="window.location.reload()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+        Try Again
+      </button>
+
+      <div class="dots">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+    </div>
+  </body>
+</html>

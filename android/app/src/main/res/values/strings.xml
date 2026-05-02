@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ServiceConnect</string>
+    <string name="title_activity_main">ServiceConnect</string>
+    <string name="package_name">com.serviceconnect.app</string>
+    <string name="custom_url_scheme">com.serviceconnect.app</string>
+</resources>
