@@ -1,0 +1,14 @@
+# Enforce LF line endings for all text files, regardless of contributor OS / core.autocrlf.
+# Without this, Windows (autocrlf=true) checks out CRLF and Prettier's default endOfLine=lf
+# floods every line with `Delete ␍` errors via the prettier/prettier ESLint rule.
+* text=auto eol=lf
+
+# Binary files we don't want git to touch
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.zip binary

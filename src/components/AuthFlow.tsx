@@ -32,6 +32,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
   const handleSendOtp = async () => {
     if (phone.length < 10) return;
     setLoading(true);
+    setErrorMsg("");
     try {
       const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
         method: "POST",
@@ -41,6 +42,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
       if (!res.ok) throw new Error("Failed to send OTP");
       setStep("otp");
       setResendTimer(30);
+    } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Failed to send OTP. Please try again.");
     } finally {
       setLoading(false);
