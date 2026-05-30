@@ -1,4 +1,12 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState, Navigate } from "@tanstack/react-router";
+import {
+  Outlet,
+  Link,
+  createRootRoute,
+  HeadContent,
+  Scripts,
+  useRouterState,
+  Navigate,
+} from "@tanstack/react-router";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { BottomNav } from "@/components/BottomNav";
 import { AuthFlow } from "@/components/AuthFlow";
@@ -34,9 +42,17 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
+      {
+        name: "viewport",
+        content:
+          "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
+      },
       { title: "ServiceConnect — Home Services at Your Doorstep" },
-      { name: "description", content: "Book trusted home services in Bangalore — cleaning, plumbing, electrical, salon & more." },
+      {
+        name: "description",
+        content:
+          "Book trusted home services in Bangalore — cleaning, plumbing, electrical, salon & more.",
+      },
       { property: "og:title", content: "ServiceConnect — Home Services at Your Doorstep" },
       { property: "og:description", content: "Book trusted home services in Bangalore." },
       { property: "og:type", content: "website" },
@@ -96,10 +112,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function AppGate({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isNewUser } = useAuth();
   const routerState = useRouterState();
   const isProfileRoute = routerState.location.pathname.startsWith("/profile");
-  
+
   if (!isAuthenticated) {
     return (
       <div className="mx-auto max-w-md min-h-screen bg-background relative">
@@ -108,16 +124,13 @@ function AppGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Force setup mode if name is missing
-  if (user && !user.name && !isProfileRoute) {
+  // Force setup mode for fresh registrations (is_new_user) or when name is missing.
+  // The name check also covers reloads, where the in-memory isNewUser flag resets.
+  if (user && (isNewUser || !user.name) && !isProfileRoute) {
     return <Navigate to="/profile" />;
   }
 
-  return (
-    <div className="mx-auto max-w-md min-h-screen bg-background pb-20">
-      {children}
-    </div>
-  );
+  return <div className="mx-auto max-w-md min-h-screen bg-background pb-20">{children}</div>;
 }
 
 function RootComponent() {

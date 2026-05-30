@@ -37,7 +37,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
       const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: `+91${phone}` })
+        body: JSON.stringify({ phone: `+91${phone}` }),
       });
       if (!res.ok) throw new Error("Failed to send OTP");
       setStep("otp");
@@ -68,18 +68,23 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
         const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: `+91${phone}`, otp: newOtp.join(""), role: "consumer" })
+          body: JSON.stringify({ phone: `+91${phone}`, otp: newOtp.join(""), role: "consumer" }),
         });
         if (!res.ok) throw new Error("Failed to verify OTP");
-        const tokenData = await res.json();
-        
+        const tokenData = (await res.json()) as {
+          access_token: string;
+          refresh_token: string;
+          is_new_user?: boolean;
+        };
+
         // Fetch user profile using the access token
         const userRes = await fetch(`${API_BASE_URL}/users/me`, {
-          headers: { "Authorization": `Bearer ${tokenData.access_token}` },
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
         });
+        if (!userRes.ok) throw new Error("Failed to fetch user profile");
         const userData = await userRes.json();
-        
-        login(tokenData.access_token, tokenData.refresh_token, userData);
+
+        login(tokenData.access_token, tokenData.refresh_token, userData, tokenData.is_new_user);
         onComplete();
       } catch (e: any) {
         console.error(e);
@@ -120,7 +125,9 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
                 <span className="text-4xl font-bold text-primary-foreground">SC</span>
               </div>
               <h1 className="text-3xl font-bold text-primary-foreground">ServiceConnect</h1>
-              <p className="mt-2 text-primary-foreground/70 text-sm">Home services at your doorstep</p>
+              <p className="mt-2 text-primary-foreground/70 text-sm">
+                Home services at your doorstep
+              </p>
             </motion.div>
           </motion.div>
         )}
@@ -162,7 +169,9 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
               {loading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                <>Send OTP <ArrowRight className="h-5 w-5" /></>
+                <>
+                  Send OTP <ArrowRight className="h-5 w-5" />
+                </>
               )}
             </button>
           </motion.div>
