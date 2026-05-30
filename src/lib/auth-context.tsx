@@ -10,7 +10,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (accessToken: string, refreshToken: string, user: User) => void;
+  isNewUser: boolean;
+  login: (accessToken: string, refreshToken: string, user: User, isNewUser?: boolean) => void;
   logout: () => void;
   updateUser: (data: Partial<User>) => void;
 }
@@ -19,24 +20,35 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  // True when verify-otp reports a fresh registration; gates the user to /profile
+  // setup before home. In-memory only — the `!user.name` fallback covers reloads.
+  const [isNewUser, setIsNewUser] = useState(false);
 
-  const login = useCallback((accessToken: string, refreshToken: string, u: User) => {
-    setTokens(accessToken, refreshToken);
-    setUser(u);
-  }, []);
+  const login = useCallback(
+    (accessToken: string, refreshToken: string, u: User, newUser = false) => {
+      setTokens(accessToken, refreshToken);
+      setUser(u);
+      setIsNewUser(newUser);
+    },
+    [],
+  );
 
   const logout = useCallback(() => {
     clearTokens();
     setUser(null);
+    setIsNewUser(false);
   }, []);
-
 
   const updateUser = useCallback((data: Partial<User>) => {
     setUser((prev) => (prev ? { ...prev, ...data } : null));
+    // Once the profile has a name, setup is complete — drop the new-user gate.
+    if (data.name) setIsNewUser(false);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, updateUser }}>
+    <AuthContext.Provider
+      value={{ user, isAuthenticated: !!user, isNewUser, login, logout, updateUser }}
+    >
       {children}
     </AuthContext.Provider>
   );
