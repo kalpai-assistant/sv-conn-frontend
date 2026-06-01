@@ -10,6 +10,7 @@ import {
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { BottomNav } from "@/components/BottomNav";
 import { AuthFlow } from "@/components/AuthFlow";
+import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import appCss from "../styles.css?url";
@@ -141,6 +142,7 @@ function RootComponent() {
           <Outlet />
           <BottomNav />
         </AppGate>
+        <Toaster />
       </AuthProvider>
     </QueryClientProvider>
   );

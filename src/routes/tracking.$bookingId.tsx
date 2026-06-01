@@ -1,9 +1,27 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Phone, MapPin, Loader2, Search } from "lucide-react";
 import { StatusStepper } from "@/components/StatusStepper";
-import { useBooking, useCancelBooking, useSubmitReview, useCreatePaymentOrder, useVerifyPayment } from "@/hooks/useApi";
+import {
+  useBooking,
+  useCancelBooking,
+  useSubmitReview,
+  useCreatePaymentOrder,
+  useVerifyPayment,
+} from "@/hooks/useApi";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/tracking/$bookingId")({
   component: TrackingPage,
@@ -20,7 +38,7 @@ function TrackingPage() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
-  
+
   // Custom polling specifically when on tracking page
   useEffect(() => {
     const interval = setInterval(() => {
@@ -41,7 +59,12 @@ function TrackingPage() {
     return (
       <div className="flex min-h-screen items-center justify-center flex-col gap-4">
         <p className="text-muted-foreground">Booking not found.</p>
-        <button onClick={() => navigate({ to: "/bookings" })} className="text-primary hover:underline">Return to My Bookings</button>
+        <button
+          onClick={() => navigate({ to: "/bookings" })}
+          className="text-primary hover:underline"
+        >
+          Return to My Bookings
+        </button>
       </div>
     );
   }
@@ -50,8 +73,14 @@ function TrackingPage() {
   const isExpired = booking.status === "EXPIRED";
 
   const handleCancel = async () => {
-    if (confirm("Are you sure you want to cancel this booking?")) {
-      await cancelMutation.mutateAsync({ bookingId: bookingId as string, reason: "User cancelled" });
+    try {
+      await cancelMutation.mutateAsync({
+        bookingId: bookingId as string,
+        reason: "Consumer cancelled",
+      });
+      navigate({ to: "/bookings" });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to cancel booking.");
     }
   };
 
@@ -62,7 +91,7 @@ function TrackingPage() {
     }
     try {
       const order = await paymentOrderMutation.mutateAsync({ bookingId: bookingId as string });
-      
+
       const options = {
         key: order.razorpay_key_id,
         amount: order.amount,
@@ -97,7 +126,10 @@ function TrackingPage() {
     <div className="min-h-screen pb-6">
       {/* Header */}
       <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card px-4">
-        <Link to="/bookings" className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary">
+        <Link
+          to="/bookings"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary"
+        >
           <ArrowLeft className="h-4 w-4 text-foreground" />
         </Link>
         <h1 className="text-base font-semibold text-foreground">Booking Status</h1>
@@ -119,8 +151,12 @@ function TrackingPage() {
             >
               <Search className="h-8 w-8 text-primary" />
             </motion.div>
-            <h3 className="text-lg font-semibold text-foreground mb-1">Searching for nearby partners</h3>
-            <p className="text-sm text-muted-foreground">We are contacting highly rated professionals in your area for {booking.service.name}.</p>
+            <h3 className="text-lg font-semibold text-foreground mb-1">
+              Searching for nearby partners
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              We are contacting highly rated professionals in your area for {booking.service.name}.
+            </p>
           </div>
         )}
 
@@ -128,8 +164,13 @@ function TrackingPage() {
         {isExpired && (
           <div className="rounded-xl border border-border bg-card p-8 mb-4 text-center">
             <h3 className="text-lg font-semibold text-foreground mb-1">No partners available</h3>
-            <p className="text-sm text-muted-foreground mb-4">We couldn't find an available professional at this time.</p>
-            <button onClick={() => navigate({ to: "/" })} className="rounded-xl bg-primary px-4 py-2 font-semibold text-primary-foreground">
+            <p className="text-sm text-muted-foreground mb-4">
+              We couldn't find an available professional at this time.
+            </p>
+            <button
+              onClick={() => navigate({ to: "/" })}
+              className="rounded-xl bg-primary px-4 py-2 font-semibold text-primary-foreground"
+            >
               Try again later
             </button>
           </div>
@@ -148,10 +189,16 @@ function TrackingPage() {
           <div className="rounded-xl border border-border bg-card p-4 mb-4">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-sm font-bold text-accent-foreground">
-                {booking.service.provider.name.split(" ").map((n) => n[0]).join("").substring(0,2)}
+                {booking.service.provider.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .substring(0, 2)}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">{booking.service.provider.name}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {booking.service.provider.name}
+                </p>
                 <p className="text-xs text-muted-foreground">{booking.service.name}</p>
               </div>
               {booking.service.provider.phone && (
@@ -170,14 +217,19 @@ function TrackingPage() {
         {booking.status === "EN_ROUTE" && (
           <div className="rounded-xl border border-border bg-accent p-6 text-center mb-4 relative overflow-hidden">
             <MapPin className="mx-auto h-8 w-8 text-primary mb-2 relative z-10" />
-            <p className="text-sm font-medium text-foreground relative z-10">Provider is on the way</p>
+            <p className="text-sm font-medium text-foreground relative z-10">
+              Provider is on the way
+            </p>
             <p className="text-xs text-muted-foreground mt-1 relative z-10">ETA: ~15 minutes</p>
-            
+
             {/* Minimal pseudo-map background */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
-              backgroundImage: 'radial-gradient(circle at 50% 50%, #6C5CE7 2px, transparent 2px)',
-              backgroundSize: '20px 20px'
-            }}></div>
+            <div
+              className="absolute inset-0 opacity-10 pointer-events-none"
+              style={{
+                backgroundImage: "radial-gradient(circle at 50% 50%, #6C5CE7 2px, transparent 2px)",
+                backgroundSize: "20px 20px",
+              }}
+            ></div>
           </div>
         )}
 
@@ -197,12 +249,13 @@ function TrackingPage() {
             <span className="text-muted-foreground">Total</span>
             <span className="font-bold text-primary">₹{booking.totalAmount}</span>
           </div>
-          
+
           {booking.status === "COMPLETED" && booking.paymentMethod === "online" && (
-            <button 
-              onClick={handlePayment} 
+            <button
+              onClick={handlePayment}
               disabled={paymentOrderMutation.isPending}
-              className="w-full mt-2 rounded-xl bg-primary p-3 text-sm font-semibold text-primary-foreground">
+              className="w-full mt-2 rounded-xl bg-primary p-3 text-sm font-semibold text-primary-foreground"
+            >
               {paymentOrderMutation.isPending ? "Loading..." : "Pay Now"}
             </button>
           )}
@@ -215,7 +268,16 @@ function TrackingPage() {
             <div className="flex items-center gap-2 mb-3">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button key={star} onClick={() => setRating(star)}>
-                  <svg className={`h-6 w-6 ${rating >= star ? 'text-yellow-400 fill-yellow-400' : 'text-border'}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                  <svg
+                    className={`h-6 w-6 ${rating >= star ? "text-yellow-400 fill-yellow-400" : "text-border"}`}
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  </svg>
                 </button>
               ))}
             </div>
@@ -225,10 +287,11 @@ function TrackingPage() {
               value={comment}
               onChange={(e) => setComment(e.target.value)}
             />
-            <button 
+            <button
               onClick={submitReview}
               disabled={reviewMutation.isPending}
-              className="w-full rounded-xl bg-secondary p-3 text-sm font-semibold text-foreground">
+              className="w-full rounded-xl bg-secondary p-3 text-sm font-semibold text-foreground"
+            >
               {reviewMutation.isPending ? "Submitting..." : "Submit Review"}
             </button>
           </div>
@@ -241,12 +304,26 @@ function TrackingPage() {
 
         {/* Cancel */}
         {(booking.status === "REQUESTED" || booking.status === "ACCEPTED") && (
-          <button 
-            onClick={handleCancel}
-            disabled={cancelMutation.isPending}
-            className="w-full rounded-xl border border-destructive p-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50">
-            Cancel Booking
-          </button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button
+                disabled={cancelMutation.isPending}
+                className="w-full rounded-xl border border-destructive p-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+              >
+                Cancel Booking
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
+                <AlertDialogDescription>The provider will be notified.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Go back</AlertDialogCancel>
+                <AlertDialogAction onClick={handleCancel}>Yes, cancel</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </div>
     </div>
