@@ -1,7 +1,16 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState, Navigate } from "@tanstack/react-router";
+import {
+  Outlet,
+  Link,
+  createRootRoute,
+  HeadContent,
+  Scripts,
+  useRouterState,
+  Navigate,
+} from "@tanstack/react-router";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { BottomNav } from "@/components/BottomNav";
 import { AuthFlow } from "@/components/AuthFlow";
+import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import appCss from "../styles.css?url";
@@ -34,9 +43,17 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
+      {
+        name: "viewport",
+        content:
+          "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
+      },
       { title: "ServiceConnect — Home Services at Your Doorstep" },
-      { name: "description", content: "Book trusted home services in Bangalore — cleaning, plumbing, electrical, salon & more." },
+      {
+        name: "description",
+        content:
+          "Book trusted home services in Bangalore — cleaning, plumbing, electrical, salon & more.",
+      },
       { property: "og:title", content: "ServiceConnect — Home Services at Your Doorstep" },
       { property: "og:description", content: "Book trusted home services in Bangalore." },
       { property: "og:type", content: "website" },
@@ -99,7 +116,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated } = useAuth();
   const routerState = useRouterState();
   const isProfileRoute = routerState.location.pathname.startsWith("/profile");
-  
+
   if (!isAuthenticated) {
     return (
       <div className="mx-auto max-w-md min-h-screen bg-background relative">
@@ -113,11 +130,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
     return <Navigate to="/profile" />;
   }
 
-  return (
-    <div className="mx-auto max-w-md min-h-screen bg-background pb-20">
-      {children}
-    </div>
-  );
+  return <div className="mx-auto max-w-md min-h-screen bg-background pb-20">{children}</div>;
 }
 
 function RootComponent() {
@@ -128,6 +141,7 @@ function RootComponent() {
           <Outlet />
           <BottomNav />
         </AppGate>
+        <Toaster />
       </AuthProvider>
     </QueryClientProvider>
   );
