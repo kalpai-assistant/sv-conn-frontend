@@ -8,7 +8,7 @@ import {
   useCreatePaymentOrder,
   useVerifyPayment,
 } from "@/hooks/useApi";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -39,13 +39,7 @@ function TrackingPage() {
   const [comment, setComment] = useState("");
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
-  // Custom polling specifically when on tracking page
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refetch();
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [refetch]);
+  // useBooking polls every 4s via refetchInterval (SVC-50); no manual interval needed.
 
   if (isLoading) {
     return (
@@ -163,15 +157,15 @@ function TrackingPage() {
         {/* Expired State */}
         {isExpired && (
           <div className="rounded-xl border border-border bg-card p-8 mb-4 text-center">
-            <h3 className="text-lg font-semibold text-foreground mb-1">No partners available</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-1">No partners found nearby</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              We couldn't find an available professional at this time.
+              No partners found nearby. Try again.
             </p>
             <button
               onClick={() => navigate({ to: "/" })}
               className="rounded-xl bg-primary px-4 py-2 font-semibold text-primary-foreground"
             >
-              Try again later
+              Try Again
             </button>
           </div>
         )}
