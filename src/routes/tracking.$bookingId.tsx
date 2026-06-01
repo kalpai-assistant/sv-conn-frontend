@@ -10,6 +10,7 @@ import {
 } from "@/hooks/useApi";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -72,8 +73,15 @@ function TrackingPage() {
   const isExpired = booking.status === "EXPIRED";
 
   const handleCancel = async () => {
-    // Confirmation is handled by the AlertDialog wrapping the Cancel button.
-    await cancelMutation.mutateAsync({ bookingId: bookingId as string, reason: "User cancelled" });
+    try {
+      await cancelMutation.mutateAsync({
+        bookingId: bookingId as string,
+        reason: "Consumer cancelled",
+      });
+      navigate({ to: "/bookings" });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to cancel booking.");
+    }
   };
 
   const handlePayment = async () => {
