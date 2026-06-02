@@ -9,7 +9,7 @@ import {
   useCreatePaymentOrder,
   useVerifyPayment,
 } from "@/hooks/useApi";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -28,6 +28,25 @@ export const Route = createFileRoute("/tracking/$bookingId")({
   component: TrackingPage,
 });
 
+// Bookings already reviewed or skipped — persisted so the review sheet shows once per booking.
+const REVIEWED_KEY = "sc_reviewed_bookings";
+
+function getReviewedBookings(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    return new Set(JSON.parse(localStorage.getItem(REVIEWED_KEY) ?? "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function markBookingReviewed(bookingId: string) {
+  if (typeof window === "undefined") return;
+  const set = getReviewedBookings();
+  set.add(bookingId);
+  localStorage.setItem(REVIEWED_KEY, JSON.stringify([...set]));
+}
+
 function TrackingPage() {
   const { bookingId } = Route.useParams();
   const navigate = useNavigate();
@@ -40,6 +59,13 @@ function TrackingPage() {
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   // useBooking polls every 4s via refetchInterval (SVC-50); no manual interval needed.
+
+  // Auto-open the review sheet once a booking completes, unless already reviewed/skipped.
+  useEffect(() => {
+    if (booking?.status === "COMPLETED" && !getReviewedBookings().has(bookingId)) {
+      setReviewOpen(true);
+    }
+  }, [booking?.status, bookingId]);
 
   if (isLoading) {
     return (
@@ -114,11 +140,17 @@ function TrackingPage() {
   const submitReview = async (rating: number, comment: string) => {
     try {
       await reviewMutation.mutateAsync({ bookingId: bookingId as string, rating, comment });
+      markBookingReviewed(bookingId);
       setReviewSubmitted(true);
       setReviewOpen(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to submit review.");
     }
+  };
+
+  const skipReview = () => {
+    markBookingReviewed(bookingId);
+    setReviewOpen(false);
   };
 
   return (
@@ -260,15 +292,7 @@ function TrackingPage() {
           )}
         </div>
 
-        {/* Review */}
-        {booking.status === "COMPLETED" && !reviewSubmitted && (
-          <button
-            onClick={() => setReviewOpen(true)}
-            className="w-full rounded-xl border border-border bg-card p-4 mb-4 text-sm font-semibold text-foreground"
-          >
-            Rate your service
-          </button>
-        )}
+        {/* Review confirmation (sheet auto-opens once on COMPLETED — see ReviewSheet below) */}
         {booking.status === "COMPLETED" && reviewSubmitted && (
           <div className="rounded-xl border border-success bg-success/10 p-4 mb-4 text-center text-success text-sm font-medium">
             Thank you for your feedback!
@@ -302,9 +326,13 @@ function TrackingPage() {
 
       <ReviewSheet
         open={reviewOpen}
-        onOpenChange={setReviewOpen}
+        onOpenChange={(open) => {
+          // Any dismissal (overlay tap, Esc, close button) counts as skipped → don't reopen.
+          if (!open && !reviewSubmitted) markBookingReviewed(bookingId);
+          setReviewOpen(open);
+        }}
         onSubmit={submitReview}
-        onSkip={() => setReviewOpen(false)}
+        onSkip={skipReview}
         isSubmitting={reviewMutation.isPending}
       />
     </div>
