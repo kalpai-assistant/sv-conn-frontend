@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Phone, MapPin, Loader2, Search } from "lucide-react";
 import { StatusStepper } from "@/components/StatusStepper";
+import { ReviewSheet } from "@/components/ReviewSheet";
 import {
   useBooking,
   useCancelBooking,
@@ -8,7 +9,7 @@ import {
   useCreatePaymentOrder,
   useVerifyPayment,
 } from "@/hooks/useApi";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -27,6 +28,25 @@ export const Route = createFileRoute("/tracking/$bookingId")({
   component: TrackingPage,
 });
 
+// Bookings already reviewed or skipped — persisted so the review sheet shows once per booking.
+const REVIEWED_KEY = "sc_reviewed_bookings";
+
+function getReviewedBookings(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    return new Set(JSON.parse(localStorage.getItem(REVIEWED_KEY) ?? "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function markBookingReviewed(bookingId: string) {
+  if (typeof window === "undefined") return;
+  const set = getReviewedBookings();
+  set.add(bookingId);
+  localStorage.setItem(REVIEWED_KEY, JSON.stringify([...set]));
+}
+
 function TrackingPage() {
   const { bookingId } = Route.useParams();
   const navigate = useNavigate();
@@ -35,11 +55,17 @@ function TrackingPage() {
   const reviewMutation = useSubmitReview();
   const paymentOrderMutation = useCreatePaymentOrder();
   const verifyPaymentMutation = useVerifyPayment();
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState("");
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   // useBooking polls every 4s via refetchInterval (SVC-50); no manual interval needed.
+
+  // Auto-open the review sheet once a booking completes, unless already reviewed/skipped.
+  useEffect(() => {
+    if (booking?.status === "COMPLETED" && !getReviewedBookings().has(bookingId)) {
+      setReviewOpen(true);
+    }
+  }, [booking?.status, bookingId]);
 
   if (isLoading) {
     return (
@@ -111,9 +137,20 @@ function TrackingPage() {
     }
   };
 
-  const submitReview = async () => {
-    await reviewMutation.mutateAsync({ bookingId: bookingId as string, rating, comment });
-    setReviewSubmitted(true);
+  const submitReview = async (rating: number, comment: string) => {
+    try {
+      await reviewMutation.mutateAsync({ bookingId: bookingId as string, rating, comment });
+      markBookingReviewed(bookingId);
+      setReviewSubmitted(true);
+      setReviewOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to submit review.");
+    }
+  };
+
+  const skipReview = () => {
+    markBookingReviewed(bookingId);
+    setReviewOpen(false);
   };
 
   return (
@@ -255,41 +292,7 @@ function TrackingPage() {
           )}
         </div>
 
-        {/* Review Form */}
-        {booking.status === "COMPLETED" && !reviewSubmitted && (
-          <div className="rounded-xl border border-border bg-card p-4 mb-4">
-            <h4 className="text-sm font-semibold text-foreground mb-2">Rate your service</h4>
-            <div className="flex items-center gap-2 mb-3">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button key={star} onClick={() => setRating(star)}>
-                  <svg
-                    className={`h-6 w-6 ${rating >= star ? "text-yellow-400 fill-yellow-400" : "text-border"}`}
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                  </svg>
-                </button>
-              ))}
-            </div>
-            <textarea
-              className="w-full rounded-lg border border-border bg-background p-3 text-sm mb-3"
-              placeholder="Leave a comment (optional)"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-            />
-            <button
-              onClick={submitReview}
-              disabled={reviewMutation.isPending}
-              className="w-full rounded-xl bg-secondary p-3 text-sm font-semibold text-foreground"
-            >
-              {reviewMutation.isPending ? "Submitting..." : "Submit Review"}
-            </button>
-          </div>
-        )}
+        {/* Review confirmation (sheet auto-opens once on COMPLETED — see ReviewSheet below) */}
         {booking.status === "COMPLETED" && reviewSubmitted && (
           <div className="rounded-xl border border-success bg-success/10 p-4 mb-4 text-center text-success text-sm font-medium">
             Thank you for your feedback!
@@ -320,6 +323,18 @@ function TrackingPage() {
           </AlertDialog>
         )}
       </div>
+
+      <ReviewSheet
+        open={reviewOpen}
+        onOpenChange={(open) => {
+          // Any dismissal (overlay tap, Esc, close button) counts as skipped → don't reopen.
+          if (!open && !reviewSubmitted) markBookingReviewed(bookingId);
+          setReviewOpen(open);
+        }}
+        onSubmit={submitReview}
+        onSkip={skipReview}
+        isSubmitting={reviewMutation.isPending}
+      />
     </div>
   );
 }
