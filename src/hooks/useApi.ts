@@ -149,60 +149,46 @@ export const useBookings = (status?: string) => {
       const data = await apiFetch<any>(`/bookings/${query}`);
       const rawBookings = data.bookings || [];
 
-      return rawBookings
-        .map((b: any) => {
-          const srv = services?.find((s) => s.id === b.service_id);
-          const resolvedProvider = b.provider_id
-            ? {
-                id: b.provider_id,
-                name: "Assigned Partner",
-                phone: "000-000-0000",
-                rating: 5.0,
-                reviewCount: 0,
-                verified: true,
-              }
-            : undefined;
+      return rawBookings.map((b: any) => {
+        const srv = services?.find((s) => s.id === b.service_id);
+        const service = srv || {
+          id: b.service_id,
+          name: "Service Name",
+          categoryId: "",
+          categoryName: "",
+          description: "",
+          price: b.service_amount,
+          duration: "",
+        };
 
-          return {
-            id: b.id,
-            status: b.status.toUpperCase(),
-            address: { id: "", label: "Address", full: "" }, // Placeholder
-            scheduledAt: b.scheduled_at || b.created_at,
-            paymentMethod: b.payment_method || "online",
-            totalAmount: b.service_amount,
-            createdAt: b.created_at,
-            otp: b.doorstep_otp || undefined,
-            service: srv || {
-              id: b.service_id,
-              name: "Service Name",
-              categoryId: "",
-              categoryName: "",
-              description: "",
-              price: b.service_amount,
-              duration: "",
-            },
-          } as UI_Booking;
-        })
-        .map((b: any) => {
-          // Hydrate service provider dynamically based on booking, since global service doesn't have it
-          const rawBooking = rawBookings.find((rb: any) => rb.id === b.id);
-          if (rawBooking.provider_id) {
-            b.service = {
-              ...b.service,
-              provider: {
-                id: rawBooking.provider_id,
-                name: "Assigned Partner",
-                phone: "+910000000000",
-                rating: 5,
-                reviewCount: 0,
-                verified: true,
-              },
-            };
-          }
-          return b;
-        });
+        return {
+          id: b.id,
+          status: b.status.toUpperCase(),
+          address: { id: "", label: "Address", full: "" }, // Placeholder
+          scheduledAt: b.scheduled_at || b.created_at,
+          paymentMethod: b.payment_method || "online",
+          totalAmount: b.service_amount,
+          createdAt: b.created_at,
+          otp: b.doorstep_otp || undefined,
+          // Hydrate the provider from the booking, since global services have none.
+          service: b.provider_id
+            ? {
+                ...service,
+                provider: {
+                  id: b.provider_id,
+                  name: "Assigned Partner",
+                  phone: "+910000000000",
+                  rating: 5,
+                  reviewCount: 0,
+                  verified: true,
+                },
+              }
+            : service,
+        } as UI_Booking;
+      });
     },
-    enabled: services !== undefined, // Wait for services to be loaded
+    // Bookings must load even when the services catalog is empty/slow, so this query
+    // is not gated on `services`; service names fall back to a placeholder above (SVC-75).
   });
 };
 

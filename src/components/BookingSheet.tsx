@@ -52,6 +52,9 @@ export function BookingSheet({ service, onClose }: BookingSheetProps) {
       });
 
       if (response && response.id) {
+        // Dismiss the booking sheet before navigating so it doesn't linger over
+        // the tracking screen (SVC-74).
+        onClose();
         navigate({ to: "/tracking/$bookingId", params: { bookingId: response.id } });
       } else {
         throw new Error("Invalid response");
