@@ -281,15 +281,19 @@ function TrackingPage() {
             <span className="font-bold text-primary">₹{booking.totalAmount}</span>
           </div>
 
-          {booking.status === "COMPLETED" && booking.paymentMethod === "online" && (
-            <button
-              onClick={handlePayment}
-              disabled={paymentOrderMutation.isPending}
-              className="w-full mt-2 rounded-xl bg-primary p-3 text-sm font-semibold text-primary-foreground"
-            >
-              {paymentOrderMutation.isPending ? "Loading..." : "Pay Now"}
-            </button>
-          )}
+          {booking.status === "COMPLETED" &&
+            booking.paymentMethod === "online" &&
+            booking.paymentStatus === "pending" && (
+              <button
+                onClick={handlePayment}
+                disabled={paymentOrderMutation.isPending}
+                className="w-full mt-2 rounded-xl bg-primary p-3 text-sm font-semibold text-primary-foreground"
+              >
+                {paymentOrderMutation.isPending
+                  ? "Loading..."
+                  : `Pay Now — ₹${booking.totalAmount}`}
+              </button>
+            )}
         </div>
 
         {/* Review confirmation (sheet auto-opens once on COMPLETED — see ReviewSheet below) */}

@@ -167,6 +167,7 @@ export const useBookings = (status?: string) => {
           address: { id: "", label: "Address", full: "" }, // Placeholder
           scheduledAt: b.scheduled_at || b.created_at,
           paymentMethod: b.payment_method || "online",
+          paymentStatus: b.payment_status || "pending",
           totalAmount: b.service_amount,
           createdAt: b.created_at,
           otp: b.doorstep_otp || undefined,
@@ -230,6 +231,7 @@ export const useBooking = (bookingId?: string) => {
         address: { id: b.address_id || "", label: "Address", full: "" },
         scheduledAt: b.scheduled_at || b.created_at,
         paymentMethod: b.payment_method || "online",
+        paymentStatus: b.payment_status || "pending",
         totalAmount: b.service_amount,
         createdAt: b.created_at,
         otp: b.doorstep_otp || undefined,
