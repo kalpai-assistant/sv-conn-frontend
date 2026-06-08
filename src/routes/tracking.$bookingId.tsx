@@ -105,6 +105,23 @@ function TrackingPage() {
     }
   };
 
+  // Verify the payment server-side before treating it as successful. A failed
+  // verification (bad signature, network error) is surfaced as a failed payment.
+  const handlePaymentSuccess = async (response: any) => {
+    try {
+      await verifyPaymentMutation.mutateAsync({
+        razorpay_order_id: response.razorpay_order_id,
+        razorpay_payment_id: response.razorpay_payment_id,
+        razorpay_signature: response.razorpay_signature,
+      });
+      refetch();
+      setPaymentState("success");
+    } catch (e) {
+      console.error(e);
+      setPaymentState("failed");
+    }
+  };
+
   const handlePayment = async () => {
     if (!window.Razorpay) {
       toast.error("Razorpay SDK not loaded. Please retry.");
@@ -120,18 +137,11 @@ function TrackingPage() {
         name: "ServiceConnect",
         description: "Payment for Service",
         order_id: order.razorpay_order_id,
-        handler: async function (response: any) {
-          await verifyPaymentMutation.mutateAsync({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          });
-          refetch();
-          setPaymentState("success");
-        },
+        handler: (response: any) => handlePaymentSuccess(response),
         // Closing the checkout without paying counts as a failed attempt (SVC-66 shows retry).
+        // Guard against clobbering a payment that already succeeded.
         modal: {
-          ondismiss: () => setPaymentState("failed"),
+          ondismiss: () => setPaymentState((s) => (s === "success" ? s : "failed")),
         },
       };
       const rzp = new (window as any).Razorpay(options);
