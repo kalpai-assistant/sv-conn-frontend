@@ -57,6 +57,7 @@ function TrackingPage() {
   const verifyPaymentMutation = useVerifyPayment();
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [paymentState, setPaymentState] = useState<"idle" | "success" | "failed">("idle");
 
   // useBooking polls every 4s via refetchInterval (SVC-50); no manual interval needed.
 
@@ -106,7 +107,7 @@ function TrackingPage() {
 
   const handlePayment = async () => {
     if (!window.Razorpay) {
-      alert("Razorpay SDK not loaded.");
+      toast.error("Razorpay SDK not loaded. Please retry.");
       return;
     }
     try {
@@ -126,14 +127,18 @@ function TrackingPage() {
             razorpay_signature: response.razorpay_signature,
           });
           refetch();
-          alert("Payment successful!");
+          setPaymentState("success");
+        },
+        // Closing the checkout without paying counts as a failed attempt (SVC-66 shows retry).
+        modal: {
+          ondismiss: () => setPaymentState("failed"),
         },
       };
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
     } catch (e) {
       console.error(e);
-      alert("Payment failed to initialize.");
+      setPaymentState("failed");
     }
   };
 
