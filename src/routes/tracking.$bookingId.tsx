@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Phone, MapPin, Loader2, Search } from "lucide-react";
+import { ArrowLeft, Phone, MapPin, Loader2, Search, CheckCircle2 } from "lucide-react";
 import { StatusStepper } from "@/components/StatusStepper";
 import { ReviewSheet } from "@/components/ReviewSheet";
 import {
@@ -298,7 +298,9 @@ function TrackingPage() {
 
           {booking.status === "COMPLETED" &&
             booking.paymentMethod === "online" &&
-            booking.paymentStatus === "pending" && (
+            booking.paymentStatus === "pending" &&
+            paymentState !== "success" &&
+            paymentState !== "failed" && (
               <button
                 onClick={handlePayment}
                 disabled={paymentOrderMutation.isPending}
@@ -309,6 +311,34 @@ function TrackingPage() {
                   : `Pay Now — ₹${booking.totalAmount}`}
               </button>
             )}
+
+          {paymentState === "success" && (
+            <div className="mt-2 flex flex-col items-center gap-2 rounded-xl border border-success bg-success/10 p-4 text-center">
+              <CheckCircle2 className="h-8 w-8 text-success" />
+              <p className="text-sm font-semibold text-success">Payment successful!</p>
+              <button
+                onClick={() => navigate({ to: "/bookings" })}
+                className="mt-1 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+              >
+                Go to bookings
+              </button>
+            </div>
+          )}
+
+          {paymentState === "failed" && (
+            <div className="mt-2 rounded-xl border border-destructive bg-destructive/10 p-4 text-center">
+              <p className="text-sm font-medium text-destructive">Payment failed. Try again.</p>
+              <button
+                onClick={() => {
+                  setPaymentState("idle");
+                  handlePayment();
+                }}
+                className="mt-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+              >
+                Retry Payment
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Review confirmation (sheet auto-opens once on COMPLETED — see ReviewSheet below) */}
