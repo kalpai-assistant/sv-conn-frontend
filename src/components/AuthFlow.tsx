@@ -83,6 +83,8 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
         });
         if (!userRes.ok) throw new Error("Failed to fetch user profile");
         const userData = await userRes.json();
+        // Default to consumer if the profile somehow omits a role.
+        userData.role = userData.role ?? "consumer";
 
         login(tokenData.access_token, tokenData.refresh_token, userData, tokenData.is_new_user);
         onComplete();

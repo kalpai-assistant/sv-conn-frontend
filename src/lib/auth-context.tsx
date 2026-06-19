@@ -1,10 +1,13 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import { setTokens, clearTokens } from "./api";
+export type UserRole = "consumer" | "provider" | "admin";
+
 interface User {
   id: string;
   name: string | null;
   phone: string;
   email: string | null;
+  role: UserRole;
 }
 
 interface AuthContextType {
