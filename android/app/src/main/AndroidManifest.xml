@@ -37,5 +37,28 @@
 
     <!-- Permissions -->
 
+    <!-- Network -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Location: foreground only. Background tracking is explicitly out of scope for beta. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- KYC document capture + selfie -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Android 13+ runtime notification permission for FCM dispatch pushes -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Android 13+ scoped photo access for KYC gallery upload -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Fallback for Android 12 and below; scoped to API <= 32 to avoid Play Store warnings -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- Declare camera as a soft feature (not all devices have one — don't block install) -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 </manifest>
