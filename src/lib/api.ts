@@ -1,6 +1,17 @@
 // Pluggable API utility — replace API_BASE_URL with your backend
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 
+// Carries the HTTP status alongside the message so callers can branch on it
+// (e.g. 403 KYC-pending when a provider subscribes to a service — SVC-92).
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
 
@@ -70,7 +81,12 @@ export async function apiFetch<T = unknown>(
     } catch {
       // Ignored if response is not JSON
     }
-    throw new Error(errorMsg);
+    throw new ApiError(res.status, errorMsg);
+  }
+
+  // 204 No Content (e.g. DELETE) has an empty body — `res.json()` would throw.
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return undefined as T;
   }
 
   return res.json();
