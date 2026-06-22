@@ -58,6 +58,7 @@ export interface Booking {
   scheduledAt: string;
   otp?: string;
   paymentMethod: "online" | "cash";
+  paymentStatus: "pending" | "paid" | "refunded";
   totalAmount: number;
   createdAt: string;
 }
@@ -300,6 +301,7 @@ export const mockBookings: Booking[] = [
     scheduledAt: "2026-04-15T10:00:00",
     otp: "4829",
     paymentMethod: "online",
+    paymentStatus: "pending",
     totalAmount: 2099,
     createdAt: "2026-04-15T09:30:00",
   },
@@ -311,6 +313,7 @@ export const mockBookings: Booking[] = [
     scheduledAt: "2026-04-15T14:00:00",
     otp: "7163",
     paymentMethod: "cash",
+    paymentStatus: "pending",
     totalAmount: 649,
     createdAt: "2026-04-15T12:00:00",
   },
@@ -321,6 +324,7 @@ export const mockBookings: Booking[] = [
     address: savedAddresses[0],
     scheduledAt: "2026-04-12T11:00:00",
     paymentMethod: "online",
+    paymentStatus: "paid",
     totalAmount: 549,
     createdAt: "2026-04-12T10:00:00",
   },
@@ -331,6 +335,7 @@ export const mockBookings: Booking[] = [
     address: savedAddresses[0],
     scheduledAt: "2026-04-10T16:00:00",
     paymentMethod: "cash",
+    paymentStatus: "paid",
     totalAmount: 399,
     createdAt: "2026-04-10T15:00:00",
   },
@@ -341,6 +346,7 @@ export const mockBookings: Booking[] = [
     address: savedAddresses[1],
     scheduledAt: "2026-04-08T09:00:00",
     paymentMethod: "online",
+    paymentStatus: "refunded",
     totalAmount: 349,
     createdAt: "2026-04-08T08:00:00",
   },

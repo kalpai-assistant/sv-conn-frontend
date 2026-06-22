@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Phone, MapPin, Loader2, Search } from "lucide-react";
+import { ArrowLeft, Phone, MapPin, Loader2, Search, CheckCircle2 } from "lucide-react";
 import { StatusStepper } from "@/components/StatusStepper";
 import { ReviewSheet } from "@/components/ReviewSheet";
 import {
@@ -57,6 +57,7 @@ function TrackingPage() {
   const verifyPaymentMutation = useVerifyPayment();
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [paymentState, setPaymentState] = useState<"idle" | "success" | "failed">("idle");
 
   // useBooking polls every 4s via refetchInterval (SVC-50); no manual interval needed.
 
@@ -104,9 +105,26 @@ function TrackingPage() {
     }
   };
 
+  // Verify the payment server-side before treating it as successful. A failed
+  // verification (bad signature, network error) is surfaced as a failed payment.
+  const handlePaymentSuccess = async (response: any) => {
+    try {
+      await verifyPaymentMutation.mutateAsync({
+        razorpay_order_id: response.razorpay_order_id,
+        razorpay_payment_id: response.razorpay_payment_id,
+        razorpay_signature: response.razorpay_signature,
+      });
+      refetch();
+      setPaymentState("success");
+    } catch (e) {
+      console.error(e);
+      setPaymentState("failed");
+    }
+  };
+
   const handlePayment = async () => {
     if (!window.Razorpay) {
-      alert("Razorpay SDK not loaded.");
+      toast.error("Razorpay SDK not loaded. Please retry.");
       return;
     }
     try {
@@ -119,21 +137,18 @@ function TrackingPage() {
         name: "ServiceConnect",
         description: "Payment for Service",
         order_id: order.razorpay_order_id,
-        handler: async function (response: any) {
-          await verifyPaymentMutation.mutateAsync({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          });
-          refetch();
-          alert("Payment successful!");
+        handler: (response: any) => handlePaymentSuccess(response),
+        // Closing the checkout without paying counts as a failed attempt (SVC-66 shows retry).
+        // Guard against clobbering a payment that already succeeded.
+        modal: {
+          ondismiss: () => setPaymentState((s) => (s === "success" ? s : "failed")),
         },
       };
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
     } catch (e) {
       console.error(e);
-      alert("Payment failed to initialize.");
+      setPaymentState("failed");
     }
   };
 
@@ -281,14 +296,48 @@ function TrackingPage() {
             <span className="font-bold text-primary">₹{booking.totalAmount}</span>
           </div>
 
-          {booking.status === "COMPLETED" && booking.paymentMethod === "online" && (
-            <button
-              onClick={handlePayment}
-              disabled={paymentOrderMutation.isPending}
-              className="w-full mt-2 rounded-xl bg-primary p-3 text-sm font-semibold text-primary-foreground"
-            >
-              {paymentOrderMutation.isPending ? "Loading..." : "Pay Now"}
-            </button>
+          {booking.status === "COMPLETED" &&
+            booking.paymentMethod === "online" &&
+            booking.paymentStatus === "pending" &&
+            paymentState !== "success" &&
+            paymentState !== "failed" && (
+              <button
+                onClick={handlePayment}
+                disabled={paymentOrderMutation.isPending}
+                className="w-full mt-2 rounded-xl bg-primary p-3 text-sm font-semibold text-primary-foreground"
+              >
+                {paymentOrderMutation.isPending
+                  ? "Loading..."
+                  : `Pay Now — ₹${booking.totalAmount}`}
+              </button>
+            )}
+
+          {paymentState === "success" && (
+            <div className="mt-2 flex flex-col items-center gap-2 rounded-xl border border-success bg-success/10 p-4 text-center">
+              <CheckCircle2 className="h-8 w-8 text-success" />
+              <p className="text-sm font-semibold text-success">Payment successful!</p>
+              <button
+                onClick={() => navigate({ to: "/bookings" })}
+                className="mt-1 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+              >
+                Go to bookings
+              </button>
+            </div>
+          )}
+
+          {paymentState === "failed" && (
+            <div className="mt-2 rounded-xl border border-destructive bg-destructive/10 p-4 text-center">
+              <p className="text-sm font-medium text-destructive">Payment failed. Try again.</p>
+              <button
+                onClick={() => {
+                  setPaymentState("idle");
+                  handlePayment();
+                }}
+                className="mt-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+              >
+                Retry Payment
+              </button>
+            </div>
           )}
         </div>
 
