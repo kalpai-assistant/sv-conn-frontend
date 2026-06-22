@@ -115,7 +115,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function AppGate({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isNewUser } = useAuth();
   const routerState = useRouterState();
-  const isProfileRoute = routerState.location.pathname.startsWith("/profile");
+  const pathname = routerState.location.pathname;
+  const isProfileRoute = pathname.startsWith("/profile");
+  const isProviderRoute = pathname.startsWith("/provider");
 
   if (!isAuthenticated) {
     return (
@@ -125,10 +127,20 @@ function AppGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Force setup mode for fresh registrations (is_new_user) or when name is missing.
-  // The name check also covers reloads, where the in-memory isNewUser flag resets.
-  if (user && (isNewUser || !user.name) && !isProfileRoute) {
-    return <Navigate to="/profile" />;
+  // Providers live under /provider/*. Keep them there and send consumers away from it.
+  if (user?.role === "provider") {
+    if (!isProviderRoute) {
+      return <Navigate to="/provider" />;
+    }
+  } else {
+    if (isProviderRoute) {
+      return <Navigate to="/" />;
+    }
+    // Consumer onboarding: force profile setup for fresh registrations or when name
+    // is missing. The name check also covers reloads (in-memory isNewUser resets).
+    if (user && (isNewUser || !user.name) && !isProfileRoute) {
+      return <Navigate to="/profile" />;
+    }
   }
 
   return <div className="mx-auto max-w-md min-h-screen bg-background pb-20">{children}</div>;
