@@ -299,6 +299,58 @@ export const useSubmitReview = () => {
   });
 };
 
+// --- Provider service subscriptions (SVC-92) ---
+
+// GET /providers/me/services → [{ id, provider_id, service_id }]. We expose just the
+// set of subscribed service ids; the UI cross-references the full catalog (useServices).
+export const useProviderServices = () => {
+  return useQuery({
+    queryKey: ["providerServices"],
+    queryFn: async () => {
+      const data =
+        await apiFetch<{ id: string; provider_id: string; service_id: string }[]>(
+          "/providers/me/services",
+        );
+      return data.map((s) => s.service_id);
+    },
+  });
+};
+
+// Toggle a provider's subscription to a catalog service with optimistic update + rollback.
+// subscribe=true → POST /providers/me/services { service_id }; false → DELETE …/{id}.
+// A 403 (KYC not verified) surfaces as ApiError with status 403 for the caller to handle.
+export const useToggleProviderService = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ serviceId, subscribe }: { serviceId: string; subscribe: boolean }) => {
+      if (subscribe) {
+        return apiFetch("/providers/me/services", {
+          method: "POST",
+          body: JSON.stringify({ service_id: serviceId }),
+        });
+      }
+      return apiFetch(`/providers/me/services/${serviceId}`, { method: "DELETE" });
+    },
+    onMutate: async ({ serviceId, subscribe }) => {
+      await queryClient.cancelQueries({ queryKey: ["providerServices"] });
+      const previous = queryClient.getQueryData<string[]>(["providerServices"]);
+      queryClient.setQueryData<string[]>(["providerServices"], (old = []) =>
+        subscribe ? [...new Set([...old, serviceId])] : old.filter((id) => id !== serviceId),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      // Roll back to the snapshot taken in onMutate.
+      if (context?.previous) {
+        queryClient.setQueryData(["providerServices"], context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["providerServices"] });
+    },
+  });
+};
+
 export const useCreatePaymentOrder = () => {
   return useMutation({
     mutationFn: async ({ bookingId }: { bookingId: string }) => {
