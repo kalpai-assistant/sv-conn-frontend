@@ -8,6 +8,7 @@ import {
   Navigate,
 } from "@tanstack/react-router";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { useNotificationRouter } from "@/lib/notifications";
 import { BottomNav } from "@/components/BottomNav";
 import { AuthFlow } from "@/components/AuthFlow";
 import { Toaster } from "@/components/ui/sonner";
@@ -116,6 +117,11 @@ function AppGate({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isNewUser } = useAuth();
   const routerState = useRouterState();
   const isProfileRoute = routerState.location.pathname.startsWith("/profile");
+
+  // Wire FCM tap → in-app navigation. No-op on web; lazy-loads the Capacitor
+  // plugin so the web bundle stays clean. Must live inside <AuthProvider/> for
+  // `useAuth()` access — that's why it sits here, not in main.mobile.tsx.
+  useNotificationRouter();
 
   if (!isAuthenticated) {
     return (
