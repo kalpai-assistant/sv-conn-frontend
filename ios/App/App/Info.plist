@@ -47,5 +47,17 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>ServiceConnect uses the camera to capture KYC documents during onboarding.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ServiceConnect needs photo library access so you can upload KYC documents.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>ServiceConnect saves booking receipts to your photo library on request.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ServiceConnect uses your location to match you with nearby providers and to share your live location with the consumer while a job is in progress.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>
