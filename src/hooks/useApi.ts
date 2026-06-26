@@ -411,13 +411,23 @@ export const useUploadPhoto = () => {
   });
 };
 
-// POST /providers/me/kyc (multipart) — upload Aadhaar + selfie; sets kyc_status=submitted.
+// POST /providers/me/kyc (multipart) — upload Aadhaar front + back + live selfie;
+// sets kyc_status=submitted. All three are captured live on the client (no upload).
 export const useSubmitKyc = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ aadhaar, selfie }: { aadhaar: Blob; selfie: Blob }) => {
+    mutationFn: ({
+      aadhaarFront,
+      aadhaarBack,
+      selfie,
+    }: {
+      aadhaarFront: Blob;
+      aadhaarBack: Blob;
+      selfie: Blob;
+    }) => {
       const form = new FormData();
-      form.append("aadhaar", aadhaar, "aadhaar.jpg");
+      form.append("aadhaar_front", aadhaarFront, "aadhaar-front.jpg");
+      form.append("aadhaar_back", aadhaarBack, "aadhaar-back.jpg");
       form.append("selfie", selfie, "selfie.jpg");
       return apiFetch<{ kyc_status: KycStatus; kyc_submitted_at: string | null }>(
         "/providers/me/kyc",

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
 import { useAuth } from "@/lib/auth-context";
-import { captureNativePhoto, isNativePlatform } from "@/lib/camera";
+import { captureLivePhoto, captureNativePhoto, isNativePlatform } from "@/lib/camera";
 import {
   loadOnboardingDraft,
   saveOnboardingDraft,
@@ -49,8 +49,9 @@ function ProviderOnboardingPage() {
   const [languages, setLanguages] = useState<string[]>(draft.languages ?? []);
   const [langInput, setLangInput] = useState("");
 
-  // Step 2 state
-  const [aadhaar, setAadhaar] = useState<Blob | null>(null);
+  // Step 2 state — all captured live (no upload)
+  const [aadhaarFront, setAadhaarFront] = useState<Blob | null>(null);
+  const [aadhaarBack, setAadhaarBack] = useState<Blob | null>(null);
   const [selfie, setSelfie] = useState<Blob | null>(null);
 
   // Persist the resumable parts of the wizard on every change.
@@ -92,12 +93,12 @@ function ProviderOnboardingPage() {
 
   const handleStep2 = async () => {
     setError(null);
-    if (!aadhaar || !selfie) {
-      setError("Please add both your Aadhaar and a selfie.");
+    if (!aadhaarFront || !aadhaarBack || !selfie) {
+      setError("Please capture the Aadhaar front, Aadhaar back, and a live selfie.");
       return;
     }
     try {
-      await submitKyc.mutateAsync({ aadhaar, selfie });
+      await submitKyc.mutateAsync({ aadhaarFront, aadhaarBack, selfie });
       setStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn’t submit your documents. Try again.");
@@ -206,18 +207,39 @@ function ProviderOnboardingPage() {
                 <div>
                   <h1 className="text-lg font-semibold text-foreground">Verify your identity</h1>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Upload your Aadhaar and a live selfie. We review these before you can take jobs.
+                    Take a live photo of your Aadhaar (front and back) and a selfie. These must be
+                    captured with your camera — they can’t be uploaded.
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Aadhaar document</Label>
-                  <ImageInput label="Add Aadhaar photo" file={aadhaar} onSelect={setAadhaar} />
+                  <Label>Aadhaar — front</Label>
+                  <CameraCapture
+                    label="Capture Aadhaar front"
+                    file={aadhaarFront}
+                    onCapture={setAadhaarFront}
+                    direction="rear"
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Selfie</Label>
-                  <ImageInput label="Add a selfie" file={selfie} onSelect={setSelfie} />
+                  <Label>Aadhaar — back</Label>
+                  <CameraCapture
+                    label="Capture Aadhaar back"
+                    file={aadhaarBack}
+                    onCapture={setAadhaarBack}
+                    direction="rear"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Live selfie</Label>
+                  <CameraCapture
+                    label="Take a live selfie"
+                    file={selfie}
+                    onCapture={setSelfie}
+                    direction="front"
+                  />
                 </div>
 
                 <div className="flex gap-3">
@@ -323,5 +345,64 @@ function ImageInput({
         }}
       />
     </>
+  );
+}
+
+// Live-camera-only capture for KYC — no file upload (SVC-93 review). Opens the
+// device camera on native and a webcam modal (@ionic/pwa-elements) on web.
+function CameraCapture({
+  label,
+  file,
+  onCapture,
+  direction,
+}: {
+  label: string;
+  file: Blob | null;
+  onCapture: (file: Blob) => void;
+  direction: "front" | "rear";
+}) {
+  const [preview, setPreview] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!file) {
+      setPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const handleClick = async () => {
+    setBusy(true);
+    try {
+      const blob = await captureLivePhoto(direction);
+      if (blob) onCapture(blob);
+    } catch {
+      // user cancelled or denied permission — no-op
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={busy}
+      className="flex h-32 w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-dashed border-border bg-secondary/40 text-sm text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-60"
+    >
+      {busy ? (
+        <Loader2 className="h-6 w-6 animate-spin" />
+      ) : preview ? (
+        <img src={preview} alt={label} className="h-full w-full object-cover" />
+      ) : (
+        <>
+          <Camera className="h-6 w-6" />
+          {label}
+        </>
+      )}
+    </button>
   );
 }
