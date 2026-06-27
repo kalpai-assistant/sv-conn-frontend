@@ -15,6 +15,7 @@ import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrackingBookingIdRouteImport } from './routes/tracking.$bookingId'
 import { Route as ServiceServiceIdRouteImport } from './routes/service.$serviceId'
+import { Route as AdminKycRouteImport } from './routes/admin.kyc'
 
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
@@ -46,12 +47,18 @@ const ServiceServiceIdRoute = ServiceServiceIdRouteImport.update({
   path: '/service/$serviceId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminKycRoute = AdminKycRouteImport.update({
+  id: '/admin/kyc',
+  path: '/admin/kyc',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/bookings': typeof BookingsRoute
   '/profile': typeof ProfileRoute
+  '/admin/kyc': typeof AdminKycRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/activity': typeof ActivityRoute
   '/bookings': typeof BookingsRoute
   '/profile': typeof ProfileRoute
+  '/admin/kyc': typeof AdminKycRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/activity': typeof ActivityRoute
   '/bookings': typeof BookingsRoute
   '/profile': typeof ProfileRoute
+  '/admin/kyc': typeof AdminKycRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
 }
@@ -79,6 +88,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/bookings'
     | '/profile'
+    | '/admin/kyc'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/bookings'
     | '/profile'
+    | '/admin/kyc'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
   id:
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/bookings'
     | '/profile'
+    | '/admin/kyc'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
   fileRoutesById: FileRoutesById
@@ -104,6 +116,7 @@ export interface RootRouteChildren {
   ActivityRoute: typeof ActivityRoute
   BookingsRoute: typeof BookingsRoute
   ProfileRoute: typeof ProfileRoute
+  AdminKycRoute: typeof AdminKycRoute
   ServiceServiceIdRoute: typeof ServiceServiceIdRoute
   TrackingBookingIdRoute: typeof TrackingBookingIdRoute
 }
@@ -152,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServiceServiceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/kyc': {
+      id: '/admin/kyc'
+      path: '/admin/kyc'
+      fullPath: '/admin/kyc'
+      preLoaderRoute: typeof AdminKycRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -160,6 +180,7 @@ const rootRouteChildren: RootRouteChildren = {
   ActivityRoute: ActivityRoute,
   BookingsRoute: BookingsRoute,
   ProfileRoute: ProfileRoute,
+  AdminKycRoute: AdminKycRoute,
   ServiceServiceIdRoute: ServiceServiceIdRoute,
   TrackingBookingIdRoute: TrackingBookingIdRoute,
 }

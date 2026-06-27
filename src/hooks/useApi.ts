@@ -326,3 +326,69 @@ export const useVerifyPayment = () => {
     },
   });
 };
+
+// --- Admin: KYC review (SVC-87 / SVC-90) ---
+
+export interface API_PendingKYCUser {
+  id: string;
+  name: string | null;
+  phone: string;
+  email: string | null;
+}
+
+export interface API_KYCDocsResponse {
+  user_id: string;
+  name: string | null;
+  phone: string;
+  kyc_status: "pending" | "submitted" | "verified" | "rejected";
+  kyc_submitted_at: string | null;
+  kyc_reviewed_at: string | null;
+  kyc_rejection_reason: string | null;
+  // Presigned, 1-hour TTL. Null if no docs were uploaded for that slot.
+  aadhaar_url: string | null;
+  selfie_url: string | null;
+}
+
+export const usePendingKYC = () => {
+  return useQuery({
+    queryKey: ["admin", "kyc", "pending"],
+    queryFn: () => apiFetch<API_PendingKYCUser[]>("/admin/providers/kyc/pending"),
+  });
+};
+
+export const useKYCReview = (userId: string | null) => {
+  return useQuery({
+    queryKey: ["admin", "kyc", "review", userId],
+    queryFn: () => apiFetch<API_KYCDocsResponse>(`/admin/providers/${userId}/kyc`),
+    // Skip until a row is selected — and disable cache so re-opening the same
+    // row re-mints fresh presigned URLs (the cached ones may have expired).
+    enabled: !!userId,
+    staleTime: 0,
+    gcTime: 0,
+  });
+};
+
+export const useVerifyKYC = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      apiFetch<unknown>(`/admin/providers/${userId}/kyc/verify`, { method: "POST" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "kyc"] });
+    },
+  });
+};
+
+export const useRejectKYC = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, reason }: { userId: string; reason: string }) =>
+      apiFetch<unknown>(`/admin/providers/${userId}/kyc/reject`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "kyc"] });
+    },
+  });
+};
