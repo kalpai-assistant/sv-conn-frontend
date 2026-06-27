@@ -82,6 +82,62 @@ Beta uses Play App Signing — see SC-59. Upload key lives in secrets store, not
 
 ---
 
+## Push notifications
+
+### Receiving + routing (SC-69)
+
+`src/lib/notifications.ts` owns the tap → in-app navigation layer.
+
+**Pure mapping** — `routeForPayload({ event, booking_id }, role)` returns the
+target route. Exported so it can be unit-tested in isolation once a frontend
+test framework lands.
+
+**React glue** — `useNotificationRouter()` is wired from `AppGate` inside
+`__root.tsx`. It:
+
+- Lazy-loads `@capacitor/push-notifications` so the web build stays plugin-free.
+- Listens for `pushNotificationActionPerformed` (tap on a notification when the
+  app is killed or in the background) and navigates per `routeForPayload`.
+- Listens for `pushNotificationReceived` (foreground arrival) and only
+  auto-navigates for the time-critical `new_request` case. Other foreground
+  arrivals are intentionally ignored — the user is presumably already looking
+  at the tracking screen and yanking them is jarring.
+
+**Payload contract** — the backend sends `data = { event, booking_id }` on
+every booking-lifecycle push (see `backend/app/tasks/notification_tasks.py`).
+Capacitor delivers it on `notification.data` for both listener events.
+
+**Event → route:**
+
+| Event | Provider tap | Consumer tap |
+|---|---|---|
+| `new_request` | `/provider?incomingBookingId={id}` | (impossible) |
+| `accepted` | `/provider/job/{id}` | `/tracking/{id}` |
+| `en_route` | `/provider/job/{id}` | `/tracking/{id}` |
+| `in_progress` | `/provider/job/{id}` | `/tracking/{id}` |
+| `completed` | `/provider/job/{id}` | `/tracking/{id}` |
+| `cancelled` | `/provider/job/{id}` | `/tracking/{id}` |
+| `expired` | `/provider/job/{id}` | `/tracking/{id}` |
+
+`/provider/job/{id}` doesn't exist yet — SC-19 / SC-20 builds it. Until then,
+those taps land on the NotFound route. Acceptable for a phased rollout.
+
+**Token registration** is NOT in this lib — that's SC-16 / junior's work. Add
+your `requestPermissions()` + `register()` + `PATCH /users/me/fcm-token` flow
+in a separate place (e.g. a dedicated FCM hook called from `AppGate` or after
+login).
+
+### Out of scope for beta
+
+- **Universal Links / App Links** (web URL → native app handoff). Adds
+  `apple-app-site-association` + `assetlinks.json` complexity; not needed
+  unless we send links in SMS/email. Post-beta.
+- **Background location** while a job is in progress. Tied to the deferred
+  v1.1 real-time tracking work.
+- **iOS rich notifications** (attachments, actions). Plain push is enough.
+
+---
+
 ## First-build verification (SC-68)
 
 Procedure:
