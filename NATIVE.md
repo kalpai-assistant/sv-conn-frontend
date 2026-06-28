@@ -1,8 +1,25 @@
 # Native (iOS / Android) Configuration
 
-This doc covers the Capacitor-generated native projects under `ios/` and `android/` — the parts that live outside the web bundle and won't move when you run `bun cap:sync`.
+This doc covers the Capacitor-generated native projects under `ios/` and `android/` — the parts that live outside the web bundle and won't move when you run `npm run cap:sync`.
 
-If you change a permission, splash screen, deep-link scheme, or app entitlement, **document the change here and run a clean native build before merging**. See [SC-68](../SPRINTS_M2.md) for the first-build verification procedure.
+If you change a permission, splash screen, deep-link scheme, or app entitlement, **document the change here and run a clean native build before merging**. See [First-build verification](#first-build-verification-sc-68) below.
+
+---
+
+## Prerequisites
+
+Run `npm run doctor` (added in SC-68) to check all of these in one shot.
+
+| Tool | Version | Used for | Install |
+|---|---|---|---|
+| Node.js | ≥ 22 (LTS) | Web build, npm | nvm `nvm install --lts` |
+| npm | ≥ 10 | Package manager | bundled with Node |
+| JDK | **17 or 21** | Android Gradle (Gradle 8.14.3 reqs JDK 17+) | `brew install --cask temurin@17` |
+| Android SDK | API 36 | Android build | Android Studio → SDK Manager |
+| Xcode | ≥ 15 | iOS build | Mac App Store |
+| CocoaPods | ≥ 1.14 | iOS plugin install | `brew install cocoapods` |
+
+**We use `npm`, not `bun`.** The `bun.lockb` was removed in SC-68. All `package.json` scripts use `npm` under the hood (`cap:sync`, `cap:android`, `cap:ios`). If you see a `bun` command in older docs or branches, it's stale.
 
 ---
 
@@ -26,7 +43,7 @@ If you change a permission, splash screen, deep-link scheme, or app entitlement,
 ### Files of interest
 
 - `ios/App/App/Info.plist` — usage strings, background modes, supported orientations.
-- `ios/App/App/App.entitlements` — APNs entitlement. **New file.** Must be referenced from the Xcode project (`ios/App/App.xcodeproj/project.pbxproj`) under `CODE_SIGN_ENTITLEMENTS = App/App.entitlements;` for both Debug and Release configurations. **This is a follow-up step that requires opening Xcode** — `bun cap:sync` will not wire it up.
+- `ios/App/App/App.entitlements` — APNs entitlement. **New file.** Must be referenced from the Xcode project (`ios/App/App.xcodeproj/project.pbxproj`) under `CODE_SIGN_ENTITLEMENTS = App/App.entitlements;` for both Debug and Release configurations. **This is a follow-up step that requires opening Xcode** — `npm run cap:sync` will not wire it up.
 - `ios/App/App/AppDelegate.swift` — UIApplicationDelegate. No changes needed for SC-67.
 
 ### APNs environment
@@ -75,10 +92,11 @@ Beta uses Play App Signing — see SC-59. Upload key lives in secrets store, not
 
 ## Common gotchas
 
-- **`bun cap:sync` does not pick up Info.plist changes** if they're inside the file already — it only adds missing keys from `capacitor.config.ts`. Manual edits to Info.plist (like the usage strings here) are preserved across `cap:sync` runs.
+- **`npm run cap:sync` does not pick up Info.plist changes** if they're inside the file already — it only adds missing keys from `capacitor.config.ts`. Manual edits to Info.plist (like the usage strings here) are preserved across syncs.
 - **Xcode "Update to recommended settings"** prompt can rewrite Info.plist on save. If you accept it, re-check the usage strings are still present.
 - **AndroidManifest.xml merging** — Capacitor plugins inject their own manifest entries at build time. If a plugin adds a permission you didn't declare here, document it.
-- **`bun cap:sync` regenerates `MainActivity.java` only if it doesn't exist** — safe to edit by hand.
+- **`npm run cap:sync` regenerates `MainActivity.java` only if it doesn't exist** — safe to edit by hand.
+- **Android Studio first-open prompts** for SDK download + license acceptance. Do this once, then `./gradlew` works from the CLI.
 
 ---
 
@@ -140,22 +158,62 @@ login).
 
 ## First-build verification (SC-68)
 
-Procedure:
+### Headless steps (no device required)
+
+These three run anywhere with Node + npm and verify the web bundle integrates
+cleanly into both native projects. Last run on `main` 2026-06-28 — all green.
 
 ```bash
-# Android
-bun run build:mobile
-bun cap:sync android
+npm install
+npm run build:mobile         # → dist-mobile/
+npx cap sync android         # → copies web bundle + registers plugins for Android
+npx cap sync ios             # → copies web bundle + registers plugins for iOS
+```
+
+Each `cap sync` should end with `Sync finished in <Xs>` and list the registered
+plugins. Currently expected on `main`:
+
+- `@capacitor/app`
+- `@capacitor/push-notifications`
+- `@capacitor/splash-screen`
+- `@capacitor/status-bar`
+- `@capacitor/camera` (once SVC-93 merges)
+
+### Native build + device install (requires real tooling)
+
+```bash
+# Android — requires JDK 17+ and the Android SDK
 cd android && ./gradlew assembleDebug
-# Install APK on physical device: android/app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ```bash
-# iOS
-bun run build:mobile
-bun cap:sync ios
+# iOS — requires macOS + Xcode + CocoaPods
 cd ios/App && pod install
-open App.xcworkspace   # build + run from Xcode on simulator or device
+open App.xcworkspace          # build + run from Xcode on simulator or device
 ```
 
-Walk the happy path on a real device. Anything that crashes, file a P0.
+### Walk-through
+
+On a physical device (Android first since iOS needs a paid Apple Dev account):
+
+1. App launches without crash, lands on phone-entry screen.
+2. Enter phone → OTP screen appears within 2s.
+3. Use the staging OTP (`123456` in dev) → home screen renders with categories.
+4. Open a service → BookingSheet opens with addresses + Pay Now.
+5. Force-close app, send a test push from Firebase Console with
+   `data={event:"new_request", booking_id:"<uuid>"}` → tap the notification →
+   app launches and routes to the right screen (SC-69).
+
+Anything that crashes during launch or these flows, file a P0.
+
+### Known gaps blocking full verification
+
+- **Apple Developer org account** (SC-71) — once approved, iOS builds can be
+  signed for real-device install. Until then, simulator + free 7-day signing
+  only.
+- **Google Play Console** (SC-72) — release-signed AAB requires the upload
+  keystore. Debug builds don't.
+- **APNs auth key** (SC-74) — without it, push notifications fail silently
+  on iOS in production. Debug builds work via Firebase Cloud Messaging on
+  development tokens.

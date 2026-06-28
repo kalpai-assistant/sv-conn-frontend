@@ -33,6 +33,7 @@ dist-mobile
 .env.production.local
 *.local
 ! .env.example
+! .npmrc
 
 # Wrangler / Cloudflare
 .wrangler/
