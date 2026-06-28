@@ -43,7 +43,7 @@ Run `npm run doctor` (added in SC-68) to check all of these in one shot.
 ### Files of interest
 
 - `ios/App/App/Info.plist` — usage strings, background modes, supported orientations.
-- `ios/App/App/App.entitlements` — APNs entitlement. **New file.** Must be referenced from the Xcode project (`ios/App/App.xcodeproj/project.pbxproj`) under `CODE_SIGN_ENTITLEMENTS = App/App.entitlements;` for both Debug and Release configurations. **This is a follow-up step that requires opening Xcode** — `npm run cap:sync` will not wire it up.
+- `ios/App/App/App.entitlements` — APNs entitlement. Wired into the Xcode project (`project.pbxproj`) under `CODE_SIGN_ENTITLEMENTS = App/App.entitlements;` for both Target Debug and Release configurations. **Don't remove this entry** — without it the entitlement isn't packaged into the signed binary and push notifications silently fail on real devices. The file isn't listed in Xcode's file navigator (it's referenced by path, not as a `PBXFileReference`), but it still builds.
 - `ios/App/App/AppDelegate.swift` — UIApplicationDelegate. No changes needed for SC-67.
 
 ### APNs environment
@@ -52,10 +52,10 @@ Run `npm run doctor` (added in SC-68) to check all of these in one shot.
 
 ### Push capability in Xcode
 
-After opening Xcode for the first time:
-1. Target App → Signing & Capabilities → `+ Capability` → Push Notifications.
-2. This automatically updates the entitlements file and provisioning profile.
-3. Background Modes capability → enable **Remote notifications** (matches `UIBackgroundModes` in Info.plist).
+Already wired in `project.pbxproj` (Target Debug + Release have `CODE_SIGN_ENTITLEMENTS`). The first time someone opens the project in Xcode:
+
+1. Verify Target App → Signing & Capabilities shows **Push Notifications** and **Background Modes: Remote notifications**. If either is missing, Xcode will offer to add it — accept; this only writes back what's already declared in `App.entitlements` and `Info.plist`.
+2. Make sure the development team is selected (depends on your Apple Developer account being active — SC-71).
 
 ### Bundle identifier
 
