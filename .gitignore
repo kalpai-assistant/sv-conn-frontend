@@ -61,3 +61,8 @@ GoogleService-Info.plist
 Thumbs.db
 ehthumbs.db
 desktop.ini
+
+# Local tooling / editor / agent state
+.claude/
+.mcp.json
+*.tmp

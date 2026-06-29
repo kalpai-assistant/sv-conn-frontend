@@ -351,6 +351,93 @@ export const useToggleProviderService = () => {
   });
 };
 
+// --- Provider onboarding (SVC-93) ---
+
+export type KycStatus = "pending" | "submitted" | "verified" | "rejected";
+
+export interface ProviderProfile {
+  id: string;
+  user_id: string;
+  profile_photo_url: string | null;
+  languages: string[];
+  kyc_status: KycStatus;
+  avg_rating: number;
+  total_completed_jobs: number;
+}
+
+// GET /providers/me — the current provider's profile (kyc_status drives the
+// onboarding route guard and the Step 3 services-picker lock).
+export const useProviderProfile = (enabled = true) => {
+  return useQuery({
+    queryKey: ["providerProfile"],
+    queryFn: () => apiFetch<ProviderProfile>("/providers/me"),
+    enabled,
+  });
+};
+
+// PATCH /users/me { name } — name lives on the user, not the provider profile.
+export const useUpdateName = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiFetch("/users/me", { method: "PATCH", body: JSON.stringify({ name }) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+  });
+};
+
+// PATCH /providers/me { languages } — backend trims + de-duplicates server-side.
+export const useUpdateLanguages = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (languages: string[]) =>
+      apiFetch<ProviderProfile>("/providers/me", {
+        method: "PATCH",
+        body: JSON.stringify({ languages }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+  });
+};
+
+// POST /providers/me/photo (multipart) — upload/replace the provider photo.
+export const useUploadPhoto = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (photo: Blob) => {
+      const form = new FormData();
+      form.append("photo", photo, "photo.jpg");
+      return apiFetch<ProviderProfile>("/providers/me/photo", { method: "POST", body: form });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+  });
+};
+
+// POST /providers/me/kyc (multipart) — upload Aadhaar front + back + live selfie;
+// sets kyc_status=submitted. All three are captured live on the client (no upload).
+export const useSubmitKyc = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      aadhaarFront,
+      aadhaarBack,
+      selfie,
+    }: {
+      aadhaarFront: Blob;
+      aadhaarBack: Blob;
+      selfie: Blob;
+    }) => {
+      const form = new FormData();
+      form.append("aadhaar_front", aadhaarFront, "aadhaar-front.jpg");
+      form.append("aadhaar_back", aadhaarBack, "aadhaar-back.jpg");
+      form.append("selfie", selfie, "selfie.jpg");
+      return apiFetch<{ kyc_status: KycStatus; kyc_submitted_at: string | null }>(
+        "/providers/me/kyc",
+        { method: "POST", body: form },
+      );
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+  });
+};
+
 export const useCreatePaymentOrder = () => {
   return useMutation({
     mutationFn: async ({ bookingId }: { bookingId: string }) => {

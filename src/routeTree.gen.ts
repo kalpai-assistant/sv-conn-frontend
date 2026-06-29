@@ -17,6 +17,7 @@ import { Route as ProviderIndexRouteImport } from './routes/provider/index'
 import { Route as TrackingBookingIdRouteImport } from './routes/tracking.$bookingId'
 import { Route as ServiceServiceIdRouteImport } from './routes/service.$serviceId'
 import { Route as ProviderProfileRouteImport } from './routes/provider/profile'
+import { Route as ProviderOnboardingRouteImport } from './routes/provider/onboarding'
 import { Route as ProviderEarningsRouteImport } from './routes/provider/earnings'
 import { Route as ProviderBookingsRouteImport } from './routes/provider/bookings'
 
@@ -60,6 +61,11 @@ const ProviderProfileRoute = ProviderProfileRouteImport.update({
   path: '/provider/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProviderOnboardingRoute = ProviderOnboardingRouteImport.update({
+  id: '/provider/onboarding',
+  path: '/provider/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProviderEarningsRoute = ProviderEarningsRouteImport.update({
   id: '/provider/earnings',
   path: '/provider/earnings',
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/provider/bookings': typeof ProviderBookingsRoute
   '/provider/earnings': typeof ProviderEarningsRoute
+  '/provider/onboarding': typeof ProviderOnboardingRoute
   '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/provider/bookings': typeof ProviderBookingsRoute
   '/provider/earnings': typeof ProviderEarningsRoute
+  '/provider/onboarding': typeof ProviderOnboardingRoute
   '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/provider/bookings': typeof ProviderBookingsRoute
   '/provider/earnings': typeof ProviderEarningsRoute
+  '/provider/onboarding': typeof ProviderOnboardingRoute
   '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/provider/bookings'
     | '/provider/earnings'
+    | '/provider/onboarding'
     | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/provider/bookings'
     | '/provider/earnings'
+    | '/provider/onboarding'
     | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/provider/bookings'
     | '/provider/earnings'
+    | '/provider/onboarding'
     | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
@@ -154,6 +166,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   ProviderBookingsRoute: typeof ProviderBookingsRoute
   ProviderEarningsRoute: typeof ProviderEarningsRoute
+  ProviderOnboardingRoute: typeof ProviderOnboardingRoute
   ProviderProfileRoute: typeof ProviderProfileRoute
   ServiceServiceIdRoute: typeof ServiceServiceIdRoute
   TrackingBookingIdRoute: typeof TrackingBookingIdRoute
@@ -218,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProviderProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/provider/onboarding': {
+      id: '/provider/onboarding'
+      path: '/provider/onboarding'
+      fullPath: '/provider/onboarding'
+      preLoaderRoute: typeof ProviderOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/provider/earnings': {
       id: '/provider/earnings'
       path: '/provider/earnings'
@@ -242,6 +262,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   ProviderBookingsRoute: ProviderBookingsRoute,
   ProviderEarningsRoute: ProviderEarningsRoute,
+  ProviderOnboardingRoute: ProviderOnboardingRoute,
   ProviderProfileRoute: ProviderProfileRoute,
   ServiceServiceIdRoute: ServiceServiceIdRoute,
   TrackingBookingIdRoute: TrackingBookingIdRoute,

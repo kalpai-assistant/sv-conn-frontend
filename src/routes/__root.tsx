@@ -7,7 +7,9 @@ import {
   useRouterState,
   Navigate,
 } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { useProviderProfile } from "@/hooks/useApi";
 import { BottomNav } from "@/components/BottomNav";
 import { AuthFlow } from "@/components/AuthFlow";
 import { Toaster } from "@/components/ui/sonner";
@@ -118,6 +120,12 @@ function AppGate({ children }: { children: React.ReactNode }) {
   const pathname = routerState.location.pathname;
   const isProfileRoute = pathname.startsWith("/profile");
   const isProviderRoute = pathname.startsWith("/provider");
+  const isOnboardingRoute = pathname.startsWith("/provider/onboarding");
+
+  const isProvider = isAuthenticated && user?.role === "provider";
+  // Only fetch the provider profile (for the onboarding gate) once we know they're a provider.
+  const { data: providerProfile, isLoading: providerProfileLoading } =
+    useProviderProfile(isProvider);
 
   if (!isAuthenticated) {
     return (
@@ -131,6 +139,21 @@ function AppGate({ children }: { children: React.ReactNode }) {
   if (user?.role === "provider") {
     if (!isProviderRoute) {
       return <Navigate to="/provider" />;
+    }
+    // Force incomplete providers through onboarding (name missing or KYC not yet
+    // submitted). Once KYC is submitted/verified/rejected they're free to roam.
+    if (!isOnboardingRoute) {
+      if (providerProfileLoading) {
+        return (
+          <div className="flex min-h-screen items-center justify-center bg-background">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        );
+      }
+      const incomplete = !user?.name || providerProfile?.kyc_status === "pending";
+      if (incomplete) {
+        return <Navigate to="/provider/onboarding" />;
+      }
     }
   } else {
     if (isProviderRoute) {
