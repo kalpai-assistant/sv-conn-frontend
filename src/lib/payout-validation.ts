@@ -5,7 +5,8 @@
 // Each validator returns null when valid, or a user-facing error message.
 
 // UPI VPA: local-part@handle, e.g. "name@okhdfcbank" (min 2 chars each side).
-export const UPI_VPA_RE = /^[\w.\-]{2,}@[A-Za-z]{2,}$/;
+// Matches the backend set [word char, dot, hyphen]; hyphen last = literal.
+export const UPI_VPA_RE = /^[\w.-]{2,}@[A-Za-z]{2,}$/;
 // IFSC: 4 letters + "0" + 6 alphanumeric, e.g. "HDFC0001234".
 export const IFSC_RE = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 // Bank account number: digits only, 5–34 long.

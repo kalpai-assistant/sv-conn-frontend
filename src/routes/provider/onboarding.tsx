@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
+import { PayoutStep } from "@/components/provider/PayoutStep";
 import { useAuth } from "@/lib/auth-context";
 import { captureLivePhoto, captureNativePhoto, isNativePlatform } from "@/lib/camera";
 import {
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/provider/onboarding")({
   component: ProviderOnboardingPage,
 });
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 4;
 
 function ProviderOnboardingPage() {
   const navigate = useNavigate();
@@ -254,6 +255,14 @@ function ProviderOnboardingPage() {
             )}
 
             {step === 3 && (
+              <PayoutStep
+                alreadySet={!!profile?.payout_set}
+                onBack={() => setStep(2)}
+                onDone={() => setStep(4)}
+              />
+            )}
+
+            {step === 4 && (
               <div className="space-y-5">
                 <div>
                   <h1 className="text-lg font-semibold text-foreground">Choose your services</h1>
