@@ -363,6 +363,8 @@ export interface ProviderProfile {
   kyc_status: KycStatus;
   avg_rating: number;
   total_completed_jobs: number;
+  // Derived on the backend: whether a payout destination is on file. Never the raw PII.
+  payout_set: boolean;
 }
 
 // GET /providers/me — the current provider's profile (kyc_status drives the
@@ -434,6 +436,25 @@ export const useSubmitKyc = () => {
         { method: "POST", body: form },
       );
     },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+  });
+};
+
+// PATCH /providers/me — save the provider's payout destination (SVC-133).
+// Send UPI *or* bank details; the backend encrypts at rest and returns the
+// derived payout_set flag (never the raw PII).
+export type PayoutInput =
+  | { payout_vpa: string }
+  | { payout_account_number: string; payout_ifsc: string };
+
+export const useUpdatePayout = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payout: PayoutInput) =>
+      apiFetch<ProviderProfile>("/providers/me", {
+        method: "PATCH",
+        body: JSON.stringify(payout),
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
   });
 };
