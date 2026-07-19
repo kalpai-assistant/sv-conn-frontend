@@ -11,11 +11,14 @@ const tabs = [
 export function BottomNav() {
   const location = useLocation();
 
-  // Hide on auth, tracking, service detail, and admin screens
+  // Hide on auth, tracking, service detail, admin, and public legal pages
   if (
     location.pathname.startsWith("/tracking") ||
     location.pathname.startsWith("/service/") ||
-    location.pathname.startsWith("/admin")
+    location.pathname.startsWith("/admin") ||
+    location.pathname === "/privacy" ||
+    location.pathname === "/terms" ||
+    location.pathname === "/refund"
   ) {
     return null;
   }

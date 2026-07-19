@@ -16,6 +16,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrackingBookingIdRouteImport } from './routes/tracking.$bookingId'
 import { Route as ServiceServiceIdRouteImport } from './routes/service.$serviceId'
 import { Route as AdminKycRouteImport } from './routes/admin.kyc'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as RefundRouteImport } from './routes/refund'
 
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
@@ -52,6 +55,21 @@ const AdminKycRoute = AdminKycRouteImport.update({
   path: '/admin/kyc',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RefundRoute = RefundRouteImport.update({
+  id: '/refund',
+  path: '/refund',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -59,6 +77,9 @@ export interface FileRoutesByFullPath {
   '/bookings': typeof BookingsRoute
   '/profile': typeof ProfileRoute
   '/admin/kyc': typeof AdminKycRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
+  '/refund': typeof RefundRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
 }
@@ -68,6 +89,9 @@ export interface FileRoutesByTo {
   '/bookings': typeof BookingsRoute
   '/profile': typeof ProfileRoute
   '/admin/kyc': typeof AdminKycRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
+  '/refund': typeof RefundRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
 }
@@ -78,6 +102,9 @@ export interface FileRoutesById {
   '/bookings': typeof BookingsRoute
   '/profile': typeof ProfileRoute
   '/admin/kyc': typeof AdminKycRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
+  '/refund': typeof RefundRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
 }
@@ -89,6 +116,9 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/profile'
     | '/admin/kyc'
+    | '/privacy'
+    | '/terms'
+    | '/refund'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +128,9 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/profile'
     | '/admin/kyc'
+    | '/privacy'
+    | '/terms'
+    | '/refund'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
   id:
@@ -107,6 +140,9 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/profile'
     | '/admin/kyc'
+    | '/privacy'
+    | '/terms'
+    | '/refund'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
   fileRoutesById: FileRoutesById
@@ -117,6 +153,9 @@ export interface RootRouteChildren {
   BookingsRoute: typeof BookingsRoute
   ProfileRoute: typeof ProfileRoute
   AdminKycRoute: typeof AdminKycRoute
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
+  RefundRoute: typeof RefundRoute
   ServiceServiceIdRoute: typeof ServiceServiceIdRoute
   TrackingBookingIdRoute: typeof TrackingBookingIdRoute
 }
@@ -172,6 +211,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminKycRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/refund': {
+      id: '/refund'
+      path: '/refund'
+      fullPath: '/refund'
+      preLoaderRoute: typeof RefundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -181,6 +241,9 @@ const rootRouteChildren: RootRouteChildren = {
   BookingsRoute: BookingsRoute,
   ProfileRoute: ProfileRoute,
   AdminKycRoute: AdminKycRoute,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
+  RefundRoute: RefundRoute,
   ServiceServiceIdRoute: ServiceServiceIdRoute,
   TrackingBookingIdRoute: TrackingBookingIdRoute,
 }

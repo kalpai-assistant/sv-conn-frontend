@@ -124,12 +124,23 @@ function AppGate({ children }: { children: React.ReactNode }) {
   const pathname = routerState.location.pathname;
   const isProfileRoute = pathname.startsWith("/profile");
   const isAdminRoute = pathname.startsWith("/admin");
+  // SVC-37: legal pages must be reachable without login. Razorpay merchant
+  // review, Play Store data-safety review, and App Store privacy nutrition
+  // reviewers hit these URLs anonymously — an AuthFlow gate would kill the
+  // submission. Kept as a full-width layout with no BottomNav.
+  const isPublicLegalRoute =
+    pathname === "/privacy" || pathname === "/terms" || pathname === "/refund";
   const role = (user as UserWithMaybeRole | null)?.role ?? null;
 
   // Wire FCM tap → in-app navigation. No-op on web; lazy-loads the Capacitor
   // plugin so the web bundle stays clean. Must live inside <AuthProvider/> for
   // `useAuth()` access — that's why it sits here, not in main.mobile.tsx.
   useNotificationRouter();
+
+  // Public legal pages render regardless of auth state.
+  if (isPublicLegalRoute) {
+    return <div className="min-h-screen bg-background">{children}</div>;
+  }
 
   if (!isAuthenticated) {
     return (
