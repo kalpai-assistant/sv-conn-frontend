@@ -128,7 +128,8 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // review, Play Store data-safety review, and App Store privacy nutrition
   // reviewers hit these URLs anonymously — an AuthFlow gate would kill the
   // submission. Kept as a full-width layout with no BottomNav.
-  const isPublicLegalRoute = pathname === "/privacy" || pathname === "/terms";
+  const isPublicLegalRoute =
+    pathname === "/privacy" || pathname === "/terms" || pathname === "/refund";
   const role = (user as UserWithMaybeRole | null)?.role ?? null;
 
   // Wire FCM tap → in-app navigation. No-op on web; lazy-loads the Capacitor

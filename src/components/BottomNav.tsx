@@ -17,7 +17,8 @@ export function BottomNav() {
     location.pathname.startsWith("/service/") ||
     location.pathname.startsWith("/admin") ||
     location.pathname === "/privacy" ||
-    location.pathname === "/terms"
+    location.pathname === "/terms" ||
+    location.pathname === "/refund"
   ) {
     return null;
   }
