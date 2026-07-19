@@ -113,10 +113,18 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+// `User.role` is added by junior's SVC-82 (provider role gate) and isn't on
+// main yet — see notifications.ts for the same defensive read pattern. Once
+// SVC-82 merges, this surfaces transparently with no change here.
+type UserWithMaybeRole = { role?: "consumer" | "provider" | "admin" };
+
 function AppGate({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isNewUser } = useAuth();
   const routerState = useRouterState();
-  const isProfileRoute = routerState.location.pathname.startsWith("/profile");
+  const pathname = routerState.location.pathname;
+  const isProfileRoute = pathname.startsWith("/profile");
+  const isAdminRoute = pathname.startsWith("/admin");
+  const role = (user as UserWithMaybeRole | null)?.role ?? null;
 
   // Wire FCM tap → in-app navigation. No-op on web; lazy-loads the Capacitor
   // plugin so the web bundle stays clean. Must live inside <AuthProvider/> for
@@ -131,12 +139,23 @@ function AppGate({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Admin routes (SVC-90 KYC review) require the admin role. Non-admins on
+  // /admin/* get bounced home; admins are free to visit any route.
+  if (isAdminRoute && role !== "admin") {
+    return <Navigate to="/" />;
+  }
+
   // Force setup mode for fresh registrations (is_new_user) or when name is missing.
   // The name check also covers reloads, where the in-memory isNewUser flag resets.
-  if (user && (isNewUser || !user.name) && !isProfileRoute) {
+  // Skip for admins — they don't use the consumer onboarding flow.
+  if (role !== "admin" && user && (isNewUser || !user.name) && !isProfileRoute) {
     return <Navigate to="/profile" />;
   }
 
+  // Admin pages render full-width; consumer/provider keep the max-w-md mobile shell.
+  if (isAdminRoute) {
+    return <div className="min-h-screen bg-background">{children}</div>;
+  }
   return <div className="mx-auto max-w-md min-h-screen bg-background pb-20">{children}</div>;
 }
 

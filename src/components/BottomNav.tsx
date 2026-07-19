@@ -11,10 +11,11 @@ const tabs = [
 export function BottomNav() {
   const location = useLocation();
 
-  // Hide on auth, tracking, and service detail screens
+  // Hide on auth, tracking, service detail, and admin screens
   if (
     location.pathname.startsWith("/tracking") ||
-    location.pathname.startsWith("/service/")
+    location.pathname.startsWith("/service/") ||
+    location.pathname.startsWith("/admin")
   ) {
     return null;
   }
@@ -23,7 +24,8 @@ export function BottomNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card safe-bottom">
       <div className="mx-auto flex h-16 max-w-md items-center justify-around">
         {tabs.map(({ to, icon: Icon, label }) => {
-          const active = location.pathname === to || (to !== "/" && location.pathname.startsWith(to));
+          const active =
+            location.pathname === to || (to !== "/" && location.pathname.startsWith(to));
           return (
             <Link
               key={to}
