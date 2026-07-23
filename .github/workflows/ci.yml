@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: lint · typecheck · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # npm ci enforces lock consistency (fails on drift) — desirable in CI.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # tsc with --noEmit is our typecheck — package.json has no dedicated
+      # script, so call it directly. tsconfig already sets noEmit but the
+      # explicit flag protects against a future config change.
+      #
+      # Advisory for now: main has a few preexisting type errors
+      # (missing @/types/api module, Razorpay window shim, etc). Flip to
+      # blocking once those are cleaned up.
+      - name: Typecheck (advisory)
+        run: npx tsc --noEmit
+        continue-on-error: true
+
+      # Web build. Mobile build (build:mobile) is Capacitor-specific and
+      # only meaningful during a native release — skipped in CI.
+      - name: Build (web)
+        run: npm run build
