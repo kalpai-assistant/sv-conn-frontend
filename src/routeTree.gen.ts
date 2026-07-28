@@ -9,25 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as BookingsRouteImport } from './routes/bookings'
-import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TrackingBookingIdRouteImport } from './routes/tracking.$bookingId'
-import { Route as ServiceServiceIdRouteImport } from './routes/service.$serviceId'
-import { Route as AdminKycRouteImport } from './routes/admin.kyc'
+import { Route as ActivityRouteImport } from './routes/activity'
+import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as TermsRouteImport } from './routes/terms'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RefundRouteImport } from './routes/refund'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as AdminKycRouteImport } from './routes/admin.kyc'
+import { Route as AdminPayoutsRouteImport } from './routes/admin.payouts'
+import { Route as ServiceServiceIdRouteImport } from './routes/service.$serviceId'
+import { Route as TrackingBookingIdRouteImport } from './routes/tracking.$bookingId'
 
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BookingsRoute = BookingsRouteImport.update({
-  id: '/bookings',
-  path: '/bookings',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ActivityRoute = ActivityRouteImport.update({
@@ -35,24 +31,9 @@ const ActivityRoute = ActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TrackingBookingIdRoute = TrackingBookingIdRouteImport.update({
-  id: '/tracking/$bookingId',
-  path: '/tracking/$bookingId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ServiceServiceIdRoute = ServiceServiceIdRouteImport.update({
-  id: '/service/$serviceId',
-  path: '/service/$serviceId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminKycRoute = AdminKycRouteImport.update({
-  id: '/admin/kyc',
-  path: '/admin/kyc',
+const BookingsRoute = BookingsRouteImport.update({
+  id: '/bookings',
+  path: '/bookings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -60,9 +41,9 @@ const PrivacyRoute = PrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RefundRoute = RefundRouteImport.update({
@@ -70,16 +51,42 @@ const RefundRoute = RefundRouteImport.update({
   path: '/refund',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminKycRoute = AdminKycRouteImport.update({
+  id: '/admin/kyc',
+  path: '/admin/kyc',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
+  id: '/admin/payouts',
+  path: '/admin/payouts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServiceServiceIdRoute = ServiceServiceIdRouteImport.update({
+  id: '/service/$serviceId',
+  path: '/service/$serviceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackingBookingIdRoute = TrackingBookingIdRouteImport.update({
+  id: '/tracking/$bookingId',
+  path: '/tracking/$bookingId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/bookings': typeof BookingsRoute
-  '/profile': typeof ProfileRoute
-  '/admin/kyc': typeof AdminKycRoute
   '/privacy': typeof PrivacyRoute
-  '/terms': typeof TermsRoute
+  '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
+  '/terms': typeof TermsRoute
+  '/admin/kyc': typeof AdminKycRoute
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
 }
@@ -87,11 +94,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/bookings': typeof BookingsRoute
-  '/profile': typeof ProfileRoute
-  '/admin/kyc': typeof AdminKycRoute
   '/privacy': typeof PrivacyRoute
-  '/terms': typeof TermsRoute
+  '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
+  '/terms': typeof TermsRoute
+  '/admin/kyc': typeof AdminKycRoute
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
 }
@@ -100,11 +108,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/bookings': typeof BookingsRoute
-  '/profile': typeof ProfileRoute
-  '/admin/kyc': typeof AdminKycRoute
   '/privacy': typeof PrivacyRoute
-  '/terms': typeof TermsRoute
+  '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
+  '/terms': typeof TermsRoute
+  '/admin/kyc': typeof AdminKycRoute
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
 }
@@ -114,11 +123,12 @@ export interface FileRouteTypes {
     | '/'
     | '/activity'
     | '/bookings'
-    | '/profile'
-    | '/admin/kyc'
     | '/privacy'
-    | '/terms'
+    | '/profile'
     | '/refund'
+    | '/terms'
+    | '/admin/kyc'
+    | '/admin/payouts'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
   fileRoutesByTo: FileRoutesByTo
@@ -126,11 +136,12 @@ export interface FileRouteTypes {
     | '/'
     | '/activity'
     | '/bookings'
-    | '/profile'
-    | '/admin/kyc'
     | '/privacy'
-    | '/terms'
+    | '/profile'
     | '/refund'
+    | '/terms'
+    | '/admin/kyc'
+    | '/admin/payouts'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
   id:
@@ -138,11 +149,12 @@ export interface FileRouteTypes {
     | '/'
     | '/activity'
     | '/bookings'
-    | '/profile'
-    | '/admin/kyc'
     | '/privacy'
-    | '/terms'
+    | '/profile'
     | '/refund'
+    | '/terms'
+    | '/admin/kyc'
+    | '/admin/payouts'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
   fileRoutesById: FileRoutesById
@@ -151,29 +163,23 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActivityRoute: typeof ActivityRoute
   BookingsRoute: typeof BookingsRoute
-  ProfileRoute: typeof ProfileRoute
-  AdminKycRoute: typeof AdminKycRoute
   PrivacyRoute: typeof PrivacyRoute
-  TermsRoute: typeof TermsRoute
+  ProfileRoute: typeof ProfileRoute
   RefundRoute: typeof RefundRoute
+  TermsRoute: typeof TermsRoute
+  AdminKycRoute: typeof AdminKycRoute
+  AdminPayoutsRoute: typeof AdminPayoutsRoute
   ServiceServiceIdRoute: typeof ServiceServiceIdRoute
   TrackingBookingIdRoute: typeof TrackingBookingIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/bookings': {
-      id: '/bookings'
-      path: '/bookings'
-      fullPath: '/bookings'
-      preLoaderRoute: typeof BookingsRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/activity': {
@@ -183,32 +189,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tracking/$bookingId': {
-      id: '/tracking/$bookingId'
-      path: '/tracking/$bookingId'
-      fullPath: '/tracking/$bookingId'
-      preLoaderRoute: typeof TrackingBookingIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/service/$serviceId': {
-      id: '/service/$serviceId'
-      path: '/service/$serviceId'
-      fullPath: '/service/$serviceId'
-      preLoaderRoute: typeof ServiceServiceIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/kyc': {
-      id: '/admin/kyc'
-      path: '/admin/kyc'
-      fullPath: '/admin/kyc'
-      preLoaderRoute: typeof AdminKycRouteImport
+    '/bookings': {
+      id: '/bookings'
+      path: '/bookings'
+      fullPath: '/bookings'
+      preLoaderRoute: typeof BookingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -218,11 +203,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/refund': {
@@ -232,6 +217,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RefundRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/kyc': {
+      id: '/admin/kyc'
+      path: '/admin/kyc'
+      fullPath: '/admin/kyc'
+      preLoaderRoute: typeof AdminKycRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/payouts': {
+      id: '/admin/payouts'
+      path: '/admin/payouts'
+      fullPath: '/admin/payouts'
+      preLoaderRoute: typeof AdminPayoutsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/service/$serviceId': {
+      id: '/service/$serviceId'
+      path: '/service/$serviceId'
+      fullPath: '/service/$serviceId'
+      preLoaderRoute: typeof ServiceServiceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tracking/$bookingId': {
+      id: '/tracking/$bookingId'
+      path: '/tracking/$bookingId'
+      fullPath: '/tracking/$bookingId'
+      preLoaderRoute: typeof TrackingBookingIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -239,11 +259,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
   BookingsRoute: BookingsRoute,
-  ProfileRoute: ProfileRoute,
-  AdminKycRoute: AdminKycRoute,
   PrivacyRoute: PrivacyRoute,
-  TermsRoute: TermsRoute,
+  ProfileRoute: ProfileRoute,
   RefundRoute: RefundRoute,
+  TermsRoute: TermsRoute,
+  AdminKycRoute: AdminKycRoute,
+  AdminPayoutsRoute: AdminPayoutsRoute,
   ServiceServiceIdRoute: ServiceServiceIdRoute,
   TrackingBookingIdRoute: TrackingBookingIdRoute,
 }
