@@ -11,7 +11,7 @@ function MapEvents({ onCenterChanged }: { onCenterChanged: (lat: number, lng: nu
       const map = e.target;
       const newCenter = map.getCenter();
       onCenterChanged(newCenter.lat, newCenter.lng);
-    }
+    },
   });
   return null;
 }
@@ -24,7 +24,11 @@ function RecenterMap({ center }: { center: [number, number] }) {
   return null;
 }
 
-export function MapPicker({ onLocationSelected }: { onLocationSelected: (lat: number, lng: number, address: string) => void }) {
+export function MapPicker({
+  onLocationSelected,
+}: {
+  onLocationSelected: (lat: number, lng: number, address: string) => void;
+}) {
   const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
   const [address, setAddress] = useState("Fetching location...");
   const [isFetching, setIsFetching] = useState(false);
@@ -32,7 +36,9 @@ export function MapPicker({ onLocationSelected }: { onLocationSelected: (lat: nu
   const fetchAddress = async (lat: number, lng: number) => {
     setIsFetching(true);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+      );
       const data = await res.json();
       const displayAddress = data.display_name || "Unknown Location";
       setAddress(displayAddress);
@@ -65,7 +71,7 @@ export function MapPicker({ onLocationSelected }: { onLocationSelected: (lat: nu
         () => {
           setIsFetching(false);
           alert("Could not get your location automatically.");
-        }
+        },
       );
     }
   };
@@ -73,10 +79,10 @@ export function MapPicker({ onLocationSelected }: { onLocationSelected: (lat: nu
   return (
     <div className="relative h-full w-full bg-muted flex flex-col">
       <div className="flex-1 relative z-0">
-        <MapContainer 
-          center={center} 
-          zoom={16} 
-          scrollWheelZoom={true} 
+        <MapContainer
+          center={center}
+          zoom={16}
+          scrollWheelZoom={true}
           className="h-full w-full z-0"
           zoomControl={false}
         >
@@ -87,14 +93,14 @@ export function MapPicker({ onLocationSelected }: { onLocationSelected: (lat: nu
           <MapEvents onCenterChanged={handleCenterChanged} />
           <RecenterMap center={center} />
         </MapContainer>
-        
+
         {/* Fixed Center Pin */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-10 pointer-events-none drop-shadow-lg">
           <MapPin className="h-10 w-10 text-primary" fill="currentColor" />
         </div>
 
         {/* Locate Me Button */}
-        <button 
+        <button
           onClick={handleLocateMe}
           className="absolute bottom-4 right-4 z-10 h-12 w-12 bg-card rounded-full shadow-lg border border-border flex items-center justify-center"
         >

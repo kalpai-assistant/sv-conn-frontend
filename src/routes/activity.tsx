@@ -14,9 +14,9 @@ export const Route = createFileRoute("/activity")({
 
 function ActivityPage() {
   const { data: bookings, isLoading } = useBookings();
-  
+
   const sorted = [...(bookings || [])].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
   return (
@@ -34,17 +34,26 @@ function ActivityPage() {
           <p className="py-12 text-center text-sm text-muted-foreground">No recent activity.</p>
         ) : (
           sorted.map((b) => (
-            <div key={b.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+            <div
+              key={b.id}
+              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
+            >
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
                 {b.service.name.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{b.service.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {new Date(b.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ₹{b.totalAmount}
+                  {new Date(b.createdAt).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                  })}{" "}
+                  · ₹{b.totalAmount}
                 </p>
               </div>
-              <span className="text-xs text-muted-foreground capitalize">{b.status.replace("_", " ").toLowerCase()}</span>
+              <span className="text-xs text-muted-foreground capitalize">
+                {b.status.replace("_", " ").toLowerCase()}
+              </span>
             </div>
           ))
         )}

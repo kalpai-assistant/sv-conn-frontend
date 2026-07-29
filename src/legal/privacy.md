@@ -27,6 +27,7 @@ Welcome to Eazyserv Technologies India Private Limited Company’s privacy polic
 (vi) Usage Data, which includes information about how you use the Services and Professional Services, your activity on the Platform, booking history, user taps and clicks, user interests, time spent on the Platform, details about user journey on the mobile application, and page views.
 
 (vii) Only For Native Smart Lock Users, Information such as images of unlock events, alarm triggers and breach alerts, user unlock history, user-defined names for registered lock members, unlock methods registered, visitor access codes and general user preferences.
+
 - Please note the biometric data (face, fingerprint etc.) and PINs that are used by you to unlock the Native Smart Locks are stored locally on the device and attached sensors only and are not accessible to us.
 
 (b) We also collect, use, and share aggregated data such as statistical or demographic data for any purpose. Aggregated data could be derived from your personal data but is not considered personal data under law as it does not directly or indirectly reveal your identity. However, if we combine or connect aggregated data with your personal data so that it can directly or indirectly identify you, we treat the combined data as personal data which will be used in accordance with this Policy.
@@ -130,6 +131,7 @@ Welcome to Eazyserv Technologies India Private Limited Company’s privacy polic
 (ii) Internal third parties, which are other companies within the Eazyserv Technologies India Private Limited group of companies.
 
 (iii) External third parties such as:
+
 - trusted third parties such as our associate partners, and service providers that provide services for us or on our behalf. This includes hosting and operating our Platform, providing marketing assistance, conducting our business, processing payments and transaction-related processes, transmitting content, and providing our Services to you;
 - analytic service providers and advertising networks that conduct web analytics for us to help us improve the Platform. These analytics providers may use cookies and other technologies to perform their services;
 - other registered users on our Platform upon your request or where you explicitly consent to such disclosure; and

@@ -10,14 +10,14 @@ If you change a permission, splash screen, deep-link scheme, or app entitlement,
 
 Run `npm run doctor` (added in SC-68) to check all of these in one shot.
 
-| Tool | Version | Used for | Install |
-|---|---|---|---|
-| Node.js | ≥ 22 (LTS) | Web build, npm | nvm `nvm install --lts` |
-| npm | ≥ 10 | Package manager | bundled with Node |
-| JDK | **17 or 21** | Android Gradle (Gradle 8.14.3 reqs JDK 17+) | `brew install --cask temurin@17` |
-| Android SDK | API 36 | Android build | Android Studio → SDK Manager |
-| Xcode | ≥ 15 | iOS build | Mac App Store |
-| CocoaPods | ≥ 1.14 | iOS plugin install | `brew install cocoapods` |
+| Tool        | Version      | Used for                                    | Install                          |
+| ----------- | ------------ | ------------------------------------------- | -------------------------------- |
+| Node.js     | ≥ 22 (LTS)   | Web build, npm                              | nvm `nvm install --lts`          |
+| npm         | ≥ 10         | Package manager                             | bundled with Node                |
+| JDK         | **17 or 21** | Android Gradle (Gradle 8.14.3 reqs JDK 17+) | `brew install --cask temurin@17` |
+| Android SDK | API 36       | Android build                               | Android Studio → SDK Manager     |
+| Xcode       | ≥ 15         | iOS build                                   | Mac App Store                    |
+| CocoaPods   | ≥ 1.14       | iOS plugin install                          | `brew install cocoapods`         |
 
 **We use `npm`, not `bun`.** The `bun.lockb` was removed in SC-68. All `package.json` scripts use `npm` under the hood (`cap:sync`, `cap:android`, `cap:ios`). If you see a `bun` command in older docs or branches, it's stale.
 
@@ -25,14 +25,14 @@ Run `npm run doctor` (added in SC-68) to check all of these in one shot.
 
 ## Permissions matrix
 
-| Capability | iOS source | Android source | Used by |
-|---|---|---|---|
-| Camera | `Info.plist` → `NSCameraUsageDescription` | `AndroidManifest.xml` → `android.permission.CAMERA` + `uses-feature` | KYC capture (SC-26) |
-| Photo library read | `Info.plist` → `NSPhotoLibraryUsageDescription` | `READ_MEDIA_IMAGES` (API 33+) + `READ_EXTERNAL_STORAGE` (API ≤32, maxSdk-gated) | KYC document upload |
-| Photo library save | `Info.plist` → `NSPhotoLibraryAddUsageDescription` | not required on Android | Booking receipt download |
-| Location (foreground) | `Info.plist` → `NSLocationWhenInUseUsageDescription` | `ACCESS_COARSE_LOCATION` + `ACCESS_FINE_LOCATION` | Address picker, real-time tracking (v1.1) |
-| Push notifications | `App.entitlements` → `aps-environment` + `Info.plist` → `UIBackgroundModes: remote-notification` | `POST_NOTIFICATIONS` (API 33+) | FCM dispatch + booking updates (SC-16) |
-| Network | implicit | `INTERNET` + `ACCESS_NETWORK_STATE` | All API calls |
+| Capability            | iOS source                                                                                       | Android source                                                                  | Used by                                   |
+| --------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- | ----------------------------------------- |
+| Camera                | `Info.plist` → `NSCameraUsageDescription`                                                        | `AndroidManifest.xml` → `android.permission.CAMERA` + `uses-feature`            | KYC capture (SC-26)                       |
+| Photo library read    | `Info.plist` → `NSPhotoLibraryUsageDescription`                                                  | `READ_MEDIA_IMAGES` (API 33+) + `READ_EXTERNAL_STORAGE` (API ≤32, maxSdk-gated) | KYC document upload                       |
+| Photo library save    | `Info.plist` → `NSPhotoLibraryAddUsageDescription`                                               | not required on Android                                                         | Booking receipt download                  |
+| Location (foreground) | `Info.plist` → `NSLocationWhenInUseUsageDescription`                                             | `ACCESS_COARSE_LOCATION` + `ACCESS_FINE_LOCATION`                               | Address picker, real-time tracking (v1.1) |
+| Push notifications    | `App.entitlements` → `aps-environment` + `Info.plist` → `UIBackgroundModes: remote-notification` | `POST_NOTIFICATIONS` (API 33+)                                                  | FCM dispatch + booking updates (SC-16)    |
+| Network               | implicit                                                                                         | `INTERNET` + `ACCESS_NETWORK_STATE`                                             | All API calls                             |
 
 **Background location is out of scope for beta.** If we add it post-beta (v1.1 real-time tracking), iOS needs `NSLocationAlwaysAndWhenInUseUsageDescription` + `UIBackgroundModes: location`, and Android needs `ACCESS_BACKGROUND_LOCATION` with a separate runtime grant flow.
 
@@ -127,15 +127,15 @@ Capacitor delivers it on `notification.data` for both listener events.
 
 **Event → route:**
 
-| Event | Provider tap | Consumer tap |
-|---|---|---|
-| `new_request` | `/provider?incomingBookingId={id}` | (impossible) |
-| `accepted` | `/provider/job/{id}` | `/tracking/{id}` |
-| `en_route` | `/provider/job/{id}` | `/tracking/{id}` |
-| `in_progress` | `/provider/job/{id}` | `/tracking/{id}` |
-| `completed` | `/provider/job/{id}` | `/tracking/{id}` |
-| `cancelled` | `/provider/job/{id}` | `/tracking/{id}` |
-| `expired` | `/provider/job/{id}` | `/tracking/{id}` |
+| Event         | Provider tap                       | Consumer tap     |
+| ------------- | ---------------------------------- | ---------------- |
+| `new_request` | `/provider?incomingBookingId={id}` | (impossible)     |
+| `accepted`    | `/provider/job/{id}`               | `/tracking/{id}` |
+| `en_route`    | `/provider/job/{id}`               | `/tracking/{id}` |
+| `in_progress` | `/provider/job/{id}`               | `/tracking/{id}` |
+| `completed`   | `/provider/job/{id}`               | `/tracking/{id}` |
+| `cancelled`   | `/provider/job/{id}`               | `/tracking/{id}` |
+| `expired`     | `/provider/job/{id}`               | `/tracking/{id}` |
 
 `/provider/job/{id}` doesn't exist yet — SC-19 / SC-20 builds it. Until then,
 those taps land on the NotFound route. Acceptable for a phased rollout.

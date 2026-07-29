@@ -10,7 +10,11 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "ServiceConnect — Home Services at Your Doorstep" },
-      { name: "description", content: "Book trusted home services — cleaning, plumbing, electrical, salon & more in Bangalore." },
+      {
+        name: "description",
+        content:
+          "Book trusted home services — cleaning, plumbing, electrical, salon & more in Bangalore.",
+      },
     ],
   }),
   component: HomePage,
@@ -43,15 +47,13 @@ function HomePage() {
         <h2 className="pb-3 text-base font-semibold text-foreground">Popular Services</h2>
         <div className="flex flex-col gap-3">
           {isLoading ? (
-             <div className="animate-pulse space-y-3">
-               {[1, 2, 3].map(i => (
-                 <div key={i} className="h-28 w-full bg-border rounded-xl"></div>
-               ))}
-             </div>
+            <div className="animate-pulse space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-28 w-full bg-border rounded-xl"></div>
+              ))}
+            </div>
           ) : services && services.length > 0 ? (
-            services.map((s) => (
-              <ServiceCard key={s.id} service={s} />
-            ))
+            services.map((s) => <ServiceCard key={s.id} service={s} />)
           ) : (
             <p className="text-sm text-muted-foreground">No services found.</p>
           )}

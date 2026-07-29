@@ -263,6 +263,7 @@
 15. GRIEVANCE REDRESSAL
 
 (a) You may contact our designated Grievance Redressal Officer/Nodal Officer with any complaints or queries relating to the Services or these Terms through registered post or through email, details of which are provided below: Name: ABCB Designation: Associate Vice President
+
 - Customer Experience Email Address: contact@Eazyserv.com
 
 (b) We shall ensure that your complaint is resolved within timelines prescribed by applicable laws.

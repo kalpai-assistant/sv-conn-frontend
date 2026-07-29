@@ -18,20 +18,27 @@ const activeStatuses: BookingStatus[] = ["REQUESTED", "ACCEPTED", "EN_ROUTE", "I
 
 function statusColor(status: string) {
   switch (status) {
-    case "REQUESTED": return "bg-yellow-100 text-yellow-700";
-    case "ACCEPTED": return "bg-blue-100 text-blue-700";
-    case "EN_ROUTE": return "bg-purple-100 text-purple-700";
-    case "IN_PROGRESS": return "bg-orange-100 text-orange-700";
-    case "COMPLETED": return "bg-green-100 text-green-700";
-    case "CANCELLED": return "bg-red-100 text-red-700";
-    default: return "bg-gray-100 text-gray-700";
+    case "REQUESTED":
+      return "bg-yellow-100 text-yellow-700";
+    case "ACCEPTED":
+      return "bg-blue-100 text-blue-700";
+    case "EN_ROUTE":
+      return "bg-purple-100 text-purple-700";
+    case "IN_PROGRESS":
+      return "bg-orange-100 text-orange-700";
+    case "COMPLETED":
+      return "bg-green-100 text-green-700";
+    case "CANCELLED":
+      return "bg-red-100 text-red-700";
+    default:
+      return "bg-gray-100 text-gray-700";
   }
 }
 
 function BookingsPage() {
   const [tab, setTab] = useState<"active" | "past">("active");
   const { data: allBookings, isLoading } = useBookings();
-  
+
   const bookings: Booking[] = allBookings || [];
   const active = bookings.filter((b) => activeStatuses.includes(b.status as BookingStatus));
   const past = bookings.filter((b) => !activeStatuses.includes(b.status as BookingStatus));
@@ -65,28 +72,36 @@ function BookingsPage() {
           <p className="py-12 text-center text-sm text-muted-foreground">No {tab} bookings</p>
         ) : (
           list.map((b) => (
-          <Link
-            key={b.id}
-            to="/tracking/$bookingId"
-            params={{ bookingId: b.id }}
-            className="rounded-xl border border-border bg-card p-4 block"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm font-semibold text-foreground">{b.service.name}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {b.service.provider?.name || "Finding nearby partner..."}
-                </p>
+            <Link
+              key={b.id}
+              to="/tracking/$bookingId"
+              params={{ bookingId: b.id }}
+              className="rounded-xl border border-border bg-card p-4 block"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{b.service.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {b.service.provider?.name || "Finding nearby partner..."}
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusColor(b.status)}`}
+                >
+                  {b.status.replace("_", " ")}
+                </span>
               </div>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusColor(b.status)}`}>
-                {b.status.replace("_", " ")}
-              </span>
-            </div>
-            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-              <span>{new Date(b.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
-              <span className="font-semibold text-foreground">₹{b.totalAmount}</span>
-            </div>
-          </Link>
+              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                <span>
+                  {new Date(b.scheduledAt).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </span>
+                <span className="font-semibold text-foreground">₹{b.totalAmount}</span>
+              </div>
+            </Link>
           ))
         )}
       </div>

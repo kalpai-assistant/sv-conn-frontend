@@ -9,7 +9,13 @@ const steps: { status: BookingStatus; label: string }[] = [
   { status: "COMPLETED", label: "Completed" },
 ];
 
-const statusOrder: BookingStatus[] = ["REQUESTED", "ACCEPTED", "EN_ROUTE", "IN_PROGRESS", "COMPLETED"];
+const statusOrder: BookingStatus[] = [
+  "REQUESTED",
+  "ACCEPTED",
+  "EN_ROUTE",
+  "IN_PROGRESS",
+  "COMPLETED",
+];
 
 export function StatusStepper({ currentStatus }: { currentStatus: BookingStatus }) {
   const currentIndex = statusOrder.indexOf(currentStatus);
@@ -42,11 +48,7 @@ export function StatusStepper({ currentStatus }: { currentStatus: BookingStatus 
                 )}
               </div>
               {i < steps.length - 1 && (
-                <div
-                  className={`h-6 w-0.5 ${
-                    isCompleted ? "bg-success" : "bg-border"
-                  }`}
-                />
+                <div className={`h-6 w-0.5 ${isCompleted ? "bg-success" : "bg-border"}`} />
               )}
             </div>
             <span

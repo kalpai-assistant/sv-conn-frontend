@@ -18,9 +18,10 @@ export function TopBar() {
           </p>
         </div>
       </button>
-      <button 
+      <button
         onClick={() => alert("You have no new notifications.")}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full bg-secondary">
+        className="relative flex h-9 w-9 items-center justify-center rounded-full bg-secondary"
+      >
         <Bell className="h-4 w-4 text-foreground" />
         <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive" />
       </button>
