@@ -17,6 +17,9 @@ export default tseslint.config(
       "android",
       "ios",
       "src/routeTree.gen.ts",
+      // Generated from openapi-typescript (svc_connect.json). Regenerated on
+      // every backend spec change — hand-lint would be a fight.
+      "src/types/api.ts",
     ],
   },
   {
@@ -34,12 +37,11 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
-      // Advisory for now — 18 uses of `any` in code the junior wrote for
-      // iteration speed. Cleanup ticket flips this back to "error" once
-      // the missing @/types/api module lands and the API surface has real
-      // types. Blocking on it now would burn beta runway for zero
-      // functional win.
-      "@typescript-eslint/no-explicit-any": "warn",
+      // Blocking. The 18 preexisting `any`s were retyped against the
+      // OpenAPI spec (openapi-typescript → src/types/api.ts) and the
+      // Razorpay window shim. Any new `any` requires either a type or
+      // an explicit `// eslint-disable-next-line ...` with a reason.
+      "@typescript-eslint/no-explicit-any": "error",
     },
   },
   eslintPluginPrettier,

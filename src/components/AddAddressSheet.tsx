@@ -24,8 +24,8 @@ export function AddAddressSheet({ onClose }: { onClose: () => void }) {
       setErrorMsg("");
       await addAddress({ label: label.toLowerCase(), full_address: addressLine, lat, lng });
       onClose();
-    } catch (err: any) {
-      setErrorMsg(err.message || "Failed to save address");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Failed to save address");
     }
   };
 

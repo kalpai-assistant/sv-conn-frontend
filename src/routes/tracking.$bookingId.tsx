@@ -9,6 +9,7 @@ import {
   useCreatePaymentOrder,
   useVerifyPayment,
 } from "@/hooks/useApi";
+import type { RazorpayCheckoutOptions, RazorpaySuccessResponse } from "@/types/razorpay";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -107,7 +108,7 @@ function TrackingPage() {
 
   // Verify the payment server-side before treating it as successful. A failed
   // verification (bad signature, network error) is surfaced as a failed payment.
-  const handlePaymentSuccess = async (response: any) => {
+  const handlePaymentSuccess = async (response: RazorpaySuccessResponse) => {
     try {
       await verifyPaymentMutation.mutateAsync({
         razorpay_order_id: response.razorpay_order_id,
@@ -130,21 +131,21 @@ function TrackingPage() {
     try {
       const order = await paymentOrderMutation.mutateAsync({ bookingId: bookingId as string });
 
-      const options = {
+      const options: RazorpayCheckoutOptions = {
         key: order.razorpay_key_id,
         amount: order.amount,
         currency: order.currency,
         name: "ServiceConnect",
         description: "Payment for Service",
         order_id: order.razorpay_order_id,
-        handler: (response: any) => handlePaymentSuccess(response),
+        handler: (response) => handlePaymentSuccess(response),
         // Closing the checkout without paying counts as a failed attempt (SVC-66 shows retry).
         // Guard against clobbering a payment that already succeeded.
         modal: {
           ondismiss: () => setPaymentState((s) => (s === "success" ? s : "failed")),
         },
       };
-      const rzp = new (window as any).Razorpay(options);
+      const rzp = new window.Razorpay(options);
       rzp.open();
     } catch (e) {
       console.error(e);
@@ -154,7 +155,7 @@ function TrackingPage() {
 
   const submitReview = async (rating: number, comment: string) => {
     try {
-      await reviewMutation.mutateAsync({ bookingId: bookingId as string, rating, comment });
+      await reviewMutation.mutateAsync({ booking_id: bookingId as string, rating, comment });
       markBookingReviewed(bookingId);
       setReviewSubmitted(true);
       setReviewOpen(false);

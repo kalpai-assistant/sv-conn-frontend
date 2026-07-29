@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAddresses } from "@/hooks/useApi";
 import { apiFetch } from "@/lib/api";
+import type { components } from "@/types/api";
 import { useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { AddAddressSheet } from "@/components/AddAddressSheet";
@@ -67,7 +68,7 @@ function ProfilePage() {
     setIsSaving(true);
     setErrorMsg("");
     try {
-      const response = await apiFetch<any>("/users/me", {
+      const response = await apiFetch<components["schemas"]["UserResponse"]>("/users/me", {
         method: "PATCH",
         body: JSON.stringify({ name: editName.trim(), email: editEmail.trim() || null }),
       });

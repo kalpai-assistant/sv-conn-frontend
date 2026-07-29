@@ -5,6 +5,7 @@ import { useAddresses } from "@/hooks/useApi";
 import { motion } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
 import { apiFetch } from "@/lib/api";
+import type { components } from "@/types/api";
 import { AddAddressSheet } from "./AddAddressSheet";
 
 interface BookingSheetProps {
@@ -41,7 +42,7 @@ export function BookingSheet({ service, onClose }: BookingSheetProps) {
           ? new Date(Date.now() + 30 * 60000).toISOString() // 30 mins from now
           : new Date(Date.now() + 24 * 60 * 60000).toISOString(); // Tomorrow
 
-      const response = await apiFetch<any>("/bookings/", {
+      const response = await apiFetch<components["schemas"]["BookingResponse"]>("/bookings/", {
         method: "POST",
         body: JSON.stringify({
           service_id: service.id,
