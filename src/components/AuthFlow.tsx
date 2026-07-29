@@ -86,7 +86,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
 
         login(tokenData.access_token, tokenData.refresh_token, userData, tokenData.is_new_user);
         onComplete();
-      } catch (e: any) {
+      } catch (e) {
         console.error(e);
         setErrorMsg(e instanceof Error ? e.message : "Invalid OTP. Please try again.");
         setOtp(["", "", "", "", "", ""]);

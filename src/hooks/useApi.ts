@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import type { components } from "@/types/api";
 
 // UI-shape types (from mock-data) used to keep the existing components typed
-// against the same shape they were built against. API-shape types are declared
-// inline below as `API_*` — the two are joined in each hook's `select`.
+// against the same shape they were built against. API-shape types come from
+// the OpenAPI spec via `Schema<K>` — the two are joined in each hook's mapper.
 import type {
   Category as UI_Category,
   Service as UI_Service,
@@ -11,39 +12,23 @@ import type {
   Address as UI_Address,
 } from "@/lib/mock-data";
 
-// --- Types from OpenAPI ---
-export interface API_CategoryResponse {
-  id: string;
-  name: string;
-  slug: string;
-  icon_url: string | null;
-  description: string | null;
-  sort_order: number;
-}
+// Alias so call sites stay terse: `Schema<"BookingResponse">` beats
+// `components["schemas"]["BookingResponse"]` at every reference.
+type Schema<K extends keyof components["schemas"]> = components["schemas"][K];
 
-export interface API_ServiceResponse {
-  id: string;
-  category_id: string;
-  name: string;
-  description: string | null;
-  base_price: number;
-  duration_minutes: number;
-  is_active: boolean;
-}
+// ---------------------------------------------------------------------------
+// Backwards-compat re-exports
+// External files (admin routes, etc) import these `API_*` names. Kept as
+// aliases so import sites don't churn every time the spec regenerates.
+// ---------------------------------------------------------------------------
 
-export interface API_BookingResponse {
-  id: string;
-  consumer_id: string;
-  provider_id: string;
-  service_id: string;
-  status: string;
-  service_amount: number;
-  payment_method: string | null;
-  scheduled_at: string | null;
-  created_at: string;
-}
+export type API_CategoryResponse = Schema<"CategoryResponse">;
+export type API_ServiceResponse = Schema<"ServiceResponse">;
+export type API_BookingResponse = Schema<"BookingResponse">;
 
-// --- Adapters to map Backend -> UI expected shape ---
+// ---------------------------------------------------------------------------
+// Adapters: API shape → UI shape
+// ---------------------------------------------------------------------------
 
 const mapCategory = (cat: API_CategoryResponse): UI_Category => ({
   id: cat.id,
@@ -65,6 +50,52 @@ const mapService = (srv: API_ServiceResponse, cats: API_CategoryResponse[]): UI_
     provider: undefined, // Services are global, no specific provider
   };
 };
+
+// The BookingResponse schema is used by both list + detail; extracted so the
+// two mappers can share a single conversion pass instead of duplicating it.
+const mapBooking = (b: API_BookingResponse, services?: UI_Service[]): UI_Booking => {
+  const srv = services?.find((s) => s.id === b.service_id);
+  const service = srv || {
+    id: b.service_id,
+    name: "Service Name",
+    categoryId: "",
+    categoryName: "",
+    description: "",
+    price: b.service_amount,
+    duration: "",
+  };
+
+  return {
+    id: b.id,
+    status: b.status.toUpperCase() as UI_Booking["status"],
+    // BookingResponse in the OpenAPI spec doesn't currently carry address_id;
+    // placeholder until the spec + endpoint are updated.
+    address: { id: "", label: "Address", full: "" },
+    scheduledAt: b.scheduled_at || b.created_at,
+    paymentMethod: (b.payment_method || "online") as UI_Booking["paymentMethod"],
+    paymentStatus: (b.payment_status || "pending") as UI_Booking["paymentStatus"],
+    totalAmount: b.service_amount,
+    createdAt: b.created_at,
+    otp: b.doorstep_otp || undefined,
+    service: b.provider_id
+      ? {
+          ...service,
+          provider: {
+            id: b.provider_id,
+            name: "Assigned Partner",
+            phone: "+910000000000",
+            rating: 5,
+            reviewCount: 0,
+            verified: true,
+          },
+        }
+      : service,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
 
 export const useCategories = () => {
   return useQuery({
@@ -97,15 +128,12 @@ export const useAddresses = () => {
   return useQuery({
     queryKey: ["addresses"],
     queryFn: async () => {
-      const data = await apiFetch<any[]>("/users/me/addresses");
-      return data.map(
-        (a) =>
-          ({
-            id: a.id,
-            label: a.label,
-            full: a.full_address,
-          }) as UI_Address,
-      );
+      const data = await apiFetch<Schema<"AddressResponse">[]>("/users/me/addresses");
+      return data.map<UI_Address>((a) => ({
+        id: a.id,
+        label: a.label,
+        full: a.full_address,
+      }));
     },
   });
 };
@@ -114,18 +142,11 @@ export const useAddAddress = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (vars: { label: string; full_address: string; lat: number; lng: number }) => {
-      return apiFetch<any>("/users/me/addresses", {
+    mutationFn: (vars: Omit<Schema<"CreateAddressRequest">, "is_default">) =>
+      apiFetch<Schema<"AddressResponse">>("/users/me/addresses", {
         method: "POST",
-        body: JSON.stringify({
-          label: vars.label,
-          full_address: vars.full_address,
-          lat: vars.lat,
-          lng: vars.lng,
-          is_default: false,
-        }),
-      });
-    },
+        body: JSON.stringify({ ...vars, is_default: false }),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["addresses"] });
     },
@@ -139,47 +160,8 @@ export const useBookings = (status?: string) => {
     queryKey: ["bookings", status],
     queryFn: async () => {
       const query = status ? `?status=${status}` : "";
-      const data = await apiFetch<any>(`/bookings/${query}`);
-      const rawBookings = data.bookings || [];
-
-      return rawBookings.map((b: any) => {
-        const srv = services?.find((s) => s.id === b.service_id);
-        const service = srv || {
-          id: b.service_id,
-          name: "Service Name",
-          categoryId: "",
-          categoryName: "",
-          description: "",
-          price: b.service_amount,
-          duration: "",
-        };
-
-        return {
-          id: b.id,
-          status: b.status.toUpperCase(),
-          address: { id: "", label: "Address", full: "" }, // Placeholder
-          scheduledAt: b.scheduled_at || b.created_at,
-          paymentMethod: b.payment_method || "online",
-          paymentStatus: b.payment_status || "pending",
-          totalAmount: b.service_amount,
-          createdAt: b.created_at,
-          otp: b.doorstep_otp || undefined,
-          // Hydrate the provider from the booking, since global services have none.
-          service: b.provider_id
-            ? {
-                ...service,
-                provider: {
-                  id: b.provider_id,
-                  name: "Assigned Partner",
-                  phone: "+910000000000",
-                  rating: 5,
-                  reviewCount: 0,
-                  verified: true,
-                },
-              }
-            : service,
-        } as UI_Booking;
-      });
+      const data = await apiFetch<Schema<"BookingListResponse">>(`/bookings/${query}`);
+      return (data.bookings ?? []).map((b) => mapBooking(b, services));
     },
     // Bookings must load even when the services catalog is empty/slow, so this query
     // is not gated on `services`; service names fall back to a placeholder above (SVC-75).
@@ -192,8 +174,10 @@ export const useReviews = (providerId?: string) => {
     queryFn: async () => {
       if (!providerId) return [];
       try {
-        const data = await apiFetch<any>(`/reviews?provider_id=${providerId}`);
-        return (data.reviews || []).map((r: any) => ({
+        const data = await apiFetch<Schema<"ReviewListResponse">>(
+          `/reviews?provider_id=${providerId}`,
+        );
+        return (data.reviews ?? []).map((r) => ({
           id: r.id,
           rating: r.rating,
           reviewer: "Customer", // Fallback, reviewer name might need fetching
@@ -215,44 +199,8 @@ export const useBooking = (bookingId?: string) => {
     queryKey: ["booking", bookingId],
     queryFn: async () => {
       if (!bookingId) return null;
-      const b = await apiFetch<any>(`/bookings/${bookingId}`);
-      const srv = services?.find((s) => s.id === b.service_id);
-
-      const uiBooking: UI_Booking = {
-        id: b.id,
-        status: b.status.toUpperCase(),
-        address: { id: b.address_id || "", label: "Address", full: "" },
-        scheduledAt: b.scheduled_at || b.created_at,
-        paymentMethod: b.payment_method || "online",
-        paymentStatus: b.payment_status || "pending",
-        totalAmount: b.service_amount,
-        createdAt: b.created_at,
-        otp: b.doorstep_otp || undefined,
-        service: srv || {
-          id: b.service_id,
-          name: "Service Name",
-          categoryId: "",
-          categoryName: "",
-          description: "",
-          price: b.service_amount,
-          duration: "",
-        },
-      };
-
-      if (b.provider_id) {
-        uiBooking.service = {
-          ...uiBooking.service,
-          provider: {
-            id: b.provider_id,
-            name: "Assigned Partner",
-            phone: "+910000000000",
-            rating: 5,
-            reviewCount: 0,
-            verified: true,
-          },
-        };
-      }
-      return uiBooking;
+      const b = await apiFetch<API_BookingResponse>(`/bookings/${bookingId}`);
+      return mapBooking(b, services);
     },
     enabled: !!bookingId && services !== undefined,
     refetchInterval: 4000,
@@ -262,12 +210,11 @@ export const useBooking = (bookingId?: string) => {
 export const useCancelBooking = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ bookingId, reason }: { bookingId: string; reason: string }) => {
-      return apiFetch<any>(`/bookings/${bookingId}/cancel`, {
+    mutationFn: ({ bookingId, reason }: { bookingId: string; reason: string }) =>
+      apiFetch<API_BookingResponse>(`/bookings/${bookingId}/cancel`, {
         method: "PATCH",
-        body: JSON.stringify({ reason }),
-      });
-    },
+        body: JSON.stringify({ reason } satisfies Schema<"CancelBookingRequest">),
+      }),
     onSuccess: (_, { bookingId }) => {
       queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
@@ -277,50 +224,50 @@ export const useCancelBooking = () => {
 
 export const useSubmitReview = () => {
   return useMutation({
-    mutationFn: async ({
-      bookingId,
-      rating,
-      comment,
-    }: {
-      bookingId: string;
-      rating: number;
-      comment: string;
-    }) => {
-      return apiFetch<any>(`/reviews/`, {
+    mutationFn: (vars: Schema<"CreateReviewRequest">) =>
+      apiFetch<Schema<"ReviewResponse">>(`/reviews/`, {
         method: "POST",
-        body: JSON.stringify({ booking_id: bookingId, rating, comment }),
-      });
-    },
+        body: JSON.stringify(vars),
+      }),
   });
 };
 
 export const useCreatePaymentOrder = () => {
   return useMutation({
-    mutationFn: async ({ bookingId }: { bookingId: string }) => {
-      return apiFetch<any>(`/payments/orders`, {
+    mutationFn: ({ bookingId }: { bookingId: string }) =>
+      apiFetch<Schema<"PaymentOrderResponse">>(`/payments/orders`, {
         method: "POST",
-        body: JSON.stringify({ booking_id: bookingId }),
-      });
-    },
+        body: JSON.stringify({
+          booking_id: bookingId,
+        } satisfies Schema<"CreatePaymentOrderRequest">),
+      }),
   });
 };
 
+// Response shape isn't in the OpenAPI spec (the endpoint returns whatever
+// Razorpay hands back plus our own status). `unknown` forces the caller to
+// narrow before use — safer than `any`, still explicit that we don't type it.
 export const useVerifyPayment = () => {
   return useMutation({
-    mutationFn: async (data: {
+    mutationFn: (data: {
       razorpay_order_id: string;
       razorpay_payment_id: string;
       razorpay_signature: string;
-    }) => {
-      return apiFetch<any>(`/payments/verify`, {
+    }) =>
+      apiFetch<unknown>(`/payments/verify`, {
         method: "POST",
         body: JSON.stringify(data),
-      });
-    },
+      }),
   });
 };
 
-// --- Admin: KYC review (SVC-87 / SVC-90) ---
+// ---------------------------------------------------------------------------
+// Admin: KYC review (SVC-87 / SVC-90)
+//
+// These endpoints aren't in the OpenAPI spec yet — hand-written until the
+// backend regenerates. Keep them local; when the spec picks them up, replace
+// with `Schema<...>` and delete the interfaces.
+// ---------------------------------------------------------------------------
 
 export interface API_PendingKYCUser {
   id: string;
@@ -386,7 +333,12 @@ export const useRejectKYC = () => {
   });
 };
 
-// --- Admin: provider payouts (SVC-144 / PAY-13) ---
+// ---------------------------------------------------------------------------
+// Admin: provider payouts (SVC-144 / PAY-13)
+//
+// Same story as KYC — not in the OpenAPI spec yet. Hand-written interfaces
+// stay here until backend regenerates.
+// ---------------------------------------------------------------------------
 
 export interface API_PendingSettlementProvider {
   // The provider's *user* id: the list joins User.id == Booking.provider_id, and
