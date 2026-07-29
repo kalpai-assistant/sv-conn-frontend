@@ -30,12 +30,14 @@ jobs:
         run: npm ci
 
       # Workaround for npm bug #4828: when package-lock.json is generated on
-      # macOS, `npm ci` on Linux skips rollup's platform-specific native
-      # binary (@rollup/rollup-linux-x64-gnu). Rebuilding rollup re-runs its
-      # own postinstall which correctly detects the current platform. Fast
-      # (~2s) and the rollup team recommends it as the canonical workaround.
-      - name: Rebuild rollup native binary
-        run: npm rebuild rollup
+      # macOS, `npm ci` on Linux skips native-binary optional deps
+      # (@rollup/rollup-linux-x64-gnu, lightningcss.linux-x64-gnu, and any
+      # future native package). `npm rebuild` with no arg re-runs every
+      # package's postinstall so each one correctly detects the current
+      # platform. Slower than targeted rebuilds but survives new native
+      # deps without further edits.
+      - name: Rebuild native binaries
+        run: npm rebuild
 
       - name: Lint
         run: npm run lint
