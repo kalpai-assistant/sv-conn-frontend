@@ -392,3 +392,69 @@ export const useRejectKYC = () => {
     },
   });
 };
+
+// --- Admin: provider payouts (SVC-144 / PAY-13) ---
+
+export interface API_PendingSettlementProvider {
+  // The provider's *user* id: the list joins User.id == Booking.provider_id, and
+  // POST /admin/providers/{user_id}/payout takes the same id — no lookup needed.
+  provider_id: string;
+  // Null for providers who registered with a phone only — fall back to `phone`.
+  name: string | null;
+  phone: string;
+  pending_booking_count: number;
+  // Paise, not rupees. Render via `formatPaise` — ₹24,000 arrives as 2400000.
+  pending_payout_paise: number;
+  // False → no UPI/bank details on file; triggering a payout would 402.
+  payout_set: boolean;
+  // False → deactivated provider who is still owed. Surfaced, never filtered out.
+  is_active: boolean;
+}
+
+export interface API_PendingSettlementsResponse {
+  providers: API_PendingSettlementProvider[];
+  /** True provider count, which exceeds `providers.length` when `truncated`. */
+  total: number;
+  /** True when the backend capped the list — the admin is NOT seeing everyone owed. */
+  truncated: boolean;
+}
+
+export interface API_PayoutTriggerResponse {
+  payout_id: string;
+  status: string;
+  /** Paise, like `pending_payout_paise`. */
+  amount: number;
+  booking_count: number;
+}
+
+// Already sorted by amount owed (largest first) and capped at 200 server-side,
+// so there is no sort or pagination here — see `truncated`.
+export const usePendingSettlements = () => {
+  return useQuery({
+    queryKey: ["admin", "settlements", "pending"],
+    queryFn: () => apiFetch<API_PendingSettlementsResponse>("/admin/providers/pending-settlements"),
+  });
+};
+
+// Settles every pending booking for one provider. A 402 (no payout details on
+// file, or nothing pending) surfaces as an ApiError for the caller to render.
+export const useTriggerPayout = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (providerId: string) =>
+      apiFetch<API_PayoutTriggerResponse>(`/admin/providers/${providerId}/payout`, {
+        method: "POST",
+      }),
+    onSuccess: (_data, providerId) => {
+      // Drop the row synchronously so the admin can't fire a second payout at the
+      // same provider while the refetch is still in flight. The invalidate then
+      // reconciles `total`/`truncated` with the server.
+      qc.setQueryData<API_PendingSettlementsResponse>(["admin", "settlements", "pending"], (old) =>
+        old
+          ? { ...old, providers: old.providers.filter((p) => p.provider_id !== providerId) }
+          : old,
+      );
+      qc.invalidateQueries({ queryKey: ["admin", "settlements"] });
+    },
+  });
+};
