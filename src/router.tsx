@@ -1,8 +1,16 @@
 import { createRouter, useRouter } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { routeTree } from "./routeTree.gen";
+import { reportError } from "./lib/sentry";
 
 function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
+
+  // Report route errors to Sentry once per mount. useEffect (not inline) so
+  // re-renders while the error UI is up don't double-report.
+  useEffect(() => {
+    reportError(error, { source: "router" });
+  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
