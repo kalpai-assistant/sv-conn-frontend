@@ -42,13 +42,7 @@ export interface Review {
 }
 
 export type BookingStatus =
-  | "REQUESTED"
-  | "ACCEPTED"
-  | "EN_ROUTE"
-  | "IN_PROGRESS"
-  | "COMPLETED"
-  | "CANCELLED"
-  | "EXPIRED";
+  "REQUESTED" | "ACCEPTED" | "EN_ROUTE" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "EXPIRED";
 
 export interface Booking {
   id: string;
