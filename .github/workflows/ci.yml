@@ -26,18 +26,12 @@ jobs:
           cache: npm
 
       # npm ci enforces lock consistency (fails on drift) — desirable in CI.
+      # Cross-platform native binaries (rollup, lightningcss) are handled by
+      # declaring both mac + linux packages as top-level optionalDependencies
+      # in package.json — each package's own os/cpu filter ensures only the
+      # matching platform's binary installs. See package.json for the list.
       - name: Install dependencies
         run: npm ci
-
-      # Workaround for npm bug #4828: when package-lock.json is generated on
-      # macOS, `npm ci` on Linux skips native-binary optional deps
-      # (@rollup/rollup-linux-x64-gnu, lightningcss.linux-x64-gnu, and any
-      # future native package). `npm rebuild` with no arg re-runs every
-      # package's postinstall so each one correctly detects the current
-      # platform. Slower than targeted rebuilds but survives new native
-      # deps without further edits.
-      - name: Rebuild native binaries
-        run: npm rebuild
 
       - name: Lint
         run: npm run lint
