@@ -34,8 +34,10 @@ function ProfilePage() {
   const { data: savedAddresses, isLoading: isAddressesLoading } = useAddresses();
   const navigate = useNavigate();
 
-  // Enforce setup mode if user name is not set
-  const isSetupMode = user && !user.name;
+  // Enforce setup mode if user name is not set. `!!` coerces the `user && ...`
+  // short-circuit result (which is `undefined | boolean`) to a plain boolean so
+  // the `disabled=` prop below stays `boolean | undefined`, not `boolean | null`.
+  const isSetupMode = !!(user && !user.name);
   const [isEditing, setIsEditing] = useState(isSetupMode);
 
   const [editName, setEditName] = useState(user?.name || "");

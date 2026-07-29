@@ -55,7 +55,6 @@ export default defineConfig({
             src: "/icons/icon-512.png",
             sizes: "512x512",
             type: "image/png",
-            // @ts-expect-error -- form_factor is a valid manifest field
             form_factor: "narrow",
           },
         ],

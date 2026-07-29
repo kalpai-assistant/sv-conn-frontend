@@ -43,13 +43,8 @@ jobs:
       # tsc with --noEmit is our typecheck — package.json has no dedicated
       # script, so call it directly. tsconfig already sets noEmit but the
       # explicit flag protects against a future config change.
-      #
-      # Advisory for now: main has a few preexisting type errors
-      # (missing @/types/api module, Razorpay window shim, etc). Flip to
-      # blocking once those are cleaned up.
-      - name: Typecheck (advisory)
+      - name: Typecheck
         run: npx tsc --noEmit
-        continue-on-error: true
 
       # Web build. Mobile build (build:mobile) is Capacitor-specific and
       # only meaningful during a native release — skipped in CI.
