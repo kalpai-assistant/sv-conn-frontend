@@ -31,10 +31,10 @@ This is a **React 19 + TypeScript** home-services booking app (ServiceConnect) t
 
 ### Dual-build setup
 
-| Config | Output | Mode |
-|---|---|---|
-| `vite.config.ts` | `dist/` | SSR/PWA via TanStack Start + `@cloudflare/vite-plugin` |
-| `vite.mobile.config.ts` | `dist-mobile/` | SPA for Capacitor (no service worker) |
+| Config                  | Output         | Mode                                                   |
+| ----------------------- | -------------- | ------------------------------------------------------ |
+| `vite.config.ts`        | `dist/`        | SSR/PWA via TanStack Start + `@cloudflare/vite-plugin` |
+| `vite.mobile.config.ts` | `dist-mobile/` | SPA for Capacitor (no service worker)                  |
 
 The mobile build uses `index.mobile.html` as entry and copies it to `dist-mobile/index.html` as part of the build script.
 

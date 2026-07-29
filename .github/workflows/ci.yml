@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: lint · typecheck · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # npm ci enforces lock consistency (fails on drift) — desirable in CI.
+      # Cross-platform native binaries (rollup, lightningcss) are handled by
+      # declaring both mac + linux packages as top-level optionalDependencies
+      # in package.json — each package's own os/cpu filter ensures only the
+      # matching platform's binary installs. See package.json for the list.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # tsc with --noEmit is our typecheck — package.json has no dedicated
+      # script, so call it directly. tsconfig already sets noEmit but the
+      # explicit flag protects against a future config change.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # Web build. Mobile build (build:mobile) is Capacitor-specific and
+      # only meaningful during a native release — skipped in CI.
+      - name: Build (web)
+        run: npm run build

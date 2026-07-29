@@ -18,15 +18,9 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 const mdComponents: Components = {
-  h1: (props) => (
-    <h1 className="mt-0 mb-6 text-2xl font-semibold text-foreground" {...props} />
-  ),
-  h2: (props) => (
-    <h2 className="mt-8 mb-3 text-xl font-semibold text-foreground" {...props} />
-  ),
-  h3: (props) => (
-    <h3 className="mt-6 mb-2 text-base font-semibold text-foreground" {...props} />
-  ),
+  h1: (props) => <h1 className="mt-0 mb-6 text-2xl font-semibold text-foreground" {...props} />,
+  h2: (props) => <h2 className="mt-8 mb-3 text-xl font-semibold text-foreground" {...props} />,
+  h3: (props) => <h3 className="mt-6 mb-2 text-base font-semibold text-foreground" {...props} />,
   p: (props) => <p className="my-3 text-[15px] leading-relaxed text-foreground" {...props} />,
   ul: (props) => (
     <ul className="my-3 list-disc space-y-1 pl-6 text-[15px] text-foreground" {...props} />
@@ -56,13 +50,7 @@ const mdComponents: Components = {
   td: (props) => <td className="border-b border-border px-3 py-2" {...props} />,
 };
 
-export function LegalPage({
-  markdown,
-  lastUpdated,
-}: {
-  markdown: string;
-  lastUpdated: string;
-}) {
+export function LegalPage({ markdown, lastUpdated }: { markdown: string; lastUpdated: string }) {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 md:py-12">
       <div className="mb-6">

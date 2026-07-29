@@ -1,16 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import type {
-  Category,
-  Service,
-  ServiceResponse,
-  CategoryResponse,
-  Booking,
-  BookingListResponse,
-  Address,
-} from "@/types/api"; // Wait, I need to define these types, maybe local or import from mock-data for compatibility
 
-// Let's use the mock-data types as target shape so we don't have to rewrite UI heavily
+// UI-shape types (from mock-data) used to keep the existing components typed
+// against the same shape they were built against. API-shape types are declared
+// inline below as `API_*` — the two are joined in each hook's `select`.
 import type {
   Category as UI_Category,
   Service as UI_Service,

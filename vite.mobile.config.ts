@@ -37,9 +37,7 @@ export default defineConfig({
   // Capacitor wraps the built output — no server needed.
   define: {
     // Inject env at build time so Capacitor bundle uses production API
-    "import.meta.env.VITE_API_BASE_URL": JSON.stringify(
-      process.env.VITE_API_BASE_URL ?? "/api/v1",
-    ),
+    "import.meta.env.VITE_API_BASE_URL": JSON.stringify(process.env.VITE_API_BASE_URL ?? "/api/v1"),
     // Tell the app it's running in a Capacitor context
     "import.meta.env.VITE_PLATFORM": JSON.stringify("capacitor"),
   },

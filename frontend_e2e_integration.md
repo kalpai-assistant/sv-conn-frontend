@@ -264,15 +264,15 @@ Response: BookingResponse (same shape as above)
 
 Backend sends **lowercase**. Your `useApi.ts` line 141 calls `.toUpperCase()` to normalize — this is fine. Keep it.
 
-| Backend value | UI display |
-|---|---|
-| `requested` | `REQUESTED` — show "Searching for partners..." |
-| `accepted` | `ACCEPTED` — show provider card + OTP |
-| `en_route` | `EN_ROUTE` — show map placeholder + ETA |
-| `in_progress` | `IN_PROGRESS` — show "Service in progress" |
-| `completed` | `COMPLETED` — show payment CTA |
-| `cancelled` | `CANCELLED` |
-| `expired` | `EXPIRED` — no provider accepted in 2 min; show "Try again" |
+| Backend value | UI display                                                  |
+| ------------- | ----------------------------------------------------------- |
+| `requested`   | `REQUESTED` — show "Searching for partners..."              |
+| `accepted`    | `ACCEPTED` — show provider card + OTP                       |
+| `en_route`    | `EN_ROUTE` — show map placeholder + ETA                     |
+| `in_progress` | `IN_PROGRESS` — show "Service in progress"                  |
+| `completed`   | `COMPLETED` — show payment CTA                              |
+| `cancelled`   | `CANCELLED`                                                 |
+| `expired`     | `EXPIRED` — no provider accepted in 2 min; show "Try again" |
 
 > [!WARNING]
 > `EXPIRED` status is **not handled** anywhere in the frontend. If a booking expires (no provider accepts within 2 minutes), the tracking page will fall into the `REQUESTED` "searching" state forever. Add a case for `EXPIRED` that shows a retry button.
@@ -365,6 +365,7 @@ Response:
 When `booking.status === "COMPLETED"` and `booking.payment_method === "online"`:
 
 **Step 1: Create Razorpay Order**
+
 ```
 POST /payments/orders
 Body: { "booking_id": "uuid" }
@@ -380,6 +381,7 @@ Response:
 **Step 2: Launch Razorpay Checkout** (use `razorpay_key_id` + `razorpay_order_id`)
 
 **Step 3: Verify Payment**
+
 ```
 POST /payments/verify
 Body:
@@ -411,7 +413,7 @@ Currently using HTTP polling every 4 seconds (line 21–25). This should be repl
 ```javascript
 const token = getAccessToken();
 const ws = new WebSocket(
-  `wss://your-domain.com/api/v1/tracking/consumer/${bookingId}?token=${token}`
+  `wss://your-domain.com/api/v1/tracking/consumer/${bookingId}?token=${token}`,
 );
 
 ws.onmessage = (event) => {
@@ -440,15 +442,15 @@ All backend errors follow this shape:
 }
 ```
 
-| HTTP Status | Meaning | UI Action |
-|---|---|---|
-| `400` | Bad request / invalid OTP | Show inline error message |
-| `401` | Token expired | `lib/api.ts` auto-refreshes; if still 401, redirect to login |
-| `403` | Wrong role / unauthorized | Show "You don't have permission" toast |
-| `404` | Resource not found | Show "Not found" state in component |
-| `409` | Invalid state transition | Show "This action is no longer available" |
-| `429` | Rate limited | Show "Too many requests, try again in 1 minute" |
-| `500` | Server error | Show generic error with retry button |
+| HTTP Status | Meaning                   | UI Action                                                    |
+| ----------- | ------------------------- | ------------------------------------------------------------ |
+| `400`       | Bad request / invalid OTP | Show inline error message                                    |
+| `401`       | Token expired             | `lib/api.ts` auto-refreshes; if still 401, redirect to login |
+| `403`       | Wrong role / unauthorized | Show "You don't have permission" toast                       |
+| `404`       | Resource not found        | Show "Not found" state in component                          |
+| `409`       | Invalid state transition  | Show "This action is no longer available"                    |
+| `429`       | Rate limited              | Show "Too many requests, try again in 1 minute"              |
+| `500`       | Server error              | Show generic error with retry button                         |
 
 > [!NOTE]
 > `lib/api.ts` line 64 currently throws `new Error(\`API error: ${res.status}\`)`. The response body (which has `message`) is not read. Upgrade this to parse and re-throw the JSON body so components can display the backend's actual error message.
@@ -461,42 +463,42 @@ Cross-reference this against your codebase. Each item is a live file + line numb
 
 ### 🔴 Must Fix Before Demo
 
-| File | Line(s) | Issue | Fix |
-|------|---------|-------|-----|
-| `auth-context.tsx` | 3, 37–38 | `mockLogin()` uses `currentUser` from mock-data and fake tokens | Remove `mockLogin`. Replace with real `login()` everywhere |
-| `BookingSheet.tsx` | 4, 15, 96–108 | Addresses loaded from `savedAddresses` in mock-data | Replace with `useAddresses()` hook |
-| `BookingSheet.tsx` | 22 | `platformFee = 49` is hardcoded | Calculate as `Math.round(service.price * 0.20)` |
-| `tracking.$bookingId.tsx` | 16–17 | Fetches all bookings to find one | Create `useBooking(id)` calling `GET /bookings/{id}` |
-| `service.$serviceId.tsx` | 51 | `service.provider.name` crashes (provider is undefined on live API) | Remove or replace with "Qualified professionals" copy |
-| `useApi.ts` | 33 | `provider_id` field on `API_ServiceResponse` | Remove — field no longer exists on backend |
-| `useApi.ts` | 182 | Wrong reviews URL: `/reviews/provider/{id}` | Change to `/reviews?provider_id={id}` |
-| `tracking.$bookingId.tsx` | 143 | Cancel button has no onClick | Wire to `PATCH /bookings/{id}/cancel` |
+| File                      | Line(s)       | Issue                                                               | Fix                                                        |
+| ------------------------- | ------------- | ------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `auth-context.tsx`        | 3, 37–38      | `mockLogin()` uses `currentUser` from mock-data and fake tokens     | Remove `mockLogin`. Replace with real `login()` everywhere |
+| `BookingSheet.tsx`        | 4, 15, 96–108 | Addresses loaded from `savedAddresses` in mock-data                 | Replace with `useAddresses()` hook                         |
+| `BookingSheet.tsx`        | 22            | `platformFee = 49` is hardcoded                                     | Calculate as `Math.round(service.price * 0.20)`            |
+| `tracking.$bookingId.tsx` | 16–17         | Fetches all bookings to find one                                    | Create `useBooking(id)` calling `GET /bookings/{id}`       |
+| `service.$serviceId.tsx`  | 51            | `service.provider.name` crashes (provider is undefined on live API) | Remove or replace with "Qualified professionals" copy      |
+| `useApi.ts`               | 33            | `provider_id` field on `API_ServiceResponse`                        | Remove — field no longer exists on backend                 |
+| `useApi.ts`               | 182           | Wrong reviews URL: `/reviews/provider/{id}`                         | Change to `/reviews?provider_id={id}`                      |
+| `tracking.$bookingId.tsx` | 143           | Cancel button has no onClick                                        | Wire to `PATCH /bookings/{id}/cancel`                      |
 
 ### 🟡 Important for Full Feature Parity
 
-| File | Line(s) | Issue | Fix |
-|------|---------|-------|-----|
-| `auth-context.tsx` | 87–91 | OTP verify catch block calls `mockLogin()` on failure | Remove fallback; show error state instead |
-| `AuthFlow.tsx` | 47–49 | Send OTP catch block silently advances step | Remove; show error toast |
-| `tracking.$bookingId.tsx` | — | `EXPIRED` status not handled | Add `EXPIRED` case with "No partners found. Try again." UI |
-| (missing) | — | No review submission screen | Add post-completion review prompt |
-| (missing) | — | No online payment screen | Add Razorpay checkout after COMPLETED |
-| `lib/api.ts` | 63–65 | Error body not parsed | Read `res.json()` in error path and re-throw with message |
+| File                      | Line(s) | Issue                                                 | Fix                                                        |
+| ------------------------- | ------- | ----------------------------------------------------- | ---------------------------------------------------------- |
+| `auth-context.tsx`        | 87–91   | OTP verify catch block calls `mockLogin()` on failure | Remove fallback; show error state instead                  |
+| `AuthFlow.tsx`            | 47–49   | Send OTP catch block silently advances step           | Remove; show error toast                                   |
+| `tracking.$bookingId.tsx` | —       | `EXPIRED` status not handled                          | Add `EXPIRED` case with "No partners found. Try again." UI |
+| (missing)                 | —       | No review submission screen                           | Add post-completion review prompt                          |
+| (missing)                 | —       | No online payment screen                              | Add Razorpay checkout after COMPLETED                      |
+| `lib/api.ts`              | 63–65   | Error body not parsed                                 | Read `res.json()` in error path and re-throw with message  |
 
 ### 🟢 Already Correctly Wired
 
-| Feature | Hook/File | Status |
-|---------|-----------|--------|
-| Categories listing | `useCategories()` | ✅ Live |
-| Services listing (with category filter) | `useServices(categoryId?)` | ✅ Live |
-| Create booking | `BookingSheet.tsx` → `POST /bookings/` | ✅ Live |
-| Bookings list | `useBookings()` | ✅ Live |
-| Profile PATCH | `profile.tsx` → `PATCH /users/me` | ✅ Live |
-| Address listing | `useAddresses()` | ✅ Live |
-| Token auto-refresh | `lib/api.ts` | ✅ Live |
-| Doorstep OTP display | `tracking.$bookingId.tsx` | ✅ Live |
-| OTP send + verify | `AuthFlow.tsx` | ✅ Live (with fallback issues noted) |
+| Feature                                 | Hook/File                              | Status                               |
+| --------------------------------------- | -------------------------------------- | ------------------------------------ |
+| Categories listing                      | `useCategories()`                      | ✅ Live                              |
+| Services listing (with category filter) | `useServices(categoryId?)`             | ✅ Live                              |
+| Create booking                          | `BookingSheet.tsx` → `POST /bookings/` | ✅ Live                              |
+| Bookings list                           | `useBookings()`                        | ✅ Live                              |
+| Profile PATCH                           | `profile.tsx` → `PATCH /users/me`      | ✅ Live                              |
+| Address listing                         | `useAddresses()`                       | ✅ Live                              |
+| Token auto-refresh                      | `lib/api.ts`                           | ✅ Live                              |
+| Doorstep OTP display                    | `tracking.$bookingId.tsx`              | ✅ Live                              |
+| OTP send + verify                       | `AuthFlow.tsx`                         | ✅ Live (with fallback issues noted) |
 
 ---
 
-*Last updated: April 29, 2026. Source of truth: `ServiceConnect_LLD_Backend.md` + current backend codebase.*
+_Last updated: April 29, 2026. Source of truth: `ServiceConnect_LLD_Backend.md` + current backend codebase._

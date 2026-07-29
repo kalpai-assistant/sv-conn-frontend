@@ -28,7 +28,9 @@ function ServiceDetailPage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground">Service not found</p>
-          <Link to="/" className="mt-2 text-sm font-medium text-primary">Go Home</Link>
+          <Link to="/" className="mt-2 text-sm font-medium text-primary">
+            Go Home
+          </Link>
         </div>
       </div>
     );
@@ -52,7 +54,7 @@ function ServiceDetailPage() {
         <h2 className="mt-3 text-lg font-semibold text-foreground">Qualified Professionals</h2>
         <div className="mt-1 flex items-center gap-2">
           <span className="flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-             Verified & Background Checked
+            Verified & Background Checked
           </span>
         </div>
       </div>
@@ -61,7 +63,9 @@ function ServiceDetailPage() {
       <div className="px-4">
         <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="text-base font-semibold text-foreground">{service.name}</h3>
-          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{service.description}</p>
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+            {service.description}
+          </p>
           <div className="mt-4 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
@@ -76,7 +80,9 @@ function ServiceDetailPage() {
       <div className="px-4 pt-6">
         <div className="rounded-xl border border-border bg-accent/50 p-4 text-center">
           <p className="text-sm font-medium text-foreground">Top-rated partners in your area</p>
-          <p className="text-xs text-muted-foreground mt-1">We match you with professionals maintaining a 4.5+ average rating.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            We match you with professionals maintaining a 4.5+ average rating.
+          </p>
         </div>
       </div>
 
@@ -90,9 +96,7 @@ function ServiceDetailPage() {
         </button>
       </div>
 
-      {bookingOpen && (
-        <BookingSheet service={service} onClose={() => setBookingOpen(false)} />
-      )}
+      {bookingOpen && <BookingSheet service={service} onClose={() => setBookingOpen(false)} />}
     </div>
   );
 }
