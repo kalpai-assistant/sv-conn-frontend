@@ -33,6 +33,14 @@ export const Route = createFileRoute("/provider/payout")({
 
 const methodLabel = (m: PayoutMethodKind) => (m === "upi" ? "UPI ID" : "Bank account");
 
+// Names the destination a write landed on, for the confirmation toast. Prefers the
+// server's label — "••••7890", or the VPA in full — because naming the actual account
+// is what lets a provider catch a wrong switch straight away. Falls back to the method
+// name when the label is null, which it is for providers whose method predates SVC-148
+// (the migration declined to decrypt every provider's PII just to backfill a label).
+const destinationLabel = (profile: ProviderProfile, fallback: PayoutMethodKind) =>
+  profile.payout_display ?? `your ${methodLabel(profile.payout_method ?? fallback).toLowerCase()}`;
+
 // SVC-148 — manage the payout method after onboarding: see what's on file, switch
 // between UPI and bank, replace either, or remove payout details entirely.
 function ProviderPayoutPage() {
@@ -90,8 +98,8 @@ function PayoutManager({ profile }: { profile: ProviderProfile }) {
     if (!other) return;
     setSwitchError(null);
     try {
-      await setPayoutMethod.mutateAsync(other);
-      toast.success(`Payouts now go to your ${methodLabel(other).toLowerCase()}`);
+      const switched = await setPayoutMethod.mutateAsync(other);
+      toast.success(`Payouts now go to ${destinationLabel(switched, other)}`);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Couldn’t switch your payout method. Try again.";
@@ -192,9 +200,7 @@ function SavePayoutForm({
       onSaved();
       // Saving activates the method immediately — there is no confirm step — so the
       // toast says it landed, not that it was merely stored.
-      toast.success(
-        `Payouts now go to your ${methodLabel(saved.payout_method ?? form.method).toLowerCase()}`,
-      );
+      toast.success(`Payouts now go to ${destinationLabel(saved, form.method)}`);
     } catch (err) {
       form.setError(
         err instanceof Error ? err.message : "Couldn’t save your payout details. Try again.",
