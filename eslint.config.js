@@ -35,7 +35,38 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      "react-refresh/only-export-components": [
+        "warn",
+        {
+          allowConstantExport: true,
+          // Named non-component exports that we've decided are safe to sit
+          // alongside components. The rule exists to keep HMR reliable —
+          // these particular names are stable enough (shadcn primitives
+          // rarely change; auth/router are edit-once files) that the HMR
+          // downgrade to "remount instead of hot-swap" costs us nothing in
+          // practice.
+          //
+          // Additions to this list should include a one-line justification
+          // in the PR — the goal is a small, well-understood exception list,
+          // not an ever-growing catch-all.
+          allowExportNames: [
+            // shadcn cva variants — used across the app for consistent styling,
+            // paired with the component for import ergonomics.
+            "badgeVariants",
+            "buttonVariants",
+            "toggleVariants",
+            "navigationMenuTriggerStyle",
+            // shadcn hooks bundled with their components in canonical shadcn.
+            "useFormField",
+            "useSidebar",
+            // Our own auth + router utilities. Extracting to separate files
+            // adds indirection without meaningful HMR benefit for files that
+            // change once a quarter.
+            "useAuth",
+            "getRouter",
+          ],
+        },
+      ],
       "@typescript-eslint/no-unused-vars": "off",
       // Blocking. The 18 preexisting `any`s were retyped against the
       // OpenAPI spec (openapi-typescript → src/types/api.ts) and the
