@@ -9,26 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as BookingsRouteImport } from './routes/bookings'
-import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ActivityRouteImport } from './routes/activity'
+import { Route as BookingsRouteImport } from './routes/bookings'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ProviderIndexRouteImport } from './routes/provider/index'
-import { Route as TrackingBookingIdRouteImport } from './routes/tracking.$bookingId'
-import { Route as ServiceServiceIdRouteImport } from './routes/service.$serviceId'
-import { Route as ProviderProfileRouteImport } from './routes/provider/profile'
-import { Route as ProviderOnboardingRouteImport } from './routes/provider/onboarding'
-import { Route as ProviderEarningsRouteImport } from './routes/provider/earnings'
 import { Route as ProviderBookingsRouteImport } from './routes/provider/bookings'
+import { Route as ProviderEarningsRouteImport } from './routes/provider/earnings'
+import { Route as ProviderOnboardingRouteImport } from './routes/provider/onboarding'
+import { Route as ProviderPayoutRouteImport } from './routes/provider/payout'
+import { Route as ProviderProfileRouteImport } from './routes/provider/profile'
+import { Route as ServiceServiceIdRouteImport } from './routes/service.$serviceId'
+import { Route as TrackingBookingIdRouteImport } from './routes/tracking.$bookingId'
 
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BookingsRoute = BookingsRouteImport.update({
-  id: '/bookings',
-  path: '/bookings',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ActivityRoute = ActivityRouteImport.update({
@@ -36,9 +32,14 @@ const ActivityRoute = ActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const BookingsRoute = BookingsRouteImport.update({
+  id: '/bookings',
+  path: '/bookings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProviderIndexRoute = ProviderIndexRouteImport.update({
@@ -46,24 +47,9 @@ const ProviderIndexRoute = ProviderIndexRouteImport.update({
   path: '/provider/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TrackingBookingIdRoute = TrackingBookingIdRouteImport.update({
-  id: '/tracking/$bookingId',
-  path: '/tracking/$bookingId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ServiceServiceIdRoute = ServiceServiceIdRouteImport.update({
-  id: '/service/$serviceId',
-  path: '/service/$serviceId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProviderProfileRoute = ProviderProfileRouteImport.update({
-  id: '/provider/profile',
-  path: '/provider/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProviderOnboardingRoute = ProviderOnboardingRouteImport.update({
-  id: '/provider/onboarding',
-  path: '/provider/onboarding',
+const ProviderBookingsRoute = ProviderBookingsRouteImport.update({
+  id: '/provider/bookings',
+  path: '/provider/bookings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProviderEarningsRoute = ProviderEarningsRouteImport.update({
@@ -71,9 +57,29 @@ const ProviderEarningsRoute = ProviderEarningsRouteImport.update({
   path: '/provider/earnings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProviderBookingsRoute = ProviderBookingsRouteImport.update({
-  id: '/provider/bookings',
-  path: '/provider/bookings',
+const ProviderOnboardingRoute = ProviderOnboardingRouteImport.update({
+  id: '/provider/onboarding',
+  path: '/provider/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProviderPayoutRoute = ProviderPayoutRouteImport.update({
+  id: '/provider/payout',
+  path: '/provider/payout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProviderProfileRoute = ProviderProfileRouteImport.update({
+  id: '/provider/profile',
+  path: '/provider/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServiceServiceIdRoute = ServiceServiceIdRouteImport.update({
+  id: '/service/$serviceId',
+  path: '/service/$serviceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackingBookingIdRoute = TrackingBookingIdRouteImport.update({
+  id: '/tracking/$bookingId',
+  path: '/tracking/$bookingId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/provider/bookings': typeof ProviderBookingsRoute
   '/provider/earnings': typeof ProviderEarningsRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
+  '/provider/payout': typeof ProviderPayoutRoute
   '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/provider/bookings': typeof ProviderBookingsRoute
   '/provider/earnings': typeof ProviderEarningsRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
+  '/provider/payout': typeof ProviderPayoutRoute
   '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/provider/bookings': typeof ProviderBookingsRoute
   '/provider/earnings': typeof ProviderEarningsRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
+  '/provider/payout': typeof ProviderPayoutRoute
   '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/provider/bookings'
     | '/provider/earnings'
     | '/provider/onboarding'
+    | '/provider/payout'
     | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/provider/bookings'
     | '/provider/earnings'
     | '/provider/onboarding'
+    | '/provider/payout'
     | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/provider/bookings'
     | '/provider/earnings'
     | '/provider/onboarding'
+    | '/provider/payout'
     | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
@@ -167,6 +179,7 @@ export interface RootRouteChildren {
   ProviderBookingsRoute: typeof ProviderBookingsRoute
   ProviderEarningsRoute: typeof ProviderEarningsRoute
   ProviderOnboardingRoute: typeof ProviderOnboardingRoute
+  ProviderPayoutRoute: typeof ProviderPayoutRoute
   ProviderProfileRoute: typeof ProviderProfileRoute
   ServiceServiceIdRoute: typeof ServiceServiceIdRoute
   TrackingBookingIdRoute: typeof TrackingBookingIdRoute
@@ -175,18 +188,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/bookings': {
-      id: '/bookings'
-      path: '/bookings'
-      fullPath: '/bookings'
-      preLoaderRoute: typeof BookingsRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/activity': {
@@ -196,11 +202,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/bookings': {
+      id: '/bookings'
+      path: '/bookings'
+      fullPath: '/bookings'
+      preLoaderRoute: typeof BookingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/provider/': {
@@ -210,32 +223,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProviderIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tracking/$bookingId': {
-      id: '/tracking/$bookingId'
-      path: '/tracking/$bookingId'
-      fullPath: '/tracking/$bookingId'
-      preLoaderRoute: typeof TrackingBookingIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/service/$serviceId': {
-      id: '/service/$serviceId'
-      path: '/service/$serviceId'
-      fullPath: '/service/$serviceId'
-      preLoaderRoute: typeof ServiceServiceIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/provider/profile': {
-      id: '/provider/profile'
-      path: '/provider/profile'
-      fullPath: '/provider/profile'
-      preLoaderRoute: typeof ProviderProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/provider/onboarding': {
-      id: '/provider/onboarding'
-      path: '/provider/onboarding'
-      fullPath: '/provider/onboarding'
-      preLoaderRoute: typeof ProviderOnboardingRouteImport
+    '/provider/bookings': {
+      id: '/provider/bookings'
+      path: '/provider/bookings'
+      fullPath: '/provider/bookings'
+      preLoaderRoute: typeof ProviderBookingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/provider/earnings': {
@@ -245,11 +237,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProviderEarningsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/provider/bookings': {
-      id: '/provider/bookings'
-      path: '/provider/bookings'
-      fullPath: '/provider/bookings'
-      preLoaderRoute: typeof ProviderBookingsRouteImport
+    '/provider/onboarding': {
+      id: '/provider/onboarding'
+      path: '/provider/onboarding'
+      fullPath: '/provider/onboarding'
+      preLoaderRoute: typeof ProviderOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/provider/payout': {
+      id: '/provider/payout'
+      path: '/provider/payout'
+      fullPath: '/provider/payout'
+      preLoaderRoute: typeof ProviderPayoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/provider/profile': {
+      id: '/provider/profile'
+      path: '/provider/profile'
+      fullPath: '/provider/profile'
+      preLoaderRoute: typeof ProviderProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/service/$serviceId': {
+      id: '/service/$serviceId'
+      path: '/service/$serviceId'
+      fullPath: '/service/$serviceId'
+      preLoaderRoute: typeof ServiceServiceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tracking/$bookingId': {
+      id: '/tracking/$bookingId'
+      path: '/tracking/$bookingId'
+      fullPath: '/tracking/$bookingId'
+      preLoaderRoute: typeof TrackingBookingIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -263,6 +283,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProviderBookingsRoute: ProviderBookingsRoute,
   ProviderEarningsRoute: ProviderEarningsRoute,
   ProviderOnboardingRoute: ProviderOnboardingRoute,
+  ProviderPayoutRoute: ProviderPayoutRoute,
   ProviderProfileRoute: ProviderProfileRoute,
   ServiceServiceIdRoute: ServiceServiceIdRoute,
   TrackingBookingIdRoute: TrackingBookingIdRoute,
