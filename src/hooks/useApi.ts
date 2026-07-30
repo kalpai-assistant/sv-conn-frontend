@@ -1,15 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import type {
-  Category,
-  Service,
-  ServiceResponse,
-  CategoryResponse,
-  Booking,
-  BookingListResponse,
-  Address,
-} from "@/types/api"; // Wait, I need to define these types, maybe local or import from mock-data for compatibility
-
 // Let's use the mock-data types as target shape so we don't have to rewrite UI heavily
 import type {
   Category as UI_Category,
@@ -355,6 +345,8 @@ export const useToggleProviderService = () => {
 
 export type KycStatus = "pending" | "submitted" | "verified" | "rejected";
 
+export type PayoutMethodKind = "upi" | "bank";
+
 export interface ProviderProfile {
   id: string;
   user_id: string;
@@ -365,6 +357,16 @@ export interface ProviderProfile {
   total_completed_jobs: number;
   // Derived on the backend: whether a payout destination is on file. Never the raw PII.
   payout_set: boolean;
+  // Which stored destination payouts actually go to (SVC-148). A provider may keep
+  // both a UPI handle and a bank account on file — saving one never erases the
+  // other — so this, not "which details exist", is what decides where money lands.
+  payout_method: PayoutMethodKind | null;
+  // Display-safe label for the active method: the full handle for UPI (a VPA is
+  // public by design, and masking it would cost recognisability for no gain), the
+  // last 4 digits for a bank account. Null when nothing is on file — and also null
+  // for providers whose method predates SVC-148, since the backfill deliberately
+  // left it empty rather than guess. Callers must handle set-but-unlabelled.
+  payout_display: string | null;
 }
 
 // GET /providers/me — the current provider's profile (kyc_status drives the
@@ -443,9 +445,20 @@ export const useSubmitKyc = () => {
 // PATCH /providers/me — save the provider's payout destination (SVC-133).
 // Send UPI *or* bank details; the backend encrypts at rest and returns the
 // derived payout_set flag (never the raw PII).
+//
+// The union is what stops "both at once" being expressible: the backend 422s on a
+// request carrying UPI and bank together, because saving a method also activates
+// it and two activations have no defined winner.
 export type PayoutInput =
-  | { payout_vpa: string }
-  | { payout_account_number: string; payout_ifsc: string };
+  { payout_vpa: string } | { payout_account_number: string; payout_ifsc: string };
+
+// Every payout endpoint returns the full provider profile, so each mutation seeds
+// the cache from its own response rather than invalidating and refetching. Saves a
+// round-trip, and — more importantly — avoids the window where the screen renders
+// stale payout state between a successful write and the refetch landing.
+const seedProfile =
+  (queryClient: ReturnType<typeof useQueryClient>) => (profile: ProviderProfile) =>
+    queryClient.setQueryData(["providerProfile"], profile);
 
 export const useUpdatePayout = () => {
   const queryClient = useQueryClient();
@@ -455,7 +468,39 @@ export const useUpdatePayout = () => {
         method: "PATCH",
         body: JSON.stringify(payout),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+    onSuccess: seedProfile(queryClient),
+  });
+};
+
+// PATCH /providers/me/payout-method — switch payouts to a method already on file,
+// without re-entering it (SVC-148). Saving a method never erases the other one, so
+// a provider who has both stored can flip between them.
+//
+// Throws ApiError with status 400 when nothing is stored for the requested method.
+// That 400 is currently the *only* way to discover what is stored: GET /providers/me
+// returns the active method and its label, but nothing about the inactive one.
+export const useSetPayoutMethod = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (method: PayoutMethodKind) =>
+      apiFetch<ProviderProfile>("/providers/me/payout-method", {
+        method: "PATCH",
+        body: JSON.stringify({ method }),
+      }),
+    onSuccess: seedProfile(queryClient),
+  });
+};
+
+// DELETE /providers/me/payout-method — erase every stored payout destination.
+// Clears *both* methods, not just the active one, so this is not an undo for a
+// switch: afterwards payout_set is false and the provider cannot be paid until
+// they add a method again. Callers must confirm before firing it.
+export const useRemovePayoutMethod = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<ProviderProfile>("/providers/me/payout-method", { method: "DELETE" }),
+    onSuccess: seedProfile(queryClient),
   });
 };
 
