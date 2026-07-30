@@ -4,9 +4,17 @@
  * (satisfies the react-refresh Fast Refresh contract).
  */
 import { useRouter } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { reportError } from "@/lib/sentry";
 
 export function RouterErrorFallback({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
+
+  // Report route errors to Sentry once per mount. useEffect (not inline) so
+  // re-renders while the error UI is up don't double-report.
+  useEffect(() => {
+    reportError(error, { source: "router" });
+  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">

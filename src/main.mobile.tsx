@@ -9,7 +9,13 @@ import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { getRouter } from "./router";
+import { initSentry } from "./lib/sentry";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles.css";
+
+// Init before anything else renders — even the RouterProvider's first render
+// should be inside Sentry's error capture window.
+initSentry();
 
 // Capacitor native plugins (status bar, splash screen, etc.)
 import { StatusBar, Style } from "@capacitor/status-bar";
@@ -49,6 +55,8 @@ const router = getRouter();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <ErrorBoundary>
+      <RouterProvider router={router} />
+    </ErrorBoundary>
   </StrictMode>,
 );

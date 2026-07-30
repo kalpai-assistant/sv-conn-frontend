@@ -13,8 +13,13 @@ import { BottomNav } from "@/components/BottomNav";
 import { AuthFlow } from "@/components/AuthFlow";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { initSentry } from "@/lib/sentry";
 
 import appCss from "../styles.css?url";
+
+// Web-build init. `initSentry` is idempotent + SSR-safe (window guard), so
+// this coexists cleanly with the mobile build's own init in main.mobile.tsx.
+initSentry();
 
 const queryClient = new QueryClient();
 
