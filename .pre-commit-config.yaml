@@ -1,0 +1,50 @@
+# Pre-commit hooks — install once with `pre-commit install` in a fresh clone.
+#
+# What runs: fast local checks that catch the failures most common in
+# past PRs (accidental secrets, formatting drift, unformatted TS/TSX).
+# CI still runs the definitive lint/typecheck/build — these hooks just
+# shorten the feedback loop from "PR failed" to "commit refused".
+#
+# Install:
+#   pipx install pre-commit
+#   pre-commit install                # writes .git/hooks/pre-commit
+#   pre-commit run --all-files        # one-time run over the whole tree
+
+repos:
+  # Secret scanner — catches accidentally-committed API keys, tokens, and
+  # credentials. Highest-value hook here: a single leaked Razorpay key is
+  # far more expensive than any lint miss.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  # Basic hygiene.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        # routeTree.gen.ts and api.ts are code-generated — don't fight the
+        # generator's output style.
+        exclude: ^src/(routeTree\.gen\.ts|types/api\.ts)$
+      - id: end-of-file-fixer
+        exclude: ^src/(routeTree\.gen\.ts|types/api\.ts)$
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # Prettier — matches what CI's ESLint (via prettier/prettier rule)
+  # enforces. Running it here means "prettier autofix" is applied at
+  # commit time instead of being a fight during PR review.
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        # Match the ESLint ignores so codegen files aren't reformatted.
+        exclude: ^(src/(routeTree\.gen\.ts|types/api\.ts)|package-lock\.json|dist(-mobile)?/|android/|ios/)
+        # Files prettier should touch. Anything else (Java, Kotlin, XML in
+        # native trees, .env, etc.) is skipped.
+        types_or: [ts, tsx, javascript, json, css, markdown, yaml]
