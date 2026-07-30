@@ -83,11 +83,15 @@ function PayoutManager({ profile }: { profile: ProviderProfile }) {
   const setPayoutMethod = useSetPayoutMethod();
 
   const active = profile.payout_method;
-  // The method that isn't active. Whether anything is actually *stored* for it is
-  // not in the read model — GET /providers/me describes only the active method — so
-  // the switch below is offered optimistically and the 400 is what tells us.
+  // The method that isn't active.
   const other: PayoutMethodKind | null =
     active === "upi" ? "bank" : active === "bank" ? "upi" : null;
+
+  // Only offer the switch when the other method actually has details on file, so the
+  // button is never a dead end (SVC-152). Against a backend that predates that field
+  // we fall back to offering it — the old optimistic behaviour, where the 400 below
+  // is what reveals the truth.
+  const canSwitch = other !== null && (profile.payout_methods_stored?.includes(other) ?? true);
 
   const [switchError, setSwitchError] = useState<string | null>(null);
   // Which method the entry form starts on. Keyed into the form below so that
@@ -104,9 +108,11 @@ function PayoutManager({ profile }: { profile: ProviderProfile }) {
       const message =
         err instanceof Error ? err.message : "Couldn’t switch your payout method. Try again.";
       setSwitchError(message);
-      // 400 means nothing is stored for that method — which the button had no way to
-      // know beforehand. Rather than leave a dead end, drop the form onto that method
-      // so the provider's next action is the one that fixes it.
+      // 400 means nothing is stored for that method. Since SVC-152 the button is only
+      // shown when it is, so this is now a staleness guard rather than the way we find
+      // out — the cached profile can lag a removal made in another session. Kept
+      // because that race would otherwise surface as an unexplained failure, and it
+      // still does the useful thing: drop the form onto the method needing details.
       if (err instanceof ApiError && err.status === 400) setFormMethod(other);
     }
   };
@@ -141,9 +147,9 @@ function PayoutManager({ profile }: { profile: ProviderProfile }) {
         </div>
       )}
 
-      {/* Switch to the other method, if it's already stored. Saving a method never
-          erases the previous one, so this usually works without re-entering details. */}
-      {other && (
+      {/* Switch to the other method. Saving a method never erases the previous one,
+          so this works without re-entering details. */}
+      {other && canSwitch && (
         <div className="space-y-2">
           <Button
             variant="outline"

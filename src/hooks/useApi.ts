@@ -367,6 +367,16 @@ export interface ProviderProfile {
   // for providers whose method predates SVC-148, since the backfill deliberately
   // left it empty rather than guess. Callers must handle set-but-unlabelled.
   payout_display: string | null;
+  // Which methods have details on file, active or not (SVC-152) — what makes it
+  // possible to know whether "switch back to your bank account" will work, rather
+  // than firing the switch and reading the 400. Names the filled slots, never their
+  // contents, and always includes the active method.
+  //
+  // Optional only for the window before the SVC-152 backend (PR #39) is deployed:
+  // against an older backend the field is absent, and callers fall back to offering
+  // the switch optimistically, which the 400 handling already covers. Drop the `?`
+  // once that backend is everywhere.
+  payout_methods_stored?: PayoutMethodKind[];
 }
 
 // GET /providers/me — the current provider's profile (kyc_status drives the
