@@ -353,6 +353,11 @@ export interface ProviderProfile {
   profile_photo_url: string | null;
   languages: string[];
   kyc_status: KycStatus;
+  // Whether the provider is accepting jobs right now (SVC-155). The booking
+  // broadcast filters on this, so a provider who never turns it on is matched by
+  // nothing. Server state, not a UI preference: it survives restarts, and it is
+  // only ever changed by an explicit user action — never by a lifecycle event.
+  is_online: boolean;
   avg_rating: number;
   total_completed_jobs: number;
   // Derived on the backend: whether a payout destination is on file. Never the raw PII.
@@ -407,6 +412,26 @@ export const useUpdateLanguages = () => {
       apiFetch<ProviderProfile>("/providers/me", {
         method: "PATCH",
         body: JSON.stringify({ languages }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+  });
+};
+
+// PATCH /providers/me/status { is_online } — go online/offline (SVC-155).
+// Returns the full profile, same shape as GET /providers/me, so invalidating the
+// profile query is enough to settle every reader back onto server truth.
+//
+// Callers must only fire this from a deliberate user action. Going online means
+// "I am accepting jobs", not "the app is open", so it must never be driven by
+// mount, focus, foreground or background. Auto-offline-on-background would be
+// actively broken here: the app is backgrounded exactly when a push arrives.
+export const useSetOnlineStatus = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (is_online: boolean) =>
+      apiFetch<ProviderProfile>("/providers/me/status", {
+        method: "PATCH",
+        body: JSON.stringify({ is_online }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
   });
