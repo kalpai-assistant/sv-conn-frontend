@@ -68,7 +68,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
         const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: `+91${phone}`, otp: newOtp.join(""), role: "provider" }),
+          body: JSON.stringify({ phone: `+91${phone}`, otp: newOtp.join(""), role: "consumer" }),
         });
         if (!res.ok) throw new Error("Failed to verify OTP");
         const tokenData = (await res.json()) as {
