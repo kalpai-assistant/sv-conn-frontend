@@ -12,6 +12,7 @@ import { useNotificationRouter } from "@/lib/notifications";
 import { BottomNav } from "@/components/BottomNav";
 import { AuthFlow } from "@/components/AuthFlow";
 import { AppVersionGate } from "@/components/AppVersionGate";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initSentry } from "@/lib/sentry";
@@ -183,19 +184,28 @@ function AppGate({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  // ErrorBoundary sits above the providers so an unhandled render error in
+  // any of them (AuthProvider init, QueryClient boot, AppVersionGate mount)
+  // still gets caught + reported to Sentry — without this the web/SSR build
+  // shows a white screen with nothing in Sentry. The mobile entry
+  // (main.mobile.tsx) already has the same wrap; this brings the web path
+  // to parity. Route-level errors (inside <Outlet/>) are still handled by
+  // TanStack Router's `defaultErrorComponent` (RouterErrorFallback).
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        {/* SVC-162: version-check nudge/block overlays. Wraps the whole
-            tree so the block state can cover everything below it. */}
-        <AppVersionGate>
-          <AppGate>
-            <Outlet />
-            <BottomNav />
-          </AppGate>
-          <Toaster />
-        </AppVersionGate>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          {/* SVC-162: version-check nudge/block overlays. Wraps the whole
+              tree so the block state can cover everything below it. */}
+          <AppVersionGate>
+            <AppGate>
+              <Outlet />
+              <BottomNav />
+            </AppGate>
+            <Toaster />
+          </AppVersionGate>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
