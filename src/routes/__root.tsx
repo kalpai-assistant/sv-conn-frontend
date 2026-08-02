@@ -129,12 +129,18 @@ function AppGate({ children }: { children: React.ReactNode }) {
   const pathname = routerState.location.pathname;
   const isProfileRoute = pathname.startsWith("/profile");
   const isAdminRoute = pathname.startsWith("/admin");
-  // SVC-37: legal pages must be reachable without login. Razorpay merchant
-  // review, Play Store data-safety review, and App Store privacy nutrition
-  // reviewers hit these URLs anonymously — an AuthFlow gate would kill the
-  // submission. Kept as a full-width layout with no BottomNav.
-  const isPublicLegalRoute =
-    pathname === "/privacy" || pathname === "/terms" || pathname === "/refund";
+  // Public routes — reachable without login.
+  // - SVC-37: legal pages (privacy, terms, refund) are hit anonymously by
+  //   Razorpay merchant review, Play Store data-safety review, and App Store
+  //   privacy nutrition reviewers. An AuthFlow gate would kill the submission.
+  // - SVC-161: /download is the pre-signup landing page — auth would defeat
+  //   the point (users haven't installed the app yet).
+  // All rendered as full-width layout with no BottomNav.
+  const isPublicRoute =
+    pathname === "/privacy" ||
+    pathname === "/terms" ||
+    pathname === "/refund" ||
+    pathname === "/download";
   const role = (user as UserWithMaybeRole | null)?.role ?? null;
 
   // Wire FCM tap → in-app navigation. No-op on web; lazy-loads the Capacitor
@@ -142,8 +148,8 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // `useAuth()` access — that's why it sits here, not in main.mobile.tsx.
   useNotificationRouter();
 
-  // Public legal pages render regardless of auth state.
-  if (isPublicLegalRoute) {
+  // Public routes render regardless of auth state.
+  if (isPublicRoute) {
     return <div className="min-h-screen bg-background">{children}</div>;
   }
 

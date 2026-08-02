@@ -1,6 +1,21 @@
 // Pluggable API utility — replace API_BASE_URL with your backend
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 
+/**
+ * Error thrown by `apiFetch` on any non-2xx response. Carries the status
+ * code so callers can branch on it (`if (err instanceof ApiError && err.status
+ * === 429) ...`) without parsing message text. Backwards-compatible with plain
+ * `Error` — `err.message` still works.
+ */
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
 
@@ -67,7 +82,12 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
     } catch {
       // Ignored if response is not JSON
     }
-    throw new Error(errorMsg);
+    throw new ApiError(res.status, errorMsg);
+  }
+
+  // 204 No Content — return undefined without trying to parse JSON.
+  if (res.status === 204) {
+    return undefined as T;
   }
 
   return res.json();
