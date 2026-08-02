@@ -49,3 +49,19 @@ export function reportError(error: Error, context?: Record<string, unknown>): vo
     console.error("[unreported]", error, context);
   }
 }
+
+/**
+ * Attach / detach the current user on the Sentry scope. Wraps `Sentry.setUser`
+ * so callers don't need a Sentry import and the no-init dev path stays silent.
+ *
+ * Only the opaque user id is sent — phone/email are PII and we ship with
+ * `sendDefaultPii: false`. The id is enough to answer "did one user hit this
+ * bug 100× or 100 users hit it once".
+ *
+ * Pass `null` on logout to clear the scope; otherwise a logged-out user's
+ * errors would be tagged with the previous user.
+ */
+export function setSentryUser(user: { id: string } | null): void {
+  if (!initialized) return;
+  Sentry.setUser(user);
+}
