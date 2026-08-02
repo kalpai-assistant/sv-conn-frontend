@@ -135,7 +135,7 @@ function TrackingPage() {
         key: order.razorpay_key_id,
         amount: order.amount,
         currency: order.currency,
-        name: "ServiceConnect",
+        name: "Eazyserv",
         description: "Payment for Service",
         order_id: order.razorpay_order_id,
         handler: (response) => handlePaymentSuccess(response),

@@ -23,8 +23,8 @@ import { AddAddressSheet } from "@/components/AddAddressSheet";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "Profile — ServiceConnect" },
-      { name: "description", content: "Manage your ServiceConnect profile." },
+      { title: "Profile — Eazyserv" },
+      { name: "description", content: "Manage your Eazyserv profile." },
     ],
   }),
   component: ProfilePage,

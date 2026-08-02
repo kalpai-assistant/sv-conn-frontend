@@ -59,7 +59,7 @@ Already wired in `project.pbxproj` (Target Debug + Release have `CODE_SIGN_ENTIT
 
 ### Bundle identifier
 
-`com.serviceconnect.app` (from `capacitor.config.ts`). Must match the App Store Connect app ID (SC-61).
+`com.eazyserv.app` (from `capacitor.config.ts`). Must match the App Store Connect app ID (SC-61).
 
 ---
 

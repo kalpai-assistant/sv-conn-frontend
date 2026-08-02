@@ -2,8 +2,8 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   // Must be a unique reverse-domain identifier — update before App Store submission
-  appId: "com.serviceconnect.app",
-  appName: "ServiceConnect",
+  appId: "com.eazyserv.app",
+  appName: "Eazyserv",
 
   // Points to the Capacitor-specific build output
   webDir: "dist-mobile",

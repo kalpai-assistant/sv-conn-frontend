@@ -1,4 +1,4 @@
-# ServiceConnect — Frontend E2E Integration Reference
+# Eazyserv — Frontend E2E Integration Reference
 
 **Date:** April 29, 2026  
 **Backend Base URL:** `VITE_API_BASE_URL=/api/v1` (already correct in `lib/api.ts`)  
@@ -501,4 +501,4 @@ Cross-reference this against your codebase. Each item is a live file + line numb
 
 ---
 
-_Last updated: April 29, 2026. Source of truth: `ServiceConnect_LLD_Backend.md` + current backend codebase._
+_Last updated: April 29, 2026. Source of truth: `Eazyserv_LLD_Backend.md` + current backend codebase._
