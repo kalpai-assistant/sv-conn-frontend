@@ -55,8 +55,19 @@ android/app/build
 android/.gradle
 ios/App/build
 ios/App/Pods
+
+# Firebase / FCM configs — per-project identifiers, not secrets but
+# conventionally gitignored + CI-injected. See backend/FIREBASE.md.
 google-services.json
 GoogleService-Info.plist
+src/firebase-config.json
+
+# Android release signing (SVC-160). NEVER commit the keystore — losing
+# it means the app can never be updated with a matching signature.
+# Store the keystore in 1Password ("Eazyserv ops" vault).
+*.keystore
+*.jks
+android/keystore.properties
 
 # OS
 Thumbs.db
