@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 export const Route = createFileRoute("/activity")({
   head: () => ({
     meta: [
-      { title: "Activity — ServiceConnect" },
+      { title: "Activity — Eazyserv" },
       { name: "description", content: "Your recent service activity." },
     ],
   }),

@@ -27,7 +27,7 @@ There is no test suite currently.
 
 ## Architecture
 
-This is a **React 19 + TypeScript** home-services booking app (ServiceConnect) targeting Bangalore. It ships as both a **PWA** (Cloudflare deployment) and a **native iOS/Android app** (Capacitor).
+This is a **React 19 + TypeScript** home-services booking app (Eazyserv) targeting Bangalore. It ships as both a **PWA** (Cloudflare deployment) and a **native iOS/Android app** (Capacitor).
 
 ### Dual-build setup
 
@@ -68,7 +68,7 @@ Backend base URL: `VITE_API_BASE_URL` (defaults to `/api/v1`; dev proxies to `ht
 
 ### Capacitor / native
 
-`capacitor.config.ts` targets `com.serviceconnect.app`. Native project directories (`android/`, `ios/`) are generated — don't edit generated files directly. After any `build:mobile`, run `cap:sync` before opening in Android Studio / Xcode.
+`capacitor.config.ts` targets `com.eazyserv.app`. Native project directories (`android/`, `ios/`) are generated — don't edit generated files directly. After any `build:mobile`, run `cap:sync` before opening in Android Studio / Xcode.
 
 ### Key environment variables
 

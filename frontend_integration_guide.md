@@ -1,6 +1,6 @@
 # Frontend Integration Guide: Urban Company Architecture
 
-This document summarizes the recent architectural rewrite of the ServiceConnect platform mapping it closer to an "Urban Company" style dispatch model rather than standard peer-to-peer directories.
+This document summarizes the recent architectural rewrite of the Eazyserv platform mapping it closer to an "Urban Company" style dispatch model rather than standard peer-to-peer directories.
 
 > [!IMPORTANT]
 > The Swagger (`/docs`) remains the source of truth for exact JSON schemas, but this document explains the **business flows** and **state machine lifecycles** required to build the Consumer and Provider apps correctly.
