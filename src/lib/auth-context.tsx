@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import { setTokens, clearTokens } from "./api";
+import { setSentryUser } from "./sentry";
 interface User {
   id: string;
   name: string | null;
@@ -29,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTokens(accessToken, refreshToken);
       setUser(u);
       setIsNewUser(newUser);
+      setSentryUser({ id: u.id });
     },
     [],
   );
@@ -37,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearTokens();
     setUser(null);
     setIsNewUser(false);
+    setSentryUser(null);
   }, []);
 
   const updateUser = useCallback((data: Partial<User>) => {
