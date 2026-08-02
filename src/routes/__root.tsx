@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { useNotificationRouter } from "@/lib/notifications";
 import { BottomNav } from "@/components/BottomNav";
 import { AuthFlow } from "@/components/AuthFlow";
+import { AppVersionGate } from "@/components/AppVersionGate";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initSentry } from "@/lib/sentry";
@@ -185,11 +186,15 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AppGate>
-          <Outlet />
-          <BottomNav />
-        </AppGate>
-        <Toaster />
+        {/* SVC-162: version-check nudge/block overlays. Wraps the whole
+            tree so the block state can cover everything below it. */}
+        <AppVersionGate>
+          <AppGate>
+            <Outlet />
+            <BottomNav />
+          </AppGate>
+          <Toaster />
+        </AppVersionGate>
       </AuthProvider>
     </QueryClientProvider>
   );
