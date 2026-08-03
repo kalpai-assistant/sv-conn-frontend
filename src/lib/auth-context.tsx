@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
-import { apiFetch, clearTokens, hasStoredAuth, setTokens } from "./api";
+import { apiFetch, clearTokens, getAccessToken, hasStoredAuth, setTokens } from "./api";
 import { setSentryUser } from "./sentry";
 import { clearFcmToken } from "./fcm";
 
@@ -139,15 +139,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    // Invalidate this device's push token before dropping the JWT. Deliberately
-    // not awaited — logout must be instant and must not fail if the device is
-    // offline. `clearFcmToken` never throws; it reports its own failures.
+    // Invalidate this device's push token — server-side and at FCM.
     //
-    // SVC-67 AC7: this clears the token *at FCM*, so pushes for the user who
-    // just signed out stop reaching this handset. It does NOT clear
-    // `users.fcm_token` in the DB — the endpoint rejects an empty value. That
-    // needs SVC-164.
-    void clearFcmToken();
+    // The JWT is snapshotted BEFORE `clearTokens()` wipes it. The clear
+    // endpoint identifies the row from the Authorization header alone, and
+    // `clearFcmToken` awaits a dynamic import before it can reach `fetch`,
+    // so it could never win a race against the next line. Handing it the
+    // token makes the call correct regardless of ordering rather than
+    // depending on it — get this wrong and logout still "works" while the
+    // signed-out user's token silently lives on in the DB forever.
+    //
+    // Deliberately not awaited: logout must be instant and must still work
+    // offline. `clearFcmToken` never throws; it reports its own failures.
+    void clearFcmToken(getAccessToken());
     clearTokens();
     writeStoredUser(null);
     setUser(null);
