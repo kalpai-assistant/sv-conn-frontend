@@ -1,4 +1,4 @@
-package com.serviceconnect.app;
+package com.eazyserv.app;
 
 import com.getcapacitor.BridgeActivity;
 
