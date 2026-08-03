@@ -19,6 +19,7 @@ import type { components } from "@/types/api";
 import { useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { AddAddressSheet } from "@/components/AddAddressSheet";
+import { NotificationsRow } from "@/components/NotificationsRow";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -231,6 +232,10 @@ function ProfilePage() {
 
           {/* Menu Items */}
           <div className="px-4 pt-8 flex flex-col gap-1">
+            {/* SVC-67: the user-gesture entry point for push permission —
+                iOS Safari won't prompt without one. Renders nothing where
+                push isn't supported. */}
+            <NotificationsRow />
             {[
               { icon: CreditCard, label: "Payment History" },
               { icon: HelpCircle, label: "Help & Support" },
