@@ -6,7 +6,18 @@ Cloudflare deploy of the web build; nothing to sign.
 
 ## What you need on your machine
 
-- A JDK (Temurin 21 works: `brew install --cask temurin`)
+- **JDK 21 specifically**: `brew install --cask temurin@21`. Do not
+  install the unversioned `temurin` cask — it grabs the latest JDK
+  (currently 26) which is newer than Gradle 8.14.3 and AGP support.
+  You'll get "Unsupported class file major version 70" from `gradlew`
+  if you use anything past 24. Java 21 is the AGP-recommended LTS.
+- After install, in `~/.zshrc`:
+  ```bash
+  export JAVA_HOME=$(/usr/libexec/java_home -v 21)
+  export PATH="$JAVA_HOME/bin:$PATH"
+  ```
+  Verify `./gradlew --version` shows `JVM: 21.x.x` — if it shows 26,
+  `JAVA_HOME` isn't wired.
 - Android Studio installed, plus the Android SDK it manages
 - The release keystore (see below)
 
