@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import {
+  AlertCircle,
   MapPin,
   CreditCard,
   HelpCircle,
@@ -32,7 +33,12 @@ export const Route = createFileRoute("/profile")({
 
 function ProfilePage() {
   const { user, login, logout, updateUser } = useAuth();
-  const { data: savedAddresses, isLoading: isAddressesLoading } = useAddresses();
+  const {
+    data: savedAddresses,
+    isLoading: isAddressesLoading,
+    isError: isAddressesError,
+    refetch: refetchAddresses,
+  } = useAddresses();
   const navigate = useNavigate();
 
   // Enforce setup mode if user name is not set. `!!` coerces the `user && ...`
@@ -197,6 +203,20 @@ function ProfilePage() {
               {isAddressesLoading ? (
                 <div className="flex justify-center p-4">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : isAddressesError ? (
+                // API blip must not leave users staring at an infinite spinner
+                // OR let them tap "Add" against a state we couldn't load —
+                // they'd end up with a duplicate or a "not found" further in.
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 text-center">
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                  <p className="text-xs text-muted-foreground">Couldn't load addresses.</p>
+                  <button
+                    onClick={() => refetchAddresses()}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    Try again
+                  </button>
                 </div>
               ) : (
                 (savedAddresses || []).map((addr) => (
