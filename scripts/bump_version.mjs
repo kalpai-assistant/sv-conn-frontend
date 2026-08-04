@@ -103,10 +103,7 @@ function bumpVersionTs(newVersion) {
         `Edit src/lib/version.ts manually if intentional.`,
     );
   }
-  const updated = src.replace(
-    /APP_VERSION\s*=\s*"[^"]+"/,
-    `APP_VERSION = "${newVersion}"`,
-  );
+  const updated = src.replace(/APP_VERSION\s*=\s*"[^"]+"/, `APP_VERSION = "${newVersion}"`);
   writeFileSync(VERSION_TS, updated);
   return { oldValue, newValue: newVersion };
 }
@@ -145,9 +142,7 @@ if (!newVersion) {
 }
 
 if (!/^\d+\.\d+\.\d+(-[a-z0-9.]+)?$/i.test(newVersion)) {
-  die(
-    `"${newVersion}" doesn't look like SemVer (expected e.g. 1.0.1, 1.1.0-beta, 2.0.0-rc.1)`,
-  );
+  die(`"${newVersion}" doesn't look like SemVer (expected e.g. 1.0.1, 1.1.0-beta, 2.0.0-rc.1)`);
 }
 
 const gradle = bumpBuildGradle(newVersion);
@@ -156,9 +151,7 @@ console.log(
 );
 
 const ts = bumpVersionTs(newVersion);
-console.log(
-  `✓ src/lib/version.ts: APP_VERSION "${ts.oldValue}" → "${ts.newValue}"`,
-);
+console.log(`✓ src/lib/version.ts: APP_VERSION "${ts.oldValue}" → "${ts.newValue}"`);
 
 printBackendInstructions(newVersion);
 
