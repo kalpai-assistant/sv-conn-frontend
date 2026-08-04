@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { useNotificationRouter } from "@/lib/notifications";
+import { useFcmRegistration } from "@/lib/fcm";
 import { BottomNav } from "@/components/BottomNav";
 import { AuthFlow } from "@/components/AuthFlow";
 import { AppVersionGate } from "@/components/AppVersionGate";
@@ -149,6 +150,12 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // plugin so the web bundle stays clean. Must live inside <AuthProvider/> for
   // `useAuth()` access — that's why it sits here, not in main.mobile.tsx.
   useNotificationRouter();
+
+  // SVC-67: obtain a device token and store it against the user, so the
+  // backend has somewhere to send. Sits beside the router hook for the same
+  // reason — it needs auth state, and this component is shared by the web and
+  // Capacitor builds, so both platforms register from one place.
+  useFcmRegistration(isAuthenticated);
 
   // Public routes render regardless of auth state.
   if (isPublicRoute) {
