@@ -16,6 +16,11 @@
   command = "npm run build:mobile"
   publish = "dist-mobile"
 
+# package.json declares engines.node >= 22. Netlify's default is 20,
+# which fails on install / build with cryptic messages. Pin explicitly.
+[build.environment]
+  NODE_VERSION = "22"
+
 # TanStack Router does client-side routing, so every unknown URL must
 # fall through to index.html and let React take over. Without this
 # rule, /download, /profile, /bookings/xyz etc. all 404 on refresh /
