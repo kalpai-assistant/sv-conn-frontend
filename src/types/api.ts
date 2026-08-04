@@ -86,7 +86,12 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update Fcm Token */
+        /**
+         * Update Fcm Token
+         * @description Register the caller's FCM token, or clear it by sending `null` on sign-out.
+         *
+         *     The field is required, so an empty body is rejected — clearing must be explicit.
+         */
         patch: operations["update_fcm_token_api_v1_users_me_fcm_token_patch"];
         trace?: never;
     };
@@ -143,6 +148,26 @@ export interface paths {
         patch: operations["update_provider_profile_api_v1_providers_me_patch"];
         trace?: never;
     };
+    "/api/v1/providers/me/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Profile Photo
+         * @description Upload/replace the provider's profile photo. Returns the updated profile.
+         */
+        post: operations["upload_profile_photo_api_v1_providers_me_photo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/providers/me/status": {
         parameters: {
             query?: never;
@@ -177,6 +202,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/providers/me/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Services
+         * @description List the services the current provider is subscribed to.
+         */
+        get: operations["list_my_services_api_v1_providers_me_services_get"];
+        put?: never;
+        /** Subscribe To Service */
+        post: operations["subscribe_to_service_api_v1_providers_me_services_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers/me/earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Earnings
+         * @description Provider earnings summary + per-booking breakdown for the chosen window.
+         *
+         *     Window is the IST calendar boundary (today = since 00:00 IST, week = since
+         *     Monday 00:00 IST, month = since the 1st 00:00 IST). Refunded payments are
+         *     excluded. Used by the provider Earnings dashboard (SC-27).
+         */
+        get: operations["get_my_earnings_api_v1_providers_me_earnings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers/me/services/{service_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unsubscribe From Service */
+        delete: operations["unsubscribe_from_service_api_v1_providers_me_services__service_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers/me/kyc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Kyc
+         * @description Upload KYC documents. Sets the profile's kyc_status to SUBMITTED.
+         */
+        post: operations["submit_kyc_api_v1_providers_me_kyc_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/categories": {
         parameters: {
             query?: never;
@@ -201,10 +308,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Services */
+        /**
+         * List Services
+         * @description List global catalog services, optionally filtered by category.
+         */
         get: operations["list_services_api_v1_services_get"];
         put?: never;
-        /** Create Service */
+        /**
+         * Create Service
+         * @description Admin-only: add a service to the global catalog.
+         */
         post: operations["create_service_api_v1_services_post"];
         delete?: never;
         options?: never;
@@ -222,11 +335,17 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete Service */
+        /**
+         * Delete Service
+         * @description Admin-only: soft-delete a catalog service.
+         */
         delete: operations["delete_service_api_v1_services__service_id__delete"];
         options?: never;
         head?: never;
-        /** Update Service */
+        /**
+         * Update Service
+         * @description Admin-only: update a catalog service.
+         */
         patch: operations["update_service_api_v1_services__service_id__patch"];
         trace?: never;
     };
@@ -261,7 +380,16 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Accept Booking */
+        /**
+         * Accept Booking
+         * @description Claim a broadcast booking. First provider to accept wins.
+         *
+         *     Idempotent: a provider re-accepting a booking they already hold gets 200 and
+         *     the booking, with no second notification to the consumer. That case is a
+         *     retry after a lost response, not a new acceptance — notifying again would
+         *     tell the consumer twice, and returning an error would tell the *winning*
+         *     provider they lost (SVC-154).
+         */
         patch: operations["accept_booking_api_v1_bookings__booking_id__accept_patch"];
         trace?: never;
     };
@@ -336,6 +464,54 @@ export interface paths {
         patch: operations["cancel_booking_api_v1_bookings__booking_id__cancel_patch"];
         trace?: never;
     };
+    "/api/v1/bookings/{booking_id}/offer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Offer
+         * @description What a provider may see about a broadcast job before accepting it (SVC-153).
+         *
+         *     Backs the Incoming Request Card: the ``new_request`` push carries only a booking
+         *     id, and ``GET /{booking_id}`` refuses a provider who has not been assigned yet.
+         *
+         *     403 when the caller was not offered this booking, 410 once it is no longer
+         *     open. Both come from the service so they carry the standard error shape — the
+         *     card keys off the status code, not the message. Role is not gated here: the
+         *     eligibility check subsumes it, since only a matching provider can pass it.
+         */
+        get: operations["get_booking_offer_api_v1_bookings__booking_id__offer_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{booking_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking
+         * @description Fetch a single booking by ID. Only consumer or assigned provider may access.
+         */
+        get: operations["get_booking_api_v1_bookings__booking_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payments/orders": {
         parameters: {
             query?: never;
@@ -381,8 +557,8 @@ export interface paths {
         put?: never;
         /**
          * Razorpay Webhook
-         * @description Server-to-server webhook from Razorpay.
-         *     No authentication header — Razorpay signs the raw body (verify separately if needed).
+         * @description Fix #7: Verify Razorpay webhook HMAC-SHA256 signature before processing.
+         *     Razorpay sends X-Razorpay-Signature header = HMAC(raw_body, webhook_secret).
          */
         post: operations["razorpay_webhook_api_v1_payments_webhook_post"];
         delete?: never;
@@ -459,7 +635,48 @@ export interface paths {
         patch: operations["deactivate_user_api_v1_admin_users__user_id__deactivate_patch"];
         trace?: never;
     };
+    "/api/v1/admin/providers/kyc/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pending Kyc
+         * @description List providers whose KYC is awaiting admin review.
+         */
+        get: operations["list_pending_kyc_api_v1_admin_providers_kyc_pending_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/providers/{user_id}/kyc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Provider Kyc Review
+         * @description Full KYC review payload for an admin: profile metadata + presigned URLs for
+         *     the uploaded docs (1h TTL). Powers the admin KYC review page (SVC-90).
+         */
+        get: operations["get_provider_kyc_review_api_v1_admin_providers__user_id__kyc_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/{user_id}/kyc/verify": {
         parameters: {
             query?: never;
             header?: never;
@@ -468,12 +685,29 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
+        /** Verify Provider Kyc */
+        post: operations["verify_provider_kyc_api_v1_admin_providers__user_id__kyc_verify_post"];
         delete?: never;
         options?: never;
         head?: never;
-        /** Update Kyc Status */
-        patch: operations["update_kyc_status_api_v1_admin_providers__user_id__kyc_patch"];
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/{user_id}/kyc/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Provider Kyc */
+        post: operations["reject_provider_kyc_api_v1_admin_providers__user_id__kyc_reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/admin/bookings": {
@@ -493,6 +727,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/downloads/sms-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Download Link Sms
+         * @description SMS the download page URL to the phone number the visitor entered.
+         *
+         *     Public. Rate-limited by IP (3/hour). No user record created — this is
+         *     the pre-signup surface.
+         *
+         *     Returns 501 when the feature flag is off, which is the default during
+         *     beta until the MSG91 template is approved.
+         */
+        post: operations["send_download_link_sms_api_v1_downloads_sms_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/downloads/latest.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Latest Version
+         * @description Return the latest + minimum-supported version for each platform.
+         *
+         *     Hit on every app cold start + foreground event. Cached at the CDN edge
+         *     for 5 minutes so a burst of foregrounds after a network blip doesn't
+         *     hammer the DB. Long enough to spare load; short enough that flipping
+         *     ``min_supported_version`` during an incident propagates in minutes,
+         *     not hours.
+         *
+         *     503 rather than an empty response if seed rows are missing — that's a
+         *     deployment bug (missing migration), and returning defaults would
+         *     silently mask it.
+         */
+        get: operations["get_latest_version_api_v1_downloads_latest_json_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -500,8 +790,40 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Health */
-        get: operations["health_health_get"];
+        /**
+         * Liveness
+         * @description Liveness probe — the process is running.
+         *
+         *     Never touches the DB / Redis. Used by container orchestrators to decide
+         *     when to restart; a failed DB should NOT trigger a restart (that just
+         *     thrashes the pod without fixing anything).
+         */
+        get: operations["liveness_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/healthz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Readiness
+         * @description Readiness probe — the process can actually serve requests.
+         *
+         *     Pings each dependency with a short timeout, returns a per-dependency
+         *     result. If ANY dependency fails, response is HTTP 503 (Service
+         *     Unavailable) — so load balancers can drain traffic from this pod without
+         *     also killing it.
+         */
+        get: operations["readiness_healthz_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -528,6 +850,36 @@ export interface components {
             /** Is Default */
             is_default: boolean;
         };
+        /** Body_submit_kyc_api_v1_providers_me_kyc_post */
+        Body_submit_kyc_api_v1_providers_me_kyc_post: {
+            /**
+             * Aadhaar Front
+             * Format: binary
+             * @description Aadhaar front image
+             */
+            aadhaar_front: string;
+            /**
+             * Aadhaar Back
+             * Format: binary
+             * @description Aadhaar back image
+             */
+            aadhaar_back: string;
+            /**
+             * Selfie
+             * Format: binary
+             * @description Live selfie
+             */
+            selfie: string;
+        };
+        /** Body_upload_profile_photo_api_v1_providers_me_photo_post */
+        Body_upload_profile_photo_api_v1_providers_me_photo_post: {
+            /**
+             * Photo
+             * Format: binary
+             * @description Provider profile photo
+             */
+            photo: string;
+        };
         /** BookingListResponse */
         BookingListResponse: {
             /** Bookings */
@@ -538,6 +890,52 @@ export interface components {
             page: number;
             /** Per Page */
             per_page: number;
+        };
+        /**
+         * BookingOfferResponse
+         * @description What a broadcast recipient may see about a job they have not yet accepted.
+         *
+         *     Deliberately its own schema rather than a reuse of ``BookingResponse`` (SVC-153).
+         *     This is served to *every* nearby provider, none of whom is assigned yet, so it
+         *     carries only what the Incoming Request Card renders — and notably not
+         *     ``doorstep_otp``, which gates the en_route → in_progress transition and must
+         *     reach the provider from the consumer at the door, not from this API.
+         *
+         *     ``service_amount`` is returned as a plain number; the app formats the ₹ string.
+         *     Rupee formatting is not done server-side here — see the ticket's money note.
+         *
+         *     ``expires_at`` and ``seconds_remaining`` both describe the same instant and are
+         *     both returned on purpose (SVC-166). The card's countdown must use
+         *     ``seconds_remaining``: it is computed server-side, so a device with a wrong
+         *     clock still counts down correctly, and clock skew is unbounded on a 120-second
+         *     window. ``expires_at`` is the absolute form, for anything needing a real
+         *     instant rather than a duration.
+         *
+         *     Neither field carries a default — a defaulted field falls out of OpenAPI
+         *     ``required`` and the generated client types it optional, which invites a
+         *     ``?? 120`` fallback and reintroduces the bug this exists to fix.
+         */
+        BookingOfferResponse: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /** Service Name */
+            service_name: string;
+            /** Service Amount */
+            service_amount: number;
+            /** Full Address */
+            full_address: string;
+            /** Distance Km */
+            distance_km: number;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Seconds Remaining */
+            seconds_remaining: number;
         };
         /** BookingResponse */
         BookingResponse: {
@@ -551,11 +949,8 @@ export interface components {
              * Format: uuid
              */
             consumer_id: string;
-            /**
-             * Provider Id
-             * Format: uuid
-             */
-            provider_id: string;
+            /** Provider Id */
+            provider_id: string | null;
             /**
              * Service Id
              * Format: uuid
@@ -684,16 +1079,101 @@ export interface components {
              */
             duration_minutes: number;
         };
+        /** EarningsBookingItem */
+        EarningsBookingItem: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /** Service Name */
+            service_name: string;
+            /**
+             * Completed At
+             * Format: date-time
+             */
+            completed_at: string;
+            /** Payout Amount */
+            payout_amount: number;
+        };
+        /** EarningsResponse */
+        EarningsResponse: {
+            /** Range */
+            range: string;
+            /** Total Payout */
+            total_payout: number;
+            /** Completed Count */
+            completed_count: number;
+            /** Bookings */
+            bookings: components["schemas"]["EarningsBookingItem"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * KYCDocsResponse
+         * @description Admin-only: full KYC payload including presigned doc URLs for review.
+         */
+        KYCDocsResponse: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string | null;
+            /** Phone */
+            phone: string;
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Kyc Submitted At */
+            kyc_submitted_at: string | null;
+            /** Kyc Reviewed At */
+            kyc_reviewed_at: string | null;
+            /** Kyc Rejection Reason */
+            kyc_rejection_reason: string | null;
+            /** Aadhaar Url */
+            aadhaar_url: string | null;
+            /** Selfie Url */
+            selfie_url: string | null;
+        };
+        /** KYCRejectionRequest */
+        KYCRejectionRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** KYCReviewResponse */
+        KYCReviewResponse: {
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Kyc Reviewed At */
+            kyc_reviewed_at: string | null;
+            /** Kyc Rejection Reason */
+            kyc_rejection_reason: string | null;
+        };
+        /**
          * KYCStatus
          * @enum {string}
          */
-        KYCStatus: "pending" | "verified" | "rejected";
+        KYCStatus: "pending" | "submitted" | "verified" | "rejected";
+        /** KYCSubmissionResponse */
+        KYCSubmissionResponse: {
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Kyc Submitted At */
+            kyc_submitted_at: string | null;
+        };
+        /**
+         * LatestVersionResponse
+         * @description The whole payload returned by GET /downloads/latest.json.
+         *
+         *     Shape is stable — the frontend hook branches on the presence of each
+         *     platform key. Adding a new platform (post-beta iOS native) means
+         *     adding a new required key here + a matching row in ``app_versions``.
+         */
+        LatestVersionResponse: {
+            android: components["schemas"]["PlatformVersion"];
+            pwa: components["schemas"]["PlatformVersion"];
+        };
         /**
          * NearbyProviderResponse
          * @description Slim response for the 'nearby providers' discovery endpoint.
@@ -733,6 +1213,28 @@ export interface components {
             razorpay_key_id: string;
         };
         /**
+         * PlatformVersion
+         * @description Version metadata for one platform (android / pwa).
+         *
+         *     ``version`` and ``min_supported_version`` are SemVer strings. Clients
+         *     compare using SemVer semantics — a lex compare would treat 1.10 < 1.2.
+         */
+        PlatformVersion: {
+            /** Version */
+            version: string;
+            /** Min Supported Version */
+            min_supported_version: string;
+            /** Url */
+            url: string | null;
+            /** Release Notes */
+            release_notes: string | null;
+            /**
+             * Released At
+             * Format: date-time
+             */
+            released_at: string;
+        };
+        /**
          * ProviderProfileUpdate
          * @description Fields a provider can update on their own profile.
          */
@@ -751,6 +1253,8 @@ export interface components {
             service_area_lng?: number | null;
             /** Service Area Radius Km */
             service_area_radius_km?: number | null;
+            /** Languages */
+            languages?: string[] | null;
         };
         /** ProviderResponse */
         ProviderResponse: {
@@ -766,6 +1270,11 @@ export interface components {
             user_id: string;
             /** Profile Photo Url */
             profile_photo_url: string | null;
+            /**
+             * Languages
+             * @default []
+             */
+            languages: string[];
             /** Avg Rating */
             avg_rating: number;
             /** Total Completed Jobs */
@@ -776,17 +1285,36 @@ export interface components {
             /** Service Area Radius Km */
             service_area_radius_km: number;
         };
+        /** ProviderServiceSubscribeRequest */
+        ProviderServiceSubscribeRequest: {
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+        };
+        /** ProviderServiceSubscriptionResponse */
+        ProviderServiceSubscriptionResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Provider Id
+             * Format: uuid
+             */
+            provider_id: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+        };
         /** ProviderStatusUpdate */
         ProviderStatusUpdate: {
             /** Is Online */
             is_online: boolean;
-        };
-        /** RazorpayWebhookPayload */
-        RazorpayWebhookPayload: {
-            /** Event */
-            event: string;
-            /** Payload */
-            payload: Record<string, never>;
         };
         /** RefreshTokenRequest */
         RefreshTokenRequest: {
@@ -854,11 +1382,6 @@ export interface components {
              */
             id: string;
             /**
-             * Provider Id
-             * Format: uuid
-             */
-            provider_id: string;
-            /**
              * Category Id
              * Format: uuid
              */
@@ -878,6 +1401,14 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** SmsLinkRequest */
+        SmsLinkRequest: {
+            /**
+             * Phone
+             * @description E.164 Indian mobile number
+             */
+            phone: string;
         };
         /** StartBookingRequest */
         StartBookingRequest: {
@@ -902,10 +1433,17 @@ export interface components {
             /** Is New User */
             is_new_user: boolean;
         };
-        /** UpdateFCMTokenRequest */
+        /**
+         * UpdateFCMTokenRequest
+         * @description Register or clear the caller's FCM token.
+         *
+         *     `fcm_token` is nullable but *required* — `null` clears the stored token
+         *     (sign-out), while an omitted field is a 422. Without that distinction an
+         *     empty body would silently wipe push for the user.
+         */
         UpdateFCMTokenRequest: {
             /** Fcm Token */
-            fcm_token: string;
+            fcm_token: string | null;
         };
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
@@ -1316,6 +1854,39 @@ export interface operations {
             };
         };
     };
+    upload_profile_photo_api_v1_providers_me_photo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_profile_photo_api_v1_providers_me_photo_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     set_online_status_api_v1_providers_me_status_patch: {
         parameters: {
             query?: never;
@@ -1371,6 +1942,152 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NearbyProviderResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_services_api_v1_providers_me_services_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderServiceSubscriptionResponse"][];
+                };
+            };
+        };
+    };
+    subscribe_to_service_api_v1_providers_me_services_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderServiceSubscribeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderServiceSubscriptionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_earnings_api_v1_providers_me_earnings_get: {
+        parameters: {
+            query?: {
+                range?: "today" | "week" | "month";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EarningsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unsubscribe_from_service_api_v1_providers_me_services__service_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_kyc_api_v1_providers_me_kyc_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_submit_kyc_api_v1_providers_me_kyc_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KYCSubmissionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1568,7 +2285,9 @@ export interface operations {
     create_booking_api_v1_bookings__post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1587,14 +2306,19 @@ export interface operations {
                     "application/json": components["schemas"]["BookingResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description A request with this Idempotency-Key is already in progress. Retry after a short backoff. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency-Key was reused with a different request body. Generate a new key for each distinct request. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
+                content?: never;
             };
         };
     };
@@ -1617,6 +2341,27 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BookingResponse"];
                 };
+            };
+            /** @description Another provider claimed this booking first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The booking is no longer available — cancelled or expired. Dismiss the card. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -1761,10 +2506,95 @@ export interface operations {
             };
         };
     };
-    create_payment_order_api_v1_payments_orders_post: {
+    get_booking_offer_api_v1_bookings__booking_id__offer_get: {
         parameters: {
             query?: never;
             header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingOfferResponse"];
+                };
+            };
+            /** @description You were not offered this booking */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The offer is over — claimed by another provider, cancelled, or expired. Dismiss the card. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_booking_api_v1_bookings__booking_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_payment_order_api_v1_payments_orders_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1783,14 +2613,19 @@ export interface operations {
                     "application/json": components["schemas"]["PaymentOrderResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description A request with this Idempotency-Key is already in progress. Retry after a short backoff. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency-Key was reused with a different request body. Generate a new key for each distinct request. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
+                content?: never;
             };
         };
     };
@@ -1834,11 +2669,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RazorpayWebhookPayload"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -1847,15 +2678,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1988,11 +2810,41 @@ export interface operations {
             };
         };
     };
-    update_kyc_status_api_v1_admin_providers__user_id__kyc_patch: {
+    list_pending_kyc_api_v1_admin_providers_kyc_pending_get: {
         parameters: {
-            query: {
-                kyc_status: components["schemas"]["KYCStatus"];
+            query?: {
+                page?: number;
+                per_page?: number;
             };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_provider_kyc_review_api_v1_admin_providers__user_id__kyc_get: {
+        parameters: {
+            query?: never;
             header?: never;
             path: {
                 user_id: string;
@@ -2007,7 +2859,73 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["KYCDocsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_provider_kyc_api_v1_admin_providers__user_id__kyc_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KYCReviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_provider_kyc_api_v1_admin_providers__user_id__kyc_reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KYCRejectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KYCReviewResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2054,7 +2972,92 @@ export interface operations {
             };
         };
     };
-    health_health_get: {
+    send_download_link_sms_api_v1_downloads_sms_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SmsLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SMS delivery not yet enabled — use the QR code. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_latest_version_api_v1_downloads_latest_json_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LatestVersionResponse"];
+                };
+            };
+            /** @description Version data not seeded — Alembic migration missing? */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    liveness_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    readiness_healthz_get: {
         parameters: {
             query?: never;
             header?: never;
