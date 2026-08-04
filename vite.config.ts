@@ -6,9 +6,34 @@
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { VitePWA } from "vite-plugin-pwa";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
+
+// Only enable Sentry source-map upload when the three env vars needed for it
+// are present. Locally + on Cloudflare preview builds those won't be set,
+// and the plugin becomes a no-op. In CI we set them so production builds
+// upload symbolicated source maps — unminified stack traces in Sentry are
+// the difference between "TypeError at t.a" and a readable frame.
+const sentryPlugins =
+  process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+    ? [
+        sentryVitePlugin({
+          org: process.env.SENTRY_ORG,
+          project: process.env.SENTRY_PROJECT,
+          authToken: process.env.SENTRY_AUTH_TOKEN,
+          // Must match `Sentry.init({ release })` on the client — otherwise
+          // uploaded maps aren't associated with the events that need them.
+          // Falls back to git-sha auto-detect if unset.
+          release: {
+            name: process.env.VITE_SENTRY_RELEASE,
+          },
+          sourcemaps: { assets: "./dist/**" },
+        }),
+      ]
+    : [];
 
 export default defineConfig({
   plugins: [
+    ...sentryPlugins,
     VitePWA({
       registerType: "autoUpdate",
       // Include all assets generated in public/
@@ -111,6 +136,12 @@ export default defineConfig({
           changeOrigin: true,
         },
       },
+    },
+    // Emit source maps so the Sentry plugin can upload symbolicated versions.
+    // Files land alongside the JS chunks under dist/ and the plugin ships
+    // them to Sentry (see sentryPlugins above).
+    build: {
+      sourcemap: true,
     },
   },
 });

@@ -28,6 +28,13 @@ export function initSentry(): void {
     dsn,
     environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || "dev",
     tracesSampleRate: Number(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE) || 0,
+    // Tag every event with the release version so Sentry can (a) attribute
+    // errors to a specific build for regression triage and (b) match the
+    // event to the source maps uploaded by @sentry/vite-plugin at build
+    // time. Must equal the `release.name` passed to the plugin (see
+    // vite.config.ts / vite.mobile.config.ts). If empty, Sentry falls back
+    // to auto-detection which is per-environment inconsistent.
+    release: import.meta.env.VITE_SENTRY_RELEASE || undefined,
     // Match the backend default — don't ship request bodies / user tokens to
     // Sentry. Explicit user context is attached via setUser() elsewhere.
     sendDefaultPii: false,
