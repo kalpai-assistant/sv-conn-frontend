@@ -72,3 +72,27 @@ export function setSentryUser(user: { id: string } | null): void {
   if (!initialized) return;
   Sentry.setUser(user);
 }
+
+/**
+ * Add a navigation breadcrumb to the Sentry scope. Sentry keeps the last
+ * ~100 breadcrumbs and attaches them to any subsequent error, so a stack
+ * trace arrives with "user was on X, went to Y, then Z crashed" context
+ * instead of just the crash frame.
+ *
+ * TanStack Router does client-side navigation via history.pushState;
+ * `browserTracingIntegration` only auto-instruments full page loads, so
+ * SPA route changes need an explicit hook. See useSentryNavigationBreadcrumbs
+ * for the caller-facing wiring.
+ */
+export function addNavigationBreadcrumb(pathname: string): void {
+  if (!initialized) return;
+  Sentry.addBreadcrumb({
+    category: "navigation",
+    // Sentry's `navigation`-type breadcrumb convention is data.from / data.to.
+    // We record only the target; the *previous* path is on the last breadcrumb
+    // above this one, so a reader can walk the chain if they need the source.
+    data: { to: pathname },
+    level: "info",
+    type: "navigation",
+  });
+}

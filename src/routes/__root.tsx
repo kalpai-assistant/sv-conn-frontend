@@ -17,6 +17,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initSentry } from "@/lib/sentry";
+import { useSentryNavigationBreadcrumbs } from "@/lib/useSentryNavigationBreadcrumbs";
 
 import appCss from "../styles.css?url";
 
@@ -156,6 +157,13 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // reason — it needs auth state, and this component is shared by the web and
   // Capacitor builds, so both platforms register from one place.
   useFcmRegistration(isAuthenticated);
+
+  // Record every SPA navigation as a Sentry breadcrumb so a subsequent
+  // error report carries the last N routes the user visited. Cheap; no-op
+  // when Sentry isn't initialized (dev + no-DSN). Placed here rather than
+  // in RootComponent so it inherits the same router context every other
+  // AppGate hook does.
+  useSentryNavigationBreadcrumbs();
 
   // Public routes render regardless of auth state.
   if (isPublicRoute) {
