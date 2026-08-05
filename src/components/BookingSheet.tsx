@@ -42,8 +42,14 @@ export function BookingSheet({ service, onClose }: BookingSheetProps) {
           ? new Date(Date.now() + 30 * 60000).toISOString() // 30 mins from now
           : new Date(Date.now() + 24 * 60 * 60000).toISOString(); // Tomorrow
 
+      // Fresh key per Confirm-button tap. Backend (SVC-158) uses it to
+      // return the same booking on a network-retry instead of creating two.
+      // A subsequent tap after an error IS a new intent → new key, so we
+      // regenerate inside the handler, not outside.
+      const idempotencyKey = crypto.randomUUID();
       const response = await apiFetch<components["schemas"]["BookingResponse"]>("/bookings/", {
         method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
         body: JSON.stringify({
           service_id: service.id,
           address_id: selectedAddress,

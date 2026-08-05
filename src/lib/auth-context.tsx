@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import { setTokens, clearTokens } from "./api";
+import { setSentryUser } from "./sentry";
+import { clearFcmToken } from "./fcm";
 interface User {
   id: string;
   name: string | null;
@@ -29,14 +31,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTokens(accessToken, refreshToken);
       setUser(u);
       setIsNewUser(newUser);
+      setSentryUser({ id: u.id });
     },
     [],
   );
 
   const logout = useCallback(() => {
+    // Invalidate this device's push token before dropping the JWT. Deliberately
+    // not awaited — logout must be instant and must not fail if the device is
+    // offline. `clearFcmToken` never throws; it reports its own failures.
+    //
+    // SVC-67 AC7: this clears the token *at FCM*, so pushes for the user who
+    // just signed out stop reaching this handset. It does NOT clear
+    // `users.fcm_token` in the DB — the endpoint rejects an empty value. That
+    // needs SVC-164.
+    void clearFcmToken();
     clearTokens();
     setUser(null);
     setIsNewUser(false);
+    setSentryUser(null);
   }, []);
 
   const updateUser = useCallback((data: Partial<User>) => {

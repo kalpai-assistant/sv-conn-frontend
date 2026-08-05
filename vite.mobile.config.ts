@@ -14,10 +14,27 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import path from "path";
 
+// Sentry source-map upload for the Capacitor bundle. Same env-gated pattern
+// as vite.config.ts: no-op unless the CI-only env vars are set. Uploaded
+// under dist-mobile/ (Capacitor's build output).
+const sentryPlugins =
+  process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+    ? [
+        sentryVitePlugin({
+          org: process.env.SENTRY_ORG,
+          project: process.env.SENTRY_PROJECT,
+          authToken: process.env.SENTRY_AUTH_TOKEN,
+          release: { name: process.env.VITE_SENTRY_RELEASE },
+          sourcemaps: { assets: "./dist-mobile/**" },
+        }),
+      ]
+    : [];
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), tsconfigPaths()],
+  plugins: [react(), tailwindcss(), tsconfigPaths(), ...sentryPlugins],
 
   resolve: {
     alias: {
@@ -28,6 +45,11 @@ export default defineConfig({
   build: {
     outDir: "dist-mobile",
     emptyOutDir: true,
+    // Source maps: needed for Sentry's symbolication. The plugin uploads them
+    // to Sentry then (in prod) they don't ship to end users' devices — plugin
+    // deletes them after upload when `sourcemaps.filesToDeleteAfterUpload` is
+    // set. For beta we leave them shipped (small size, easier debugging).
+    sourcemap: true,
     rollupOptions: {
       input: "index.mobile.html",
     },

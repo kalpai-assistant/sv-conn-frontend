@@ -129,7 +129,14 @@ function TrackingPage() {
       return;
     }
     try {
-      const order = await paymentOrderMutation.mutateAsync({ bookingId: bookingId as string });
+      // Fresh key per user Pay-button tap. React-query will replay the same
+      // key on any retry; the backend (SVC-158) uses it to prevent two
+      // Razorpay orders being created for one intent.
+      const idempotencyKey = crypto.randomUUID();
+      const order = await paymentOrderMutation.mutateAsync({
+        bookingId: bookingId as string,
+        idempotencyKey,
+      });
 
       const options: RazorpayCheckoutOptions = {
         key: order.razorpay_key_id,

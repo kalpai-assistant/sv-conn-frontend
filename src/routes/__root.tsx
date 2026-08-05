@@ -9,11 +9,16 @@ import {
 } from "@tanstack/react-router";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { useNotificationRouter } from "@/lib/notifications";
+import { useFcmRegistration } from "@/lib/fcm";
 import { BottomNav } from "@/components/BottomNav";
+import { IncomingRequestHost } from "@/components/provider/IncomingRequestHost";
 import { AuthFlow } from "@/components/AuthFlow";
+import { AppVersionGate } from "@/components/AppVersionGate";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initSentry } from "@/lib/sentry";
+import { useSentryNavigationBreadcrumbs } from "@/lib/useSentryNavigationBreadcrumbs";
 
 import appCss from "../styles.css?url";
 
@@ -148,6 +153,19 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // `useAuth()` access — that's why it sits here, not in main.mobile.tsx.
   useNotificationRouter();
 
+  // SVC-67: obtain a device token and store it against the user, so the
+  // backend has somewhere to send. Sits beside the router hook for the same
+  // reason — it needs auth state, and this component is shared by the web and
+  // Capacitor builds, so both platforms register from one place.
+  useFcmRegistration(isAuthenticated);
+
+  // Record every SPA navigation as a Sentry breadcrumb so a subsequent
+  // error report carries the last N routes the user visited. Cheap; no-op
+  // when Sentry isn't initialized (dev + no-DSN). Placed here rather than
+  // in RootComponent so it inherits the same router context every other
+  // AppGate hook does.
+  useSentryNavigationBreadcrumbs();
+
   // Public routes render regardless of auth state.
   if (isPublicRoute) {
     return <div className="min-h-screen bg-background">{children}</div>;
@@ -182,15 +200,32 @@ function AppGate({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  // ErrorBoundary sits above the providers so an unhandled render error in
+  // any of them (AuthProvider init, QueryClient boot, AppVersionGate mount)
+  // still gets caught + reported to Sentry — without this the web/SSR build
+  // shows a white screen with nothing in Sentry. The mobile entry
+  // (main.mobile.tsx) already has the same wrap; this brings the web path
+  // to parity. Route-level errors (inside <Outlet/>) are still handled by
+  // TanStack Router's `defaultErrorComponent` (RouterErrorFallback).
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AppGate>
-          <Outlet />
-          <BottomNav />
-        </AppGate>
-        <Toaster />
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          {/* SVC-162: version-check nudge/block overlays. Wraps the whole
+              tree so the block state can cover everything below it. */}
+          <AppVersionGate>
+            <AppGate>
+              <Outlet />
+              <BottomNav />
+            </AppGate>
+            {/* SVC-69: full-screen overlay for an incoming broadcast job.
+                Sits outside AppGate so it can cover the whole shell; it
+                renders nothing unless a booking id is supplied. */}
+            <IncomingRequestHost />
+            <Toaster />
+          </AppVersionGate>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

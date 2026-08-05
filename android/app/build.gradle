@@ -1,10 +1,38 @@
 apply plugin: 'com.android.application'
 
+// ---------------------------------------------------------------------------
+// SVC-160 — Release signing.
+//
+// Reads:
+//   android/keystore.properties           (non-secret: keystore path + alias)
+//   $ANDROID_KEYSTORE_STORE_PASSWORD      (env, secret)
+//   $ANDROID_KEYSTORE_KEY_PASSWORD        (env, secret)
+//
+// The properties file is git-ignored; passwords are env-only so nothing
+// sensitive ever touches disk in this repo. If any piece is missing,
+// `assembleRelease` will fail loudly rather than silently ship a
+// debug-signed APK — see the `signingConfig` guard below.
+// Day-to-day dev (`assembleDebug`) does not need any of this. Full flow:
+// RELEASE.md.
+// ---------------------------------------------------------------------------
+def keystorePropsFile = rootProject.file("keystore.properties")
+def keystoreProps = new Properties()
+def hasKeystore = false
+if (keystorePropsFile.exists()
+        && System.getenv("ANDROID_KEYSTORE_STORE_PASSWORD")
+        && System.getenv("ANDROID_KEYSTORE_KEY_PASSWORD")) {
+    keystoreProps.load(new FileInputStream(keystorePropsFile))
+    def storePath = keystoreProps.getProperty("storeFile")
+    if (storePath && file(storePath).exists()) {
+        hasKeystore = true
+    }
+}
+
 android {
-    namespace = "com.serviceconnect.app"
+    namespace = "com.eazyserv.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.serviceconnect.app"
+        applicationId "com.eazyserv.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -16,10 +44,29 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    if (hasKeystore) {
+        signingConfigs {
+            release {
+                storeFile file(keystoreProps.getProperty("storeFile"))
+                storePassword System.getenv("ANDROID_KEYSTORE_STORE_PASSWORD")
+                keyAlias keystoreProps.getProperty("keyAlias")
+                keyPassword System.getenv("ANDROID_KEYSTORE_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Only attach the release signing config when it's fully wired.
+            // If we default to `signingConfigs.debug` here, `assembleRelease`
+            // would silently produce a debug-signed APK — which the /download
+            // page would happily serve and Android would install as an
+            // "unknown source" build, but that's a signed-by-debug build in
+            // prod, an operational trap.
+            if (hasKeystore) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

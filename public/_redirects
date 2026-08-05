@@ -1,0 +1,10 @@
+# SPA fallback for Cloudflare Pages / Netlify.
+#
+# TanStack Router does client-side routing, so every unknown URL must
+# fall through to index.html and let React take over. Without this rule,
+# /download, /profile, /bookings/xyz etc. all 404 on refresh or direct-
+# link.
+#
+# The `!` on the second column of the first line would exempt some paths
+# if we needed to; we don't — every path is a React route.
+/*    /index.html   200

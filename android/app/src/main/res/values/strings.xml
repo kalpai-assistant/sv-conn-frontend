@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">ServiceConnect</string>
     <string name="title_activity_main">ServiceConnect</string>
-    <string name="package_name">com.serviceconnect.app</string>
-    <string name="custom_url_scheme">com.serviceconnect.app</string>
+    <string name="package_name">com.eazyserv.app</string>
+    <string name="custom_url_scheme">com.eazyserv.app</string>
 </resources>
