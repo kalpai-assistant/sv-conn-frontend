@@ -2342,7 +2342,7 @@ export interface operations {
                     "application/json": components["schemas"]["BookingResponse"];
                 };
             };
-            /** @description Another provider claimed this booking first */
+            /** @description You were not offered this booking. Not visible to a well-behaved client — the app never sends /accept for a booking it hasn't been notified about. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2356,7 +2356,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The booking is no longer available — cancelled or expired. Dismiss the card. */
+            /** @description The offer is over — claimed by another provider, cancelled, or expired. Dismiss the card. */
             410: {
                 headers: {
                     [name: string]: unknown;

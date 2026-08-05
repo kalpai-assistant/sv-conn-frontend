@@ -16,7 +16,7 @@ import { Clock, MapPin, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatRupees } from "@/lib/currency";
 import {
-  dismissReasonForLoadError,
+  dismissReasonForOfferError,
   readSecondsRemaining,
   useAcceptOffer,
   useBookingOffer,
@@ -95,14 +95,15 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
   // 403/404 → do not render; the card should never have opened.
   useEffect(() => {
     if (!error) return;
-    const reason = dismissReasonForLoadError(error);
+    const reason = dismissReasonForOfferError(error);
     if (reason) onDismiss(reason);
   }, [error, onDismiss]);
 
   const handleAccept = () => {
     setAcceptError(null);
     acceptOffer.mutate(bookingId, {
-      // Won ("accepted") or lost ("taken"), the card closes without error UI.
+      // Won or lost, the card closes without error UI; the host decides what
+      // is worth logging.
       onSuccess: (outcome) => onDismiss(outcome),
       onError: (err) =>
         setAcceptError(err instanceof Error ? err.message : "Could not accept this job."),

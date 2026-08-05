@@ -25,15 +25,26 @@
  * can tell "someone beat me to it" from "you should never have seen this"
  * without string matching.
  *
- * The one trap: **403 means opposite things on the two endpoints.**
+ * As of SVC-167 + SVC-168 (merged, backend #66) the two endpoints share one
+ * vocabulary, so a single classifier serves both:
  *
- *   GET  /offer   403 = "You were not offered this booking"        → real error
- *   PATCH /accept 403 = "Another provider claimed this booking first" → lost race
+ *   403  you were not offered this booking  → real error, do not render
+ *   404  no such booking                    → do not render
+ *   410  the offer is gone — claimed by another provider, cancelled or expired
+ *                                           → dismiss QUIETLY
  *
- * Treating accept-403 as an error would show a scary failure to the majority of
- * recipients, which is the exact bug the 410 handling exists to prevent — the
- * push fans out to every nearby eligible provider and only one can win.
- * Verified against the merged backend (`booking_service.accept_booking`).
+ * 410 is the common outcome, not an edge case: the push fans out to every
+ * nearby eligible provider and exactly one can win, so everyone else lands
+ * here. Treating it as an error shows a scary failure to the majority of
+ * recipients on every single booking.
+ *
+ * Historical note, because the old shape is still in the wild: `accept` used to
+ * return 403 for the lost race, which forced `if (403 || 410) dismiss()` here
+ * and read as an auth failure for the *common* path. SVC-167 unified it to 410.
+ * This file no longer special-cases accept — if you are looking at a deployment
+ * older than backend #66, a lost race arrives as 403 and is reported as a real
+ * error rather than dismissed quietly. That is the safe direction to be wrong
+ * in, and it self-corrects once the backend is current.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
@@ -65,37 +76,21 @@ const FORBIDDEN = 403;
 const NOT_FOUND = 404;
 
 /**
- * Classify a failure of `GET /offer`. Returns null when the card should stay
- * open and surface a real error (5xx, network).
+ * Classify a failure of `GET /offer` or `PATCH /accept` — since SVC-167 the two
+ * share one status vocabulary, so one function covers both.
+ *
+ * Returns null when the failure is a real error the provider might retry: a 409
+ * (the booking moved past ACCEPTED — a genuinely illegal move, not a lost
+ * race), a 5xx, or a network drop. The card stays open for those.
  */
-export function dismissReasonForLoadError(error: unknown): DismissReason | null {
+export function dismissReasonForOfferError(error: unknown): DismissReason | null {
   if (!(error instanceof ApiError)) return null;
-  // 410 is the common case: everyone who lost the race lands here.
+  // The offer is gone. Common case — quiet dismissal, never error UI.
   if (error.status === GONE) return "taken";
-  // 403/404 on *load* are genuine — the card was opened for a booking this
-  // provider was never offered, or one that does not exist.
+  // The card was opened for a booking this provider was never offered, or one
+  // that does not exist. Dismissed too, but logged: it should not happen.
   if (error.status === FORBIDDEN || error.status === NOT_FOUND) return "unavailable";
   return null;
-}
-
-/**
- * Classify a failure of `PATCH /accept`. Returns "taken" when the race was
- * simply lost, and null when it is a real error worth showing.
- *
- * Note 403 here is the OPPOSITE of 403 on load: the backend raises
- * `UnauthorizedAction("This booking has already been claimed by another
- * provider")`, so it means someone else won — not that this provider was never
- * entitled to the job. 404 is folded in for the same reason 410 is: there is
- * nothing left to accept, so there is nothing useful to tell the provider.
- *
- * A 409 (the booking moved past ACCEPTED) is deliberately NOT here — that is a
- * genuinely illegal move rather than a lost race, and it surfaces as an error.
- */
-export function dismissReasonForAcceptError(error: unknown): "taken" | null {
-  if (!(error instanceof ApiError)) return null;
-  return error.status === GONE || error.status === FORBIDDEN || error.status === NOT_FOUND
-    ? "taken"
-    : null;
 }
 
 /**
@@ -150,10 +145,12 @@ export function useBookingOffer(bookingId: string | null) {
 /**
  * Claim the booking. First provider to accept wins.
  *
- * Resolves with `"accepted"` when this provider won and `"taken"` when someone
- * else did — losing the race is an expected outcome, so it resolves rather than
- * throwing and the card dismisses quietly either way. Anything else (409, 5xx,
- * network) rejects and is surfaced as a real error the provider can retry.
+ * Resolves with the reason the card should close: `"accepted"` when this
+ * provider won, `"taken"` when the offer was already gone, `"unavailable"` for
+ * the shouldn't-happen 403/404. Losing the race is an expected outcome — it
+ * resolves rather than throwing so the card dismisses without error UI.
+ * Anything else (409, 5xx, network) rejects and surfaces as a real error the
+ * provider can retry.
  *
  * Accept is idempotent server-side: re-accepting a booking you already hold
  * returns 200 with no second push to the consumer (SVC-154), so a retry after a
@@ -162,7 +159,7 @@ export function useBookingOffer(bookingId: string | null) {
 export function useAcceptOffer() {
   const queryClient = useQueryClient();
 
-  return useMutation<Extract<DismissReason, "accepted" | "taken">, Error, string>({
+  return useMutation<Extract<DismissReason, "accepted" | "taken" | "unavailable">, Error, string>({
     mutationFn: async (bookingId: string) => {
       try {
         await apiFetch<Schema<"BookingResponse">>(`/bookings/${bookingId}/accept`, {
@@ -171,9 +168,10 @@ export function useAcceptOffer() {
         return "accepted";
       } catch (error) {
         // The offer can be claimed in the seconds between the card rendering
-        // and the provider tapping Accept. That race is lost regularly, so it
-        // gets the same quiet dismissal as a 410 on load.
-        if (dismissReasonForAcceptError(error)) return "taken";
+        // and the provider tapping Accept. That race is lost regularly, and
+        // arrives here as the same 410 the load path gets.
+        const reason = dismissReasonForOfferError(error);
+        if (reason === "taken" || reason === "unavailable") return reason;
         throw error;
       }
     },
