@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { useNotificationRouter } from "@/lib/notifications";
 import { useFcmRegistration } from "@/lib/fcm";
 import { BottomNav } from "@/components/BottomNav";
+import { IncomingRequestHost } from "@/components/provider/IncomingRequestHost";
 import { AuthFlow } from "@/components/AuthFlow";
 import { AppVersionGate } from "@/components/AppVersionGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -217,6 +218,10 @@ function RootComponent() {
               <Outlet />
               <BottomNav />
             </AppGate>
+            {/* SVC-69: full-screen overlay for an incoming broadcast job.
+                Sits outside AppGate so it can cover the whole shell; it
+                renders nothing unless a booking id is supplied. */}
+            <IncomingRequestHost />
             <Toaster />
           </AppVersionGate>
         </AuthProvider>
