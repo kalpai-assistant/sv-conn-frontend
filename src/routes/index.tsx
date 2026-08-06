@@ -5,6 +5,8 @@ import { TopBar } from "@/components/TopBar";
 import { CategoryChips } from "@/components/CategoryChips";
 import { ServiceCard } from "@/components/ServiceCard";
 import { useServices } from "@/hooks/useApi";
+import { IS_MARKETING } from "@/lib/build-target";
+import { MarketingHome } from "@/marketing/MarketingHome";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -17,8 +19,15 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  component: HomePage,
+  component: IndexRoute,
 });
+
+// eazyserv.com shows the marketing landing; app.eazyserv.com shows the
+// authenticated home. Both live on `/` because both domains resolve to
+// the same route tree — the split happens at build time via IS_MARKETING.
+function IndexRoute() {
+  return IS_MARKETING ? <MarketingHome /> : <HomePage />;
+}
 
 function HomePage() {
   const [categoryId, setCategoryId] = useState<string | undefined>();
