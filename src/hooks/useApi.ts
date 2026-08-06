@@ -33,11 +33,20 @@ export interface API_BookingResponse {
   consumer_id: string;
   provider_id: string;
   service_id: string;
+  // Lower-case snake on the wire ("en_route"); the UI type is upper-case, so
+  // every mapper below normalises with `.toUpperCase()`. Never compare this raw.
   status: string;
   service_amount: number;
+  platform_commission: number;
+  provider_payout: number;
   payment_method: string | null;
   scheduled_at: string | null;
   created_at: string;
+  // Served to the consumer so they can read it out at the door, and null for
+  // everyone else — the backend redacts it per-caller (SVC-169). Provider screens
+  // must not read it regardless: the value is the customer's proof the provider
+  // reached the door, so it has to arrive by voice, not over the wire.
+  doorstep_otp?: string | null;
 }
 
 // --- Adapters to map Backend -> UI expected shape ---
@@ -158,6 +167,8 @@ export const useBookings = (status?: string) => {
           scheduledAt: b.scheduled_at || b.created_at,
           paymentMethod: b.payment_method || "online",
           totalAmount: b.service_amount,
+          platformCommission: b.platform_commission,
+          providerPayout: b.provider_payout,
           createdAt: b.created_at,
           otp: b.doorstep_otp || undefined,
           // Hydrate the provider from the booking, since global services have none.
@@ -221,6 +232,8 @@ export const useBooking = (bookingId?: string) => {
         scheduledAt: b.scheduled_at || b.created_at,
         paymentMethod: b.payment_method || "online",
         totalAmount: b.service_amount,
+        platformCommission: b.platform_commission,
+        providerPayout: b.provider_payout,
         createdAt: b.created_at,
         otp: b.doorstep_otp || undefined,
         service: srv || {
@@ -269,6 +282,55 @@ export const useCancelBooking = () => {
     },
   });
 };
+
+// --- Provider-side booking transitions (SVC-41) ---
+//
+// The three legs of a job after it has been accepted. All share the same cache
+// invalidation, so they go through one factory rather than three near-identical
+// hooks: on success both the single booking (the job screen polls it) and the
+// list (the jobs tab) have to be refetched, or the screen keeps rendering the
+// step the provider just finished.
+//
+// The backend enforces the state machine, so a stale button press comes back as
+// 409 rather than silently moving the booking; callers surface that.
+const useBookingTransition = <V extends { bookingId: string }>(
+  leg: (vars: V) => { path: string; body?: string },
+) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: V) => {
+      const { path, body } = leg(vars);
+      return apiFetch<API_BookingResponse>(`/bookings/${vars.bookingId}/${path}`, {
+        method: "PATCH",
+        ...(body ? { body } : {}),
+      });
+    },
+    onSuccess: (_, { bookingId }) => {
+      queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    },
+  });
+};
+
+/** "I'm on my way" — ACCEPTED → EN_ROUTE. */
+export const useMarkEnRoute = () =>
+  useBookingTransition<{ bookingId: string }>(() => ({ path: "en-route" }));
+
+/**
+ * Doorstep OTP gate — EN_ROUTE → IN_PROGRESS.
+ *
+ * A wrong PIN is a 400 (`InvalidOTP`), which is the only error the OTP screen
+ * treats as "try again" rather than "something went wrong".
+ */
+export const useStartBooking = () =>
+  useBookingTransition<{ bookingId: string; otp: string }>(({ otp }) => ({
+    path: "start",
+    body: JSON.stringify({ otp }),
+  }));
+
+/** "Mark as Complete" — IN_PROGRESS → COMPLETED. */
+export const useCompleteBooking = () =>
+  useBookingTransition<{ bookingId: string }>(() => ({ path: "complete" }));
 
 export const useSubmitReview = () => {
   return useMutation({

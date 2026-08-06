@@ -60,6 +60,11 @@ export interface Booking {
   paymentMethod: "online" | "cash";
   totalAmount: number;
   createdAt: string;
+  // The provider's side of the money, for the post-completion earnings breakdown
+  // (SVC-72). Optional because the mock fixtures below carry no commission split
+  // and consumer screens have no use for it.
+  platformCommission?: number;
+  providerPayout?: number;
 }
 
 export const categories: Category[] = [
