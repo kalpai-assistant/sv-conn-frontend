@@ -89,17 +89,38 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease
 
-      # Sanity check: fail loud if the APK is missing OR debug-signed. The
-      # gradle config already refuses to run without signing config, but
-      # a belt-and-braces verify here means CI can never publish a
-      # debug-signed APK to the download URL.
+      # Belt-and-braces verify: gradle's `validateSigningRelease` already
+      # refuses to build a release APK without a signing config, so this
+      # step is mostly for surfacing the cert DN in the build log (nice
+      # for provenance) and catching the corner case where a debug key
+      # sneaks in. `apksigner verify`'s exit code is the source of truth
+      # — grepping the human-readable output is fragile across SDK
+      # versions.
       - name: Verify APK signing
         run: |
           APK=android/app/build/outputs/apk/release/app-release.apk
           test -f "$APK" || { echo "APK missing: $APK"; exit 1; }
+          echo "APK size: $(stat -c%s "$APK") bytes"
+
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -n1)
-          "$APKSIGNER" verify --print-certs "$APK" | grep -q "Signer #1" \
-            || { echo "APK is not properly signed"; exit 1; }
+          echo "Using apksigner: $APKSIGNER"
+
+          # Print for the log — reviewers want to see the DN. Wrapped in
+          # `set +e` so the print itself never gates the step.
+          set +e
+          "$APKSIGNER" verify --print-certs --verbose "$APK"
+          set -e
+
+          # Exit code is authoritative: 0 = signed, non-zero = not.
+          "$APKSIGNER" verify "$APK" \
+            || { echo "APK is not signed"; ls -la android/keystore/ android/keystore.properties 2>&1 || true; exit 1; }
+
+          # Guard against debug signing sneaking through (shouldn't with
+          # the hasKeystore gate in build.gradle, but defense in depth).
+          if "$APKSIGNER" verify --print-certs "$APK" 2>&1 | grep -qE "Android Debug|CN=Android"; then
+            echo "APK is DEBUG-signed — release signing config didn't fire"
+            exit 1
+          fi
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
