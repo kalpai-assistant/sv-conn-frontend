@@ -1,34 +1,35 @@
-// Marketing build (eazyserv.com apex).
+// Marketing SPA build (eazyserv.com apex + www).
 //
-// Same source tree as the app build, with two build-time differences:
+// Deliberately NOT TanStack Start. The app build uses TanStack Start +
+// Nitro for SSR to Cloudflare Workers, which needs a runtime — and CF
+// Pages Direct Upload can't cheaply host that runtime. Marketing is
+// static (hero, service tiles, trust bar, footer, no data, no auth),
+// so a plain Vite + React SPA outputs an index.html that wrangler can
+// upload as a static site with zero Workers configuration.
 //
-//   1. `VITE_BUILD_TARGET=marketing` — makes __root.tsx render a stripped
-//      shell (no AuthProvider, no FCM, no version-check gate) and swaps
-//      the `/` route from the app home to the marketing landing.
-//   2. Output goes to `dist-marketing/` instead of `dist/`, so both builds
-//      can sit side-by-side in CI without stomping each other.
+// Entry: index.marketing.html → src/marketing/main.tsx → MarketingHome.
+// The app's routes/__root.tsx and routes/index.tsx conditional on
+// IS_MARKETING is now dead in this build (that build never ships this
+// entry) but kept for the app build's tree-shake benefit.
 //
-// PWA plugin is intentionally NOT registered here — marketing doesn't need
-// service-worker caching, and the app build's SW at eazyserv.com would
-// hijack navigations we want to stay lightweight. Sentry source-map
-// upload also skipped (marketing bundle is trivial, not worth the CI
-// cost).
-//
-// Deploy: `.github/workflows/deploy-marketing.yml` builds this + pushes
-// dist-marketing/ to the Cloudflare Pages `eazyserv-marketing` project
-// via wrangler.
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+// Deployed by .github/workflows/deploy-marketing.yml via wrangler.
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import tsconfigPaths from "vite-tsconfig-paths";
+import path from "node:path";
 
 export default defineConfig({
-  vite: {
-    // Substitute IS_MARKETING at build time so Vite can potentially
-    // tree-shake the app-only branch (see caveats in __root.tsx).
-    define: {
-      "import.meta.env.VITE_BUILD_TARGET": JSON.stringify("marketing"),
-    },
-    build: {
-      outDir: "dist-marketing",
-      sourcemap: false,
+  plugins: [react(), tailwindcss(), tsconfigPaths()],
+  build: {
+    outDir: "dist-marketing",
+    emptyOutDir: true,
+    // Custom entry — index.marketing.html rather than the default
+    // index.html so the app build (which uses TanStack Start's default
+    // entry) isn't confused. We rename to index.html in the npm script
+    // so wrangler serves it at `/`.
+    rollupOptions: {
+      input: path.resolve(__dirname, "index.marketing.html"),
     },
   },
 });

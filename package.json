@@ -10,7 +10,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "build:marketing": "vite build --config vite.marketing.config.ts",
+    "build:marketing": "vite build --config vite.marketing.config.ts && mv dist-marketing/index.marketing.html dist-marketing/index.html",
     "build:mobile": "vite build --config vite.mobile.config.ts && cp dist-mobile/index.mobile.html dist-mobile/index.html",
     "preview": "vite preview",
     "lint": "eslint .",

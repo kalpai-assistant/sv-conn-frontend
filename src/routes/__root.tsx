@@ -19,7 +19,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initSentry } from "@/lib/sentry";
 import { useSentryNavigationBreadcrumbs } from "@/lib/useSentryNavigationBreadcrumbs";
-import { IS_MARKETING } from "@/lib/build-target";
 
 import appCss from "../styles.css?url";
 
@@ -201,21 +200,6 @@ function AppGate({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  // Marketing build (eazyserv.com apex) shares this root but skips every
-  // app-only provider: no AuthProvider, no version-check gate, no FCM,
-  // no BottomNav, no query client. The marketing bundle still statically
-  // imports those symbols above (Vite tree-shaking is unreliable across
-  // a JSX conditional), so bundle size isn't fully optimized — but no
-  // runtime side effects fire. Follow-up: dynamic-import the app shell
-  // to actually drop the code from the marketing chunk.
-  if (IS_MARKETING) {
-    return (
-      <ErrorBoundary>
-        <Outlet />
-      </ErrorBoundary>
-    );
-  }
-
   // ErrorBoundary sits above the providers so an unhandled render error in
   // any of them (AuthProvider init, QueryClient boot, AppVersionGate mount)
   // still gets caught + reported to Sentry — without this the web/SSR build
