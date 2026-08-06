@@ -15,9 +15,16 @@
  * bar, footer. Iterate copy + hero art once content lands.
  */
 import { ArrowRight, ShieldCheck, Sparkles, Wallet } from "lucide-react";
-import { Link } from "@tanstack/react-router";
 
+// Every link on this page is a full navigation (no client router — this
+// is a plain SPA entry, not TanStack Router). Legal pages live on the
+// app subdomain because they're rendered by the same code the reviewers
+// hit, and mirroring them here would just be another thing to drift.
 const APP_URL = "https://app.eazyserv.com";
+const DOWNLOAD_URL = `${APP_URL}/download`;
+const PRIVACY_URL = `${APP_URL}/privacy`;
+const TERMS_URL = `${APP_URL}/terms`;
+const REFUND_URL = `${APP_URL}/refund`;
 
 const SERVICES = [
   { name: "Home Cleaning", desc: "Deep-clean, kitchen, bathroom" },
@@ -70,12 +77,12 @@ function Hero() {
           >
             Open the app
           </a>
-          <Link
-            to="/download"
+          <a
+            href={DOWNLOAD_URL}
             className="inline-flex w-full items-center justify-center rounded-xl border border-border bg-card px-6 py-3 text-base font-semibold text-foreground hover:bg-muted sm:w-auto"
           >
             Download for Android
-          </Link>
+          </a>
         </div>
         <p className="mt-4 text-xs text-muted-foreground">
           Currently in beta. Serving select localities in Bangalore.
@@ -137,15 +144,15 @@ function Footer() {
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>© {new Date().getFullYear()} Eazyserv. All rights reserved.</div>
         <div className="flex flex-wrap gap-x-6 gap-y-2">
-          <Link to="/privacy" className="hover:text-foreground">
+          <a href={PRIVACY_URL} className="hover:text-foreground">
             Privacy
-          </Link>
-          <Link to="/terms" className="hover:text-foreground">
+          </a>
+          <a href={TERMS_URL} className="hover:text-foreground">
             Terms
-          </Link>
-          <Link to="/refund" className="hover:text-foreground">
+          </a>
+          <a href={REFUND_URL} className="hover:text-foreground">
             Refund
-          </Link>
+          </a>
           <a href="mailto:support@eazyserv.com" className="hover:text-foreground">
             support@eazyserv.com
           </a>
