@@ -57,8 +57,7 @@ function Hero() {
     <section className="mx-auto max-w-6xl px-6 pt-10 pb-16 md:pt-16 md:pb-24">
       <div className="mx-auto max-w-3xl text-center">
         <h1 className="text-4xl font-bold leading-tight tracking-tight text-foreground md:text-6xl">
-          Home services at your doorstep in{" "}
-          <span className="text-primary">Bangalore</span>
+          Home services at your doorstep in <span className="text-primary">Bangalore</span>
         </h1>
         <p className="mt-6 text-base text-muted-foreground md:text-lg">
           Book verified professionals for cleaning, plumbing, electrical, and salon services.
