@@ -28,11 +28,33 @@ export interface API_ServiceResponse {
   is_active: boolean;
 }
 
+/**
+ * Where the job is (SVC-170). Its own shape rather than the consumer's address
+ * book entry — a provider standing outside the building has no use for
+ * `is_default`.
+ *
+ * `lat`/`lng` are nullable for real: the backend's `location` is nullable and a
+ * consumer can save an address that was never geocoded. Treat `full_address` as
+ * the source of truth and the coordinates as the enhancement.
+ */
+export interface API_BookingAddress {
+  id: string;
+  /** "home" | "work" | "other" — free-form on the wire, so not narrowed here. */
+  label: string;
+  full_address: string;
+  lat: number | null;
+  lng: number | null;
+}
+
 export interface API_BookingResponse {
   id: string;
   consumer_id: string;
   provider_id: string;
   service_id: string;
+  // Nullable but always present. `null` only comes back on the admin bulk
+  // listing; the consumer and provider routes this app calls always populate it,
+  // so guard it because the type demands it — not with a user-facing empty state.
+  address: API_BookingAddress | null;
   // Lower-case snake on the wire ("en_route"); the UI type is upper-case, so
   // every mapper below normalises with `.toUpperCase()`. Never compare this raw.
   status: string;
@@ -71,6 +93,21 @@ const mapService = (srv: API_ServiceResponse, cats: API_CategoryResponse[]): UI_
     provider: undefined, // Services are global, no specific provider
   };
 };
+
+// SVC-170 gave every booking response a real address, replacing the placeholder
+// object both booking mappers used to hard-code. `null` is only reachable on the
+// admin bulk listing, so it degrades to an empty address rather than driving any
+// UI of its own.
+const mapAddress = (addr: API_BookingAddress | null | undefined): UI_Address =>
+  addr
+    ? {
+        id: addr.id,
+        label: addr.label,
+        full: addr.full_address,
+        lat: addr.lat,
+        lng: addr.lng,
+      }
+    : { id: "", label: "Address", full: "" };
 
 export const useCategories = () => {
   return useQuery({
@@ -163,7 +200,7 @@ export const useBookings = (status?: string) => {
         return {
           id: b.id,
           status: b.status.toUpperCase(),
-          address: { id: "", label: "Address", full: "" }, // Placeholder
+          address: mapAddress(b.address),
           scheduledAt: b.scheduled_at || b.created_at,
           paymentMethod: b.payment_method || "online",
           totalAmount: b.service_amount,
@@ -228,7 +265,9 @@ export const useBooking = (bookingId?: string) => {
       const uiBooking: UI_Booking = {
         id: b.id,
         status: b.status.toUpperCase(),
-        address: { id: b.address_id || "", label: "Address", full: "" },
+        // Was `b.address_id`, a field the response never carried — it silently
+        // resolved to "" until SVC-170 gave us a real nested address.
+        address: mapAddress(b.address),
         scheduledAt: b.scheduled_at || b.created_at,
         paymentMethod: b.payment_method || "online",
         totalAmount: b.service_amount,

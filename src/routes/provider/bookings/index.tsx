@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarDays, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronRight, MapPin } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBookings } from "@/hooks/useApi";
 import type { Booking, BookingStatus } from "@/lib/mock-data";
@@ -76,6 +76,15 @@ function ProviderBookingsPage() {
           >
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-foreground">{job.service.name}</p>
+              {/* Two jobs for the same service are otherwise indistinguishable here —
+                  the address is what tells them apart (SVC-171). Truncated because
+                  the full string belongs on the job screen, not in a list row. */}
+              {job.address.full && (
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{job.address.full}</span>
+                </p>
+              )}
               <div className="mt-1.5 flex items-center gap-2">
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs font-medium ${

@@ -6,6 +6,7 @@ import { CheckCircle2, ChevronLeft, Loader2, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { JobAddress } from "@/components/provider/JobAddress";
 import { ApiError } from "@/lib/api";
 import { useBooking, useMarkEnRoute, useStartBooking, useCompleteBooking } from "@/hooks/useApi";
 import type { Booking } from "@/lib/mock-data";
@@ -62,6 +63,11 @@ function ProviderJobPage() {
   );
 }
 
+// Once the job is over there is nowhere left to travel to, so the address stays
+// on screen for reference but loses the Navigate hand-off.
+const travelling = (status: Booking["status"]) =>
+  status === "ACCEPTED" || status === "EN_ROUTE" || status === "IN_PROGRESS";
+
 function JobBody({ booking }: { booking: Booking }) {
   return (
     <>
@@ -70,6 +76,13 @@ function JobBody({ booking }: { booking: Booking }) {
         {money(booking.totalAmount)} ·{" "}
         {booking.paymentMethod === "cash" ? "Cash on completion" : "Paid online"}
       </p>
+
+      {/* Above the action, deliberately: on ACCEPTED and EN_ROUTE this is the
+          screen's real content — where to go — and "I'm on my way" is the reply
+          to it (SVC-171). */}
+      <div className="mt-4">
+        <JobAddress address={booking.address} showNavigate={travelling(booking.status)} />
+      </div>
 
       <div className="mt-6">
         {booking.status === "ACCEPTED" && <EnRouteStep bookingId={booking.id} />}

@@ -31,6 +31,12 @@ export interface Address {
   id: string;
   label: string;
   full: string;
+  // Optional because the backend's `location` is nullable — a consumer can save an
+  // address that was never geocoded (SVC-170). `full` is the source of truth and
+  // these are the enhancement, never the other way round: absent coordinates mean
+  // "navigate by text", not "no address".
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface Review {
