@@ -17,11 +17,12 @@
 import { ArrowRight, ShieldCheck, Sparkles, Wallet } from "lucide-react";
 
 // Every link on this page is a full navigation (no client router — this
-// is a plain SPA entry, not TanStack Router). Legal pages live on the
-// app subdomain because they're rendered by the same code the reviewers
-// hit, and mirroring them here would just be another thing to drift.
+// is a plain SPA entry, not TanStack Router). /download is mirrored on
+// this marketing build so the CTA stays on the same domain; legal pages
+// stay on the app subdomain because reviewers hit those URLs directly
+// and mirroring them here would just be another thing to drift.
 const APP_URL = "https://app.eazyserv.com";
-const DOWNLOAD_URL = `${APP_URL}/download`;
+const DOWNLOAD_URL = "/download";
 const PRIVACY_URL = `${APP_URL}/privacy`;
 const TERMS_URL = `${APP_URL}/terms`;
 const REFUND_URL = `${APP_URL}/refund`;
