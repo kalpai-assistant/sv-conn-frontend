@@ -1,0 +1,66 @@
+# Deploy eazyserv.com marketing site → Cloudflare Pages.
+#
+# Separate from the app deploy: the app (app.eazyserv.com) uses the
+# default Cloudflare Pages Git integration on the main branch, which
+# picks up `dist/` from `npm run build`. This workflow drives a second
+# Pages project (`eazyserv-marketing`) via wrangler so we can build a
+# different Vite config (`vite.marketing.config.ts` → `dist-marketing/`)
+# without fighting the Pages Git integration, which only supports one
+# build per project.
+#
+# Runs on push to main whenever files that affect the marketing bundle
+# change — no point deploying when only app-only code moved. Manual
+# workflow_dispatch is also wired so you can force a redeploy.
+
+name: Deploy marketing site
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/marketing/**"
+      - "src/routes/__root.tsx"
+      - "src/routes/index.tsx"
+      - "src/routes/privacy.tsx"
+      - "src/routes/terms.tsx"
+      - "src/routes/refund.tsx"
+      - "src/routes/download.tsx"
+      - "src/lib/build-target.ts"
+      - "vite.marketing.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/deploy-marketing.yml"
+
+concurrency:
+  group: deploy-marketing
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build marketing bundle
+        run: npm run build:marketing
+
+      # Wrangler action handles auth + `wrangler pages deploy`. The Pages
+      # project `eazyserv-marketing` must exist beforehand (created via
+      # dashboard once; see the beta setup runbook).
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist-marketing --project-name=eazyserv-marketing --branch=main

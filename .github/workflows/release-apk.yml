@@ -1,0 +1,135 @@
+# Signed Android release APK → S3 (SVC-160 back half).
+#
+# Manual trigger only (no auto on push): each release is deliberate and
+# should be paired with a versionCode/versionName bump. Follow-up work
+# to enforce the version bump inside the workflow is TBD.
+#
+# Auth to AWS is via GitHub OIDC → the shared `eazyserv-github-deploy`
+# role (trust-policy allows both sv-conn-backend + sv-conn-frontend
+# after the SVC-160 IAM update). The role has a scoped inline policy
+# that only permits writes to `s3://eazyserv-downloads/apk/*` and
+# `latest.json` — nothing else. No long-lived AWS keys as GH secrets.
+#
+# Keystore is base64-decoded from a secret into the exact path
+# `keystore.properties` expects, then the two password env vars go into
+# the gradle step. `RELEASE.md` documents the full local flow this
+# mirrors.
+
+name: Release APK to S3
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 0.1.0). Uploaded as eazyserv-<version>.apk + latest.apk"
+        required: true
+        type: string
+
+concurrency:
+  group: release-apk
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-south-1
+  S3_BUCKET: eazyserv-downloads
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # AGP is currently pinned to JDK 21 — see RELEASE.md for the "why 21,
+      # not the newest LTS" note. Bumping this must be coordinated with
+      # Gradle / AGP versions in android/.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # `build:mobile` produces dist-mobile/ ; cap sync copies it into
+      # android/app/src/main/assets/public where Capacitor picks it up.
+      - name: Build mobile web bundle + sync to Android
+        run: |
+          npm run build:mobile
+          npx cap sync android
+
+      # Materialise the release keystore from the base64 secret. The path
+      # must match what `keystore.properties.example` declares:
+      # storeFile=../keystore/eazyserv-release.jks (relative to android/app/)
+      - name: Materialise release keystore + properties
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          mkdir -p android/keystore
+          echo "$KEYSTORE_B64" | base64 -d > android/keystore/eazyserv-release.jks
+          cp android/keystore.properties.example android/keystore.properties
+
+      - name: Build signed release APK
+        env:
+          ANDROID_KEYSTORE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_STORE_PASSWORD }}
+          ANDROID_KEYSTORE_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_KEY_PASSWORD }}
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      # Sanity check: fail loud if the APK is missing OR debug-signed. The
+      # gradle config already refuses to run without signing config, but
+      # a belt-and-braces verify here means CI can never publish a
+      # debug-signed APK to the download URL.
+      - name: Verify APK signing
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          test -f "$APK" || { echo "APK missing: $APK"; exit 1; }
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -n1)
+          "$APKSIGNER" verify --print-certs "$APK" | grep -q "Signer #1" \
+            || { echo "APK is not properly signed"; exit 1; }
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::018272776203:role/eazyserv-github-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Two uploads:
+      # - Versioned key preserves history (users can grab a specific build).
+      # - `latest.apk` is what the /download page links to via
+      #   `VITE_APK_URL` — updates every release with no client-side change.
+      # Long cache-control on the versioned key (immutable content), short
+      # on latest.apk so a new release is picked up within 5 min at edge.
+      - name: Upload APK to S3
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          aws s3 cp "$APK" "s3://${S3_BUCKET}/apk/eazyserv-${VERSION}.apk" \
+            --content-type application/vnd.android.package-archive \
+            --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp "$APK" "s3://${S3_BUCKET}/apk/latest.apk" \
+            --content-type application/vnd.android.package-archive \
+            --cache-control "public, max-age=300"
+
+      - name: Print URLs
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "Versioned: https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/apk/eazyserv-${VERSION}.apk"
+          echo "Latest:    https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/apk/latest.apk"
+          echo ""
+          echo "Next: bump the backend app_versions row (SVC-162) so the version-check nudge sees the new build."
