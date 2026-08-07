@@ -52,7 +52,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Vite inlines `import.meta.env.VITE_*` at build time — setting these
+      # in the Cloudflare Pages dashboard would be a no-op because the build
+      # runs here, not on Cloudflare. Any VITE_* that DownloadPage/etc. need
+      # has to be present in this step's env.
+      #
+      # VITE_APK_URL is the S3 object URL for the latest signed APK. Bucket
+      # policy is public-read, so hardcoding it here is safe (no secret).
+      # When a real CDN sits in front of this we move it to a repo variable.
       - name: Build marketing bundle
+        env:
+          VITE_APK_URL: https://eazyserv-downloads.s3.ap-south-1.amazonaws.com/apk/latest.apk
         run: npm run build:marketing
 
       # Wrangler action handles auth + `wrangler pages deploy`. The Pages
