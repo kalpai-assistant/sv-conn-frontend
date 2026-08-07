@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">ServiceConnect</string>
-    <string name="title_activity_main">ServiceConnect</string>
+    <string name="app_name">Eazyserv</string>
+    <string name="title_activity_main">Eazyserv</string>
     <string name="package_name">com.eazyserv.app</string>
     <string name="custom_url_scheme">com.eazyserv.app</string>
 </resources>
