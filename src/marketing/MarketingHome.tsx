@@ -47,15 +47,12 @@ export function MarketingHome() {
 }
 
 function Header() {
+  // The "Open the app" CTA is deliberately hidden until beta is publicly
+  // signup-open. Sending visitors into an app they can't yet register
+  // for reads worse than showing them nothing.
   return (
     <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
       <div className="text-lg font-bold tracking-tight text-primary">Eazyserv</div>
-      <a
-        href={APP_URL}
-        className="hidden sm:inline-flex items-center gap-1 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
-      >
-        Open the app <ArrowRight className="h-4 w-4" />
-      </a>
     </header>
   );
 }
@@ -71,18 +68,12 @@ function Hero() {
           Book verified professionals for cleaning, plumbing, electrical, and salon services.
           Transparent pricing, doorstep OTP verification, no surprises.
         </p>
-        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <a
-            href={APP_URL}
-            className="inline-flex w-full items-center justify-center rounded-xl bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02] sm:w-auto"
-          >
-            Open the app
-          </a>
+        <div className="mt-8 flex justify-center">
           <a
             href={DOWNLOAD_URL}
-            className="inline-flex w-full items-center justify-center rounded-xl border border-border bg-card px-6 py-3 text-base font-semibold text-foreground hover:bg-muted sm:w-auto"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02] sm:w-auto"
           >
-            Download for Android
+            Download for Android <ArrowRight className="ml-2 h-4 w-4" />
           </a>
         </div>
         <p className="mt-4 text-xs text-muted-foreground">
