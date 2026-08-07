@@ -127,8 +127,8 @@ function AndroidSection() {
         </summary>
         <div className="mt-3 space-y-2 text-muted-foreground">
           <p>
-            Android 12+ scopes &ldquo;install unknown apps&rdquo; per browser. If the toggle
-            doesn't appear when you open the APK, go to:
+            Android 12+ scopes &ldquo;install unknown apps&rdquo; per browser. If the toggle doesn't
+            appear when you open the APK, go to:
           </p>
           <p className="rounded bg-background px-3 py-2 font-mono text-xs">
             Settings → Apps → Special app access → Install unknown apps → your browser → Allow
@@ -177,8 +177,8 @@ function IosSection({ isSafari, isStandalone }: { isSafari: boolean; isStandalon
           <div>
             <p className="font-medium">Open this page in Safari</p>
             <p className="mt-1 text-xs">
-              You appear to be on a different iOS browser. Only Safari can add Eazyserv to your
-              home screen. Copy this URL and open it in Safari:
+              You appear to be on a different iOS browser. Only Safari can add Eazyserv to your home
+              screen. Copy this URL and open it in Safari:
               <span className="mt-1 block break-all rounded bg-background px-2 py-1 font-mono text-xs">
                 {DOWNLOAD_URL}
               </span>
@@ -195,8 +195,8 @@ function IosSection({ isSafari, isStandalone }: { isSafari: boolean; isStandalon
           <li className="flex gap-3">
             <span className="font-semibold text-primary">1.</span>
             <span>
-              Tap the <span className="font-medium">Share</span> button (the square with an
-              upward arrow) at the bottom of Safari.
+              Tap the <span className="font-medium">Share</span> button (the square with an upward
+              arrow) at the bottom of Safari.
             </span>
           </li>
           <li className="flex gap-3">
