@@ -132,8 +132,14 @@ export default defineConfig({
       host: true, // Exposes the server on the local network (for testing on phone)
       proxy: {
         "/api": {
-          target: "http://127.0.0.1:8000",
+          // Overridable so we can point local dev at the deployed backend
+          // (e.g. VITE_API_PROXY_TARGET=https://api.eazyserv.com npm run dev)
+          // when we need to reproduce a prod issue without wiring localhost
+          // into the backend CORS allowlist. Defaults to the docker-compose
+          // Postgres+API pair for normal offline dev.
+          target: process.env.VITE_API_PROXY_TARGET || "http://127.0.0.1:8000",
           changeOrigin: true,
+          secure: true,
         },
       },
     },
