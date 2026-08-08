@@ -78,11 +78,33 @@ const SUPPORT_EMAIL = "support@eazyserv.com";
 // not yet specific.
 // ---------------------------------------------------------------------------
 const SOCIALS = [
-  { name: "Instagram", href: "", home: "https://www.instagram.com", Icon: InstagramIcon },
-  { name: "Facebook", href: "", home: "https://www.facebook.com", Icon: FacebookIcon },
-  { name: "X", href: "", home: "https://x.com", Icon: XIcon },
+  // Instagram: the handle URL only. The share link this came from carried
+  // `igsh` and `utm_source=qr` params, which identify a single QR scan
+  // session — baking those into a site-wide link pollutes their analytics
+  // and tells every visitor they arrived by scanning the same code.
+  {
+    name: "Instagram",
+    href: "https://www.instagram.com/eazyserv",
+    home: "https://www.instagram.com",
+    Icon: InstagramIcon,
+  },
+  // Numeric profile.php URL because the page has no vanity username yet.
+  // Valid, just unfriendly — swap this for facebook.com/<username> once a
+  // username is claimed on the page.
+  {
+    name: "Facebook",
+    href: "https://www.facebook.com/profile.php?id=61593274072168",
+    home: "https://www.facebook.com",
+    Icon: FacebookIcon,
+  },
+  { name: "X", href: "https://x.com/EazyServ", home: "https://x.com", Icon: XIcon },
   { name: "LinkedIn", href: "", home: "https://www.linkedin.com", Icon: LinkedInIcon },
-  { name: "YouTube", href: "", home: "https://www.youtube.com", Icon: YouTubeIcon },
+  {
+    name: "YouTube",
+    href: "https://www.youtube.com/@EazyServ",
+    home: "https://www.youtube.com",
+    Icon: YouTubeIcon,
+  },
 ];
 
 const SERVICES = [
