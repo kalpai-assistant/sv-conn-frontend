@@ -26,21 +26,36 @@
  */
 import { useEffect, useState } from "react";
 import {
+  AirVent,
   ArrowRight,
   BadgeCheck,
+  Bug,
+  Building,
   Building2,
   CalendarCheck,
+  Cctv,
   ChevronDown,
+  CreditCard,
+  Droplets,
+  Flower2,
+  Hammer,
+  Headphones,
+  House,
   KeyRound,
   MapPin,
   Menu,
+  Navigation,
+  Paintbrush,
   RefreshCw,
   Scissors,
   ShieldCheck,
   Smartphone,
+  Sofa,
   Sparkles,
+  SprayCan,
   Users,
   Wallet,
+  WashingMachine,
   Wrench,
   X,
   Zap,
@@ -107,11 +122,40 @@ const SOCIALS = [
   },
 ];
 
+// Taken from the "Our Services" list in the company profile, not the
+// Slide 10 "Services Portfolio" — the profile list is the consumer-facing
+// one, is internally consistent, and avoids the deck's typos ("Instat
+// Solution", "Allotypes OF Cleaning"). The deck-only extras (car/bike wash,
+// vehicle repair, festival lights, hourly "instant" jobs) are deliberately
+// left out: they read as a different business line, and vehicle work isn't
+// a home service.
+//
+// ⚠️ BREADTH vs BOOKABILITY: src/lib/mock-data.ts exposes only eight
+// categories (Cleaning, Plumbing, Electrical, Salon, Painting, Carpentry,
+// Pest Control, Appliance). Everything below that isn't one of those may
+// not be bookable in the app yet. Confirm against the real backend
+// catalogue — if the gap is real, split this into "Available now" and
+// "Coming soon" rather than letting customers hunt for a service that
+// isn't there.
 const SERVICES = [
-  { name: "Home Cleaning", desc: "Deep-clean, kitchen, bathroom", Icon: Sparkles },
-  { name: "Plumbing", desc: "Leaks, fittings, installations", Icon: Wrench },
-  { name: "Electrical", desc: "Wiring, fans, switches", Icon: Zap },
-  { name: "Salon at Home", desc: "Haircut, facial, waxing", Icon: Scissors },
+  { name: "Home Cleaning", Icon: Sparkles },
+  { name: "Deep Cleaning", Icon: SprayCan },
+  { name: "AC Service & Repair", Icon: AirVent },
+  { name: "Plumbing", Icon: Wrench },
+  { name: "Electrical Services", Icon: Zap },
+  { name: "Carpentry", Icon: Hammer },
+  { name: "Painting", Icon: Paintbrush },
+  { name: "Appliance Repair", Icon: WashingMachine },
+  { name: "Pest Control", Icon: Bug },
+  { name: "Salon at Home", Icon: Scissors },
+  { name: "Spa & Massage at Home", Icon: Flower2 },
+  { name: "Home Sanitization", Icon: ShieldCheck },
+  { name: "RO & Water Purifier", Icon: Droplets },
+  { name: "CCTV Installation", Icon: Cctv },
+  { name: "Smart Home Installation", Icon: House },
+  { name: "Interior Maintenance", Icon: Sofa },
+  { name: "Office Cleaning", Icon: Building2 },
+  { name: "Facility Management", Icon: Building },
 ];
 
 const STEPS = [
@@ -132,21 +176,50 @@ const STEPS = [
   },
 ];
 
+// Drawn from "Why Choose EazyServ" in the company profile, minus two
+// claims that nothing in the product or src/legal/*.md backs up:
+//
+//   - "Same-Day Service Availability" — no evidence the dispatch flow can
+//     promise this, and a beta with a thin provider pool will miss it.
+//   - "Service Warranty (where applicable)" — refund.md §4 offers only a
+//     possible free revisit, decided case by case. "Warranty" is a
+//     stronger word than the policy supports.
+//
+// Put either back only once someone can point at the thing that makes it
+// true. Everything below maps to shipped behaviour.
 const TRUST = [
   {
     Icon: ShieldCheck,
-    title: "Verified providers",
+    title: "Verified professionals",
     desc: "Every professional clears KYC before taking a single job.",
   },
   {
     Icon: Wallet,
+    // Careful: refund.md §1.2 reserves a visit/inspection charge and §5
+    // charges for parts. An earlier draft here said "no call-out fees",
+    // which the policy contradicts. Keep this to what you see up front.
     title: "Transparent pricing",
-    desc: "See the full price before you book. No call-out fees, no surprises.",
+    desc: "You see the price before you confirm. No bidding, no haggling.",
   },
   {
     Icon: BadgeCheck,
     title: "Doorstep OTP",
     desc: "Service begins only after you share your code — proof the right person arrived.",
+  },
+  {
+    Icon: CreditCard,
+    title: "Secure digital payments",
+    desc: "Card, UPI or netbanking through Razorpay. Cash on completion if you prefer.",
+  },
+  {
+    Icon: Navigation,
+    title: "Real-time updates",
+    desc: "Track your professional on the way and follow the job as it progresses.",
+  },
+  {
+    Icon: Headphones,
+    title: "Customer support",
+    desc: "A real person to talk to when something needs sorting out.",
   },
 ];
 
@@ -167,17 +240,19 @@ const TRUST = [
 const ABOUT_FACTS = [
   {
     Icon: Building2,
-    // The registered entity name is a legal fact taken verbatim from
-    // src/legal/*.md — it stays "Eazyserv" even though the brand is now
-    // written "EazyServ". Do not "fix" the spelling here to match the
-    // wordmark; only a change to the incorporation record changes this.
-    title: "Eazyserv Technologies India Private Limited",
-    desc: "The registered company behind the platform and the app.",
+    // Casing follows the company profile deck, which writes "EazyServ
+    // Technologies India Private Limited" and gives the registered form as
+    // EAZYSERV TECHNOLOGIES INDIA PRIVATE LIMITED. Indian registrations are
+    // recorded in caps, so prose casing is presentation, not a legal fact —
+    // src/legal/*.md happens to render it "Eazyserv", which is the same
+    // name. Matching the company's own document.
+    title: "EazyServ Technologies India Private Limited",
+    desc: "Incorporated 9 July 2026 under the Companies Act, 2013.",
   },
   {
     Icon: MapPin,
-    title: "Based in Pune",
-    desc: "Live in select localities today, opening up more as we grow.",
+    title: "Headquartered in Pune",
+    desc: "Live in select localities today, opening up more across Maharashtra as we grow.",
   },
   {
     Icon: Users,
@@ -189,6 +264,33 @@ const ABOUT_FACTS = [
     title: "You're never left waiting",
     desc: "If your assigned professional can't make it, we offer a replacement from our verified pool.",
   },
+];
+
+// Vision and mission, quoted from the company profile. These are stated
+// goals, not claims about what already exists, which is why they are safe
+// to publish while the product is still in beta — a visitor reads "aiming
+// to" rather than "we have".
+const VISION =
+  "To become India's most trusted on-demand home services platform, by delivering exceptional customer experiences through technology and operational excellence.";
+
+const MISSION = [
+  { Icon: Wallet, text: "Deliver reliable home services at transparent prices." },
+  { Icon: Users, text: "Empower local professionals with technology and business opportunities." },
+  { Icon: ShieldCheck, text: "Ensure quality, safety and customer satisfaction." },
+  { Icon: Building, text: "Build a platform that scales to cities across India." },
+];
+
+// Deliberately rendered as a plain inline row rather than six cards. Value
+// words are near-universal ("Trust", "Quality") and carry little weight on
+// a consumer page — giving them card-sized real estate would crowd out the
+// things a customer actually decides on.
+const CORE_VALUES = [
+  "Trust",
+  "Transparency",
+  "Quality",
+  "Innovation",
+  "Customer First",
+  "Professional Excellence",
 ];
 
 const FAQS = [
@@ -223,6 +325,7 @@ export function MarketingHome() {
         <Hero />
         <ServicesGrid />
         <HowItWorks />
+        <BrandBand />
         <TrustBar />
         <About />
         <Faq />
@@ -287,9 +390,7 @@ function Header() {
         }`}
       >
         <a href="/" className="flex items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-sm font-extrabold text-primary-foreground">
-            ES
-          </span>
+          <BrandMark />
           <span className="text-lg font-extrabold tracking-tight text-foreground">EazyServ</span>
         </a>
 
@@ -461,24 +562,37 @@ function ServicesGrid() {
         <Reveal>
           <SectionHeading
             eyebrow="What we do"
-            title="Four services, done properly"
+            title="Everything your home needs, in one app"
             subtitle="Every job is handled by a professional who has cleared verification — not an anonymous marketplace listing."
           />
         </Reveal>
 
-        <Reveal delay={100} className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {SERVICES.map(({ name, desc, Icon }) => (
+        {/* Compact cards: at eighteen entries, a paragraph under each name
+            turns the section into a wall of text nobody reads. Name plus
+            icon stays scannable, and the grid widens rather than growing
+            taller on desktop. */}
+        <Reveal
+          delay={100}
+          className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-6"
+        >
+          {SERVICES.map(({ name, Icon }) => (
             <div
               key={name}
-              className="group rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg"
+              className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-5 text-center shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg"
             >
-              <div className="mb-4 inline-flex rounded-xl bg-primary/10 p-3 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+              <div className="inline-flex rounded-xl bg-primary/10 p-3 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                 <Icon className="h-5 w-5" />
               </div>
-              <h3 className="text-base font-semibold text-foreground">{name}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{desc}</p>
+              <h3 className="text-sm font-semibold leading-snug text-foreground">{name}</h3>
             </div>
           ))}
+        </Reveal>
+
+        <Reveal delay={150}>
+          <p className="mt-8 text-center text-xs text-muted-foreground">
+            Availability varies by locality while we're in beta — open the app to see what can be
+            booked at your address today.
+          </p>
         </Reveal>
       </div>
     </section>
@@ -524,6 +638,53 @@ function HowItWorks() {
           </ol>
         </Reveal>
       </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Brand band
+// ---------------------------------------------------------------------------
+
+/**
+ * Full-bleed brand banner, sitting between two contained sections as a
+ * visual break.
+ *
+ * Art-directed rather than responsive-scaled. The source banner is 2.4:1;
+ * squeezed onto a phone at that ratio its baked-in text becomes unreadable,
+ * so <picture> serves a narrower crop below 768px that drops the photo
+ * collage and keeps the wordmark, tagline, service icons and trust bar. Two
+ * files, not one image scaled — a single asset cannot do both jobs.
+ *
+ * Deliberately not a background-image with live text on top: the artwork
+ * already carries its own headline, and stacking ours over it would put two
+ * competing messages in one viewport.
+ *
+ * Not wrapped in a link either. It is a decorative reinforcement, and a
+ * large image link whose label is baked-in pixels is poor for screen
+ * readers and for anyone navigating by link text.
+ */
+function BrandBand() {
+  return (
+    <section aria-label="EazyServ brand banner" className="border-t border-border/60">
+      <picture>
+        <source media="(min-width: 768px)" srcSet="/brand-banner.jpg" />
+        <img
+          src="/brand-banner-sm.jpg"
+          // The alt stays short on purpose. Everything written into the
+          // artwork — the service names, the trust claims — already exists as
+          // real text elsewhere on this page, so transcribing it here would
+          // just make a screen reader repeat the whole page.
+          alt="EazyServ — quick, reliable, hassle-free home services."
+          width={1600}
+          height={666}
+          // Below the fold, so lazy. Explicit dimensions reserve the space
+          // and stop the sections beneath it jumping when it arrives.
+          loading="lazy"
+          decoding="async"
+          className="h-auto w-full"
+        />
+      </picture>
     </section>
   );
 }
@@ -579,15 +740,28 @@ function About() {
               Built in Pune, for Pune
             </h2>
 
-            {/* Wording here is deliberately precise about the model. terms.md
-                states that Service Professionals are independent third parties
-                and are NOT employees, agents or contractors of EazyServ. Copy
-                like "our plumbers" or "our staff" would contradict our own
-                terms, so keep it as "professionals on the platform". */}
+            {/* Merged from the company profile's "About Us" and the wording
+                that was already here. Two edits to the profile text were
+                deliberate:
+
+                - It says professionals are "verified, trained and reliable".
+                  KYC verification is shipped; training and certification
+                  appear only as a future step in the profile's partner
+                  journey. Claiming "trained" today would outrun the product.
+                - terms.md §(b) states Service Professionals are independent
+                  third parties and NOT employees, agents or contractors.
+                  "Our plumbers" or "our staff" would contradict our own
+                  terms, so this stays "independent professionals". */}
             <p className="mt-6 text-sm leading-relaxed text-muted-foreground md:text-base">
-              EazyServ is a home-services platform. We connect you with independent professionals —
-              cleaners, plumbers, electricians and beauticians — who work for themselves and have
-              cleared our verification before taking a single booking.
+              EazyServ is a technology-driven home services marketplace headquartered in Pune,
+              Maharashtra. We connect you with independent professionals — cleaners, plumbers,
+              electricians, carpenters and beauticians — who work for themselves and have cleared
+              our verification before taking a single booking.
+            </p>
+            <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">
+              Our goal is to simplify everyday living with fast, affordable, high-quality services —
+              while creating sustainable earning opportunities for skilled professionals in the
+              city.
             </p>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">
               Booking someone to come into your home usually means phone calls, unclear prices and
@@ -625,6 +799,49 @@ function About() {
             </ul>
           </Reveal>
         </div>
+
+        <Reveal delay={80} className="mt-14 grid grid-cols-1 gap-6 md:mt-16 md:grid-cols-2">
+          {/* Vision sits in a tinted panel and mission in a plain one, so the
+              two read as a pair without either needing a new colour. */}
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-7">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              Our vision
+            </p>
+            <p className="mt-3 text-base leading-relaxed text-foreground md:text-lg">{VISION}</p>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-7 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              Our mission
+            </p>
+            <ul className="mt-4 space-y-3">
+              {MISSION.map(({ Icon, text }) => (
+                <li key={text} className="flex items-start gap-3">
+                  <span className="mt-0.5 shrink-0 rounded-lg bg-primary/10 p-1.5 text-primary">
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="text-sm leading-relaxed text-muted-foreground">{text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Reveal>
+
+        <Reveal delay={120} className="mt-10">
+          <p className="text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            What we hold ourselves to
+          </p>
+          <ul className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            {CORE_VALUES.map((value) => (
+              <li
+                key={value}
+                className="rounded-full border border-border bg-card px-4 py-1.5 text-sm text-muted-foreground"
+              >
+                {value}
+              </li>
+            ))}
+          </ul>
+        </Reveal>
       </div>
     </section>
   );
@@ -704,9 +921,7 @@ function Footer() {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-sm font-extrabold text-primary-foreground">
-                ES
-              </span>
+              <BrandMark />
               <span className="text-lg font-extrabold tracking-tight text-foreground">
                 EazyServ
               </span>
@@ -717,9 +932,21 @@ function Footer() {
             <SocialRow />
           </div>
 
+          {/* Capped at six, not the full eighteen. There are no per-service
+              pages, so every entry resolves to the same #services anchor —
+              listing all of them made this column three times the height of
+              its neighbours while giving a screen reader eighteen links to
+              one destination. Six names signal the range; "All services"
+              carries anyone who wants the rest.
+
+              Sliced rather than hand-listed so reordering SERVICES reorders
+              the footer with it, and nothing can drift out of sync. */}
           <FooterColumn
             title="Services"
-            links={SERVICES.map((s) => [s.name, "#services"] as const)}
+            links={[
+              ...SERVICES.slice(0, 6).map((s) => [s.name, "#services"] as const),
+              ["All services", "#services"] as const,
+            ]}
           />
           <FooterColumn
             title="Company"
@@ -806,16 +1033,27 @@ function FooterColumn({
     <div>
       <p className="text-sm font-semibold text-foreground">{title}</p>
       <ul className="mt-3 space-y-2">
-        {links.map(([label, href]) => (
-          <li key={label}>
-            <a
-              href={href}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {label}
-            </a>
-          </li>
-        ))}
+        {links.map(([label, href]) => {
+          // A capped list ends in a "see the rest" link. Giving it the
+          // primary colour separates it from its siblings so it reads as an
+          // action rather than just another service name. Columns that
+          // aren't capped never pass this label, so they are unaffected.
+          const isSeeAll = label === "All services";
+          return (
+            <li key={label}>
+              <a
+                href={href}
+                className={
+                  isSeeAll
+                    ? "text-sm font-semibold text-primary transition-colors hover:brightness-110"
+                    : "text-sm text-muted-foreground transition-colors hover:text-foreground"
+                }
+              >
+                {label}
+              </a>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -824,6 +1062,25 @@ function FooterColumn({
 // ---------------------------------------------------------------------------
 // Shared
 // ---------------------------------------------------------------------------
+
+/**
+ * The gear mark, cropped from the supplied logo lockup and used in the
+ * header and footer next to the wordmark.
+ *
+ * It renders as a rounded tile rather than a free-floating glyph because
+ * the source (brand/logo.jpeg) is a JPEG with no alpha channel — the navy
+ * backdrop is baked into the pixels. A tile makes that deliberate instead
+ * of accidental. If the designer supplies an SVG or a PNG with
+ * transparency, swap the file and drop the rounded/tile classes.
+ * brand/README.md has the crop command that produced logo-mark.png.
+ *
+ * alt="" is intentional. Everywhere this appears it sits directly beside
+ * the word "EazyServ" as live text, so labelling the image too would make a
+ * screen reader announce the brand twice.
+ */
+function BrandMark() {
+  return <img src="/logo-mark.png" alt="" width={32} height={32} className="h-8 w-8 rounded-lg" />;
+}
 
 function SectionHeading({
   eyebrow,
