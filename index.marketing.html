@@ -1,26 +1,54 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
   <head>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <title>Eazyserv — Home Services at Your Doorstep in Bangalore</title>
+    <title>EazyServ — Home Services at Your Doorstep in Pune</title>
     <meta
       name="description"
-      content="Book verified professionals for cleaning, plumbing, electrical, and salon services in Bangalore. Transparent pricing, doorstep OTP verification."
+      content="Book verified professionals for cleaning, plumbing, electrical, and salon services in Pune. Transparent pricing, doorstep OTP verification."
     />
-    <meta property="og:title" content="Eazyserv — Home Services in Bangalore" />
+    <meta property="og:title" content="EazyServ — Home Services in Pune" />
     <meta
       property="og:description"
-      content="Book trusted home services in Bangalore — cleaning, plumbing, electrical, salon & more."
+      content="Book trusted home services in Pune — cleaning, plumbing, electrical, salon & more."
     />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://eazyserv.com/" />
+    <meta property="og:site_name" content="EazyServ" />
+    <!--
+      og:image is what WhatsApp / Facebook / LinkedIn render when someone
+      shares the link. Without it the share is a bare grey text row, which
+      matters here because WhatsApp is the main sharing channel.
+
+      TODO: replace with a purpose-made 1200x630 banner and switch
+      twitter:card to "summary_large_image". icon-512 is square, so it
+      renders as a small thumbnail rather than a wide card — correct for
+      "summary", wrong for the large variant. Using the real existing
+      asset means sharing works today rather than after a design task.
+    -->
+    <meta property="og:image" content="https://eazyserv.com/icons/icon-512.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content="EazyServ" />
     <meta name="twitter:card" content="summary" />
     <meta name="theme-color" content="#7C3AED" />
+
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!--
+      Both preconnects are needed: the CSS comes from fonts.googleapis.com
+      but the font files themselves come from fonts.gstatic.com, which is a
+      separate origin. Without the second hint the browser only starts that
+      connection after parsing the CSS. gstatic requires crossorigin
+      because fonts are fetched in CORS mode.
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
