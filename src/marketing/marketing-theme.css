@@ -1,0 +1,44 @@
+/**
+ * Marketing-only brand palette — blue.
+ *
+ * WHY THIS FILE EXISTS
+ * src/styles.css is the *shared* theme: the app, the mobile build and this
+ * marketing SPA all import it. Editing --primary there would turn the app
+ * blue too. This file is imported after styles.css from
+ * src/marketing/main.tsx and redefines the brand tokens for this bundle
+ * only, so eazyserv.com goes blue while app.eazyserv.com stays purple until
+ * its own rebrand ticket lands.
+ *
+ * Import order is load-bearing. If this ever gets imported before
+ * styles.css, styles.css wins and the page silently stays purple.
+ *
+ * HOW THESE VALUES WERE CHOSEN
+ * Hue only. Every token below keeps the lightness and chroma of the purple
+ * it replaces and moves hue 290 -> 262. That matters: the whole page was
+ * built against `primary` at L=0.5 — white text on primary buttons, primary
+ * text on white, primary/10 tints. Holding L and C constant means every
+ * contrast ratio is mathematically unchanged, so nothing needs re-checking
+ * for accessibility. Picking a brighter blue by eye would have quietly
+ * weakened text contrast on white.
+ *
+ * oklch(0.5 0.2 262) resolves to #1957D2 — a royal blue in the same family
+ * as the brand banner. If the designer supplies an exact brand hex, convert
+ * it to oklch and replace these values; keep L near 0.5 or re-check
+ * contrast on the primary buttons and links.
+ */
+
+:root {
+  --primary: oklch(0.5 0.2 262);
+  --ring: oklch(0.5 0.2 262);
+  --accent: oklch(0.92 0.01 262);
+  --accent-foreground: oklch(0.4 0.15 262);
+  --chart-1: oklch(0.5 0.2 262);
+
+  /* Sidebar tokens are unused by the marketing pages today. Overridden
+     anyway so that if a shadcn component is ever pulled in here, it cannot
+     drag purple back onto an otherwise blue page. */
+  --sidebar-primary: oklch(0.5 0.2 262);
+  --sidebar-accent: oklch(0.95 0.01 262);
+  --sidebar-accent-foreground: oklch(0.4 0.15 262);
+  --sidebar-ring: oklch(0.5 0.2 262);
+}

@@ -19,6 +19,10 @@ import { MarketingHome } from "./MarketingHome";
 import { DownloadPage } from "./DownloadPage";
 
 import "../styles.css";
+// Must come after styles.css — it redefines the brand tokens for this build
+// only, so the marketing site is blue while the app stays purple. Reversing
+// these two imports silently leaves the page purple.
+import "./marketing-theme.css";
 
 function App() {
   // No client router; pathname is enough for two static routes. If we
