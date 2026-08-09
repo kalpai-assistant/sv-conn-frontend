@@ -21,21 +21,35 @@
     <meta property="og:site_name" content="EazyServ" />
     <!--
       og:image is what WhatsApp / Facebook / LinkedIn render when someone
-      shares the link. Without it the share is a bare grey text row, which
-      matters here because WhatsApp is the main sharing channel.
+      shares the link — the main sharing channel for this audience.
 
-      TODO: replace with a purpose-made 1200x630 banner and switch
-      twitter:card to "summary_large_image". icon-512 is square, so it
-      renders as a small thumbnail rather than a wide card — correct for
-      "summary", wrong for the large variant. Using the real existing
-      asset means sharing works today rather than after a design task.
+      public/og-banner.jpg is cropped from the brand banner kept at
+      brand/og-source.jpeg (see brand/README.md for the exact command). A
+      full-height crop of that source is
+      always 1269px wide and runs into the photographed technician, so the
+      crop trims 47px of height (mostly empty navy at the top) to stop at
+      1180px, ending cleanly on the photo panels. Regenerate with sharp if
+      the source is ever replaced; keep it 1200x630 and under ~200 KB,
+      since every preview fetch pays for it.
+
+      The URL must stay absolute. Scrapers do not resolve relative paths.
     -->
-    <meta property="og:image" content="https://eazyserv.com/icons/icon-512.png" />
-    <meta property="og:image:width" content="512" />
-    <meta property="og:image:height" content="512" />
-    <meta property="og:image:alt" content="EazyServ" />
-    <meta name="twitter:card" content="summary" />
-    <meta name="theme-color" content="#7C3AED" />
+    <meta property="og:image" content="https://eazyserv.com/og-banner.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="EazyServ — quick, reliable, hassle-free home services in Pune"
+    />
+    <!-- Wide card now that the image is 1.91:1. This was "summary" while the
+         image was a square icon, which was the correct pairing then. -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://eazyserv.com/og-banner.jpg" />
+    <!-- Tints the browser chrome on mobile. Kept in step with `--primary`
+         in src/marketing/marketing-theme.css: oklch(0.5 0.2 262) = #1957D2.
+         This is the marketing build's own head, so changing it here does
+         not affect the app, which still ships #7C3AED. -->
+    <meta name="theme-color" content="#1957D2" />
 
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
