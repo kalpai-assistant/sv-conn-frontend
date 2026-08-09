@@ -34,7 +34,7 @@ const mapCategory = (cat: API_CategoryResponse): UI_Category => ({
   id: cat.id,
   name: cat.name,
   icon: cat.icon_url || "Sparkles", // Fallback icon
-  color: "#6C5CE7", // Fallback color
+  color: "#1957D2", // Fallback color (brand blue)
 });
 
 const mapService = (srv: API_ServiceResponse, cats: API_CategoryResponse[]): UI_Service => {

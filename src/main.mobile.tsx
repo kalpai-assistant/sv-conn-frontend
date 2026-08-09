@@ -28,7 +28,7 @@ async function initNative() {
 
   try {
     await StatusBar.setStyle({ style: Style.Light });
-    await StatusBar.setBackgroundColor({ color: "#7C3AED" });
+    await StatusBar.setBackgroundColor({ color: "#1957D2" });
   } catch {
     // StatusBar API may not be available on all devices
   }

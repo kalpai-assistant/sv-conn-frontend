@@ -125,7 +125,7 @@ function BlockOverlay({
       <div className="max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-xl">
         <h2 className="text-lg font-semibold text-foreground">Update required</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          This version of Eazyserv is no longer supported. Please update to continue.
+          This version of EazyServ is no longer supported. Please update to continue.
         </p>
         <p className="mt-3 text-xs text-muted-foreground">
           Minimum required: v{minSupported} · Latest: v{latest}

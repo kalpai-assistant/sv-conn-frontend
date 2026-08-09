@@ -59,24 +59,24 @@ export const Route = createRootRoute({
         content:
           "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
       },
-      { title: "Eazyserv — Home Services at Your Doorstep" },
+      { title: "EazyServ — Home Services at Your Doorstep" },
       {
         name: "description",
         content:
-          "Book trusted home services in Bangalore — cleaning, plumbing, electrical, salon & more.",
+          "Book trusted home services in Pune — cleaning, plumbing, electrical, salon & more.",
       },
-      { property: "og:title", content: "Eazyserv — Home Services at Your Doorstep" },
-      { property: "og:description", content: "Book trusted home services in Bangalore." },
+      { property: "og:title", content: "EazyServ — Home Services at Your Doorstep" },
+      { property: "og:description", content: "Book trusted home services in Pune." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       // PWA / iOS home-screen
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: "Eazyserv" },
+      { name: "apple-mobile-web-app-title", content: "EazyServ" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       // Theme colour shown in browser chrome and on Android task switcher
-      { name: "theme-color", content: "#7C3AED" },
-      { name: "msapplication-TileColor", content: "#7C3AED" },
+      { name: "theme-color", content: "#1957D2" },
+      { name: "msapplication-TileColor", content: "#1957D2" },
     ],
     links: [
       {

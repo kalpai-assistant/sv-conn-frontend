@@ -51,9 +51,9 @@ export function CategoryChips({ onSelect }: { onSelect?: (id: string) => void })
           >
             <div
               className="flex h-14 w-14 items-center justify-center rounded-2xl"
-              style={{ backgroundColor: (cat.color || "#6C5CE7") + "18" }}
+              style={{ backgroundColor: (cat.color || "#1957D2") + "18" }}
             >
-              <Icon className="h-6 w-6" style={{ color: cat.color || "#6C5CE7" }} />
+              <Icon className="h-6 w-6" style={{ color: cat.color || "#1957D2" }} />
             </div>
             <span className="text-[11px] font-medium text-foreground">{cat.name}</span>
           </button>

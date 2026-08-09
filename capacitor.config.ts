@@ -3,7 +3,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const config: CapacitorConfig = {
   // Must be a unique reverse-domain identifier — update before App Store submission
   appId: "com.eazyserv.app",
-  appName: "Eazyserv",
+  appName: "EazyServ",
 
   // Points to the Capacitor-specific build output
   webDir: "dist-mobile",
@@ -17,14 +17,14 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 2000,
       launchAutoHide: true,
-      backgroundColor: "#7C3AED",
+      backgroundColor: "#1957D2",
       showSpinner: false,
       androidSpinnerStyle: "large",
       iosSpinnerStyle: "small",
     },
     StatusBar: {
       style: "Light",
-      backgroundColor: "#7C3AED",
+      backgroundColor: "#1957D2",
       overlaysWebView: false,
     },
   },

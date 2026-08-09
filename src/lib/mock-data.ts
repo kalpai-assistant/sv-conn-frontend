@@ -282,8 +282,8 @@ export const reviews: Review[] = [
 ];
 
 export const savedAddresses: Address[] = [
-  { id: "a1", label: "Home", full: "42, 2nd Cross, Indiranagar, Bangalore 560038" },
-  { id: "a2", label: "Work", full: "WeWork Galaxy, Residency Road, Bangalore 560025" },
+  { id: "a1", label: "Home", full: "12, Lane 5, Koregaon Park, Pune 411001" },
+  { id: "a2", label: "Work", full: "WeWork Baner, Baner Road, Pune 411045" },
 ];
 
 export const mockBookings: Booking[] = [

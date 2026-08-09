@@ -9,11 +9,11 @@ import { useServices } from "@/hooks/useApi";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Eazyserv — Home Services at Your Doorstep" },
+      { title: "EazyServ — Home Services at Your Doorstep" },
       {
         name: "description",
         content:
-          "Book trusted home services — cleaning, plumbing, electrical, salon & more in Bangalore.",
+          "Book trusted home services — cleaning, plumbing, electrical, salon & more in Pune.",
       },
     ],
   }),

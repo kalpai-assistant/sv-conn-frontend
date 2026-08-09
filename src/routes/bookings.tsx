@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 export const Route = createFileRoute("/bookings")({
   head: () => ({
     meta: [
-      { title: "My Bookings — Eazyserv" },
+      { title: "My Bookings — EazyServ" },
       { name: "description", content: "View your active and past service bookings." },
     ],
   }),

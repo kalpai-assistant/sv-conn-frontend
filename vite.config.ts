@@ -39,11 +39,11 @@ export default defineConfig({
       // Include all assets generated in public/
       includeAssets: ["icons/*.png", "apple-touch-icon.png", "offline.html"],
       manifest: {
-        name: "Eazyserv",
-        short_name: "SvcConnect",
+        name: "EazyServ",
+        short_name: "EazyServ",
         description: "Book trusted home services — cleaning, plumbing, electrical, salon & more.",
-        theme_color: "#7C3AED",
-        background_color: "#7C3AED",
+        theme_color: "#1957D2",
+        background_color: "#1957D2",
         display: "standalone",
         orientation: "portrait",
         scope: "/",
