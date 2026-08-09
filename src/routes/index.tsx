@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Search } from "lucide-react";
-import { TopBar } from "@/components/TopBar";
-import { CategoryChips } from "@/components/CategoryChips";
-import { ServiceCard } from "@/components/ServiceCard";
-import { useServices } from "@/hooks/useApi";
+import { LocationBar } from "@/components/home/LocationBar";
+import { SearchBar } from "@/components/home/SearchBar";
+import { CategoryGrid } from "@/components/home/CategoryGrid";
+import { PromoCarousel } from "@/components/home/PromoCarousel";
+import { BookAgainRow } from "@/components/home/BookAgainRow";
+import { PopularSection } from "@/components/home/PopularSection";
+import { TrustBar } from "@/components/home/TrustBar";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -21,44 +23,28 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
+  // Category selection is Home-local state — no reason for it to survive a
+  // navigation. A tap on the same tile deselects (undefined), which pushes
+  // the PopularSection back to its full "Most booked" view.
   const [categoryId, setCategoryId] = useState<string | undefined>();
-  const { data: services, isLoading } = useServices(categoryId);
 
   return (
     <div className="min-h-screen pb-20">
-      <TopBar />
+      <LocationBar />
+      <SearchBar />
 
-      {/* Search */}
-      <div className="px-4 pt-4 pb-3">
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Search for services...</span>
-        </div>
-      </div>
-
-      {/* Categories */}
-      <div className="pb-2">
+      <section className="pb-4">
         <h2 className="px-4 pb-3 text-base font-semibold text-foreground">Categories</h2>
-        <CategoryChips onSelect={(id) => setCategoryId(id === categoryId ? undefined : id)} />
-      </div>
+        <CategoryGrid
+          selectedId={categoryId}
+          onSelect={(id) => setCategoryId((current) => (current === id ? undefined : id))}
+        />
+      </section>
 
-      {/* Popular Services */}
-      <div className="px-4 pt-2">
-        <h2 className="pb-3 text-base font-semibold text-foreground">Popular Services</h2>
-        <div className="flex flex-col gap-3">
-          {isLoading ? (
-            <div className="animate-pulse space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-28 w-full bg-border rounded-xl"></div>
-              ))}
-            </div>
-          ) : services && services.length > 0 ? (
-            services.map((s) => <ServiceCard key={s.id} service={s} />)
-          ) : (
-            <p className="text-sm text-muted-foreground">No services found.</p>
-          )}
-        </div>
-      </div>
+      <PromoCarousel />
+      <BookAgainRow />
+      <PopularSection categoryId={categoryId} />
+      <TrustBar />
     </div>
   );
 }
