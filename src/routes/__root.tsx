@@ -8,9 +8,11 @@ import {
   Navigate,
 } from "@tanstack/react-router";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { CartProvider } from "@/lib/cart-context";
 import { useNotificationRouter } from "@/lib/notifications";
 import { useFcmRegistration } from "@/lib/fcm";
 import { BottomNav } from "@/components/BottomNav";
+import { CartFab } from "@/components/cart/CartFab";
 import { IncomingRequestHost } from "@/components/provider/IncomingRequestHost";
 import { AuthFlow } from "@/components/AuthFlow";
 import { AppVersionGate } from "@/components/AppVersionGate";
@@ -211,19 +213,26 @@ function RootComponent() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          {/* SVC-162: version-check nudge/block overlays. Wraps the whole
-              tree so the block state can cover everything below it. */}
-          <AppVersionGate>
-            <AppGate>
-              <Outlet />
-              <BottomNav />
-            </AppGate>
-            {/* SVC-69: full-screen overlay for an incoming broadcast job.
-                Sits outside AppGate so it can cover the whole shell; it
-                renders nothing unless a booking id is supplied. */}
-            <IncomingRequestHost />
-            <Toaster />
-          </AppVersionGate>
+          {/* CartProvider sits inside AuthProvider so the cart can be
+              scoped by user id (see cart-context.tsx). Outside the
+              version gate so a version-blocked user's cart still
+              survives an update. */}
+          <CartProvider>
+            {/* SVC-162: version-check nudge/block overlays. Wraps the whole
+                tree so the block state can cover everything below it. */}
+            <AppVersionGate>
+              <AppGate>
+                <Outlet />
+                <BottomNav />
+                <CartFab />
+              </AppGate>
+              {/* SVC-69: full-screen overlay for an incoming broadcast job.
+                  Sits outside AppGate so it can cover the whole shell; it
+                  renders nothing unless a booking id is supplied. */}
+              <IncomingRequestHost />
+              <Toaster />
+            </AppVersionGate>
+          </CartProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
