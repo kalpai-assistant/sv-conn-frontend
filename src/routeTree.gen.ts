@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as BookingsRouteImport } from './routes/bookings'
+import { Route as CartRouteImport } from './routes/cart'
 import { Route as DownloadRouteImport } from './routes/download'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -35,6 +36,11 @@ const ActivityRoute = ActivityRouteImport.update({
 const BookingsRoute = BookingsRouteImport.update({
   id: '/bookings',
   path: '/bookings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CartRoute = CartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DownloadRoute = DownloadRouteImport.update({
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/bookings': typeof BookingsRoute
+  '/cart': typeof CartRoute
   '/download': typeof DownloadRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/bookings': typeof BookingsRoute
+  '/cart': typeof CartRoute
   '/download': typeof DownloadRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/bookings': typeof BookingsRoute
+  '/cart': typeof CartRoute
   '/download': typeof DownloadRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/'
     | '/activity'
     | '/bookings'
+    | '/cart'
     | '/download'
     | '/privacy'
     | '/profile'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/'
     | '/activity'
     | '/bookings'
+    | '/cart'
     | '/download'
     | '/privacy'
     | '/profile'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/'
     | '/activity'
     | '/bookings'
+    | '/cart'
     | '/download'
     | '/privacy'
     | '/profile'
@@ -175,6 +187,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActivityRoute: typeof ActivityRoute
   BookingsRoute: typeof BookingsRoute
+  CartRoute: typeof CartRoute
   DownloadRoute: typeof DownloadRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/bookings'
       fullPath: '/bookings'
       preLoaderRoute: typeof BookingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cart': {
+      id: '/cart'
+      path: '/cart'
+      fullPath: '/cart'
+      preLoaderRoute: typeof CartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/download': {
@@ -279,6 +299,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
   BookingsRoute: BookingsRoute,
+  CartRoute: CartRoute,
   DownloadRoute: DownloadRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
