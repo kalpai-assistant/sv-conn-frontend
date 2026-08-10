@@ -16,7 +16,7 @@ by hand and never matching again.
 | --- | --- | --- |
 | `og-banner.jpg` (1200×630) | `og-source.jpeg` | `og:image` / `twitter:image` in `index.marketing.html` |
 | `brand-banner.jpg` (1600×666) | `og-source.jpeg` | `BrandBand`, ≥768px |
-| `brand-banner-sm.jpg` (960×666) | `og-source.jpeg` | `BrandBand`, <768px |
+| `brand-banner-sm.jpg` (900×580) | `og-source.jpeg` | `BrandBand`, <768px |
 | `logo-mark.png` (128×128) | `logo.jpeg` | `BrandMark` in the header and footer |
 
 ## Regenerating
@@ -50,8 +50,39 @@ Promise.all([
   // Brand band, mobile — left region only. At 2.4:1 the baked-in text is
   // unreadable on a phone, so the photo collage is dropped rather than
   // shrunk. Keeps wordmark, tagline, service icons and trust bar.
-  sharp(banner).extract({ left: 0, top: 0, width: 960, height: 666 })
-    .jpeg({ quality: 80, mozjpeg: true }).toFile('public/brand-banner-sm.jpg'),
+  //
+  // No pure crop works here: the trust pill runs to x=917 while the photo
+  // collage already intrudes from x≈855 at the top, so the two overlap.
+  // Cropping narrow enough to miss the photo (x=840) clips "& MANY MORE"
+  // and "EASY BOOKING". So the crop keeps the full content at x=900 and the
+  // leftover photo wedge — which reaches down to about y=140 — is painted
+  // over with navy copied from lower in the same columns, where the
+  // background gradient is closest and the seam does not show.
+  //
+  // Vertical bounds come from the artwork's own content, which measures
+  // y 50-593 (gear mark top to trust-bar bottom). Cropping 30..610 leaves
+  // ~20px above and ~17px below, instead of the 0/73 split a full-height
+  // crop gives — that lopsided gap is what made the mobile band look loose
+  // next to the desktop one.
+  //
+  // The patch must start at x>=850: the wordmark's right edge is near x=775,
+  // so anything further left would erase part of the "v".
+  //
+  // Width stays 900 even though the trust pill runs to x~922, which trims
+  // ~22px off the pill's rounded end. That is deliberate and cannot be
+  // avoided: the pill and the photo panel overlap in the artwork, so any
+  // crop wide enough to finish the pill also drags a strip of photograph in
+  // with it (tried at 852 and 942 — both show the technician). The artwork
+  // has no portrait variant; a purpose-made mobile version from the
+  // designer is the only way to have both.
+  (async () => {
+    const base = await sharp(banner)
+      .extract({ left: 0, top: 30, width: 900, height: 580 }).toBuffer();
+    const patch = await sharp(banner)
+      .extract({ left: 850, top: 220, width: 50, height: 120 }).toBuffer();
+    return sharp(base).composite([{ input: patch, left: 850, top: 0 }])
+      .jpeg({ quality: 80, mozjpeg: true }).toFile('public/brand-banner-sm.jpg');
+  })(),
 
   // Header/footer mark — the gear sits at x 241-278, y 110-147 in
   // logo.jpeg. A 62px box centred on it gives even padding and stops above
