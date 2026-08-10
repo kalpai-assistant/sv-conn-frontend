@@ -69,6 +69,10 @@ export default tseslint.config(
             // change once a quarter.
             "useAuth",
             "getRouter",
+            // Cart hook is co-located with CartProvider (mirrors the
+            // auth-context.tsx pattern). Same reasoning: the provider file
+            // is edit-once and the co-location keeps the API together.
+            "useCart",
           ],
         },
       ],

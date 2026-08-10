@@ -44,15 +44,34 @@ export interface Review {
 export type BookingStatus =
   "REQUESTED" | "ACCEPTED" | "EN_ROUTE" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "EXPIRED";
 
+export interface BookingItem {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
 export interface Booking {
   id: string;
+  // The `service` field is preserved for the "primary" service — either
+  // the first item, or a placeholder when items haven't loaded yet. It
+  // keeps every screen that reads `booking.service.name` working while
+  // multi-service carts propagate. Read `items` for the whole cart.
   service: Service;
+  items: BookingItem[];
   status: BookingStatus;
   address: Address;
   scheduledAt: string;
   otp?: string;
   paymentMethod: "online" | "cash";
   paymentStatus: "pending" | "paid" | "refunded";
+  // Original sum of item totals, before discount, before tip.
+  serviceAmount: number;
+  discountAmount: number;
+  tipAmount: number;
+  // Sum the user was (or will be) charged: serviceAmount - discount + tip.
   totalAmount: number;
   createdAt: string;
 }
@@ -286,61 +305,94 @@ export const savedAddresses: Address[] = [
   { id: "a2", label: "Work", full: "WeWork Baner, Baner Road, Pune 411045" },
 ];
 
+// Each mock booking synthesises a 1-item cart from its `service`. Enough
+// for fallback dev data; real bookings from the API carry multiple items.
+const _oneItemCart = (svc: Service, id: string): BookingItem[] => [
+  {
+    id: `${id}-item`,
+    serviceId: svc.id,
+    serviceName: svc.name,
+    quantity: 1,
+    unitPrice: svc.price,
+    totalPrice: svc.price,
+  },
+];
+
 export const mockBookings: Booking[] = [
   {
     id: "b1",
     service: services[0],
+    items: _oneItemCart(services[0], "b1"),
     status: "IN_PROGRESS",
     address: savedAddresses[0],
     scheduledAt: "2026-04-15T10:00:00",
     otp: "4829",
     paymentMethod: "online",
     paymentStatus: "pending",
+    serviceAmount: 2099,
+    discountAmount: 0,
+    tipAmount: 0,
     totalAmount: 2099,
     createdAt: "2026-04-15T09:30:00",
   },
   {
     id: "b2",
     service: services[11],
+    items: _oneItemCart(services[11], "b2"),
     status: "ACCEPTED",
     address: savedAddresses[1],
     scheduledAt: "2026-04-15T14:00:00",
     otp: "7163",
     paymentMethod: "cash",
     paymentStatus: "pending",
+    serviceAmount: 649,
+    discountAmount: 0,
+    tipAmount: 0,
     totalAmount: 649,
     createdAt: "2026-04-15T12:00:00",
   },
   {
     id: "b3",
     service: services[6],
+    items: _oneItemCart(services[6], "b3"),
     status: "COMPLETED",
     address: savedAddresses[0],
     scheduledAt: "2026-04-12T11:00:00",
     paymentMethod: "online",
     paymentStatus: "paid",
+    serviceAmount: 549,
+    discountAmount: 0,
+    tipAmount: 0,
     totalAmount: 549,
     createdAt: "2026-04-12T10:00:00",
   },
   {
     id: "b4",
     service: services[2],
+    items: _oneItemCart(services[2], "b4"),
     status: "COMPLETED",
     address: savedAddresses[0],
     scheduledAt: "2026-04-10T16:00:00",
     paymentMethod: "cash",
     paymentStatus: "paid",
+    serviceAmount: 399,
+    discountAmount: 0,
+    tipAmount: 0,
     totalAmount: 399,
     createdAt: "2026-04-10T15:00:00",
   },
   {
     id: "b5",
     service: services[4],
+    items: _oneItemCart(services[4], "b5"),
     status: "CANCELLED",
     address: savedAddresses[1],
     scheduledAt: "2026-04-08T09:00:00",
     paymentMethod: "online",
     paymentStatus: "refunded",
+    serviceAmount: 349,
+    discountAmount: 0,
+    tipAmount: 0,
     totalAmount: 349,
     createdAt: "2026-04-08T08:00:00",
   },
