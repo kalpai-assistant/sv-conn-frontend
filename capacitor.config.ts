@@ -17,14 +17,14 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 2000,
       launchAutoHide: true,
-      backgroundColor: "#FFFFFF",
+      backgroundColor: "#011346",
       showSpinner: false,
       androidSpinnerStyle: "large",
       iosSpinnerStyle: "small",
     },
     StatusBar: {
       style: "Light",
-      backgroundColor: "#FFFFFF",
+      backgroundColor: "#011346",
       overlaysWebView: false,
     },
   },

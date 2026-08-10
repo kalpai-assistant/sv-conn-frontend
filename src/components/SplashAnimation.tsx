@@ -1,36 +1,42 @@
 /**
- * Animated splash — the mark shrinks and unrotates into place on a
- * white surface, then the wordmark fades in below.
+ * Animated splash — the mark spins in and settles at centre while the
+ * wordmark fades in below.
  *
- * Palette is the source design's colours with the bg/fg swapped: the
- * source draws the mark bright-blue on navy; the splash draws it
- * bright-blue on white with the wordmark rendered in the source's
- * navy. Same three colours, cleaner inversion for an app-open
- * moment — a white splash reads as "app opening" while a coloured
- * splash reads as "brand billboard." See
- * `brand/eazyserv-logo-source.svg`.
+ * Palette is the source design's brand scheme (`#011346` navy bg,
+ * bright-blue mark, white wordmark). Reads as one continuous brand
+ * moment rather than "white utility surface with a coloured mark on
+ * it." Colours are named constants so a palette tweak lives in one
+ * place; the source of truth is `brand/eazyserv-logo-source.svg`.
  *
- * Timing (~1.8s total; matches the `AuthFlow` splash hold):
- *   0.00–0.90s  mark: scale 3.5 → 1, rotate 180° → 0°, opacity 0 → 1
- *   0.90–1.30s  wordmark: opacity 0 → 1, slide y+8 → 0
- *   1.30–1.70s  tagline: opacity 0 → 1
- *   1.70–1.90s  hold
- *   (parent's AnimatePresence handles the fade-out)
+ * Timing (~2s total; matches SplashGate's SPLASH_HOLD_MS):
+ *   0.00–1.10s  mark: scale 3.5 → 1, rotate 720° → 0°, opacity 0 → 1
+ *   0.65–1.15s  wordmark: opacity 0 → 1, slide y+8 → 0
+ *               (starts before the mark settles — overlap reads as one
+ *                continuous motion, not two sequential phases)
+ *   1.15–1.60s  tagline: opacity 0 → 1
+ *   1.60–2.00s  hold
+ *   (SplashGate's AnimatePresence handles the exit fade)
  *
- * The mark rotation is a full 180° so the animation resolves to
- * upright — a smaller angle (say 90°) would ambiguously read as
- * "landed sideways then straightened" rather than "spun in and
- * arrived." Spring physics on scale so the settle feels organic
- * rather than metronome-tween.
+ * Rotation is 720° (two full turns), NOT the more intuitive 180°.
+ * The mark is an eight-arm snowflake with rotational symmetry — a
+ * 180° flip looks *identical* to the final state, so the eye
+ * registers no spin at all. 720° forces two full visible
+ * revolutions before landing upright. Same story for 90° / 45°:
+ * whatever multiple of the mark's symmetry angle you rotate by
+ * disappears visually.
+ *
+ * Spring physics on the whole tween so the settle feels physical
+ * rather than metronome-tween. Damping tuned so there's a small
+ * overshoot at the end, giving the "landed" moment a satisfying
+ * hitch.
  */
 import { motion } from "framer-motion";
 
 // Colours pulled from the source SVG so a designer change to the brand
 // palette only needs to update `brand/eazyserv-logo-source.svg` and
 // these constants — nothing in the animation code changes.
-const SPLASH_BG = "#FFFFFF";
-const WORDMARK_COLOR = "#011346"; // source's navy, used here as text
-const TAGLINE_COLOR = "#6B7280"; // muted gray, ~30% darker than app muted-fg on white
+const SPLASH_BG = "#011346"; // source's navy — the brand's dark surface
+const WORDMARK_COLOR = "#FBFBFB"; // matches the source's off-white wordmark
 
 export function SplashAnimation() {
   return (
@@ -39,47 +45,49 @@ export function SplashAnimation() {
       style={{ backgroundColor: SPLASH_BG }}
     >
       {/* The mark. Rendered via <img> pointing at the extracted SVG
-          in public/ so the browser can rasterise per-DPI — no raster
+          in public/ so the browser rasterises per-DPI — no raster
           fallbacks to ship. */}
       <motion.img
         src="/eazyserv-mark.svg"
         alt=""
         aria-hidden
-        initial={{ scale: 3.5, rotate: 180, opacity: 0 }}
+        // Start: 3.5x oversize, rotated 720°, invisible. End:
+        // natural size, upright, fully opaque. See docstring for
+        // the 720° reasoning.
+        initial={{ scale: 3.5, rotate: 720, opacity: 0 }}
         animate={{ scale: 1, rotate: 0, opacity: 1 }}
         transition={{
-          // Spring for scale — feels like a physical object landing.
-          // The tween on rotate/opacity is default (linear + duration
-          // derived from the spring) which is fine here: the eye keys
-          // off scale and reads rotation/opacity as ambient support.
           type: "spring",
-          damping: 12,
-          stiffness: 90,
-          mass: 0.9,
+          damping: 14,
+          stiffness: 80,
+          mass: 0.95,
         }}
         style={{
-          width: 120,
-          height: 120,
-          // Subtle blue glow — on white the mark can look thin
-          // without a little bit of atmospheric drop-shadow. Kept
-          // low-radius so the source's flat aesthetic is preserved.
-          filter: "drop-shadow(0 8px 24px rgba(2, 158, 247, 0.25))",
+          width: 140,
+          height: 140,
+          // Bright glow — on the navy bg the mark can otherwise
+          // feel pasted-on. This gives it enough atmosphere to
+          // read as an emitting source rather than a flat sticker.
+          filter: "drop-shadow(0 8px 40px rgba(2, 158, 247, 0.55))",
         }}
       />
 
-      {/* Wordmark. Fades in after the mark has settled — delay
-          starts once the mark's spring is roughly done (0.9s). */}
+      {/* Wordmark. Delay 0.65s — starts BEFORE the mark's spring
+          settles, so the eye reads the whole animation as one
+          continuous motion. If wordmark waited until after mark
+          landed (delay ~1.1s) the sequence feels like two
+          disconnected phases. */}
       <motion.h1
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.9, duration: 0.4, ease: "easeOut" }}
+        transition={{ delay: 0.65, duration: 0.5, ease: "easeOut" }}
         // Inter is already loaded (see index.mobile.html); tracking
         // and weight tuned to visually approximate the source
         // wordmark without shipping a custom font.
         style={{
-          marginTop: 24,
+          marginTop: 28,
           color: WORDMARK_COLOR,
-          fontSize: 40,
+          fontSize: 44,
           fontWeight: 800,
           letterSpacing: "-0.02em",
         }}
@@ -89,9 +97,9 @@ export function SplashAnimation() {
 
       <motion.p
         initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.3, duration: 0.4, ease: "easeOut" }}
-        style={{ marginTop: 8, color: TAGLINE_COLOR, fontSize: 14 }}
+        animate={{ opacity: 0.75 }}
+        transition={{ delay: 1.15, duration: 0.45, ease: "easeOut" }}
+        style={{ marginTop: 10, color: WORDMARK_COLOR, fontSize: 14 }}
       >
         Home services at your doorstep
       </motion.p>

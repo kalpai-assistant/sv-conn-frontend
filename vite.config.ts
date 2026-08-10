@@ -46,10 +46,10 @@ export default defineConfig({
         // toolbar) — stays brand blue.
         theme_color: "#1957D2",
         // background_color is the splash surface shown while the PWA
-        // boots (also fills any letterboxing on install). White so
-        // there's no jarring blue→white flash when the animated
-        // React splash (`SplashAnimation`) takes over.
-        background_color: "#FFFFFF",
+        // boots (also fills any letterboxing on install). Matches the
+        // React `SplashAnimation` navy (`#011346`) so there's no colour
+        // flash during the native → React splash handoff.
+        background_color: "#011346",
         display: "standalone",
         orientation: "portrait",
         scope: "/",
