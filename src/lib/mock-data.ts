@@ -31,6 +31,12 @@ export interface Address {
   id: string;
   label: string;
   full: string;
+  // Optional per the backend's BookingAddress schema (SVC-170): older
+  // rows have no coordinates, and CreateAddressRequest accepts an
+  // address without them. Consumers must treat `full` as the source of
+  // truth and coordinates as an enhancement.
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface Review {

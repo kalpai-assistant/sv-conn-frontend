@@ -110,13 +110,36 @@ const mapBooking = (
   const discountAmount = b.discount_amount ?? 0;
   const tipAmount = b.tip_amount ?? 0;
 
+  // Address is nested on the response (SVC-170) and carries lat/lng
+  // when the address was geocoded at create time. Fall back to a
+  // placeholder when the server returns null (admin listings blank it
+  // for bulk-PII reasons; single-booking reads always have it).
+  const apiAddress = (
+    b as unknown as {
+      address?: {
+        id: string;
+        label: string;
+        full_address: string;
+        lat: number | null;
+        lng: number | null;
+      } | null;
+    }
+  ).address;
+  const address = apiAddress
+    ? {
+        id: apiAddress.id,
+        label: apiAddress.label,
+        full: apiAddress.full_address,
+        lat: apiAddress.lat,
+        lng: apiAddress.lng,
+      }
+    : { id: "", label: "Address", full: "" };
+
   return {
     id: b.id,
     status: b.status.toUpperCase() as UI_Booking["status"],
     items: mapped_items,
-    // BookingResponse in the OpenAPI spec doesn't currently carry address_id;
-    // placeholder until the spec + endpoint are updated.
-    address: { id: "", label: "Address", full: "" },
+    address,
     scheduledAt: b.scheduled_at || b.created_at,
     paymentMethod: (b.payment_method || "online") as UI_Booking["paymentMethod"],
     paymentStatus: (b.payment_status || "pending") as UI_Booking["paymentStatus"],
