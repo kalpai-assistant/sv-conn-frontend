@@ -42,8 +42,14 @@ export default defineConfig({
         name: "EazyServ",
         short_name: "EazyServ",
         description: "Book trusted home services — cleaning, plumbing, electrical, salon & more.",
+        // theme_color tints the OS chrome (Android status bar, PWA
+        // toolbar) — stays brand blue.
         theme_color: "#1957D2",
-        background_color: "#1957D2",
+        // background_color is the splash surface shown while the PWA
+        // boots (also fills any letterboxing on install). White so
+        // there's no jarring blue→white flash when the animated
+        // React splash (`SplashAnimation`) takes over.
+        background_color: "#FFFFFF",
         display: "standalone",
         orientation: "portrait",
         scope: "/",

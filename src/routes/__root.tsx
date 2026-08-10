@@ -13,6 +13,7 @@ import { useNotificationRouter } from "@/lib/notifications";
 import { useFcmRegistration } from "@/lib/fcm";
 import { BottomNav } from "@/components/BottomNav";
 import { CartFab } from "@/components/cart/CartFab";
+import { SplashGate } from "@/components/SplashGate";
 import { IncomingRequestHost } from "@/components/provider/IncomingRequestHost";
 import { AuthFlow } from "@/components/AuthFlow";
 import { AppVersionGate } from "@/components/AppVersionGate";
@@ -218,20 +219,29 @@ function RootComponent() {
               version gate so a version-blocked user's cart still
               survives an update. */}
           <CartProvider>
-            {/* SVC-162: version-check nudge/block overlays. Wraps the whole
-                tree so the block state can cover everything below it. */}
-            <AppVersionGate>
-              <AppGate>
-                <Outlet />
-                <BottomNav />
-                <CartFab />
-              </AppGate>
-              {/* SVC-69: full-screen overlay for an incoming broadcast job.
-                  Sits outside AppGate so it can cover the whole shell; it
-                  renders nothing unless a booking id is supplied. */}
-              <IncomingRequestHost />
-              <Toaster />
-            </AppVersionGate>
+            {/* SplashGate is the outermost UI concern: the animated
+                launch splash covers everything for ~2s on cold app
+                open, then swaps in the app shell. Sits inside all the
+                providers so the app underneath is fully hydrated by
+                the time the splash lifts. */}
+            <SplashGate>
+              {/* SVC-162: version-check nudge/block overlays. Wraps
+                  the whole tree so the block state can cover
+                  everything below it. */}
+              <AppVersionGate>
+                <AppGate>
+                  <Outlet />
+                  <BottomNav />
+                  <CartFab />
+                </AppGate>
+                {/* SVC-69: full-screen overlay for an incoming
+                    broadcast job. Sits outside AppGate so it can
+                    cover the whole shell; renders nothing unless a
+                    booking id is supplied. */}
+                <IncomingRequestHost />
+                <Toaster />
+              </AppVersionGate>
+            </SplashGate>
           </CartProvider>
         </AuthProvider>
       </QueryClientProvider>

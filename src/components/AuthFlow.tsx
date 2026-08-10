@@ -4,22 +4,20 @@ import { API_BASE_URL } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, ArrowRight, Loader2 } from "lucide-react";
 
-type AuthStep = "splash" | "phone" | "otp";
+// The splash step was moved to a root-level `SplashGate` so the
+// animation runs on every cold app open regardless of auth state.
+// AuthFlow starts directly at phone entry — a user who has been
+// through the splash and lands here is already committed to signing
+// in.
+type AuthStep = "phone" | "otp";
 
 export function AuthFlow({ onComplete }: { onComplete: () => void }) {
-  const [step, setStep] = useState<AuthStep>("splash");
+  const [step, setStep] = useState<AuthStep>("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
-  // Splash auto-advance
-  useEffect(() => {
-    if (step === "splash") {
-      const t = setTimeout(() => setStep("phone"), 2000);
-      return () => clearTimeout(t);
-    }
-  }, [step]);
 
   // Resend timer
   useEffect(() => {
@@ -107,31 +105,6 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
   return (
     <div className="fixed inset-0 z-50 bg-background">
       <AnimatePresence mode="wait">
-        {step === "splash" && (
-          <motion.div
-            key="splash"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex h-full flex-col items-center justify-center bg-primary"
-          >
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", duration: 0.8 }}
-              className="text-center"
-            >
-              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-primary-foreground/20 mx-auto">
-                <span className="text-4xl font-bold text-primary-foreground">ES</span>
-              </div>
-              <h1 className="text-3xl font-bold text-primary-foreground">EazyServ</h1>
-              <p className="mt-2 text-primary-foreground/70 text-sm">
-                Home services at your doorstep
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-
         {step === "phone" && (
           <motion.div
             key="phone"
