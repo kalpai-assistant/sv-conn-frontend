@@ -122,9 +122,9 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
               className="text-center"
             >
               <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-primary-foreground/20 mx-auto">
-                <span className="text-4xl font-bold text-primary-foreground">SC</span>
+                <span className="text-4xl font-bold text-primary-foreground">ES</span>
               </div>
-              <h1 className="text-3xl font-bold text-primary-foreground">Eazyserv</h1>
+              <h1 className="text-3xl font-bold text-primary-foreground">EazyServ</h1>
               <p className="mt-2 text-primary-foreground/70 text-sm">
                 Home services at your doorstep
               </p>

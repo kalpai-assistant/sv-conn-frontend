@@ -10,6 +10,11 @@ export default tseslint.config(
     ignores: [
       "dist",
       "dist-mobile",
+      // Marketing SPA build output. Gitignored (see .gitignore) but was
+      // missing from the lint ignore list, so a local `build:marketing`
+      // left behind bundle output that then failed prettier/no-explicit-any
+      // rules on the next `npm run lint`.
+      "dist-marketing",
       ".output",
       ".vinxi",
       // Native project trees — ESLint walking these is what makes local
@@ -64,6 +69,10 @@ export default tseslint.config(
             // change once a quarter.
             "useAuth",
             "getRouter",
+            // Cart hook is co-located with CartProvider (mirrors the
+            // auth-context.tsx pattern). Same reasoning: the provider file
+            // is edit-once and the co-location keeps the API together.
+            "useCart",
           ],
         },
       ],

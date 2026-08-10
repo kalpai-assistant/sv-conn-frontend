@@ -34,7 +34,7 @@ const mapCategory = (cat: API_CategoryResponse): UI_Category => ({
   id: cat.id,
   name: cat.name,
   icon: cat.icon_url || "Sparkles", // Fallback icon
-  color: "#6C5CE7", // Fallback color
+  color: "#1957D2", // Fallback color (brand blue)
 });
 
 const mapService = (srv: API_ServiceResponse, cats: API_CategoryResponse[]): UI_Service => {
@@ -53,33 +53,86 @@ const mapService = (srv: API_ServiceResponse, cats: API_CategoryResponse[]): UI_
 
 // The BookingResponse schema is used by both list + detail; extracted so the
 // two mappers can share a single conversion pass instead of duplicating it.
-const mapBooking = (b: API_BookingResponse, services?: UI_Service[]): UI_Booking => {
-  const srv = services?.find((s) => s.id === b.service_id);
-  const service = srv || {
-    id: b.service_id,
-    name: "Service Name",
+//
+// The `items` field on the API response is authoritative; the top-level
+// `service` we hand back is the FIRST item, kept as a convenience for
+// screens (bookings list, tracking header) that only want a one-line
+// summary. Everywhere that renders the whole cart reads `items`.
+const mapBooking = (
+  b: API_BookingResponse & {
+    // The generated OpenAPI type may not yet include these fields — cast
+    // through a widening type so TypeScript doesn't refuse the read while
+    // svc_connect.json regenerates.
+    items?: Array<{
+      id: string;
+      service_id: string;
+      service_name: string;
+      quantity: number;
+      unit_price: number;
+      total_price: number;
+    }>;
+    discount_amount?: number;
+    tip_amount?: number;
+  },
+  services?: UI_Service[],
+): UI_Booking => {
+  const apiItems = b.items ?? [];
+
+  // Map every item, hydrating each with the catalogue service if we
+  // already have it cached (better icon, category), otherwise falling
+  // back to whatever the item itself carries.
+  const mapped_items = apiItems.map((it) => ({
+    id: it.id,
+    serviceId: it.service_id,
+    serviceName: it.service_name,
+    quantity: it.quantity,
+    unitPrice: it.unit_price,
+    totalPrice: it.total_price,
+  }));
+
+  // Primary service = first item. Kept so screens that were built against
+  // the single-service assumption keep rendering something sane on a
+  // multi-service booking (they show the first service; the whole cart
+  // is one click away via `items`).
+  const firstItem = mapped_items[0];
+  const catalogueSrv = firstItem && services?.find((s) => s.id === firstItem.serviceId);
+  const primaryService: UI_Service = catalogueSrv || {
+    id: firstItem?.serviceId ?? "",
+    name: firstItem?.serviceName ?? "Service",
     categoryId: "",
     categoryName: "",
     description: "",
-    price: b.service_amount,
+    price: firstItem?.unitPrice ?? b.service_amount,
     duration: "",
   };
+
+  const serviceAmount = b.service_amount ?? 0;
+  const discountAmount = b.discount_amount ?? 0;
+  const tipAmount = b.tip_amount ?? 0;
 
   return {
     id: b.id,
     status: b.status.toUpperCase() as UI_Booking["status"],
+    items: mapped_items,
     // BookingResponse in the OpenAPI spec doesn't currently carry address_id;
     // placeholder until the spec + endpoint are updated.
     address: { id: "", label: "Address", full: "" },
     scheduledAt: b.scheduled_at || b.created_at,
     paymentMethod: (b.payment_method || "online") as UI_Booking["paymentMethod"],
     paymentStatus: (b.payment_status || "pending") as UI_Booking["paymentStatus"],
-    totalAmount: b.service_amount,
+    serviceAmount,
+    discountAmount,
+    tipAmount,
+    // What the consumer was (or will be) charged, in the same math the
+    // backend uses: original sum minus platform-absorbed coupon plus
+    // gratuity. Kept as one field on the UI type so every screen shows
+    // the same number.
+    totalAmount: Math.max(0, serviceAmount - discountAmount + tipAmount),
     createdAt: b.created_at,
     otp: b.doorstep_otp || undefined,
     service: b.provider_id
       ? {
-          ...service,
+          ...primaryService,
           provider: {
             id: b.provider_id,
             name: "Assigned Partner",
@@ -89,7 +142,7 @@ const mapBooking = (b: API_BookingResponse, services?: UI_Service[]): UI_Booking
             verified: true,
           },
         }
-      : service,
+      : primaryService,
   };
 };
 

@@ -34,7 +34,7 @@ const messaging = firebase.messaging();
 // message arrives. We show a native notification either way, using the
 // booking id as a tag so the tray doesn't fill with duplicates on resend.
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || "Eazyserv";
+  const title = payload.notification?.title || "EazyServ";
   const body = payload.notification?.body || "";
 
   self.registration.showNotification(title, {

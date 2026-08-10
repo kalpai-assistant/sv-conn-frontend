@@ -57,34 +57,39 @@
   --card-foreground: oklch(0.2 0.02 260);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.2 0.02 260);
-  --primary: oklch(0.5 0.2 290);
+  /* Brand hue is blue (262). Hue-only shift from the earlier purple (290);
+     lightness and chroma held constant so every primary-on-white and
+     white-on-primary contrast ratio remains accessibility-safe. This
+     matches the palette in src/marketing/marketing-theme.css so the app
+     and eazyserv.com share one identity. */
+  --primary: oklch(0.5 0.2 262);
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.95 0.01 260);
   --secondary-foreground: oklch(0.3 0.02 260);
   --muted: oklch(0.95 0.005 260);
   --muted-foreground: oklch(0.5 0.02 260);
-  --accent: oklch(0.92 0.01 290);
-  --accent-foreground: oklch(0.4 0.15 290);
+  --accent: oklch(0.92 0.01 262);
+  --accent-foreground: oklch(0.4 0.15 262);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
   --success: oklch(0.65 0.17 165);
   --success-foreground: oklch(1 0 0);
   --border: oklch(0.92 0.005 260);
   --input: oklch(0.92 0.005 260);
-  --ring: oklch(0.5 0.2 290);
-  --chart-1: oklch(0.5 0.2 290);
+  --ring: oklch(0.5 0.2 262);
+  --chart-1: oklch(0.5 0.2 262);
   --chart-2: oklch(0.65 0.17 165);
   --chart-3: oklch(0.7 0.15 50);
   --chart-4: oklch(0.6 0.2 250);
   --chart-5: oklch(0.75 0.15 80);
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.2 0.02 260);
-  --sidebar-primary: oklch(0.5 0.2 290);
+  --sidebar-primary: oklch(0.5 0.2 262);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.95 0.01 290);
-  --sidebar-accent-foreground: oklch(0.4 0.15 290);
+  --sidebar-accent: oklch(0.95 0.01 262);
+  --sidebar-accent-foreground: oklch(0.4 0.15 262);
   --sidebar-border: oklch(0.92 0.005 260);
-  --sidebar-ring: oklch(0.5 0.2 290);
+  --sidebar-ring: oklch(0.5 0.2 262);
 }
 
 @layer base {

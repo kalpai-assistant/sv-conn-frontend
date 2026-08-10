@@ -43,7 +43,7 @@ export function NotificationsRow() {
     // and look like a no-op button, so say what actually needs to happen.
     if (permission === "denied") {
       toast.error("Notifications are blocked", {
-        description: "Turn them back on for Eazyserv in your browser or device settings.",
+        description: "Turn them back on for EazyServ in your browser or device settings.",
       });
       return;
     }

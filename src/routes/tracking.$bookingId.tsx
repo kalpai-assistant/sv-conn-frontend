@@ -142,7 +142,7 @@ function TrackingPage() {
         key: order.razorpay_key_id,
         amount: order.amount,
         currency: order.currency,
-        name: "Eazyserv",
+        name: "EazyServ",
         description: "Payment for Service",
         order_id: order.razorpay_order_id,
         handler: (response) => handlePaymentSuccess(response),
@@ -280,7 +280,7 @@ function TrackingPage() {
             <div
               className="absolute inset-0 opacity-10 pointer-events-none"
               style={{
-                backgroundImage: "radial-gradient(circle at 50% 50%, #6C5CE7 2px, transparent 2px)",
+                backgroundImage: "radial-gradient(circle at 50% 50%, #1957D2 2px, transparent 2px)",
                 backgroundSize: "20px 20px",
               }}
             ></div>

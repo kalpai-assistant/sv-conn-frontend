@@ -5,7 +5,7 @@ import { AlertCircle, Loader2 } from "lucide-react";
 export const Route = createFileRoute("/activity")({
   head: () => ({
     meta: [
-      { title: "Activity — Eazyserv" },
+      { title: "Activity — EazyServ" },
       { name: "description", content: "Your recent service activity." },
     ],
   }),

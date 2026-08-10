@@ -30,10 +30,10 @@ import { detectPlatform, type Platform } from "@/lib/platform";
 export const Route = createFileRoute("/download")({
   head: () => ({
     meta: [
-      { title: "Download Eazyserv" },
+      { title: "Download EazyServ" },
       {
         name: "description",
-        content: "Get the Eazyserv app on Android or iOS.",
+        content: "Get the EazyServ app on Android or iOS.",
       },
     ],
   }),
@@ -58,9 +58,9 @@ function DownloadPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 md:py-16">
       <header className="mb-8 text-center">
-        <h1 className="text-3xl font-bold text-foreground md:text-4xl">Get Eazyserv</h1>
+        <h1 className="text-3xl font-bold text-foreground md:text-4xl">Get EazyServ</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          On-demand home services in Bangalore. Beta preview.
+          On-demand home services in Pune. Beta preview.
         </p>
       </header>
 
@@ -96,7 +96,7 @@ function AndroidSection() {
             href={APK_URL}
             className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-transform hover:scale-[1.02]"
           >
-            Download Eazyserv
+            Download EazyServ
           </a>
         ) : (
           <div className="inline-flex items-center justify-center rounded-xl bg-muted px-6 py-3 text-base font-semibold text-muted-foreground">
@@ -134,7 +134,7 @@ function AndroidSection() {
           </li>
           <li>
             <span className="mr-2 font-semibold text-primary">5.</span>
-            Open Eazyserv, sign in with your phone.
+            Open EazyServ, sign in with your phone.
           </li>
         </ol>
       </div>
@@ -169,7 +169,7 @@ function IosSection({ isSafari, isStandalone }: { isSafari: boolean; isStandalon
         <Apple className="mx-auto mb-3 h-10 w-10 text-foreground" />
         <h2 className="text-lg font-semibold text-foreground">You're already installed</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Eazyserv is on your home screen. Open it from there for the full app experience.
+          EazyServ is on your home screen. Open it from there for the full app experience.
         </p>
       </section>
     );
@@ -183,7 +183,7 @@ function IosSection({ isSafari, isStandalone }: { isSafari: boolean; isStandalon
           <div>
             <h2 className="text-lg font-semibold text-foreground">Install on iPhone</h2>
             <p className="text-xs text-muted-foreground">
-              Eazyserv runs on iOS through Safari — no App Store needed.
+              EazyServ runs on iOS through Safari — no App Store needed.
             </p>
           </div>
         </div>
@@ -195,7 +195,7 @@ function IosSection({ isSafari, isStandalone }: { isSafari: boolean; isStandalon
           <div>
             <p className="font-medium">Open this page in Safari</p>
             <p className="mt-1 text-xs">
-              You appear to be on a different iOS browser. Only Safari can add Eazyserv to your home
+              You appear to be on a different iOS browser. Only Safari can add EazyServ to your home
               screen. Copy this URL and open it in Safari:
               <span className="mt-1 block break-all rounded bg-background px-2 py-1 font-mono text-xs">
                 {DOWNLOAD_URL}
@@ -232,7 +232,7 @@ function IosSection({ isSafari, isStandalone }: { isSafari: boolean; isStandalon
           </li>
           <li className="flex gap-3">
             <span className="font-semibold text-primary">4.</span>
-            <span>Open Eazyserv from your home screen — it works just like a native app.</span>
+            <span>Open EazyServ from your home screen — it works just like a native app.</span>
           </li>
         </ol>
       </div>

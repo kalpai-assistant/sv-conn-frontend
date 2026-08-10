@@ -25,8 +25,8 @@ import { NotificationsRow } from "@/components/NotificationsRow";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "Profile — Eazyserv" },
-      { name: "description", content: "Manage your Eazyserv profile." },
+      { title: "Profile — EazyServ" },
+      { name: "description", content: "Manage your EazyServ profile." },
     ],
   }),
   component: ProfilePage,
