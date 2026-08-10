@@ -668,7 +668,11 @@ function BrandBand() {
   return (
     <section aria-label="EazyServ brand banner" className="border-t border-border/60">
       <picture>
-        <source media="(min-width: 768px)" srcSet="/brand-banner.jpg" />
+        {/* width/height belong on the <source> as well as the <img>. The two
+            crops have different aspect ratios (2.40:1 vs 1.46:1), so without
+            them the browser reserves the <img>'s ratio at every width and the
+            sections below jump when the desktop file loads. */}
+        <source media="(min-width: 768px)" srcSet="/brand-banner.jpg" width={1600} height={666} />
         <img
           src="/brand-banner-sm.jpg"
           // The alt stays short on purpose. Everything written into the
@@ -676,8 +680,9 @@ function BrandBand() {
           // real text elsewhere on this page, so transcribing it here would
           // just make a screen reader repeat the whole page.
           alt="EazyServ — quick, reliable, hassle-free home services."
-          width={1600}
-          height={666}
+          // Must match brand-banner-sm.jpg, not the desktop file.
+          width={900}
+          height={580}
           // Below the fold, so lazy. Explicit dimensions reserve the space
           // and stop the sections beneath it jumping when it arrives.
           loading="lazy"
