@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Phone, MapPin, Loader2, Search, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Phone, Loader2, Search, CheckCircle2 } from "lucide-react";
 import { StatusStepper } from "@/components/StatusStepper";
 import { ReviewSheet } from "@/components/ReviewSheet";
+import { TrackingMap } from "@/components/tracking/TrackingMap";
+import { TipSection } from "@/components/tracking/TipSection";
 import {
   useBooking,
   useCancelBooking,
@@ -230,15 +232,24 @@ function TrackingPage() {
           </div>
         )}
 
-        {/* OTP Display */}
-        {(booking.status === "ACCEPTED" || booking.status === "EN_ROUTE") && booking.otp && (
+        {/* Doorstep OTP — visible only when the provider is EN_ROUTE.
+            Previously showed on ACCEPTED as well, meaning the consumer
+            saw the code 15+ minutes before the pro actually needed it
+            and often forgot it by the time they arrived. The backend
+            gates state transitions on the OTP (en_route → in_progress
+            requires it — see `booking.py`), so it's only meaningful
+            during the window the pro is physically on the way. */}
+        {booking.status === "EN_ROUTE" && booking.otp && (
           <div className="rounded-xl border-2 border-primary bg-accent p-5 text-center mb-4">
             <p className="text-xs text-muted-foreground mb-2">Share this OTP with your provider</p>
             <p className="text-3xl font-bold tracking-[0.3em] text-primary">{booking.otp}</p>
           </div>
         )}
 
-        {/* Provider Card */}
+        {/* Provider card. Header now renders the full cart summary
+            ("Deep Clean + 2 more") rather than just the first service
+            name — matches PR #77's push-body summariser and keeps the
+            provider row honest about what they're doing. */}
         {!isSearching && booking.service.provider && (
           <div className="rounded-xl border border-border bg-card p-4 mb-4">
             <div className="flex items-center gap-3">
@@ -253,12 +264,15 @@ function TrackingPage() {
                 <p className="text-sm font-semibold text-foreground">
                   {booking.service.provider.name}
                 </p>
-                <p className="text-xs text-muted-foreground">{booking.service.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {summariseServices(booking.items, booking.service.name)}
+                </p>
               </div>
               {booking.service.provider.phone && (
                 <a
                   href={`tel:${booking.service.provider.phone}`}
                   className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10"
+                  aria-label="Call provider"
                 >
                   <Phone className="h-4 w-4 text-success" />
                 </a>
@@ -267,23 +281,24 @@ function TrackingPage() {
           </div>
         )}
 
-        {/* Map placeholder */}
-        {booking.status === "EN_ROUTE" && (
-          <div className="rounded-xl border border-border bg-accent p-6 text-center mb-4 relative overflow-hidden">
-            <MapPin className="mx-auto h-8 w-8 text-primary mb-2 relative z-10" />
-            <p className="text-sm font-medium text-foreground relative z-10">
-              Provider is on the way
-            </p>
-            <p className="text-xs text-muted-foreground mt-1 relative z-10">ETA: ~15 minutes</p>
-
-            {/* Minimal pseudo-map background */}
-            <div
-              className="absolute inset-0 opacity-10 pointer-events-none"
-              style={{
-                backgroundImage: "radial-gradient(circle at 50% 50%, #1957D2 2px, transparent 2px)",
-                backgroundSize: "20px 20px",
-              }}
-            ></div>
+        {/* Map — real OSM tiles centred on the customer address.
+            Replaces the previous decorative dot-pattern placeholder.
+            Live provider-position tracking (via the WebSocket at
+            backend/app/routers/tracking.py) is a follow-up ticket;
+            for now the map shows destination + the "on the way"
+            chip when EN_ROUTE. */}
+        {(booking.status === "ACCEPTED" ||
+          booking.status === "EN_ROUTE" ||
+          booking.status === "IN_PROGRESS") && (
+          <div className="mb-4">
+            <TrackingMap
+              lat={booking.address?.lat ?? null}
+              lng={booking.address?.lng ?? null}
+              enRoute={booking.status === "EN_ROUTE"}
+              // ETA remains a hardcoded ~15 min until WS-driven live
+              // location arrives. Omitting is honest; showing a
+              // fabricated number would tempt users to plan around it.
+            />
           </div>
         )}
 
@@ -293,15 +308,41 @@ function TrackingPage() {
           <p className="text-sm text-foreground">{booking.address?.full || "Saved Address"}</p>
         </div>
 
-        {/* Payment */}
+        {/* Payment breakdown. Discount + tip render as their own
+            lines when non-zero, so a consumer paying a coupon-reduced
+            or tip-boosted bill can see where each rupee came from. */}
         <div className="rounded-xl border border-border bg-card p-4 mb-4">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Payment</span>
             <span className="font-medium text-foreground capitalize">{booking.paymentMethod}</span>
           </div>
-          <div className="flex justify-between text-sm mt-1 mb-2">
+          <div className="flex justify-between text-sm mt-2">
+            <span className="text-muted-foreground">Subtotal</span>
+            <span className="font-medium text-foreground">
+              ₹{booking.serviceAmount.toLocaleString("en-IN")}
+            </span>
+          </div>
+          {booking.discountAmount > 0 && (
+            <div className="flex justify-between text-sm mt-1">
+              <span className="text-success">Discount</span>
+              <span className="font-medium text-success">
+                −₹{booking.discountAmount.toLocaleString("en-IN")}
+              </span>
+            </div>
+          )}
+          {booking.tipAmount > 0 && (
+            <div className="flex justify-between text-sm mt-1">
+              <span className="text-muted-foreground">Tip</span>
+              <span className="font-medium text-foreground">
+                ₹{booking.tipAmount.toLocaleString("en-IN")}
+              </span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm mt-2 mb-2 pt-2 border-t border-border">
             <span className="text-muted-foreground">Total</span>
-            <span className="font-bold text-primary">₹{booking.totalAmount}</span>
+            <span className="font-bold text-primary">
+              ₹{booking.totalAmount.toLocaleString("en-IN")}
+            </span>
           </div>
 
           {booking.status === "COMPLETED" &&
@@ -349,6 +390,17 @@ function TrackingPage() {
           )}
         </div>
 
+        {/* Tip UI — completed bookings only. Independent of the
+            review flow (the two are related in the wireframe but
+            independent on the backend; PR #77). Payment must have
+            landed before we surface this: tipping on a bill the
+            customer hasn't paid yet muddies the mental model. */}
+        {booking.status === "COMPLETED" && booking.paymentStatus === "paid" && (
+          <div className="mb-4">
+            <TipSection bookingId={booking.id} currentTip={booking.tipAmount} />
+          </div>
+        )}
+
         {/* Review confirmation (sheet auto-opens once on COMPLETED — see ReviewSheet below) */}
         {booking.status === "COMPLETED" && reviewSubmitted && (
           <div className="rounded-xl border border-success bg-success/10 p-4 mb-4 text-center text-success text-sm font-medium">
@@ -394,4 +446,18 @@ function TrackingPage() {
       />
     </div>
   );
+}
+
+/** Short one-line summary of a booking's items for the provider card.
+ *  Matches the ``_summarise_service_names`` helper in
+ *  ``backend/app/services/booking_service.py`` so the tracking header
+ *  and the incoming-request push body use the same phrasing.
+ *
+ *  Falls back to ``fallbackName`` when the items list is empty — an
+ *  older single-service booking that predates the cart, or a
+ *  transitional response where the mapper hasn't hydrated items yet. */
+function summariseServices(items: Array<{ serviceName: string }>, fallbackName: string): string {
+  if (items.length === 0) return fallbackName;
+  if (items.length === 1) return items[0].serviceName;
+  return `${items[0].serviceName} + ${items.length - 1} more`;
 }
