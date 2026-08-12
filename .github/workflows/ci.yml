@@ -46,3 +46,20 @@ jobs:
       # only meaningful during a native release — skipped in CI.
       - name: Build (web)
         run: npm run build
+
+      # Marketing is a SEPARATE build target with its own entry, config and
+      # deploy workflow, so `npm run build` above does not cover it. Without
+      # this step a change that breaks eazyserv.com passes CI green and only
+      # fails later in deploy-marketing.yml — after merge, with the site
+      # silently still serving the previous version.
+      #
+      # This would have caught the qrcode.react failure, where the package
+      # was in package.json and the lockfile but absent from the working
+      # node_modules: the app build never imports it, only DownloadPage does.
+      #
+      # Note the npm script ends in `&& mv`, which is fine on this ubuntu
+      # runner but fails locally on Windows, where npm runs scripts through
+      # cmd.exe. Devs there run the two steps by hand — see
+      # MARKETING_LANDING_WIP.md.
+      - name: Build (marketing)
+        run: npm run build:marketing
