@@ -17,6 +17,8 @@ import { createRoot } from "react-dom/client";
 
 import { MarketingHome } from "./MarketingHome";
 import { DownloadPage } from "./DownloadPage";
+import { NotFoundPage } from "./NotFoundPage";
+import { applyRouteMeta, NOT_FOUND_META, ROUTE_META } from "./seo";
 
 import "../styles.css";
 // Must come after styles.css — it redefines the brand tokens for this build
@@ -25,11 +27,27 @@ import "../styles.css";
 import "./marketing-theme.css";
 
 function App() {
-  // No client router; pathname is enough for two static routes. If we
-  // grow past 3-4 pages, swap this for a lightweight router.
+  // No client router; pathname is enough for a handful of static routes.
+  // If we grow past 3-4 pages, swap this for a lightweight router.
   const path = typeof window === "undefined" ? "/" : window.location.pathname;
-  if (path === "/download" || path.startsWith("/download/")) return <DownloadPage />;
-  return <MarketingHome />;
+
+  // Unknown paths previously fell through to the homepage, so
+  // eazyserv.com/anything rendered the full marketing page under a 200.
+  // Google indexes those as duplicates of the homepage. They now get a
+  // real not-found view carrying `noindex`.
+  const isDownload = path === "/download" || path === "/download/";
+  const isHome = path === "/" || path === "";
+  const meta = isDownload ? ROUTE_META["/download"] : isHome ? ROUTE_META["/"] : NOT_FOUND_META;
+
+  // Applied during render rather than in an effect so the tags are set
+  // before a crawler's snapshot is taken. Writing to document.head is a
+  // side effect on an object outside React's tree, so StrictMode's double
+  // render is harmless — it simply sets the same values twice.
+  applyRouteMeta(meta);
+
+  if (isDownload) return <DownloadPage />;
+  if (isHome) return <MarketingHome />;
+  return <NotFoundPage />;
 }
 
 createRoot(document.getElementById("root")!).render(

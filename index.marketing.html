@@ -2,10 +2,7 @@
 <html lang="en" class="scroll-smooth">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>EazyServ — Home Services at Your Doorstep in Pune</title>
     <meta
       name="description"
@@ -50,6 +47,75 @@
          This is the marketing build's own head, so changing it here does
          not affect the app, which still ships #7C3AED. -->
     <meta name="theme-color" content="#1957D2" />
+
+    <!--
+      Canonical tells Google which URL is the real one when several could
+      serve the same content (www vs apex, trailing slash, tracking params
+      like the ?igsh= that Instagram appends). Without it those can be
+      indexed as separate duplicate pages.
+
+      This is the homepage value. src/marketing/main.tsx rewrites it on
+      /download, because this file is the single entry for every route.
+    -->
+    <link rel="canonical" href="https://eazyserv.com/" />
+
+    <!--
+      Structured data. This is the highest-value SEO item for a
+      city-specific service business: it tells Google what the entity IS —
+      name, city, services, socials — rather than leaving it to infer from
+      prose.
+
+      Everything below is verifiable. Nothing is invented:
+        - legalName + foundingDate come from the company profile
+          (incorporated 9 July 2026)
+        - sameAs are the live social profiles
+        - areaServed is Pune, matching the page copy
+
+      Deliberately ABSENT, and each for a reason:
+        - streetAddress / telephone — the registered address is still
+          unknown and refund.md carries a placeholder number (9876543210).
+          Publishing a placeholder phone in structured data is worse than
+          omitting it. Google will flag both as "missing recommended
+          field"; that warning is correct and should stay until someone
+          supplies the real values.
+        - aggregateRating / review — there are no real reviews yet, and
+          marking up ratings you cannot evidence is a manual-action risk,
+          not just bad practice.
+        - priceRange — no confirmed pricing.
+
+      Test changes with the Rich Results Test before merging.
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "HomeAndConstructionBusiness",
+        "@id": "https://eazyserv.com/#business",
+        "name": "EazyServ",
+        "legalName": "EazyServ Technologies India Private Limited",
+        "url": "https://eazyserv.com/",
+        "logo": "https://eazyserv.com/icons/icon-512.png",
+        "image": "https://eazyserv.com/og-banner.jpg",
+        "description": "Home services marketplace in Pune. Book verified professionals for cleaning, plumbing, electrical, appliance repair, salon and more.",
+        "email": "support@eazyserv.com",
+        "foundingDate": "2026-07-09",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Pune",
+          "addressRegion": "Maharashtra",
+          "addressCountry": "IN"
+        },
+        "areaServed": {
+          "@type": "City",
+          "name": "Pune"
+        },
+        "sameAs": [
+          "https://www.instagram.com/eazyserv",
+          "https://www.facebook.com/profile.php?id=61593274072168",
+          "https://x.com/EazyServ",
+          "https://www.youtube.com/@EazyServ"
+        ]
+      }
+    </script>
 
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
