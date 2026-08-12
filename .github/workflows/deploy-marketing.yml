@@ -18,15 +18,28 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    # Prefer over-triggering to under-triggering. A missed deploy is silent:
+    # the merge goes green, nothing ships, and you only notice when a URL
+    # you expected is still 404ing. A redundant deploy of a static bundle
+    # costs a couple of CI minutes.
+    #
+    # This list previously missed `public/**` and `index.marketing.html`,
+    # so the Search Console verification file merged in #63 never shipped
+    # and had to be deployed by hand. It also watched
+    # `src/lib/build-target.ts`, which does not exist, and four
+    # `src/routes/*` files that the marketing SPA does not import at all —
+    # the marketing build is a separate entry (index.marketing.html ->
+    # src/marketing/main.tsx) and never touches the app's router.
     paths:
       - "src/marketing/**"
-      - "src/routes/__root.tsx"
-      - "src/routes/index.tsx"
-      - "src/routes/privacy.tsx"
-      - "src/routes/terms.tsx"
-      - "src/routes/refund.tsx"
-      - "src/routes/download.tsx"
-      - "src/lib/build-target.ts"
+      # Shared theme — marketing imports it, then overrides the brand
+      # tokens in src/marketing/marketing-theme.css.
+      - "src/styles.css"
+      # DownloadPage imports detectPlatform from here.
+      - "src/lib/platform.ts"
+      # Favicon, OG banner, brand imagery, verification files.
+      - "public/**"
+      - "index.marketing.html"
       - "vite.marketing.config.ts"
       - "package.json"
       - "package-lock.json"
