@@ -29,10 +29,12 @@ import {
   AirVent,
   ArrowRight,
   BadgeCheck,
+  Bike,
   Bug,
   Building,
   Building2,
   CalendarCheck,
+  Car,
   Cctv,
   ChevronDown,
   CreditCard,
@@ -40,8 +42,8 @@ import {
   Flower2,
   Hammer,
   Headphones,
-  House,
   KeyRound,
+  type LucideIcon,
   MapPin,
   Menu,
   Navigation,
@@ -51,8 +53,8 @@ import {
   ShieldCheck,
   Smartphone,
   Sofa,
-  Sparkles,
   SprayCan,
+  Umbrella,
   Users,
   Wallet,
   WashingMachine,
@@ -122,40 +124,58 @@ const SOCIALS = [
   },
 ];
 
-// Taken from the "Our Services" list in the company profile, not the
-// Slide 10 "Services Portfolio" — the profile list is the consumer-facing
-// one, is internally consistent, and avoids the deck's typos ("Instat
-// Solution", "Allotypes OF Cleaning"). The deck-only extras (car/bike wash,
-// vehicle repair, festival lights, hourly "instant" jobs) are deliberately
-// left out: they read as a different business line, and vehicle work isn't
-// a home service.
+// The list now follows the service banners the client commissioned, which
+// is stronger evidence of what the business sells than the earlier list
+// assembled from the company-profile PDF.
 //
-// ⚠️ BREADTH vs BOOKABILITY: src/lib/mock-data.ts exposes only eight
-// categories (Cleaning, Plumbing, Electrical, Salon, Painting, Carpentry,
-// Pest Control, Appliance). Everything below that isn't one of those may
-// not be bookable in the app yet. Confirm against the real backend
-// catalogue — if the gap is real, split this into "Available now" and
-// "Coming soon" rather than letting customers hunt for a service that
-// isn't there.
-const SERVICES = [
-  { name: "Home Cleaning", Icon: Sparkles },
-  { name: "Deep Cleaning", Icon: SprayCan },
-  { name: "AC Service & Repair", Icon: AirVent },
+// Two consequences of that:
+//   - EV repair and car wash are IN. They were previously cut on the
+//     argument that vehicle work isn't a home service; the client has since
+//     commissioned artwork for both, so the through-line is "at your
+//     doorstep", not "inside the house".
+//   - Smart Home Installation, Interior Maintenance, Home Sanitization,
+//     Office Cleaning and Facility Management are OUT. No artwork, and
+//     nothing anywhere evidences that they can be delivered. One line each
+//     to restore if that changes.
+//
+// `photo` is cropped from the banner (see brand/README.md). Plumbing,
+// Electrical and Pest Control have no banner yet — they fall back to the
+// icon treatment, which is why ServicesGrid renders both. Ask the client
+// for those three so the grid is uniform.
+//
+// ⚠️ BREADTH vs BOOKABILITY still unresolved: src/lib/mock-data.ts exposes
+// eight categories, and this grid advertises sixteen. If the real backend
+// catalogue is smaller, split into "Available now" and "Coming soon"
+// rather than letting customers hunt for something that isn't there. The
+// line under the grid hedges on availability, which covers a grid but
+// would not cover a page dedicated to one service.
+type Service = { name: string; Icon: LucideIcon; photo?: string };
+
+const SERVICES: Service[] = [
+  { name: "Home Deep Cleaning", Icon: SprayCan, photo: "/services/home-deep-cleaning.jpg" },
+  { name: "AC Service & Repair", Icon: AirVent, photo: "/services/ac-service.jpg" },
+  { name: "Appliance Repair", Icon: WashingMachine, photo: "/services/appliance-repair.jpg" },
   { name: "Plumbing", Icon: Wrench },
   { name: "Electrical Services", Icon: Zap },
-  { name: "Carpentry", Icon: Hammer },
-  { name: "Painting", Icon: Paintbrush },
-  { name: "Appliance Repair", Icon: WashingMachine },
+  { name: "Carpentry", Icon: Hammer, photo: "/services/carpentry.jpg" },
+  { name: "Painting", Icon: Paintbrush, photo: "/services/painting.jpg" },
+  { name: "Waterproofing", Icon: Umbrella, photo: "/services/waterproofing.jpg" },
   { name: "Pest Control", Icon: Bug },
-  { name: "Salon at Home", Icon: Scissors },
-  { name: "Spa & Massage at Home", Icon: Flower2 },
-  { name: "Home Sanitization", Icon: ShieldCheck },
-  { name: "RO & Water Purifier", Icon: Droplets },
-  { name: "CCTV Installation", Icon: Cctv },
-  { name: "Smart Home Installation", Icon: House },
-  { name: "Interior Maintenance", Icon: Sofa },
-  { name: "Office Cleaning", Icon: Building2 },
-  { name: "Facility Management", Icon: Building },
+  {
+    name: "Women's Salon & Spa",
+    Icon: Flower2,
+    photo: "/services/women-salon-spa.jpg",
+  },
+  { name: "Men's Grooming", Icon: Scissors, photo: "/services/mens-grooming.jpg" },
+  {
+    name: "Furniture & Sofa Cleaning",
+    Icon: Sofa,
+    photo: "/services/furniture-sofa-cleaning.jpg",
+  },
+  { name: "RO & Water Purifier", Icon: Droplets, photo: "/services/ro-water-purifier.jpg" },
+  { name: "CCTV & Festival Lights", Icon: Cctv, photo: "/services/cctv-festival-lights.jpg" },
+  { name: "EV Bike & Car Repair", Icon: Bike, photo: "/services/ev-repair.jpg" },
+  { name: "Car Wash & Interior Cleaning", Icon: Car, photo: "/services/car-wash.jpg" },
 ];
 
 const STEPS = [
@@ -567,23 +587,47 @@ function ServicesGrid() {
           />
         </Reveal>
 
-        {/* Compact cards: at eighteen entries, a paragraph under each name
-            turns the section into a wall of text nobody reads. Name plus
-            icon stays scannable, and the grid widens rather than growing
-            taller on desktop. */}
-        <Reveal
-          delay={100}
-          className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-6"
-        >
-          {SERVICES.map(({ name, Icon }) => (
+        {/* Photo cards. The service name stays real HTML text under the
+            image rather than being part of it — the source banners have
+            their headline baked into the artwork, which Google cannot read
+            and which does not reflow on a phone. Photo as image, words as
+            words.
+
+            Four across at most: at six the photos are too small to show
+            anything. Cards without a photo keep the previous icon
+            treatment, so the three services still awaiting artwork sit in
+            the grid without looking broken. */}
+        <Reveal delay={100} className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {SERVICES.map(({ name, Icon, photo }) => (
             <div
               key={name}
-              className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-5 text-center shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg"
+              className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg"
             >
-              <div className="inline-flex rounded-xl bg-primary/10 p-3 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                <Icon className="h-5 w-5" />
-              </div>
-              <h3 className="text-sm font-semibold leading-snug text-foreground">{name}</h3>
+              {photo ? (
+                <div className="aspect-[4/3] overflow-hidden bg-muted">
+                  <img
+                    src={photo}
+                    // Decorative: the service name sits directly beneath as
+                    // real text, so describing the photo too would just make
+                    // a screen reader say everything twice.
+                    alt=""
+                    width={800}
+                    height={600}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+              ) : (
+                <div className="flex aspect-[4/3] items-center justify-center bg-primary/5">
+                  <span className="inline-flex rounded-xl bg-primary/10 p-4 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                    <Icon className="h-6 w-6" />
+                  </span>
+                </div>
+              )}
+              <h3 className="px-4 py-3 text-center text-sm font-semibold leading-snug text-foreground">
+                {name}
+              </h3>
             </div>
           ))}
         </Reveal>

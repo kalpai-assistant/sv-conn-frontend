@@ -109,3 +109,52 @@ Promise.all([
   scrape fetches it.
 - If the banner is re-cut, re-check the crops above rather than assuming the
   offsets still land — they are measured against this exact source.
+
+## Service card photos
+
+`brand/services/*.jpg` are the 13 service banners the client supplied.
+`public/services/*.jpg` are the photographs cropped out of them, used by the
+services grid on the landing page.
+
+The banners all share a layout: navy panel with headline on the left, a
+diagonal, photography on the right, and a hexagonal badge in the
+bottom-right. So the crop anchors to the **upper-right** — the only region
+that is clean photograph in all thirteen. Anchoring bottom-right or
+centre-right drags the badge in; going further left catches the diagonal.
+
+Two banners place their badge higher than the rest and need a narrower
+window further left. Those offsets were measured by eye against generated
+crops, not derived — re-check them visually if the artwork is ever
+replaced.
+
+```bash
+node -e "
+const sharp = require('sharp'); const fs = require('fs');
+const OVERRIDE = { 'cctv-festival-lights': [0.52, 0.26], 'furniture-sofa-cleaning': [0.50, 0.27] };
+(async () => {
+  for (const f of fs.readdirSync('brand/services').sort()) {
+    const slug = f.replace('.jpg', '');
+    const m = await sharp('brand/services/' + f).metadata();
+    const [leftF, wF] = OVERRIDE[slug] || [null, 0.40];
+    let cw = Math.round(m.width * wF), ch = Math.round(cw * 0.75);
+    if (ch > m.height) { ch = m.height; cw = Math.round(ch * 4 / 3); }
+    const left = leftF !== null ? Math.round(m.width * leftF) : m.width - cw;
+    await sharp('brand/services/' + f)
+      .extract({ left, top: 0, width: cw, height: ch })
+      .resize(800, 600, { kernel: 'lanczos3' })
+      .jpeg({ quality: 78, mozjpeg: true })
+      .toFile('public/services/' + slug + '.jpg');
+  }
+  console.log('regenerated');
+})();
+"
+```
+
+Note the banners are used for their **photography only**. Their baked-in
+headlines are not shown on the site — the service name is real HTML text
+under each card, because text inside an image cannot be read by Google, does
+not reflow on a phone, and cannot be selected or translated.
+
+Still missing artwork: **Plumbing, Electrical, Pest Control**. Those three
+fall back to an icon tile. Worth asking the client for them so the grid is
+uniform.
