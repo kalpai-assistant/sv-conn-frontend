@@ -446,10 +446,15 @@ export interface API_PendingSettlementsResponse {
 }
 
 export interface API_PayoutTriggerResponse {
-  payout_id: string;
-  status: string;
-  /** Paise, like `pending_payout_paise`. */
-  amount: number;
+  /** Always "queued" — the payout is now handed off to a background worker
+   *  (SVC-188 / G30). The final RazorpayX status arrives via webhook. */
+  status: "queued";
+  /** Celery task id — surfaced for support/debug, not shown to the admin. */
+  task_id: string;
+  /** Paise, matches `pending_payout_paise` from the list. Estimate at enqueue
+   *  time — the amount the worker actually charges is authoritative and shows
+   *  up on the audit trail. */
+  amount_paise: number;
   booking_count: number;
 }
 
