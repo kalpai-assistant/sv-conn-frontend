@@ -134,6 +134,19 @@ function AdminPayoutsPage() {
   );
 }
 
+// KYCStatus values from the backend: "pending" | "submitted" | "verified" | "rejected".
+// "verified" is the only one that unlocks payouts (SVC-189 / G16).
+const KYC_BADGE: Record<
+  API_PendingSettlementProvider["kyc_status"],
+  { label: string; variant: "default" | "secondary" | "destructive" } | null
+> = {
+  // Verified is the happy path — no badge, the absence of one is the signal.
+  verified: null,
+  pending: { label: "KYC pending", variant: "secondary" },
+  submitted: { label: "KYC review", variant: "secondary" },
+  rejected: { label: "KYC rejected", variant: "destructive" },
+};
+
 function SettlementRow({
   provider,
   onPayOut,
@@ -141,6 +154,7 @@ function SettlementRow({
   provider: API_PendingSettlementProvider;
   onPayOut: () => void;
 }) {
+  const kycBadge = KYC_BADGE[provider.kyc_status];
   return (
     <div className="flex items-center justify-between gap-3 p-4">
       <div className="min-w-0">
@@ -151,6 +165,14 @@ function SettlementRow({
           {!provider.is_active && (
             <Badge variant="secondary" className="shrink-0">
               Deactivated
+            </Badge>
+          )}
+          {/* SVC-189 (G16): surface KYC inline so the admin sees it without
+              opening the provider profile. The Pay out button is also gated
+              on this — see PayOutButton. */}
+          {kycBadge && (
+            <Badge variant={kycBadge.variant} className="shrink-0">
+              {kycBadge.label}
             </Badge>
           )}
         </div>
@@ -177,7 +199,14 @@ function PayOutButton({
   provider: API_PendingSettlementProvider;
   onPayOut: () => void;
 }) {
-  if (provider.payout_set) {
+  // Precedence: KYC gate (SVC-189 / G16) trumps the payout-details gate. If
+  // KYC isn't verified the payout will 402 even with details on file, and
+  // the fix (KYC review) is different from "provider must add UPI or bank".
+  // Naming the actual blocker up-front avoids a two-step debug loop.
+  const kycBlocked = provider.kyc_status !== "verified";
+  const detailsMissing = !provider.payout_set;
+
+  if (!kycBlocked && !detailsMissing) {
     return (
       <Button size="sm" onClick={onPayOut}>
         Pay out
@@ -185,8 +214,10 @@ function PayOutButton({
     );
   }
 
-  // No UPI/bank details on file — the payout call would 402. Say so up front
-  // rather than letting the admin click into a failure.
+  const tooltip = kycBlocked
+    ? `KYC not verified (${provider.kyc_status}) — review KYC before paying out.`
+    : "No payout details on file — provider must add UPI or bank.";
+
   return (
     <TooltipProvider>
       <Tooltip>
@@ -198,7 +229,7 @@ function PayOutButton({
             </Button>
           </span>
         </TooltipTrigger>
-        <TooltipContent>No payout details on file — provider must add UPI or bank.</TooltipContent>
+        <TooltipContent>{tooltip}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );

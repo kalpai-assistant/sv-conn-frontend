@@ -435,6 +435,10 @@ export interface API_PendingSettlementProvider {
   payout_set: boolean;
   // False → deactivated provider who is still owed. Surfaced, never filtered out.
   is_active: boolean;
+  /** KYCStatus value from the backend — "pending" | "submitted" | "verified" |
+   *  "rejected". Anything other than "verified" means Pay out will 402 at the
+   *  backend (SVC-189 / G16). Renders as a badge; also gates the button. */
+  kyc_status: "pending" | "submitted" | "verified" | "rejected";
 }
 
 export interface API_PendingSettlementsResponse {
