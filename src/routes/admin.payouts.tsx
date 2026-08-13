@@ -223,9 +223,12 @@ function PayoutConfirmDialog({
     if (!target) return;
     setError(null);
     triggerPayout.mutate(target.provider_id, {
+      // SVC-188 (G30): the endpoint returns 202 with a queued estimate. The
+      // RazorpayX call happens in a worker, so the final status shows up
+      // asynchronously via the audit trail / webhook, not in this response.
       onSuccess: (res) => {
-        toast.success(`Paid ${formatPaise(res.amount)}`, {
-          description: `Payout ${res.payout_id} · ${pluralBookings(res.booking_count)}`,
+        toast.success(`Payout queued: ${formatPaise(res.amount_paise)}`, {
+          description: `${pluralBookings(res.booking_count)} · settling in the background`,
         });
         close();
       },
