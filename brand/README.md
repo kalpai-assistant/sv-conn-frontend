@@ -115,9 +115,13 @@ Promise.all([
 Two generations of source artwork live here, and they are used differently.
 
 **`brand/services-v2/*.png` — the current source.** Clean photographs, no
-overlay. Used for 11 of the 16 service cards. These need no clever cropping:
+overlay. Used for 14 of the 16 service cards. These need no clever cropping:
 a straight `fit: cover` to 4:3 is enough, because the subject is centred and
 there is no badge or diagonal to dodge.
+
+Note `pest.png` contains a branded "PEST CONTROL" sign as a prop in the
+scene. The centre crop happens to frame it in full, which reads well —
+cropping to exclude it clips it worse. Leave it centred.
 
 **`brand/services/*.jpg` — the original banners.** Navy panel, headline,
 diagonal and a hexagonal badge, with photography only on the right. Still the
@@ -130,10 +134,11 @@ table below if those are ever regenerated.
 The first is an alternative for Women's Salon & Spa; the second is a service
 the site does not currently list.
 
-**Still no artwork at all:** Plumbing, Electrical, Pest Control. Those three
-fall back to an icon tile. Worth asking the client.
+Plumbing, Electrical and Pest Control now have photographs too
+(`plumbing.png`, `elect.png`, `pest.png`), supplied separately and named
+properly rather than as `1 (n).png`.
 
-### Regenerating the 11 v2 cards
+### Regenerating the 14 v2 cards
 
 ```bash
 node -e "
@@ -152,6 +157,10 @@ const MAP = [
   // one, so take the top half before cropping.
   ['furniture-sofa-cleaning', '1 (6).png', true],
   ['cctv-festival-lights', '1 (3).png', true],
+  // Supplied later, already named.
+  ['plumbing', 'plumbing.png', false],
+  ['electrical', 'elect.png', false],
+  ['pest-control', 'pest.png', false],
 ];
 (async () => {
   for (const [slug, file, stacked] of MAP) {

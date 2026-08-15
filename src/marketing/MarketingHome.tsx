@@ -138,10 +138,14 @@ const SOCIALS = [
 //     nothing anywhere evidences that they can be delivered. One line each
 //     to restore if that changes.
 //
-// `photo` is cropped from the banner (see brand/README.md). Plumbing,
-// Electrical and Pest Control have no banner yet — they fall back to the
-// icon treatment, which is why ServicesGrid renders both. Ask the client
-// for those three so the grid is uniform.
+// `photo` is a card crop from the client's photography (see
+// brand/README.md). Fourteen of the sixteen have one. EV Bike & Car Repair
+// and Car Wash still use crops from the older banner artwork, because the
+// clean-photo batch has no shot for either — ask the client.
+//
+// ServicesGrid keeps the icon fallback for any entry without a `photo`, so
+// a new service can be added before its artwork arrives without the grid
+// looking broken.
 //
 // ⚠️ BREADTH vs BOOKABILITY still unresolved: src/lib/mock-data.ts exposes
 // eight categories, and this grid advertises sixteen. If the real backend
@@ -155,12 +159,12 @@ const SERVICES: Service[] = [
   { name: "Home Deep Cleaning", Icon: SprayCan, photo: "/services/home-deep-cleaning.jpg" },
   { name: "AC Service & Repair", Icon: AirVent, photo: "/services/ac-service.jpg" },
   { name: "Appliance Repair", Icon: WashingMachine, photo: "/services/appliance-repair.jpg" },
-  { name: "Plumbing", Icon: Wrench },
-  { name: "Electrical Services", Icon: Zap },
+  { name: "Plumbing", Icon: Wrench, photo: "/services/plumbing.jpg" },
+  { name: "Electrical Services", Icon: Zap, photo: "/services/electrical.jpg" },
   { name: "Carpentry", Icon: Hammer, photo: "/services/carpentry.jpg" },
   { name: "Painting", Icon: Paintbrush, photo: "/services/painting.jpg" },
   { name: "Waterproofing", Icon: Umbrella, photo: "/services/waterproofing.jpg" },
-  { name: "Pest Control", Icon: Bug },
+  { name: "Pest Control", Icon: Bug, photo: "/services/pest-control.jpg" },
   {
     name: "Women's Salon & Spa",
     Icon: Flower2,
