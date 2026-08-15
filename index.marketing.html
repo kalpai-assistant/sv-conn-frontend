@@ -93,7 +93,7 @@
         "name": "EazyServ",
         "legalName": "EazyServ Technologies India Private Limited",
         "url": "https://eazyserv.com/",
-        "logo": "https://eazyserv.com/icons/icon-512.png",
+        "logo": "https://eazyserv.com/favicon-eazyserv.png",
         "image": "https://eazyserv.com/og-banner.jpg",
         "description": "Home services marketplace in Pune. Book verified professionals for cleaning, plumbing, electrical, appliance repair, salon and more.",
         "email": "support@eazyserv.com",
@@ -117,8 +117,23 @@
       }
     </script>
 
-    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!--
+      favicon-eazyserv.png is the brand mark cropped from
+      brand/eazyserv-logo-source.svg (see brand/README.md).
+
+      It deliberately does NOT use /icons/icon-192.png or
+      /apple-touch-icon.png: those are still the pre-rebrand purple "SC"
+      ServiceConnect artwork from before this was EazyServ. They are shared
+      with the app build and referenced by the PWA manifest, so replacing
+      them is an app-side change and needs its own ticket — but the
+      marketing site should not keep shipping the old logo in the meantime.
+
+      Note public/eazyserv-mark.svg is not used either: it renders as a
+      solid blue rosette with the navy star cutout missing, so it is not
+      the real mark.
+    -->
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-eazyserv.png" />
+    <link rel="apple-touch-icon" href="/favicon-eazyserv.png" />
 
     <!--
       Both preconnects are needed: the CSS comes from fonts.googleapis.com
