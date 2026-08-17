@@ -1015,7 +1015,12 @@ function CallToAction() {
 
 function Footer() {
   return (
-    <footer className="border-t border-border/60 bg-card/40">
+    // `footer-navy` is defined in marketing-theme.css and carries the whole
+    // dark treatment: the navy background plus re-pointed --foreground,
+    // --muted-foreground, --primary, --ring, --card and --border for
+    // everything inside. No colour is named here on purpose — the utilities
+    // below are unchanged and simply resolve against the new tokens.
+    <footer className="footer-navy">
       <div className="mx-auto max-w-6xl px-6 py-14">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
