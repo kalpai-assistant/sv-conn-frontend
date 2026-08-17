@@ -117,3 +117,72 @@
   --border: oklch(0.35 0.05 262.7);
   --muted: oklch(0.3 0.06 262.7);
 }
+
+/**
+ * REUSABLE CONTROL STYLES
+ * =======================
+ * Marketing-only, like everything else here: this file is imported by
+ * src/marketing/main.tsx and nothing else, so these classes cannot reach the
+ * app or the mobile build. The app has its own /download route
+ * (src/routes/download.tsx) which is deliberately untouched.
+ *
+ * Both classes read --primary rather than repeating its literal value, so
+ * they follow the token — including inside .footer-navy, where --primary is
+ * the logo's bright blue and a royal-blue ring would be invisible on navy.
+ */
+
+/**
+ * Inset-highlight focus ring for primary controls, replacing
+ * `focus-visible:outline-2 outline-offset-2 outline-ring`.
+ *
+ * WHY THE VALUES ARE NOT THE ONES ORIGINALLY DRAFTED
+ * The first draft was a translucent primary ring:
+ *   inset 0 0 0 1px oklch(0.5 0.2 262 / 0.25), 0 0 0 3px oklch(0.5 0.2 262 / 0.15)
+ * Measured against WCAG 1.4.11, which wants 3:1 for a focus indicator:
+ *   - inset ring on a bg-primary button ... 1.00:1  (primary over primary)
+ *   - inset ring on a bg-card control ..... 1.48:1
+ *   - outer halo on the page .............. 1.25:1
+ * The outline it replaced measures 5.87:1. A 1.00:1 ring on the Download
+ * button means a keyboard user cannot see where they are on the page's main
+ * CTA, so the alphas are gone while the inset-highlight look is kept.
+ *
+ * Three layers, because one ring cannot serve both fill types:
+ *   1. inset --primary-foreground — reads on a solid primary button (6.30:1)
+ *      and is invisibly white-on-white on a card control, harmlessly.
+ *   2. a 2px --background gap, so the outer ring reads as a ring on a
+ *      primary button rather than just making the button look bigger.
+ *   3. a solid 3px --primary ring, which carries the indicator on light
+ *      surfaces (5.87:1 on the page, 6.30:1 on a card).
+ */
+.focus-inset {
+  outline: none;
+}
+.focus-inset:focus-visible {
+  box-shadow:
+    inset 0 0 0 2px var(--primary-foreground),
+    0 0 0 2px var(--background),
+    0 0 0 5px var(--primary);
+}
+
+/* box-shadow is not painted in forced-colors mode, so without this the
+   focus ring disappears entirely for Windows High Contrast users — the
+   people least able to afford losing it. `outline` is still honoured
+   there, and the system picks the colour. */
+@media (forced-colors: active) {
+  .focus-inset:focus-visible {
+    outline: 2px solid;
+    outline-offset: 2px;
+  }
+}
+
+/**
+ * The one primary-action card per section. Purely decorative, so unlike the
+ * focus ring the soft alpha is fine here.
+ *
+ * Deliberately scarce: the whole effect is contrast against the flat
+ * `shadow-sm` cards everywhere else. Applied to more than one or two blocks
+ * per page it stops meaning "look here" and just makes the page noisy.
+ */
+.shadow-primary-lift {
+  box-shadow: 0 16px 40px -8px color-mix(in oklab, var(--primary) 22%, transparent);
+}
