@@ -36,7 +36,16 @@ function App() {
   // Google indexes those as duplicates of the homepage. They now get a
   // real not-found view carrying `noindex`.
   const isDownload = path === "/download" || path === "/download/";
-  const isHome = path === "/" || path === "";
+  // "/index.marketing.html" is how the home page is reached on the dev
+  // server: this build's entry is index.marketing.html, and the npm script
+  // only renames it to index.html after `vite build`. Vite serves it under
+  // its real name, so dev has no "/" to land on.
+  //
+  // Without these two, `npm run dev` shows the 404 page on every load while
+  // production works fine — which is exactly what happened when the
+  // not-found route was introduced.
+  const isHome =
+    path === "/" || path === "" || path === "/index.html" || path === "/index.marketing.html";
   const meta = isDownload ? ROUTE_META["/download"] : isHome ? ROUTE_META["/"] : NOT_FOUND_META;
 
   // Applied during render rather than in an effect so the tags are set

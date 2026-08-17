@@ -1,5 +1,5 @@
 /**
- * Marketing-only brand palette — blue.
+ * Marketing-only brand palette — blue, with a navy footer surface.
  *
  * WHY THIS FILE EXISTS
  * src/styles.css is the *shared* theme: the app, the mobile build and this
@@ -34,6 +34,31 @@
   --accent-foreground: oklch(0.4 0.15 262);
   --chart-1: oklch(0.5 0.2 262);
 
+  /* NAVY-TINTED TEXT (option 2)
+     ---------------------------
+     The logo navy #011346 is oklch(0.215 0.099 262.7) — hue 262.7, which is
+     the hue this palette already uses. So the brand's dark is not a
+     different colour from its accent, it is the same hue much darker. These
+     tokens move the page's text onto that hue: lightness is held exactly as
+     styles.css set it and only chroma rises, which is the same discipline as
+     the 290 -> 262 hue shift above. Contrast against the page background
+     moves 16.85 -> 16.90 — unchanged, so nothing needs re-checking.
+
+     The effect is meant to be subliminal. Nobody should look at this and
+     think "blue text"; the page should just feel less like default black. If
+     it ever reads as visibly blue, lower the chroma rather than the
+     lightness. */
+  --foreground: oklch(0.2 0.05 262.7);
+  --muted-foreground: oklch(0.5 0.03 262.7);
+  --secondary-foreground: oklch(0.3 0.045 262.7);
+
+  /* Marketing renders none of these today — it only ever uses
+     text-foreground and text-muted-foreground. Tinted anyway for the same
+     reason the sidebar tokens below are: a shadcn component pulled in later
+     must not be able to drop untinted near-black into tinted copy. */
+  --card-foreground: oklch(0.2 0.05 262.7);
+  --popover-foreground: oklch(0.2 0.05 262.7);
+
   /* Sidebar tokens are unused by the marketing pages today. Overridden
      anyway so that if a shadcn component is ever pulled in here, it cannot
      drag purple back onto an otherwise blue page. */
@@ -41,4 +66,54 @@
   --sidebar-accent: oklch(0.95 0.01 262);
   --sidebar-accent-foreground: oklch(0.4 0.15 262);
   --sidebar-ring: oklch(0.5 0.2 262);
+}
+
+/**
+ * NAVY FOOTER SURFACE (option 1)
+ * ==============================
+ * The page bookends in brand colour: the BrandBand is already navy, and the
+ * footer now closes on the same #011346.
+ *
+ * WHY THIS IS A CLASS AND NOT JUST TOKENS
+ * The footer's markup is written in light-theme utilities — text-foreground,
+ * text-muted-foreground (x35 across the page), bg-card social tiles,
+ * text-primary on "All services". Redefining those custom properties *on the
+ * footer element* is enough to re-point all of them, because custom
+ * properties inherit and nothing else declares them there. The background is
+ * the one exception: the JSX had `bg-card/40`, which compiles to
+ * color-mix(var(--card) 40%, transparent), and 40% navy over a near-white
+ * page is pale blue-grey. No value of --card reaches a solid navy through
+ * that alpha, so the utility had to go and this class replace it.
+ *
+ * Do not turn this into an element selector like `main + footer`. It would
+ * lose to `.bg-card\/40` on specificity, and DownloadPage has its own
+ * <footer> that must stay on the light theme.
+ *
+ * WHY --primary CHANGES HERE
+ * #1957D2 measures 2.82:1 on this navy and would be unreadable. The logo's
+ * bright blue #029EF7 measures 6.13:1 on it — the same colour that fails on
+ * a white page (2.90:1) and is therefore never used as the page accent. The
+ * footer is the one surface where the logo's own blue is legible, so that is
+ * where it gets used, and the block below ends up built from the two colours
+ * in the logo and nothing else.
+ */
+.footer-navy {
+  background-color: oklch(0.215 0.099 262.7); /* #011346 — the logo navy */
+
+  --foreground: oklch(1 0 0); /* 17.77:1 */
+  --muted-foreground: oklch(0.8 0.03 262.7); /* #b4bed2, 9.51:1 */
+  --primary: oklch(0.676 0.17 245); /* #029EF7, 6.13:1 */
+
+  /* Focus rings must be remapped too, or `outline-ring` on the social links
+     stays #1957D2 and a keyboard user gets a 2.82:1 focus indicator on navy.
+     Matching --primary keeps it at 6.13:1. */
+  --ring: oklch(0.676 0.17 245);
+
+  /* Non-text: the social-icon tiles and the divider rules. Deliberately low
+     contrast against the navy — they separate and group, they are not read,
+     and the icons sitting on --card are --muted-foreground, which stays
+     comfortably legible. */
+  --card: oklch(0.3 0.06 262.7);
+  --border: oklch(0.35 0.05 262.7);
+  --muted: oklch(0.3 0.06 262.7);
 }

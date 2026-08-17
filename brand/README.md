@@ -109,3 +109,135 @@ Promise.all([
   scrape fetches it.
 - If the banner is re-cut, re-check the crops above rather than assuming the
   offsets still land — they are measured against this exact source.
+
+## Service card photos
+
+Two generations of source artwork live here, and they are used differently.
+
+**`brand/services-v2/*.png` — the current source.** Clean photographs, no
+overlay. Used for 14 of the 16 service cards. These need no clever cropping:
+a straight `fit: cover` to 4:3 is enough, because the subject is centred and
+there is no badge or diagonal to dodge.
+
+Note `pest.png` contains a branded "PEST CONTROL" sign as a prop in the
+scene. The centre crop happens to frame it in full, which reads well —
+cropping to exclude it clips it worse. Leave it centred.
+
+**`brand/services/*.jpg` — the original banners.** Navy panel, headline,
+diagonal and a hexagonal badge, with photography only on the right. Still the
+source for **`ev-repair`** and **`car-wash`**, which have no v2 photograph.
+Their crops anchor to the upper-right, the only clean region across those
+banners; two of them needed narrower windows further left. Keep the override
+table below if those are ever regenerated.
+
+**Two v2 images are unused:** a manicure shot and a men's spa/massage shot.
+The first is an alternative for Women's Salon & Spa; the second is a service
+the site does not currently list.
+
+Plumbing, Electrical and Pest Control now have photographs too
+(`plumbing.png`, `elect.png`, `pest.png`), supplied separately and named
+properly rather than as `1 (n).png`.
+
+### Regenerating the 14 v2 cards
+
+```bash
+node -e "
+const sharp = require('sharp');
+const MAP = [
+  ['home-deep-cleaning', '1 (1).png', false],
+  ['ac-service', '1 (9).png', false],
+  ['appliance-repair', '1 (12).png', false],
+  ['carpentry', '1 (11).png', false],
+  ['painting', '1 (8).png', false],
+  ['waterproofing', '1 (13).png', false],
+  ['women-salon-spa', '1 (10).png', false],
+  ['mens-grooming', '1 (5).png', false],
+  ['ro-water-purifier', '1 (7).png', false],
+  // Stacked pairs: two panels one above the other. A 4:3 card can only show
+  // one, so take the top half before cropping.
+  ['furniture-sofa-cleaning', '1 (6).png', true],
+  ['cctv-festival-lights', '1 (3).png', true],
+  // Supplied later, already named.
+  ['plumbing', 'plumbing.png', false],
+  ['electrical', 'elect.png', false],
+  ['pest-control', 'pest.png', false],
+];
+(async () => {
+  for (const [slug, file, stacked] of MAP) {
+    let img = sharp('brand/services-v2/' + file);
+    if (stacked) {
+      const m = await img.metadata();
+      img = sharp('brand/services-v2/' + file)
+        .extract({ left: 0, top: 0, width: m.width, height: Math.floor(m.height / 2) });
+    }
+    await img.resize(800, 600, { fit: 'cover', position: 'centre', kernel: 'lanczos3' })
+      .jpeg({ quality: 78, mozjpeg: true }).toFile('public/services/' + slug + '.jpg');
+  }
+  console.log('regenerated');
+})();
+"
+```
+
+The filenames `1 (1).png` are exactly as the client supplied them; the mapping
+above was established by generating a contact sheet and identifying each
+image by eye. If the client sends a new batch, do the same rather than
+assuming the numbering is stable.
+
+### Regenerating ev-repair and car-wash from the old banners
+
+```bash
+node -e "
+const sharp = require('sharp');
+const OVERRIDE = { 'cctv-festival-lights': [0.52, 0.26], 'furniture-sofa-cleaning': [0.50, 0.27] };
+(async () => {
+  for (const slug of ['ev-repair', 'car-wash']) {
+    const f = 'brand/services/' + slug + '.jpg';
+    const m = await sharp(f).metadata();
+    const [leftF, wF] = OVERRIDE[slug] || [null, 0.40];
+    let cw = Math.round(m.width * wF), ch = Math.round(cw * 0.75);
+    if (ch > m.height) { ch = m.height; cw = Math.round(ch * 4 / 3); }
+    const left = leftF !== null ? Math.round(m.width * leftF) : m.width - cw;
+    await sharp(f).extract({ left, top: 0, width: cw, height: ch })
+      .resize(800, 600, { kernel: 'lanczos3' })
+      .jpeg({ quality: 78, mozjpeg: true }).toFile('public/services/' + slug + '.jpg');
+  }
+  console.log('regenerated');
+})();
+"
+```
+
+Only the **photography** is ever used. The banners' baked-in headlines are
+discarded and the service name is real HTML text under each card, because
+text inside an image cannot be read by Google, does not reflow on a phone,
+and cannot be selected or translated.
+
+## Favicon
+
+`public/favicon-eazyserv.png` (512×512) is the brand mark cropped from
+`brand/eazyserv-logo-source.svg`, on the logo's own navy.
+
+Referenced only from `index.marketing.html`. It deliberately does **not**
+replace `public/icons/icon-192.png`, `icon-512.png` or
+`apple-touch-icon.png`, which are still the pre-rebrand purple "SC"
+ServiceConnect artwork — those are shared with the app build and named in the
+PWA manifest, so replacing them is an app-side change needing its own ticket.
+
+`public/eazyserv-mark.svg` is **not** usable as the mark: it renders as a
+solid blue rosette with the navy star cutout missing.
+
+```bash
+node -e "
+const sharp = require('sharp');
+(async () => {
+  // Mark measured at x 506-686, y 220-403 in a 1200-wide render; doubled
+  // here. The 460px box leaves ~13% padding, so the points do not touch
+  // the edge at favicon sizes.
+  const base = await sharp('brand/eazyserv-logo-source.svg', { density: 400 })
+    .resize(2400).flatten({ background: '#011346' }).png().toBuffer();
+  await sharp(base).extract({ left: 962, top: 393, width: 460, height: 460 })
+    .resize(512, 512, { kernel: 'lanczos3' })
+    .png({ compressionLevel: 9 }).toFile('public/favicon-eazyserv.png');
+  console.log('regenerated');
+})();
+"
+```

@@ -29,10 +29,12 @@ import {
   AirVent,
   ArrowRight,
   BadgeCheck,
+  Bike,
   Bug,
   Building,
   Building2,
   CalendarCheck,
+  Car,
   Cctv,
   ChevronDown,
   CreditCard,
@@ -40,8 +42,8 @@ import {
   Flower2,
   Hammer,
   Headphones,
-  House,
   KeyRound,
+  type LucideIcon,
   MapPin,
   Menu,
   Navigation,
@@ -51,8 +53,8 @@ import {
   ShieldCheck,
   Smartphone,
   Sofa,
-  Sparkles,
   SprayCan,
+  Umbrella,
   Users,
   Wallet,
   WashingMachine,
@@ -122,40 +124,67 @@ const SOCIALS = [
   },
 ];
 
-// Taken from the "Our Services" list in the company profile, not the
-// Slide 10 "Services Portfolio" — the profile list is the consumer-facing
-// one, is internally consistent, and avoids the deck's typos ("Instat
-// Solution", "Allotypes OF Cleaning"). The deck-only extras (car/bike wash,
-// vehicle repair, festival lights, hourly "instant" jobs) are deliberately
-// left out: they read as a different business line, and vehicle work isn't
-// a home service.
+// The list now follows the service banners the client commissioned, which
+// is stronger evidence of what the business sells than the earlier list
+// assembled from the company-profile PDF.
 //
-// ⚠️ BREADTH vs BOOKABILITY: src/lib/mock-data.ts exposes only eight
-// categories (Cleaning, Plumbing, Electrical, Salon, Painting, Carpentry,
-// Pest Control, Appliance). Everything below that isn't one of those may
-// not be bookable in the app yet. Confirm against the real backend
-// catalogue — if the gap is real, split this into "Available now" and
-// "Coming soon" rather than letting customers hunt for a service that
-// isn't there.
-const SERVICES = [
-  { name: "Home Cleaning", Icon: Sparkles },
-  { name: "Deep Cleaning", Icon: SprayCan },
-  { name: "AC Service & Repair", Icon: AirVent },
-  { name: "Plumbing", Icon: Wrench },
-  { name: "Electrical Services", Icon: Zap },
-  { name: "Carpentry", Icon: Hammer },
-  { name: "Painting", Icon: Paintbrush },
-  { name: "Appliance Repair", Icon: WashingMachine },
-  { name: "Pest Control", Icon: Bug },
-  { name: "Salon at Home", Icon: Scissors },
-  { name: "Spa & Massage at Home", Icon: Flower2 },
-  { name: "Home Sanitization", Icon: ShieldCheck },
-  { name: "RO & Water Purifier", Icon: Droplets },
-  { name: "CCTV Installation", Icon: Cctv },
-  { name: "Smart Home Installation", Icon: House },
-  { name: "Interior Maintenance", Icon: Sofa },
-  { name: "Office Cleaning", Icon: Building2 },
-  { name: "Facility Management", Icon: Building },
+// Two consequences of that:
+//   - EV repair and car wash are IN. They were previously cut on the
+//     argument that vehicle work isn't a home service; the client has since
+//     commissioned artwork for both, so the through-line is "at your
+//     doorstep", not "inside the house".
+//   - Smart Home Installation, Interior Maintenance, Home Sanitization,
+//     Office Cleaning and Facility Management are OUT. No artwork, and
+//     nothing anywhere evidences that they can be delivered. One line each
+//     to restore if that changes.
+//
+// `photo` is a card crop from the client's photography (see
+// brand/README.md). Fourteen of the sixteen have one. EV Bike & Car Repair
+// and Car Wash still use crops from the older banner artwork, because the
+// clean-photo batch has no shot for either — ask the client.
+//
+// ServicesGrid keeps the icon fallback for any entry without a `photo`, so
+// a new service can be added before its artwork arrives without the grid
+// looking broken.
+//
+// ⚠️ BREADTH vs BOOKABILITY still unresolved: src/lib/mock-data.ts exposes
+// eight categories, and this grid advertises sixteen. If the real backend
+// catalogue is smaller, split into "Available now" and "Coming soon"
+// rather than letting customers hunt for something that isn't there. The
+// line under the grid hedges on availability, which covers a grid but
+// would not cover a page dedicated to one service.
+type Service = { name: string; Icon: LucideIcon; photo?: string };
+
+const SERVICES: Service[] = [
+  // ORDER IS THE SHOP WINDOW. ServicesGrid shows the first 6 below `lg`
+  // and the first 8 from `lg` up; the rest sit behind "View all". So the
+  // top of this list is what most visitors will ever see — reorder
+  // deliberately, not alphabetically.
+  //
+  // Women's Salon & Spa sits at position 4 on purpose: without it the
+  // opening six are all cleaning-and-repairs, and a visitor on a phone
+  // would never see that EazyServ does beauty at all.
+  { name: "Home Deep Cleaning", Icon: SprayCan, photo: "/services/home-deep-cleaning.jpg" },
+  { name: "AC Service & Repair", Icon: AirVent, photo: "/services/ac-service.jpg" },
+  { name: "Appliance Repair", Icon: WashingMachine, photo: "/services/appliance-repair.jpg" },
+  { name: "Women's Salon & Spa", Icon: Flower2, photo: "/services/women-salon-spa.jpg" },
+  { name: "Plumbing", Icon: Wrench, photo: "/services/plumbing.jpg" },
+  { name: "Electrical Services", Icon: Zap, photo: "/services/electrical.jpg" },
+  { name: "Carpentry", Icon: Hammer, photo: "/services/carpentry.jpg" },
+  { name: "Painting", Icon: Paintbrush, photo: "/services/painting.jpg" },
+  // ---- below the fold until "View all" is pressed ----
+  { name: "Men's Grooming", Icon: Scissors, photo: "/services/mens-grooming.jpg" },
+  { name: "Waterproofing", Icon: Umbrella, photo: "/services/waterproofing.jpg" },
+  { name: "Pest Control", Icon: Bug, photo: "/services/pest-control.jpg" },
+  {
+    name: "Furniture & Sofa Cleaning",
+    Icon: Sofa,
+    photo: "/services/furniture-sofa-cleaning.jpg",
+  },
+  { name: "RO & Water Purifier", Icon: Droplets, photo: "/services/ro-water-purifier.jpg" },
+  { name: "CCTV & Festival Lights", Icon: Cctv, photo: "/services/cctv-festival-lights.jpg" },
+  { name: "EV Bike & Car Repair", Icon: Bike, photo: "/services/ev-repair.jpg" },
+  { name: "Car Wash & Interior Cleaning", Icon: Car, photo: "/services/car-wash.jpg" },
 ];
 
 const STEPS = [
@@ -556,6 +585,12 @@ function Hero() {
 // ---------------------------------------------------------------------------
 
 function ServicesGrid() {
+  // Every card is rendered on first paint; `showAll` only relaxes a CSS cap.
+  // That matters more than it looks: these sixteen names are the richest
+  // text content on the page, and mounting only the visible ones would hide
+  // eight service names from Google to save nothing.
+  const [showAll, setShowAll] = useState(false);
+
   return (
     <section id="services" className="scroll-mt-20 border-t border-border/60 py-20 md:py-24">
       <div className="mx-auto max-w-6xl px-6">
@@ -567,29 +602,85 @@ function ServicesGrid() {
           />
         </Reveal>
 
-        {/* Compact cards: at eighteen entries, a paragraph under each name
-            turns the section into a wall of text nobody reads. Name plus
-            icon stays scannable, and the grid widens rather than growing
-            taller on desktop. */}
-        <Reveal
-          delay={100}
-          className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-6"
-        >
-          {SERVICES.map(({ name, Icon }) => (
-            <div
+        {/* The name sits ON the photo rather than in a strip beneath it.
+            Sixteen cards with a separate label row read as database rows and
+            added ~40px of height each; over four mobile rows that alone was
+            160px. It is still real HTML text over the image — only the
+            source banners had text baked into pixels, and none of that is
+            used here.
+
+            3:2 rather than 4:3: the source photographs are mostly 16:9, so a
+            wider crop throws less away, and shorter cards keep the collapsed
+            grid to three rows on a phone. */}
+        <Reveal delay={100} className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {SERVICES.map(({ name, Icon, photo }, i) => (
+            <article
               key={name}
-              className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-5 text-center shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg"
+              // The cap follows the COLUMN COUNT so every breakpoint ends on
+              // a full row: 2 cols x 3 = 6, 3 cols x 2 = 6, 4 cols x 2 = 8.
+              // Tying it to `sm` instead left 3+3+2 on a tablet-width phone,
+              // and phones with a >=640px viewport got 8 rather than 6.
+              //
+              // Past the cap is display:none, so those cards leave the grid
+              // flow rather than being clipped — no half row under the button.
+              className={`group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg ${
+                showAll || i < 6 ? "" : i < 8 ? "hidden lg:block" : "hidden"
+              }`}
             >
-              <div className="inline-flex rounded-xl bg-primary/10 p-3 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                <Icon className="h-5 w-5" />
+              <div className="relative aspect-[3/2] overflow-hidden bg-muted">
+                {photo ? (
+                  <img
+                    src={photo}
+                    // Decorative: the service name is real text laid over the
+                    // same card, so describing the photo as well would make a
+                    // screen reader announce each service twice.
+                    alt=""
+                    width={800}
+                    height={600}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                ) : (
+                  // Kept for any service added before its artwork arrives.
+                  // All sixteen have a photo today.
+                  <div className="flex h-full w-full items-center justify-center bg-primary/5">
+                    <Icon className="h-7 w-7 text-primary" />
+                  </div>
+                )}
+
+                {/* Scrim, not a flat overlay: these photographs vary from a
+                    bright kitchen to a dusk exterior, and only a gradient
+                    keeps white text legible across all of them. */}
+                <div
+                  aria-hidden
+                  className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/40 to-transparent"
+                />
+
+                <h3 className="absolute inset-x-0 bottom-0 p-3 text-sm font-semibold leading-snug text-white drop-shadow-sm">
+                  {name}
+                </h3>
               </div>
-              <h3 className="text-sm font-semibold leading-snug text-foreground">{name}</h3>
-            </div>
+            </article>
           ))}
         </Reveal>
 
-        <Reveal delay={150}>
-          <p className="mt-8 text-center text-xs text-muted-foreground">
+        <Reveal delay={150} className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setShowAll((open) => !open)}
+            aria-expanded={showAll}
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            {showAll ? "Show fewer" : "All Services"}
+            <ChevronDown
+              className={`h-4 w-4 transition-transform duration-200 ${showAll ? "rotate-180" : ""}`}
+            />
+          </button>
+        </Reveal>
+
+        <Reveal delay={200}>
+          <p className="mt-6 text-center text-xs text-muted-foreground">
             Availability varies by locality while we're in beta — open the app to see what can be
             booked at your address today.
           </p>
@@ -921,7 +1012,12 @@ function CallToAction() {
 
 function Footer() {
   return (
-    <footer className="border-t border-border/60 bg-card/40">
+    // `footer-navy` is defined in marketing-theme.css and carries the whole
+    // dark treatment: the navy background plus re-pointed --foreground,
+    // --muted-foreground, --primary, --ring, --card and --border for
+    // everything inside. No colour is named here on purpose — the utilities
+    // below are unchanged and simply resolve against the new tokens.
+    <footer className="footer-navy">
       <div className="mx-auto max-w-6xl px-6 py-14">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
