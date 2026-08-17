@@ -452,7 +452,7 @@ function Header() {
         <div className="flex items-center gap-2">
           <a
             href={DOWNLOAD_URL}
-            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:shadow-md hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="focus-inset inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:shadow-md hover:brightness-110"
           >
             Download
           </a>
@@ -466,7 +466,7 @@ function Header() {
             aria-expanded={menuOpen}
             aria-controls="mobile-nav"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:hidden"
+            className="focus-inset inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-foreground transition-colors hover:bg-muted md:hidden"
           >
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -539,7 +539,7 @@ function Hero() {
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <a
               href={DOWNLOAD_URL}
-              className="group inline-flex w-full items-center justify-center rounded-xl bg-primary px-7 py-3.5 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30 hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:w-auto"
+              className="focus-inset group inline-flex w-full items-center justify-center rounded-xl bg-primary px-7 py-3.5 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30 hover:brightness-110 sm:w-auto"
             >
               Download for Android
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -613,7 +613,11 @@ function ServicesGrid() {
             wider crop throws less away, and shorter cards keep the collapsed
             grid to three rows on a phone. */}
         <Reveal delay={100} className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {SERVICES.map(({ name, Icon, photo }, i) => (
+          {/* `Icon` is intentionally not destructured: the no-photo fallback
+              below is a hatch pattern, so nothing in this grid renders one.
+              The field stays on the Service type — TrustBar, Steps and About
+              all still use theirs. */}
+          {SERVICES.map(({ name, photo }, i) => (
             <article
               key={name}
               // The cap follows the COLUMN COUNT so every breakpoint ends on
@@ -644,9 +648,12 @@ function ServicesGrid() {
                 ) : (
                   // Kept for any service added before its artwork arrives.
                   // All sixteen have a photo today.
-                  <div className="flex h-full w-full items-center justify-center bg-primary/5">
-                    <Icon className="h-7 w-7 text-primary" />
-                  </div>
+                  //
+                  // Icon-free: a lone glyph read as a broken image next to
+                  // fifteen photographs. A neutral hatch reads as "artwork
+                  // pending" instead. The service name still renders over it
+                  // from the scrim below, so nothing is lost to a crawler.
+                  <div className="flex h-full w-full items-center justify-center bg-[repeating-linear-gradient(135deg,theme(colors.muted),theme(colors.muted)_6px,theme(colors.border)_6px,theme(colors.border)_12px)]" />
                 )}
 
                 {/* Scrim, not a flat overlay: these photographs vary from a
@@ -701,33 +708,53 @@ function HowItWorks() {
       className="scroll-mt-20 border-t border-border/60 bg-muted/30 py-20 md:py-24"
     >
       <div className="mx-auto max-w-6xl px-6">
-        <Reveal>
-          <SectionHeading
-            eyebrow="How it works"
-            title="Booked in three steps"
-            subtitle="From opening the app to the professional starting work — no phone calls, no haggling."
-          />
-        </Reveal>
+        {/* Asymmetric on purpose, and the only section that is. Every other
+            block runs eyebrow -> centred heading -> card grid, so by the
+            third repetition the page reads as one long template. Here the
+            heading moves left and stays put while the steps run down the
+            right as a timeline: same content, different rhythm.
 
-        <Reveal delay={100}>
-          <ol className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
-            {STEPS.map(({ Icon, title, desc }, i) => (
-              <li
-                key={title}
-                className="relative rounded-2xl border border-border bg-card p-7 shadow-sm transition-shadow hover:shadow-md"
-              >
-                <span className="absolute right-6 top-6 text-4xl font-bold text-primary/10 tabular-nums">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <div className="mb-4 inline-flex rounded-xl bg-primary/10 p-3 text-primary">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-semibold text-foreground">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{desc}</p>
-              </li>
-            ))}
-          </ol>
-        </Reveal>
+            Not SectionHeading, because that component is centred by
+            definition — this heading is left-aligned and column-bound. */}
+        <div className="grid grid-cols-1 gap-14 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
+          <Reveal>
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              How it works
+            </p>
+            <h2 className="mt-3 text-2xl font-extrabold tracking-[-0.02em] text-foreground md:text-4xl">
+              Booked in three steps
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">
+              From opening the app to the professional starting work — no phone calls, no haggling.
+            </p>
+          </Reveal>
+
+          {/* Reveal renders a div, so it wraps the <ol> rather than replacing
+              it — a div between a list and its <li> children is invalid HTML
+              and strips the list semantics a screen reader announces. */}
+          <Reveal delay={100} className="relative pl-2">
+            {/* Timeline rail behind the numbered dots. left-[23px] is half of
+                the 46px circle, so the line runs through their centres; the
+                circles are opaque and z-10, which is what masks it between
+                steps rather than any gap in the rail itself. */}
+            <div aria-hidden className="absolute bottom-2 left-[23px] top-2 w-px bg-border" />
+            <ol className="space-y-8">
+              {STEPS.map(({ title, desc }, i) => (
+                <li key={title} className="relative flex gap-5">
+                  <span className="z-10 flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full border-2 border-primary bg-background text-base font-bold text-primary">
+                    {i + 1}
+                  </span>
+                  <div className="pt-1.5">
+                    <h3 className="text-base font-semibold text-foreground">{title}</h3>
+                    <p className="mt-1.5 max-w-md text-sm leading-relaxed text-muted-foreground">
+                      {desc}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </Reveal>
+        </div>
       </div>
     </section>
   );
@@ -804,7 +831,9 @@ function TrustBar() {
         <Reveal delay={100} className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
           {TRUST.map(({ Icon, title, desc }) => (
             <div key={title} className="flex items-start gap-4">
-              <div className="shrink-0 rounded-xl bg-primary/10 p-3 text-primary">
+              {/* Outlined ring rather than a filled tile — the section is a
+                  row of reassurances, and a lighter mark reads as calmer. */}
+              <div className="shrink-0 rounded-full border-[1.5px] border-primary/30 p-3 text-primary">
                 <Icon className="h-5 w-5" />
               </div>
               <div>
@@ -885,7 +914,9 @@ function About() {
                   key={title}
                   className="rounded-2xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
                 >
-                  <div className="mb-3 inline-flex rounded-lg bg-primary/10 p-2.5 text-primary">
+                  {/* Only the radius differs from the shared tile — a
+                      tighter corner to set the facts apart from Steps. */}
+                  <div className="mb-3 inline-flex rounded-md bg-primary/10 p-2.5 text-primary">
                     <Icon className="h-4 w-4" />
                   </div>
                   <p className="text-sm font-semibold leading-snug text-foreground">{title}</p>
@@ -982,7 +1013,11 @@ function CallToAction() {
   return (
     <section className="border-t border-border/60 py-20 md:py-24">
       <div className="mx-auto max-w-6xl px-6">
-        <Reveal className="relative overflow-hidden rounded-3xl border border-primary/20 bg-primary/5 px-6 py-14 text-center md:px-16">
+        {/* shadow-primary-lift is deliberately rare — this and the Android
+            download card are the only two blocks carrying it. Its whole job
+            is to stand out from the flat shadow-sm cards in Services, Trust,
+            About and Steps, which is exactly what spreading it would cost. */}
+        <Reveal className="shadow-primary-lift relative overflow-hidden rounded-3xl border border-primary/20 bg-primary/5 px-6 py-14 text-center md:px-16">
           <div
             aria-hidden
             className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/15 blur-3xl"
@@ -995,7 +1030,7 @@ function CallToAction() {
           </p>
           <a
             href={DOWNLOAD_URL}
-            className="group mt-8 inline-flex items-center justify-center rounded-xl bg-primary px-7 py-3.5 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30 hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="focus-inset group mt-8 inline-flex items-center justify-center rounded-xl bg-primary px-7 py-3.5 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30 hover:brightness-110"
           >
             Download for Android
             <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
