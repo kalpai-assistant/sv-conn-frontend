@@ -83,8 +83,42 @@ function seoFiles(): Plugin {
   };
 }
 
+/**
+ * Makes the dev server serve the routes in ROUTES, which it otherwise 404s.
+ *
+ * This build's entry is `index.marketing.html`, not `index.html`. Vite's SPA
+ * history fallback only ever rewrites to `/index.html`, and this repo has no
+ * such file — the npm script renames it inside dist-marketing *after* the
+ * build, which is why /download works under `vite preview` (4173) and 404s
+ * under `vite dev` (5173). The 404 comes from the server, so no React code
+ * runs and you get the browser's own error page rather than NotFoundPage.
+ *
+ * Rewriting only req.url means the browser's address bar is untouched, so
+ * window.location.pathname is still "/download" when main.tsx routes on it.
+ *
+ * apply: "serve" — dev only. Production is served by Cloudflare Pages using
+ * public/_redirects, which is unaffected by this.
+ *
+ * Only the known routes are rewritten, not everything, so a genuinely
+ * missing asset still 404s as it should. The trade is that NotFoundPage
+ * cannot be reached in dev; use the preview build to check that view.
+ */
+function devRouteFallback(): Plugin {
+  return {
+    name: "marketing-dev-route-fallback",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const pathname = (req.url ?? "").split("?")[0].replace(/\/$/, "") || "/";
+        if (ROUTES.includes(pathname)) req.url = "/index.marketing.html";
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), tsconfigPaths(), seoFiles()],
+  plugins: [react(), tailwindcss(), tsconfigPaths(), seoFiles(), devRouteFallback()],
   build: {
     outDir: "dist-marketing",
     emptyOutDir: true,
