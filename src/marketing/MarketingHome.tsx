@@ -672,10 +672,7 @@ function ServicesGrid() {
             aria-expanded={showAll}
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            {/* The count is deliberate — "View all" alone gives no sense of
-                how much is hidden. It reads from the array so it cannot
-                drift out of step with the list. */}
-            {showAll ? "Show fewer" : `View all ${SERVICES.length} services`}
+            {showAll ? "Show fewer" : "All Services"}
             <ChevronDown
               className={`h-4 w-4 transition-transform duration-200 ${showAll ? "rotate-180" : ""}`}
             />

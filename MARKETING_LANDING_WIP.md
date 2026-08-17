@@ -234,8 +234,10 @@ services at once for a fraction of the code.
 
 **What was built:**
 
-- **Collapsed by default**, with a `View all 16 services` / `Show fewer`
-  toggle. The count reads from `SERVICES.length` so it can't drift.
+- **Collapsed by default**, with an `All Services` / `Show fewer` toggle.
+  It originally read `View all 16 services`, interpolating `SERVICES.length`
+  so the number could not drift; the count was dropped on request
+  (2026-08-17).
 - **The cap follows the COLUMN COUNT**, so every breakpoint ends on a full
   row: 2 cols × 3 = 6, 3 cols × 2 = 6, 4 cols (`lg`) × 2 = 8. An earlier
   attempt tied it to `sm`, which left a ragged 3+3+2 and showed 8 rather
