@@ -1,10 +1,12 @@
 # Marketing landing page — working notes
 
-**Last updated:** 2026-08-14
-**Live branch:** `feat/marketing-service-photos` — 2 commits, pushed, **PR not yet opened**
+**Last updated:** 2026-08-17
+**Live branch:** `feat/marketing-service-photos` — 7 commits, pushed, **PR not yet opened**
 **Merged so far:** #56 landing refresh · #57 blue rebrand + content · #62 mobile banner crop · #63 Search Console file · #64 SEO foundations
-**Live:** https://eazyserv.com — deployed and indexed-pending
-**Status:** builds and lints clean · the services grid has **not** been reviewed in a browser
+**Live:** https://eazyserv.com — deployed, indexing pending
+**Status:** builds and lints clean · the services grid **has** now been checked on desktop and a real phone
+
+**Next task:** navy colour pass — see "Colour: navy vs the royal-blue accent" in §2. Not started.
 
 ---
 
@@ -123,12 +125,16 @@ scroll-spy, mobile hamburger, scroll-reveal) · #57 blue rebrand, brand
 artwork, company-profile content · #62 mobile brand-band crop · #63 Search
 Console verification file · #64 SEO foundations + CI marketing build.
 
-**Open branch — `feat/marketing-service-photos`**, 2 commits, pushed,
+**Open branch — `feat/marketing-service-photos`**, 7 commits, pushed,
 **PR still needs opening**:
 
 ```
-55f8bcb  fix: stop the dev server rendering the 404 page
-2be5f8e  feat: real service photography in the services grid
+e3d606b  = origin HEAD    services grid rework — progressive disclosure
+c89d67c                   photos for plumbing, electrical, pest control
+f27ef53                   client's clean service photos + EazyServ favicon
+d23f56a                   docs: SEO work and services grid
+55f8bcb                   fix: stop the dev server rendering the 404 page
+2be5f8e                   feat: real service photography in the services grid
 ```
 
 PR URL: `https://github.com/kalpai-assistant/sv-conn-frontend/pull/new/feat/marketing-service-photos`
@@ -175,13 +181,118 @@ argument that vehicle work isn't a home service; the client then
 commissioned banners for both. The through-line is "at your doorstep", not
 "inside the house".
 
-Only the **photography** from each banner is used — the baked-in headline
-is discarded and the service name is real HTML text under the card. Crops
-anchor upper-right, the only clean region across all thirteen (badge
-bottom-right, navy diagonal left). See `brand/README.md`.
+Only the **photography** is used — never the baked-in headline. The service
+name is real HTML text under each card, because text inside an image cannot
+be read by Google, does not reflow on a phone, and cannot be selected.
 
-**Plumbing, Electrical and Pest Control have no banner** and fall back to
-an icon tile. Ask the client for those three so the grid is uniform.
+### Photography, second pass (2026-08-15/16)
+
+The client then supplied **clean photographs with no banner overlay**, which
+made the original crops obsolete. `brand/services-v2/` is now the source for
+**14 of the 16 cards** — a straight `fit: cover` to 4:3, no badge or
+diagonal to dodge.
+
+- Two v2 images are **stacked pairs** (CCTV over festival lights, sofa
+  cleaning over assembly). A 4:3 card shows one panel, so the top half is
+  extracted first. Say if the other panel is wanted.
+- **`ev-repair` and `car-wash` still use the old banner crops** — the clean
+  batch has no photograph for either. Ask the client.
+- **Two v2 images are unused:** a manicure shot (alternative for Women's
+  Salon & Spa) and a men's spa/massage shot, which is a service the site
+  does not currently list.
+- `pest.png` contains a branded "PEST CONTROL" sign as a scene prop. The
+  centre crop frames it in full and reads well — cropping it out clips it
+  worse. Leave it centred.
+
+`brand/README.md` has the mapping and a regeneration command. The v2
+filenames were `1 (1).png` … `1 (13).png`, so the mapping was established by
+generating a contact sheet and identifying each by eye. **Do the same if
+another batch arrives — do not assume the numbering is stable.**
+
+### Favicon (2026-08-16)
+
+The tab icon was still the purple **"SC" ServiceConnect** mark;
+`public/icons/*` are dated May and predate EazyServ entirely.
+`index.marketing.html` now points at `public/favicon-eazyserv.png`, cropped
+from `brand/eazyserv-logo-source.svg`.
+
+`public/icons/*` and `apple-touch-icon.png` are deliberately **not**
+replaced — shared with the app build and named in the PWA manifest, so
+that's an app-side ticket. Also fixed the JSON-LD `logo` field, which was
+pointing at the same stale SC icon.
+
+`public/eazyserv-mark.svg` is **unusable** as the mark: it renders as a
+solid blue rosette with the navy star cutout missing.
+
+### Services grid rework (2026-08-16/17) — SHIPPED in `e3d606b`
+
+The 4×4 grid of 16 cards was ~1100px tall and read as a long flat list. A
+carousel was considered and **rejected** in favour of progressive
+disclosure, which is better here: carousels have a well-known failure mode
+where people simply don't page through them, and this shows twice as many
+services at once for a fraction of the code.
+
+**What was built:**
+
+- **Collapsed by default**, with a `View all 16 services` / `Show fewer`
+  toggle. The count reads from `SERVICES.length` so it can't drift.
+- **The cap follows the COLUMN COUNT**, so every breakpoint ends on a full
+  row: 2 cols × 3 = 6, 3 cols × 2 = 6, 4 cols (`lg`) × 2 = 8. An earlier
+  attempt tied it to `sm`, which left a ragged 3+3+2 and showed 8 rather
+  than 6 on phones whose viewport is ≥640px — several Android devices are.
+- **Cards are 3:2, with the service name laid over the photo** on a bottom
+  gradient scrim, instead of a white strip beneath. The strip cost ~40px per
+  row. The scrim is a gradient, not a flat tint, because the photos range
+  from a bright white kitchen to a dusk exterior.
+- **Order is the shop window.** First 8: Home Deep Cleaning · AC Service ·
+  Appliance Repair · **Women's Salon & Spa** · Plumbing · Electrical ·
+  Carpentry · Painting. Salon sits at position 4 deliberately — outside the
+  first six, a phone visitor would never see that EazyServ does beauty.
+
+**The rule that must not be broken:** every card is rendered on first paint;
+`showAll` only relaxes a CSS cap. Those 16 names are the richest text on the
+page. Verified after building that all 16 appear in the production bundle.
+If anyone "optimises" this into conditional rendering, 8 service names
+disappear from what Google reads.
+
+Confirmed on desktop and on a real phone. Looks right.
+
+### Colour: navy vs the royal-blue accent — ANALYSED, NOT STARTED
+
+Question raised: should the site's blue match the logo's navy?
+
+Measured from `brand/eazyserv-logo-source.svg`:
+
+| Colour | Hex | Contrast vs white |
+|---|---|---|
+| Logo navy | `#011346` | **17.75** — effectively black |
+| Logo bright blue | `#029EF7` | **2.82** — fails text contrast |
+| Current `primary` | `#1957D2` | 6.30 — comfortable |
+
+**Neither logo colour works as `primary` on a light page.** The navy is so
+dark that "Pune" in the headline would stop reading as an accent at all.
+The bright blue fails WCAG for body text (needs 4.5) and would be
+unreadable as white-on-button in sunlight — which matters for a
+mobile-first Pune audience. The current royal blue sits between them, which
+is why it works; it came from hue-shifting the old purple while holding
+lightness, not from sampling the artwork.
+
+**Agreed direction (1 + 2), not yet built:**
+
+1. **Navy as a surface, not an accent** — `#011346` for the footer
+   background, optionally the header once scrolled. The brand band is
+   already navy, so the page would bookend in brand colour. Navy belongs
+   behind white text at 17.75:1.
+2. **Navy-tinted headings** — shift `foreground` from near-black to a very
+   dark navy. Subtle; nobody consciously notices, the page just feels more
+   EazyServ.
+
+Considered and not chosen: **deepening `primary`** to
+`oklch(0.42 0.18 262)` (~9:1). Cheapest single change if a bigger shift is
+wanted later.
+
+All of it lives in `src/marketing/marketing-theme.css` — the marketing-only
+override — so it cannot affect the app and is a few lines to try or revert.
 
 ---
 
@@ -295,10 +406,8 @@ Not code, but pre-launch blockers:
 
 ## 8. Next session
 
-1. **Look at the services grid in a browser** — desktop, tablet and phone.
-   It went from 6 columns to 4 and now carries 13 photographs; that is the
-   change most likely to look wrong, and nobody has seen it. Tablet width
-   (~768–1024px) is where a 4-column grid of 4:3 photos is most at risk.
+0. ~~Commit the grid rework, then `git push`.~~ Done — `e3d606b`, pushed.
+1. **Navy colour pass** — options 1 + 2 in §2. The active task.
 2. **Open the PR** for `feat/marketing-service-photos` (link in §2).
 3. **Google Business Profile** — highest-return item on the whole list,
    still not done, must be a company account. See §0.
