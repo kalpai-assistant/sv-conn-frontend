@@ -187,19 +187,40 @@ function routingFiles(): Plugin {
 
       if (!shell) throw new Error("routingFiles: no built HTML shell to copy");
 
-      // A REAL FILE per route, rather than a _redirects rewrite.
+      // A REAL FILE per route, rather than a _redirects rewrite, written in
+      // BOTH shapes: `download.html` and `download/index.html`.
       //
-      // The first attempt used `/download  /index.html  200`. That produced a
-      // 308 to `/`, because Cloudflare Pages canonicalises `/index.html` to
-      // `/` — and it applies that to the rewrite *target*, so the rule
-      // redirected instead of rewriting and /download broke. Writing
-      // download/index.html sidesteps rewrite semantics completely: Pages
-      // serves a directory index directly, which is what static site
-      // generators have always done.
+      // History, because each step here was a separate production break:
+      //
+      //   before   /download -> 200, served directly by the `/*` catch-all
+      //   attempt1 /download -> 308 to `/`  — the rule was
+      //            `/download /index.html 200`, but Pages canonicalises
+      //            `/index.html` to `/` and applies that to the rewrite
+      //            *target*, so it redirected instead of rewriting
+      //   attempt2 /download -> 308 to `/download/` — a lone
+      //            download/index.html makes Pages add the trailing slash
+      //   now      /download -> 200, no redirect
+      //
+      // Why the 308 had to go rather than just being "a redirect that works":
+      // 308 is a PERMANENT redirect and browsers cache it indefinitely
+      // without revalidating. Anyone who clicked the header Download button
+      // during the attempt-1 window has `/download -> /` burned into their
+      // browser, so the button silently returns them to the homepage and
+      // looks dead. Serving 200 is the only state that does not accumulate
+      // permanent client-side redirects.
+      //
+      // Emitting both shapes is deliberately belt-and-braces: `download.html`
+      // is what makes Pages answer `/download` with 200 directly, and
+      // `download/index.html` keeps `/download/` working for anyone who
+      // already has the trailing-slash URL. If Pages ever preferred the
+      // directory, the result is today's behaviour — so this cannot regress.
       //
       // "/" is skipped — index.html already sits at the root.
       for (const route of ROUTES.filter((r) => r !== "/")) {
-        const dir = path.join(outDir, route.replace(/^\//, ""));
+        const name = route.replace(/^\//, "");
+        fs.copyFileSync(shell, path.join(outDir, `${name}.html`));
+
+        const dir = path.join(outDir, name);
         fs.mkdirSync(dir, { recursive: true });
         fs.copyFileSync(shell, path.join(dir, "index.html"));
       }
