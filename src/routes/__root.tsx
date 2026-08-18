@@ -1,12 +1,4 @@
-import {
-  Outlet,
-  Link,
-  createRootRoute,
-  HeadContent,
-  Scripts,
-  useRouterState,
-  Navigate,
-} from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, useRouterState, Navigate } from "@tanstack/react-router";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { CartProvider } from "@/lib/cart-context";
 import { useNotificationRouter } from "@/lib/notifications";
@@ -22,8 +14,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initSentry } from "@/lib/sentry";
 import { useSentryNavigationBreadcrumbs } from "@/lib/useSentryNavigationBreadcrumbs";
-
-import appCss from "../styles.css?url";
 
 // Web-build init. `initSentry` is idempotent + SSR-safe (window guard), so
 // this coexists cleanly with the mobile build's own init in main.mobile.tsx.
@@ -53,78 +43,16 @@ function NotFoundComponent() {
   );
 }
 
+// The full HTML shell (doctype, <head>, <body>) is provided by the static
+// entry files (`index.mobile.html` for the Capacitor SPA build, and the
+// marketing/dist HTML for the web build). This root route only renders the
+// in-page tree, so no `shellComponent` is declared — nesting an <html>
+// element inside <div id="root"> breaks React 19 hydration and results in
+// a white screen. Meta/link tags belong in those HTML files.
 export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      {
-        name: "viewport",
-        content:
-          "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
-      },
-      { title: "EazyServ — Home Services at Your Doorstep" },
-      {
-        name: "description",
-        content:
-          "Book trusted home services in Pune — cleaning, plumbing, electrical, salon & more.",
-      },
-      { property: "og:title", content: "EazyServ — Home Services at Your Doorstep" },
-      { property: "og:description", content: "Book trusted home services in Pune." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      // PWA / iOS home-screen
-      { name: "mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: "EazyServ" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      // Theme colour shown in browser chrome and on Android task switcher
-      { name: "theme-color", content: "#1957D2" },
-      { name: "msapplication-TileColor", content: "#1957D2" },
-    ],
-    links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-      {
-        rel: "preconnect",
-        href: "https://fonts.googleapis.com",
-      },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap",
-      },
-      // Apple touch icon (shown when user adds to iOS home screen)
-      {
-        rel: "apple-touch-icon",
-        href: "/apple-touch-icon.png",
-      },
-      // PWA manifest (also auto-injected by vite-plugin-pwa in production builds)
-      {
-        rel: "manifest",
-        href: "/manifest.webmanifest",
-      },
-    ],
-  }),
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
 });
-
-function RootShell({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-        <Scripts />
-      </body>
-    </html>
-  );
-}
 
 // `User.role` is added by junior's SVC-82 (provider role gate) and isn't on
 // main yet — see notifications.ts for the same defensive read pattern. Once
