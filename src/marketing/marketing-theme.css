@@ -186,3 +186,22 @@
 .shadow-primary-lift {
   box-shadow: 0 16px 40px -8px color-mix(in oklab, var(--primary) 22%, transparent);
 }
+
+/**
+ * Hides the horizontal scrollbar on the services carousel.
+ *
+ * Marketing-only, like everything else in this file — it is imported by
+ * src/marketing/main.tsx and nothing else. Deliberately NOT added to
+ * src/styles.css, which is the app's shared theme.
+ *
+ * The track keeps its arrows, dots and a partially visible next card, so the
+ * scrollbar is not carrying any information the visitor cannot get elsewhere.
+ * Do not reach for this on a scroll area whose only affordance IS the
+ * scrollbar.
+ */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
