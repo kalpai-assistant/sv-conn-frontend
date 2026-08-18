@@ -24,7 +24,7 @@
  * - The FAQ is <details>/<summary> rather than a Radix accordion, for the
  *   same bundle reason (and it works with JS disabled).
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AirVent,
   ArrowRight,
@@ -37,6 +37,8 @@ import {
   Car,
   Cctv,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CreditCard,
   Droplets,
   Flower2,
@@ -156,13 +158,14 @@ const SOCIALS = [
 type Service = { name: string; Icon: LucideIcon; photo?: string };
 
 const SERVICES: Service[] = [
-  // ORDER IS THE SHOP WINDOW. ServicesGrid shows the first 6 below `lg`
-  // and the first 8 from `lg` up; the rest sit behind "View all". So the
-  // top of this list is what most visitors will ever see — reorder
+  // ORDER IS THE SHOP WINDOW. ServicesGrid is a carousel, so roughly the
+  // first one or two cards are visible on a phone before anyone scrolls,
+  // and autoplay reveals the rest only to whoever waits. The top of this
+  // list is therefore what most visitors will ever see — reorder
   // deliberately, not alphabetically.
   //
   // Women's Salon & Spa sits at position 4 on purpose: without it the
-  // opening six are all cleaning-and-repairs, and a visitor on a phone
+  // opening run is all cleaning-and-repairs, and a visitor on a phone
   // would never see that EazyServ does beauty at all.
   { name: "Home Deep Cleaning", Icon: SprayCan, photo: "/services/home-deep-cleaning.jpg" },
   { name: "AC Service & Repair", Icon: AirVent, photo: "/services/ac-service.jpg" },
@@ -172,7 +175,7 @@ const SERVICES: Service[] = [
   { name: "Electrical Services", Icon: Zap, photo: "/services/electrical.jpg" },
   { name: "Carpentry", Icon: Hammer, photo: "/services/carpentry.jpg" },
   { name: "Painting", Icon: Paintbrush, photo: "/services/painting.jpg" },
-  // ---- below the fold until "View all" is pressed ----
+  // ---- reached by scrolling the carousel ----
   { name: "Men's Grooming", Icon: Scissors, photo: "/services/mens-grooming.jpg" },
   { name: "Waterproofing", Icon: Umbrella, photo: "/services/waterproofing.jpg" },
   { name: "Pest Control", Icon: Bug, photo: "/services/pest-control.jpg" },
@@ -584,12 +587,187 @@ function Hero() {
 // Services
 // ---------------------------------------------------------------------------
 
+/** Desktop: pixels per second the track glides. */
+const DRIFT_PX_PER_SEC = 40;
+/** Mobile: how long a card rests before it snaps to the next. */
+const MOBILE_STEP_MS = 4000;
+/** Matches gap-[18px] on the track. Card width is measured, not assumed. */
+const CARD_GAP = 18;
+
+/**
+ * Services carousel.
+ *
+ * A SCROLL TRACK, NOT A SLIDESHOW. Every card is in the DOM on first paint
+ * and the carousel is horizontal overflow. Do not "optimise" this into
+ * rendering only the visible slide: these sixteen names are the richest text
+ * content on the page, and mounting one at a time would hide fifteen service
+ * names from Google to save nothing.
+ *
+ * TWO MOTION MODES, BECAUSE THEY CANNOT BE ONE
+ *   desktop  a continuous glide, no snapping, arrows to nudge it
+ *   mobile   one card per screen, hard snap, stepping every few seconds
+ *
+ * That split is forced, not a preference. Scroll-snap re-snaps to the nearest
+ * card on every frame, so it turns a per-frame glide into a stutter — a
+ * carousel cannot both snap and drift. Phones need the snap (a swipe must
+ * land on exactly one card) and desktop has the width to make a glide read
+ * well, so each breakpoint takes the mode that suits its input.
+ *
+ * WHY THE LIST IS DUPLICATED IN FULL
+ * Both modes loop by subtracting one list-width from scrollLeft. That is only
+ * invisible if the pixels at the loop point are identical to the pixels at
+ * the start, which needs a whole second copy — a partial set of clones runs
+ * out on a wide viewport and the seam shows. The copy is aria-hidden, so the
+ * sixteen real names are announced once each and no duplicate <h3> is offered
+ * to a crawler.
+ */
 function ServicesGrid() {
-  // Every card is rendered on first paint; `showAll` only relaxes a CSS cap.
-  // That matters more than it looks: these sixteen names are the richest
-  // text content on the page, and mounting only the visible ones would hide
-  // eight service names from Google to save nothing.
-  const [showAll, setShowAll] = useState(false);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [playing, setPlaying] = useState(true);
+  const [paused, setPaused] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(true);
+  const [activeDot, setActiveDot] = useState(0);
+
+  // Mirrors activeDot without causing a render. The scroll handler runs on
+  // every frame while drifting; calling setState each time would re-render
+  // the section sixty times a second for a dot that changes every eight.
+  const dotRef = useRef(0);
+  // Set while a programmatic smooth scroll is in flight, so the scroll
+  // handler does not rebase the track mid-animation and cancel it.
+  const animatingRef = useRef(false);
+
+  const REAL_COUNT = SERVICES.length;
+  const loopServices = [...SERVICES, ...SERVICES];
+
+  // A visitor who has asked the OS for less motion should never have to press
+  // anything. Watched live, so toggling the setting takes effect immediately.
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => setReduceMotion(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  // 640px is Tailwind's `sm`, so the JS motion mode and the CSS layout flip
+  // at the same width. Watched rather than read once, or rotating a phone
+  // would leave the wrong mode running.
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const apply = () => setIsDesktop(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  // Measured, not assumed: the card is a fixed 320px on desktop but fills the
+  // track on mobile, so a hardcoded width would break the loop on phones.
+  const stepWidth = () => {
+    const el = trackRef.current;
+    if (!el) return 0;
+    const card = el.firstElementChild as HTMLElement | null;
+    return card ? card.getBoundingClientRect().width + CARD_GAP : el.clientWidth;
+  };
+  const loopWidth = () => REAL_COUNT * stepWidth();
+
+  // Keeps the dots honest for drift, stepping, arrows and manual swiping
+  // alike, since all four ultimately just move scrollLeft.
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+
+    const onScroll = () => {
+      const step = stepWidth();
+      if (!step) return;
+
+      // Manual swiping can carry past the loop point; rebase it back. Skipped
+      // while a smooth scroll is running, because assigning scrollLeft
+      // mid-animation cancels the animation.
+      if (!animatingRef.current && el.scrollLeft >= loopWidth()) el.scrollLeft -= loopWidth();
+
+      const next = Math.round(el.scrollLeft / step) % REAL_COUNT;
+      if (next !== dotRef.current) {
+        dotRef.current = next;
+        setActiveDot(next);
+      }
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Desktop: continuous glide. requestAnimationFrame rather than setInterval
+  // so movement is tied to the display's refresh and stops with the tab.
+  // Distance comes from elapsed time, not a fixed step per frame, so it runs
+  // at the same speed on a 60Hz and a 120Hz screen.
+  useEffect(() => {
+    if (!playing || paused || reduceMotion || !isDesktop) return;
+    const el = trackRef.current;
+    if (!el) return;
+
+    let frame = 0;
+    let last = performance.now();
+
+    const tick = (now: number) => {
+      const dt = (now - last) / 1000;
+      last = now;
+
+      const width = loopWidth();
+      let next = el.scrollLeft + DRIFT_PX_PER_SEC * dt;
+      if (width && next >= width) next -= width;
+      el.scrollLeft = next;
+
+      frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, paused, reduceMotion, isDesktop]);
+
+  // Mobile: one card at a time, snapping. The rebase happens BEFORE the step
+  // rather than after, so scrollLeft never crosses the loop point during the
+  // smooth scroll — crossing it mid-animation is what would make the wrap
+  // visible as a rewind.
+  useEffect(() => {
+    if (!playing || paused || reduceMotion || isDesktop) return;
+    const el = trackRef.current;
+    if (!el) return;
+
+    const id = window.setInterval(() => {
+      const step = stepWidth();
+      const width = loopWidth();
+      if (!step || !width) return;
+
+      if (el.scrollLeft + step >= width) {
+        animatingRef.current = false;
+        el.scrollTo({ left: el.scrollLeft - width, behavior: "instant" });
+      }
+
+      animatingRef.current = true;
+      el.scrollBy({ left: step, behavior: "smooth" });
+      window.setTimeout(() => {
+        animatingRef.current = false;
+      }, 600);
+    }, MOBILE_STEP_MS);
+
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, paused, reduceMotion, isDesktop]);
+
+  // Once the visitor scrolls, swipes or uses a key, the motion is over until
+  // they reload. Keyed off intent events rather than the `scroll` event,
+  // because the carousel's own scrolling fires that too and would switch
+  // itself off immediately.
+  const surrender = () => setPlaying(false);
+
+  const nudge = (dir: 1 | -1) => {
+    const el = trackRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * stepWidth(), behavior: reduceMotion ? "auto" : "smooth" });
+  };
 
   return (
     <section id="services" className="scroll-mt-20 border-t border-border/60 py-20 md:py-24">
@@ -602,88 +780,143 @@ function ServicesGrid() {
           />
         </Reveal>
 
-        {/* The name sits ON the photo rather than in a strip beneath it.
-            Sixteen cards with a separate label row read as database rows and
-            added ~40px of height each; over four mobile rows that alone was
-            160px. It is still real HTML text over the image — only the
-            source banners had text baked into pixels, and none of that is
-            used here.
-
-            3:2 rather than 4:3: the source photographs are mostly 16:9, so a
-            wider crop throws less away, and shorter cards keep the collapsed
-            grid to three rows on a phone. */}
-        <Reveal delay={100} className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {/* `Icon` is intentionally not destructured: the no-photo fallback
-              below is a hatch pattern, so nothing in this grid renders one.
-              The field stays on the Service type — TrustBar, Steps and About
-              all still use theirs. */}
-          {SERVICES.map(({ name, photo }, i) => (
-            <article
-              key={name}
-              // The cap follows the COLUMN COUNT so every breakpoint ends on
-              // a full row: 2 cols x 3 = 6, 3 cols x 2 = 6, 4 cols x 2 = 8.
-              // Tying it to `sm` instead left 3+3+2 on a tablet-width phone,
-              // and phones with a >=640px viewport got 8 rather than 6.
-              //
-              // Past the cap is display:none, so those cards leave the grid
-              // flow rather than being clipped — no half row under the button.
-              className={`group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg ${
-                showAll || i < 6 ? "" : i < 8 ? "hidden lg:block" : "hidden"
-              }`}
-            >
-              <div className="relative aspect-[3/2] overflow-hidden bg-muted">
-                {photo ? (
-                  <img
-                    src={photo}
-                    // Decorative: the service name is real text laid over the
-                    // same card, so describing the photo as well would make a
-                    // screen reader announce each service twice.
-                    alt=""
-                    width={800}
-                    height={600}
-                    loading="lazy"
-                    decoding="async"
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                ) : (
-                  // Kept for any service added before its artwork arrives.
-                  // All sixteen have a photo today.
-                  //
-                  // Icon-free: a lone glyph read as a broken image next to
-                  // fifteen photographs. A neutral hatch reads as "artwork
-                  // pending" instead. The service name still renders over it
-                  // from the scrim below, so nothing is lost to a crawler.
-                  <div className="flex h-full w-full items-center justify-center bg-[repeating-linear-gradient(135deg,theme(colors.muted),theme(colors.muted)_6px,theme(colors.border)_6px,theme(colors.border)_12px)]" />
-                )}
-
-                {/* Scrim, not a flat overlay: these photographs vary from a
-                    bright kitchen to a dusk exterior, and only a gradient
-                    keeps white text legible across all of them. */}
-                <div
-                  aria-hidden
-                  className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/40 to-transparent"
-                />
-
-                <h3 className="absolute inset-x-0 bottom-0 p-3 text-sm font-semibold leading-snug text-white drop-shadow-sm">
-                  {name}
-                </h3>
-              </div>
-            </article>
-          ))}
-        </Reveal>
-
-        <Reveal delay={150} className="mt-8 flex justify-center">
-          <button
-            type="button"
-            onClick={() => setShowAll((open) => !open)}
-            aria-expanded={showAll}
-            className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        <Reveal delay={100} className="mt-12">
+          {/* Handlers sit here rather than on Reveal, which takes only
+              children/delay/className. Hover and focus SUSPEND the motion
+              without cancelling it, so a card cannot slide out from under a
+              pointer reaching for it or a keyboard user reading it. */}
+          <div
+            className="flex items-center gap-0 sm:gap-3"
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+            onFocusCapture={() => setPaused(true)}
+            onBlurCapture={() => setPaused(false)}
           >
-            {showAll ? "Show fewer" : "All Services"}
-            <ChevronDown
-              className={`h-4 w-4 transition-transform duration-200 ${showAll ? "rotate-180" : ""}`}
-            />
-          </button>
+            {/* Arrows are desktop-only. On a phone they consumed 104px of a
+                312px row — which is what clipped the cards — and a thumb
+                swipes anyway. */}
+            <button
+              type="button"
+              onClick={() => {
+                surrender();
+                nudge(-1);
+              }}
+              aria-label="Previous services"
+              className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:inline-flex"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+
+            <div
+              ref={trackRef}
+              // A scrollable region has to be focusable or a keyboard user
+              // cannot reach the cards past the fold, and it needs a name so
+              // it is not announced as an anonymous scroll area.
+              role="region"
+              aria-label="Our services"
+              tabIndex={0}
+              onWheel={surrender}
+              onPointerDown={surrender}
+              onKeyDown={surrender}
+              // Snap on mobile so a swipe lands on exactly one card; none on
+              // desktop, where it would fight the glide.
+              className="scrollbar-none flex flex-1 snap-x snap-mandatory gap-[18px] overflow-x-auto p-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:snap-none"
+            >
+              {loopServices.map(({ name, photo }, i) => (
+                <article
+                  key={`${name}-${i}`}
+                  // The second copy is decorative: hidden from assistive tech
+                  // so each of the sixteen real names is announced once.
+                  aria-hidden={i >= REAL_COUNT || undefined}
+                  className="group relative h-[270px] w-full shrink-0 snap-start overflow-hidden rounded-[18px] border border-transparent transition-all duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_16px_32px_-4px_rgba(0,0,0,0.14)] sm:h-[230px] sm:w-[320px] sm:snap-align-none"
+                >
+                  {photo ? (
+                    <img
+                      src={photo}
+                      // Decorative: the service name is real text laid over
+                      // the same card, so describing the photo as well would
+                      // make a screen reader announce each service twice.
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    // Kept for any service added before its artwork arrives;
+                    // all sixteen have a photo today.
+                    <div className="h-full w-full bg-[repeating-linear-gradient(135deg,theme(colors.muted),theme(colors.muted)_6px,theme(colors.border)_6px,theme(colors.border)_12px)]" />
+                  )}
+
+                  {/* Scrim, not a flat tint: the photographs run from a bright
+                      kitchen to a dusk exterior, and only a gradient keeps
+                      white text legible across all of them. */}
+                  <div
+                    aria-hidden
+                    className="absolute inset-0"
+                    style={{
+                      backgroundImage:
+                        "linear-gradient(0deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 45%, transparent 70%)",
+                    }}
+                  />
+
+                  <h3 className="absolute inset-x-[18px] bottom-[18px] m-0 text-[19px] font-bold leading-tight text-white sm:inset-x-4 sm:bottom-3.5 sm:text-[15px] sm:font-semibold">
+                    {name}
+                  </h3>
+                </article>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                surrender();
+                nudge(1);
+              }}
+              aria-label="More services"
+              className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:inline-flex"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Position readout only — the track and arrows are the controls, so
+              these are not buttons. aria-hidden because sixteen unlabelled
+              dots announce as sixteen pieces of nothing.
+
+              Two renderings: a five-dot window on mobile, because one card
+              fills the screen and sixteen 6px dots under it are unreadable
+              noise; the full sixteen on desktop, where several cards are
+              visible and the row maps to what you can see. */}
+          <div aria-hidden className="mt-[18px] flex items-center justify-center gap-1.5 sm:hidden">
+            {[-2, -1, 0, 1, 2].map((offset) => {
+              const size = offset === 0 ? 8 : Math.abs(offset) === 1 ? 6 : 4;
+              return (
+                <span
+                  key={offset}
+                  className="rounded-full transition-all duration-200"
+                  style={{
+                    width: size,
+                    height: size,
+                    background: offset === 0 ? "var(--primary)" : "var(--border)",
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          <div aria-hidden className="mt-[18px] hidden items-center justify-center gap-1.5 sm:flex">
+            {SERVICES.map((_, i) => (
+              <span
+                key={i}
+                className="rounded-full transition-all duration-200"
+                style={{
+                  width: i === activeDot ? 8 : 6,
+                  height: i === activeDot ? 8 : 6,
+                  background: i === activeDot ? "var(--primary)" : "var(--border)",
+                }}
+              />
+            ))}
+          </div>
         </Reveal>
 
         <Reveal delay={200}>
