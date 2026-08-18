@@ -128,6 +128,24 @@ export default defineConfig({
     // so wrangler serves it at `/`.
     rollupOptions: {
       input: path.resolve(__dirname, "index.marketing.html"),
+
+      // CACHE-BUST TOKEN — bump this if a bad asset response ever gets stuck
+      // again. It is the only lever that reaches a browser which has already
+      // cached a broken response, because a CDN purge cannot.
+      //
+      // On 2026-08-18 the apex served index.html under
+      // /assets/index.marketing-CMBsGWXB.js. Browsers that cached it kept
+      // rendering blank while others were fine, and the deployment itself was
+      // verified correct — origin returned valid JS over HTTP/1.1 and HTTP/2,
+      // cache-busted and not, on both hostnames. Changing the filename is what
+      // moves every client onto a URL nothing has ever cached.
+      //
+      // Marketing only; the app build has its own config and its own assets.
+      output: {
+        entryFileNames: "assets/[name]-c2-[hash].js",
+        chunkFileNames: "assets/[name]-c2-[hash].js",
+        assetFileNames: "assets/[name]-c2-[hash][extname]",
+      },
     },
   },
 });

@@ -6,8 +6,23 @@
 # on next load — a cached SW that has gone bad is very hard to recover
 # from otherwise.
 
+# `immutable` was removed on 2026-08-18 after it turned a transient bad
+# response into a week-long outage.
+#
+# The filenames are content-hashed, so a long max-age is still correct and
+# is kept. But `immutable` additionally tells the browser not to revalidate
+# even on an explicit reload. Combined with _redirects' `/* /index.html 200`
+# catch-all — which returns HTML with a **200** rather than a 404 whenever a
+# file is briefly unreachable — any browser that once cached that HTML under
+# an asset URL served it for a year and never asked the server again. The
+# page rendered blank on those machines only, which is why it looked random
+# and why purging the CDN would not have reached them.
+#
+# Without `immutable` the cache still holds for a year in normal use, but a
+# refresh can revalidate and recover. That escape hatch is worth far more
+# than the handful of revalidation requests it costs.
 /assets/*
-  Cache-Control: public, max-age=31536000, immutable
+  Cache-Control: public, max-age=31536000
 
 /index.html
   Cache-Control: no-cache
