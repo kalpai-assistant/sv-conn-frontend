@@ -163,14 +163,6 @@ function routingFiles(): Plugin {
     closeBundle() {
       const outDir = path.resolve(__dirname, "dist-marketing");
 
-      // Only the routes that have no file of their own. "/" is omitted
-      // because index.html exists at the root once the build script renames
-      // it. Derived from ROUTES so a new route cannot be forgotten here.
-      const rules = ROUTES.filter((r) => r !== "/").flatMap((r) => [
-        `${r}    /index.html   200`,
-        `${r}/   /index.html   200`,
-      ]);
-
       fs.writeFileSync(
         path.join(outDir, "_redirects"),
         [
@@ -179,27 +171,42 @@ function routingFiles(): Plugin {
           "# app needs and marketing must not have. Editing this file has no",
           "# effect; change routingFiles() instead.",
           "#",
-          "# No catch-all on purpose: it made a missing asset return a",
-          "# cacheable 200 text/html, which is what blanked the site on",
-          "# 2026-08-17. Unmatched paths now fall through to 404.html.",
-          "",
-          ...rules,
+          "# Intentionally empty of rules. The catch-all made a missing asset",
+          "# return a cacheable 200 text/html, which is what blanked the site",
+          "# on 2026-08-17. Routes are real files (see below) and everything",
+          "# unmatched falls through to 404.html.",
           "",
         ].join("\n"),
       );
 
-      // Pages walks up the tree for the nearest 404.html, so this one answers
-      // for every unmatched path. It is a copy of the built shell, so the SPA
-      // still boots and renders NotFoundPage — same view as before, now with
-      // an honest status code.
-      //
       // The build script renames index.marketing.html -> index.html *after*
       // vite exits, so at this point the pre-rename name is the one on disk.
       const shell = ["index.marketing.html", "index.html"]
         .map((f) => path.join(outDir, f))
         .find((f) => fs.existsSync(f));
 
-      if (!shell) throw new Error("routingFiles: no built HTML shell to copy for 404.html");
+      if (!shell) throw new Error("routingFiles: no built HTML shell to copy");
+
+      // A REAL FILE per route, rather than a _redirects rewrite.
+      //
+      // The first attempt used `/download  /index.html  200`. That produced a
+      // 308 to `/`, because Cloudflare Pages canonicalises `/index.html` to
+      // `/` — and it applies that to the rewrite *target*, so the rule
+      // redirected instead of rewriting and /download broke. Writing
+      // download/index.html sidesteps rewrite semantics completely: Pages
+      // serves a directory index directly, which is what static site
+      // generators have always done.
+      //
+      // "/" is skipped — index.html already sits at the root.
+      for (const route of ROUTES.filter((r) => r !== "/")) {
+        const dir = path.join(outDir, route.replace(/^\//, ""));
+        fs.mkdirSync(dir, { recursive: true });
+        fs.copyFileSync(shell, path.join(dir, "index.html"));
+      }
+
+      // Pages walks up the tree for the nearest 404.html, so this one answers
+      // for every unmatched path. A copy of the shell, so the SPA still boots
+      // and renders NotFoundPage — same view as before, honest status code.
       fs.copyFileSync(shell, path.join(outDir, "404.html"));
     },
   };
