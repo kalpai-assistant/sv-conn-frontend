@@ -74,3 +74,9 @@ Thumbs.db
 ehthumbs.db
 desktop.ini
 dist-marketing
+
+# Local working notes for the marketing site. Untracked on 2026-08-18 at
+# the author's request: it is a personal scratchpad carrying open questions
+# and unreviewed commentary, not a team document. Keep team-facing facts in
+# code comments, commit messages and PR descriptions instead.
+MARKETING_LANDING_WIP.md
