@@ -1,0 +1,108 @@
+# Deploy app.eazyserv.com → Cloudflare Pages project `sv-conn-frontend`.
+#
+# Historically deployed via the Cloudflare Pages Git integration (CF watches
+# main and rebuilds). This workflow replaces that so we can:
+#   - Gate the deploy on CI success (Git integration deploys even on failing
+#     builds — it has its own build pipeline that doesn't know about CI).
+#   - Trigger a deploy on demand (workflow_dispatch) for hotfixes / rollbacks
+#     without pushing a commit.
+#   - Keep parity with the backend's deploy-beta.yml pattern.
+#
+# Runtime env vars (VITE_*) are read from the Cloudflare Pages project's
+# production config at build time — CF stays the single source of truth so
+# rotating a key doesn't need a coordinated GH-secret + CF-dashboard update.
+#
+# Before turning off the CF Pages Git integration:
+#   1. Merge this workflow.
+#   2. Trigger it manually and confirm the deploy lands on app.eazyserv.com.
+#   3. In the Cloudflare dashboard → Pages → sv-conn-frontend → Settings →
+#      Builds & deployments → **disable** the Git integration (or unlink the
+#      GitHub connection) so the two paths don't fight.
+
+name: Deploy app
+
+on:
+  workflow_dispatch:
+  # Auto-deploy on push to main is deliberately OFF until §1-3 above are done.
+  # Enable by uncommenting; keep paths-ignore in sync with what the app bundle
+  # actually uses (marketing changes should not force an app rebuild).
+  # push:
+  #   branches: [main]
+  #   paths-ignore:
+  #     - "src/marketing/**"
+  #     - "index.marketing.html"
+  #     - "vite.marketing.config.ts"
+  #     - "**.md"
+  #     - ".gitignore"
+
+concurrency:
+  group: deploy-app
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Pull the VITE_* env vars from the CF Pages project's production
+      # config. Keeps CF as the source of truth for build-time inlined
+      # values (API URL, Razorpay/Firebase public keys, Sentry DSN, etc.)
+      # so a key rotation only needs an edit in one place.
+      #
+      # API: https://developers.cloudflare.com/api/operations/pages-project-get-project
+      # The API returns each env var as {"type":"plain_text","value":"..."}
+      # or {"type":"secret_text","value":"..."} — both flavours have `.value`
+      # readable via the API token (needs Pages:Read scope).
+      - name: Fetch VITE_* build env from CF Pages project
+        env:
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_PROJECT: sv-conn-frontend
+        run: |
+          set -euo pipefail
+          RESP=$(curl -sS -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/pages/projects/$CF_PROJECT")
+          SUCCESS=$(echo "$RESP" | jq -r '.success')
+          if [ "$SUCCESS" != "true" ]; then
+            echo "::error::CF Pages API returned failure:"
+            echo "$RESP" | jq '.errors // .'
+            exit 1
+          fi
+          # Extract every VITE_* key from the production env_vars block.
+          # Mask each value before exporting so it never appears in logs.
+          echo "$RESP" | jq -r '.result.deployment_configs.production.env_vars // {} | to_entries[] | select(.key | startswith("VITE_")) | "\(.key)\t\(.value.value)"' \
+          | while IFS=$'\t' read -r key val; do
+              echo "::add-mask::$val"
+              echo "$key=$val" >> "$GITHUB_ENV"
+              echo "  loaded $key (len=${#val})"
+            done
+
+      # Build the mobile SPA bundle. Note: the live app.eazyserv.com currently
+      # serves index.mobile-*.js (verified via `curl https://app.eazyserv.com/`),
+      # so this matches production behaviour. If the SSR/PWA `npm run build`
+      # variant is the intended target, swap the two lines below AND update
+      # the wrangler deploy dir to `dist`.
+      - name: Build app bundle
+        run: npm run build:mobile
+
+      # Wrangler action handles auth + `wrangler pages deploy`. `--branch=main`
+      # promotes the deploy to production on the Pages project; any other
+      # branch value produces a preview deploy on a *.pages.dev URL.
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist-mobile --project-name=sv-conn-frontend --branch=main
