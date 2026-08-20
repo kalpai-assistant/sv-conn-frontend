@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import type { BookingStatus, Booking } from "@/lib/mock-data";
 import { useBookings } from "@/hooks/useApi";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/bookings")({
   head: () => ({
@@ -37,7 +37,7 @@ function statusColor(status: string) {
 
 function BookingsPage() {
   const [tab, setTab] = useState<"active" | "past">("active");
-  const { data: allBookings, isLoading } = useBookings();
+  const { data: allBookings, isLoading, isError, refetch } = useBookings();
 
   const bookings: Booking[] = allBookings || [];
   const active = bookings.filter((b) => activeStatuses.includes(b.status as BookingStatus));
@@ -67,6 +67,21 @@ function BookingsPage() {
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : isError ? (
+          // Without this branch, a failed /bookings request falls through to
+          // the "No X bookings" empty state below — masking a real error as
+          // "you have no bookings". Bit the beta hard when the DB drifted
+          // behind and /bookings 500'd for everyone.
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+            <p className="text-sm text-muted-foreground">Couldn't load your bookings.</p>
+            <button
+              onClick={() => refetch()}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Try again
+            </button>
           </div>
         ) : list.length === 0 ? (
           <p className="py-12 text-center text-sm text-muted-foreground">No {tab} bookings</p>
