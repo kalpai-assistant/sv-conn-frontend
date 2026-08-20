@@ -2,4 +2,12 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <external-path name="my_images" path="." />
     <cache-path name="my_cache_images" path="." />
+    <!-- SVC-226: matches ApkUpdaterPlugin's setDestinationInExternalFilesDir(
+         DIRECTORY_DOWNLOADS, ...), which resolves to
+         <externalFilesDir>/Download/. `external-files-path` maps that
+         directory into a FileProvider-safe content:// URI so
+         Intent.ACTION_VIEW can hand the APK to the package installer
+         on API 24+. If the plugin's APK_FILENAME or destination dir
+         changes, this entry must change with it. -->
+    <external-files-path name="apk_updates" path="Download/" />
 </paths>

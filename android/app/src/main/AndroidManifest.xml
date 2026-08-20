@@ -50,6 +50,15 @@
     <!-- Fallback for Android 12 and below; scoped to API <= 32 to avoid Play Store warnings -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 
+    <!-- SVC-226: in-app APK update. REQUEST_INSTALL_PACKAGES lets our
+         app launch Android's package installer directly on the APK we
+         downloaded via DownloadManager (see ApkUpdaterPlugin). Runtime
+         grant on API 26+; the plugin's canInstall() / openInstallSettings()
+         methods route the user to the Settings screen if the toggle isn't
+         on yet. If we ever move to Play Store distribution, this becomes
+         a no-op (Play handles updates directly). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- Declare camera as a soft feature (not all devices have one — don't block install) -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
