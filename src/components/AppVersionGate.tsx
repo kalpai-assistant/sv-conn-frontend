@@ -15,10 +15,27 @@
  *
  * Wraps whatever is passed as children — mount at the very top of the
  * component tree so the block state can cover everything below.
+ *
+ * SVC-226: on Android-native runtimes the Download CTA is replaced by
+ * a stateful in-app download flow (progress → install) using the
+ * ApkUpdater plugin. Non-Android (web/PWA/iOS) still uses the plain
+ * `<a href>` fallback since neither Android's DownloadManager nor the
+ * package installer exists off-Android.
  */
-import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { AlertCircle, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  canInstall as apkCanInstall,
+  download as apkDownload,
+  install as apkInstall,
+  isSupported as apkIsSupported,
+  onComplete,
+  onFailed,
+  onProgress,
+  openInstallSettings,
+} from "@/lib/apkUpdater";
+import { reportError } from "@/lib/sentry";
 import { useAppVersionCheck } from "@/lib/useAppVersionCheck";
 
 const NUDGE_DISMISS_KEY = "eazyserv:version-nudge-dismissed-until";
@@ -68,6 +85,230 @@ export function AppVersionGate({ children }: { children: React.ReactNode }) {
 }
 
 // ---------------------------------------------------------------------------
+// SVC-226: the shared in-app download state machine used by both the
+// nudge and the block UIs. Hook so both can render their own container
+// styling around the same behaviour.
+// ---------------------------------------------------------------------------
+
+type UpdaterState =
+  | { kind: "idle" }
+  | { kind: "downloading"; percent: number; bytes: number; total: number }
+  | { kind: "ready-to-install" }
+  | { kind: "needs-install-permission" }
+  | { kind: "error"; message: string };
+
+interface UseInAppUpdaterOpts {
+  url: string;
+}
+
+function useInAppUpdater({ url }: UseInAppUpdaterOpts) {
+  const [state, setState] = useState<UpdaterState>({ kind: "idle" });
+  // Track handles for cleanup + so a re-render doesn't create duplicate
+  // subscribers.
+  const handlesRef = useRef<{ remove: () => Promise<void> | void }[]>([]);
+
+  const cleanup = useCallback(async () => {
+    for (const h of handlesRef.current) {
+      try {
+        await h.remove();
+      } catch {
+        /* remove is best-effort */
+      }
+    }
+    handlesRef.current = [];
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      void cleanup();
+    };
+  }, [cleanup]);
+
+  const startDownload = useCallback(async () => {
+    // Non-Android → let the anchor tag handle it (parent falls back).
+    if (!apkIsSupported()) return;
+
+    try {
+      // Permission gate: on Android 8+, we can't install without the
+      // "unknown sources" toggle for our app. If it's off, route the
+      // user to Settings first — download would succeed but install
+      // would silently fail.
+      const permit = await apkCanInstall();
+      if (!permit.canInstall) {
+        setState({ kind: "needs-install-permission" });
+        return;
+      }
+
+      setState({ kind: "downloading", percent: 0, bytes: 0, total: 0 });
+
+      // Subscribe BEFORE the download call so early progress events
+      // aren't missed.
+      const progressHandle = await onProgress((evt) => {
+        setState({
+          kind: "downloading",
+          percent: evt.percent,
+          bytes: evt.bytes,
+          total: evt.total,
+        });
+      });
+      const completeHandle = await onComplete(() => {
+        setState({ kind: "ready-to-install" });
+      });
+      const failedHandle = await onFailed((evt) => {
+        setState({
+          kind: "error",
+          message: `Download failed: ${evt.reasonText}`,
+        });
+      });
+      handlesRef.current = [progressHandle, completeHandle, failedHandle];
+
+      await apkDownload(url);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reportError(err instanceof Error ? err : new Error(message), {
+        source: "apk-updater.download",
+      });
+      setState({ kind: "error", message });
+    }
+  }, [url]);
+
+  const triggerInstall = useCallback(async () => {
+    try {
+      await apkInstall();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reportError(err instanceof Error ? err : new Error(message), {
+        source: "apk-updater.install",
+      });
+      setState({ kind: "error", message });
+    }
+  }, []);
+
+  const openPermissionSettings = useCallback(async () => {
+    try {
+      await openInstallSettings();
+      // Reset to idle so the user can retry after granting.
+      setState({ kind: "idle" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setState({ kind: "error", message });
+    }
+  }, []);
+
+  return {
+    state,
+    isNativeAndroid: apkIsSupported(),
+    startDownload,
+    triggerInstall,
+    openPermissionSettings,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Shared UI: the button (or button-cluster) that swaps in for the raw
+// <a href>. Renders based on the updater state.
+// ---------------------------------------------------------------------------
+
+function UpdateCta({
+  url,
+  variant,
+}: {
+  url: string;
+  /** "nudge" = small buttons in a toast; "block" = full-width primary CTA. */
+  variant: "nudge" | "block";
+}) {
+  const { state, isNativeAndroid, startDownload, triggerInstall, openPermissionSettings } =
+    useInAppUpdater({ url });
+
+  // Off Android: keep the original anchor-tag behaviour. It opens the
+  // system browser, Chrome downloads, notification-shade install.
+  if (!isNativeAndroid) {
+    return variant === "nudge" ? (
+      <a
+        href={url}
+        className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+      >
+        Update
+      </a>
+    ) : (
+      <a
+        href={url}
+        className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+      >
+        Update now
+      </a>
+    );
+  }
+
+  const primaryClass =
+    variant === "nudge"
+      ? "rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
+      : "mt-5 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-70";
+
+  if (state.kind === "idle") {
+    return (
+      <button onClick={startDownload} className={primaryClass}>
+        Update
+      </button>
+    );
+  }
+
+  if (state.kind === "downloading") {
+    const known = state.percent >= 0;
+    return (
+      <div className="w-full">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>Downloading{known ? ` ${Math.round(state.percent)}%` : "…"}</span>
+          {state.total > 0 && (
+            <span>
+              {formatBytes(state.bytes)} / {formatBytes(state.total)}
+            </span>
+          )}
+        </div>
+        <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-secondary">
+          <div
+            className="h-full bg-primary transition-all"
+            style={{ width: known ? `${Math.max(2, state.percent)}%` : "40%" }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (state.kind === "ready-to-install") {
+    return (
+      <button onClick={triggerInstall} className={primaryClass}>
+        Install
+      </button>
+    );
+  }
+
+  if (state.kind === "needs-install-permission") {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-muted-foreground">Allow EazyServ to install app updates.</p>
+        <button onClick={openPermissionSettings} className={primaryClass}>
+          Open settings
+        </button>
+      </div>
+    );
+  }
+
+  // Error
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2 text-xs text-destructive">
+        <AlertCircle className="h-3.5 w-3.5" />
+        <span>{state.message}</span>
+      </div>
+      <button onClick={startDownload} className={primaryClass}>
+        Try again
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 
 function NudgeToast({
   latest,
@@ -85,13 +326,8 @@ function NudgeToast({
       <div className="flex-1">
         <p className="text-sm font-semibold text-foreground">Update available (v{latest})</p>
         {releaseNotes && <p className="mt-1 text-xs text-muted-foreground">{releaseNotes}</p>}
-        <div className="mt-3 flex gap-2">
-          <a
-            href={url}
-            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Update
-          </a>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <UpdateCta url={url} variant="nudge" />
           <button
             onClick={onDismiss}
             className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
@@ -130,13 +366,16 @@ function BlockOverlay({
         <p className="mt-3 text-xs text-muted-foreground">
           Minimum required: v{minSupported} · Latest: v{latest}
         </p>
-        <a
-          href={url}
-          className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-        >
-          Update now
-        </a>
+        <UpdateCta url={url} variant="block" />
       </div>
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
