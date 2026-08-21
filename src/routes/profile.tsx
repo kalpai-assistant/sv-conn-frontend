@@ -21,6 +21,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { AddAddressSheet } from "@/components/AddAddressSheet";
 import { NotificationsRow } from "@/components/NotificationsRow";
+import { APP_VERSION } from "@/lib/version";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -284,6 +285,13 @@ function ProfilePage() {
               <LogOut className="h-4 w-4" /> Logout
             </button>
           </div>
+
+          {/* Small footer with the running JS bundle version. Doubles as a
+              live check that the auto-publish release pipeline (SVC-227.2)
+              landed the intended bundle on the device. */}
+          <p className="pb-6 text-center text-[10px] text-muted-foreground">
+            EazyServ · v{APP_VERSION}
+          </p>
         </>
       )}
 
