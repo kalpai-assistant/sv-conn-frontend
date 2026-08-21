@@ -4,6 +4,8 @@ Beta ships via direct APK on `eazyserv.com/download` — no Play Store. This
 doc covers the signed-APK build side (SVC-160). PWA "release" is just a
 Cloudflare deploy of the web build; nothing to sign.
 
+> **TL;DR for shipping**: cutting a release is a single `gh workflow run` — jump to [Shipping a release APK — the automated path](#shipping-a-release-apk--the-automated-path-svc-2272). The sections below are for local development of the release build (keystore setup, first-time bootstrap, debugging).
+
 ## What you need on your machine
 
 - **JDK 21 specifically**: `brew install --cask temurin@21`. Do not
@@ -112,44 +114,69 @@ signing — a debug-signed APK looks fine locally but installs as a
 debug build in prod, and there's no way to update it in place with a
 real release later.
 
-## Shipping a release APK to `/download`
+## Shipping a release APK — the automated path (SVC-227.2)
 
-_Filed as a follow-up: automated S3 upload from CI. Until then, manual:_
+**As of 2026-08-21, cutting a release is a single `gh workflow run`.** The whole thing above (JDK + keystore + Gradle + S3 upload) is only for **local** development of the release build. Actual production releases go through `.github/workflows/release-apk.yml`, which is preferred for everything except keystore debugging.
 
-1. Bump `versionCode` + `versionName` in `android/app/build.gradle`.
-   `versionName` must match the `latest` row in the backend's
-   `app_versions` table (SVC-162) — otherwise the version-check nudge
-   fires on the freshly-updated build.
-2. `./gradlew assembleRelease` (see above).
-3. Rename: `mv app-release.apk eazyserv-<versionName>.apk`.
-4. Upload to `s3://eazyserv-downloads/apk/eazyserv-<versionName>.apk`
-   + `s3://eazyserv-downloads/apk/latest.apk` (the `/download` page
-   links to the `latest.apk` URL directly).
-5. Update the backend `app_versions` row: bump `version` (and
-   `min_supported_version` only if this release is a hard-required
-   upgrade). The `/downloads/latest.json` cache is 5 min at edge; the
-   in-app version-check hits it on every foreground event.
-6. Manually install the APK on a real Android device before announcing
-   — Android side-load rejects any signing-key mismatch with a
-   "package appears to be invalid" error that is very confusing to
-   testers. Verifying locally first catches this.
+### Ritual (every release)
 
-## For CI (once we get there)
+1. **Bump versions** in two files, commit + merge to main:
 
-- Base64 the keystore: `base64 -i eazyserv-release.jks -o keystore.b64`
-- GitHub secrets:
-  - `ANDROID_KEYSTORE_B64` — the base64 blob above
-  - `ANDROID_KEYSTORE_STORE_PASSWORD`
-  - `ANDROID_KEYSTORE_KEY_PASSWORD`
-- CI decodes at build time and drops the file where
-  `keystore.properties` expects it:
-  ```bash
-  mkdir -p frontend/android/keystore
-  echo "$ANDROID_KEYSTORE_B64" | base64 -d \
-    > frontend/android/keystore/eazyserv-release.jks
-  cp frontend/android/keystore.properties.example \
-     frontend/android/keystore.properties
-  ```
+   `src/lib/version.ts`:
+   ```typescript
+   export const APP_VERSION = "1.0.4-beta";
+   ```
+
+   `android/app/build.gradle`:
+   ```groovy
+   versionCode 5              // +1 every release — monotonic
+   versionName "1.0.4-beta"
+   ```
+
+2. **Dispatch**:
+   ```bash
+   gh workflow run release-apk.yml \
+     --repo kalpai-assistant/sv-conn-frontend \
+     -f version=1.0.4-beta \
+     -f release_notes="Back button + cart footer fixes"
+   ```
+
+### What the workflow does (~5 min end-to-end)
+
+1. `npm ci` + `npm run build:mobile` + `npx cap sync android`
+2. Materialises the keystore from `secrets.ANDROID_KEYSTORE_B64`, exports the two password env vars
+3. `./gradlew assembleRelease` — signed APK at `android/app/build/outputs/apk/release/app-release.apk`
+4. `apksigner verify` sanity check (rejects debug-signed builds)
+5. Uploads TWO S3 keys via OIDC assume-role:
+   - `s3://eazyserv-downloads/apk/eazyserv-<version>.apk` — immutable versioned
+   - `s3://eazyserv-downloads/apk/latest.apk` — mutable pointer, cache 5 min
+6. Calls `POST /api/v1/admin/app-versions/android/release` on the backend with `X-Internal-Release-Token` (read from SSM inline) — bumps `app_versions.android` + enqueues FCM broadcast
+7. The Celery worker (`eazyserv-worker`, SVC-228) picks up the broadcast task, fans out FCM pushes to every consumer's device
+8. Users see the push notification in seconds; the in-app nudge (SVC-226) shows on tap or next foreground
+
+### Workflow inputs
+
+| Input | Required | Default | Notes |
+|---|---|---|---|
+| `version` | ✅ | — | SemVer. Must match `versionName` from step 1. |
+| `release_notes` | ⬜ | `""` | Plain text shown in the nudge. Keep short. |
+| `notify` | ⬜ | `true` | Set `false` for validation-only runs from a feature branch — won't touch beta's `app_versions`, won't push. |
+| `min_supported_version` | ⬜ | (unchanged) | **Emergency hard-block lever.** Anyone below gets a no-dismiss modal until they update. Don't touch unless there's a critical bug in the wild. |
+
+### The rare case where you still need this doc's manual path
+
+You'd only fall back to the sections above when:
+- Debugging the keystore or signing config (production build fails locally)
+- Cutting a one-off APK for a specific tester without publishing (`gh workflow run ... -f notify=false` almost always covers this)
+- The workflow itself is broken and you need to unblock a release urgently
+
+## GitHub Actions secrets already configured
+
+For reference (don't rotate without coordinating):
+- `ANDROID_KEYSTORE_B64` — base64 of `eazyserv-release.jks`
+- `ANDROID_KEYSTORE_STORE_PASSWORD`
+- `ANDROID_KEYSTORE_KEY_PASSWORD`
+- `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` — for the web deploy workflow, not APK
 
 ## Known follow-ups (open tickets)
 
