@@ -113,13 +113,30 @@ public class ApkUpdaterPlugin extends Plugin {
             )
             // Hidden — the JS layer paints its own progress bar. Two
             // notifications side by side (system + in-app) would confuse
-            // the user about which one to tap.
+            // the user about which one to tap. Requires the
+            // DOWNLOAD_WITHOUT_NOTIFICATION uses-permission in the
+            // manifest; without it, enqueue() throws SecurityException
+            // and — pre-this-try/catch — crashed the entire app on tap.
+            // Day-0 crash, fixed in the same PR that added this comment.
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN)
             .setMimeType("application/vnd.android.package-archive")
             .setAllowedOverMetered(true)
             .setAllowedOverRoaming(true);
 
-        currentDownloadId = dm.enqueue(req);
+        // enqueue() can throw:
+        //   - SecurityException  → missing DOWNLOAD_WITHOUT_NOTIFICATION
+        //                          (the day-0 crash) or user revoked something
+        //   - IllegalArgumentException → malformed URL, unreachable destination
+        //   - anything else the download provider raises
+        // Any uncaught throw from a @PluginMethod terminates the app process
+        // via the Capacitor bridge. Catch broad, reject the PluginCall,
+        // let the JS layer render its error state.
+        try {
+            currentDownloadId = dm.enqueue(req);
+        } catch (Exception e) {
+            call.reject("Download could not start: " + e.getMessage(), e);
+            return;
+        }
         startPolling(call);
         registerCompletionReceiver();
 
