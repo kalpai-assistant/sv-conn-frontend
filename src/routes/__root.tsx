@@ -60,7 +60,7 @@ export const Route = createRootRoute({
 type UserWithMaybeRole = { role?: "consumer" | "provider" | "admin" };
 
 function AppGate({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated, isNewUser } = useAuth();
+  const { user, isAuthenticated, isNewUser, isRestoring } = useAuth();
   const routerState = useRouterState();
   const pathname = routerState.location.pathname;
   const isProfileRoute = pathname.startsWith("/profile");
@@ -100,6 +100,15 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // Public routes render regardless of auth state.
   if (isPublicRoute) {
     return <div className="min-h-screen bg-background">{children}</div>;
+  }
+
+  // Cold-start session restore — hold the shell blank while AuthProvider
+  // probes stored tokens against /users/me. Without this guard, a signed-in
+  // user briefly sees the AuthFlow ("Continue with phone") flash before
+  // landing on home, which reads as "did I get logged out?". Blank splash
+  // is honest — we don't yet know what to render.
+  if (isRestoring) {
+    return <div className="mx-auto max-w-md min-h-screen bg-background" />;
   }
 
   if (!isAuthenticated) {
