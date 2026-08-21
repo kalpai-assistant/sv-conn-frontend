@@ -24,6 +24,21 @@ on:
         description: "Release version (e.g. 0.1.0). Uploaded as eazyserv-<version>.apk + latest.apk"
         required: true
         type: string
+      release_notes:
+        description: "Short plain-text release notes (shown in the in-app nudge)"
+        required: false
+        type: string
+        default: ""
+      notify:
+        description: "After APK upload, tell the backend to bump app_versions AND push an FCM broadcast. Turn off for validation-only runs."
+        required: false
+        type: boolean
+        default: true
+      min_supported_version:
+        description: "Emergency: hard-block anyone below this version. Leave empty to keep the current threshold."
+        required: false
+        type: string
+        default: ""
 
 concurrency:
   group: release-apk
@@ -162,5 +177,55 @@ jobs:
         run: |
           echo "Versioned: https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/apk/eazyserv-${VERSION}.apk"
           echo "Latest:    https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/apk/latest.apk"
-          echo ""
-          echo "Next: bump the backend app_versions row (SVC-162) so the version-check nudge sees the new build."
+
+      # SVC-227.2: notify the backend that a new APK is live. The endpoint
+      # bumps app_versions.android atomically and (unless notify=false)
+      # enqueues an FCM broadcast so users learn about the update without
+      # opening the app.
+      #
+      # Auth uses X-Internal-Release-Token (SVC-227.2) — the token is a
+      # SecureString SSM param scoped to this endpoint. No admin JWT needed
+      # here (CI has no user).
+      #
+      # `notify=false` runs OFF this step entirely — validation-only
+      # workflow_dispatches from a feature branch shouldn't touch the
+      # live app_versions row. Set the input to false for those runs.
+      - name: Publish release to backend
+        if: ${{ inputs.notify }}
+        env:
+          VERSION: ${{ inputs.version }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          MIN_SUPPORTED: ${{ inputs.min_supported_version }}
+          API_URL: https://api.eazyserv.com/api/v1
+        run: |
+          set -euo pipefail
+          TOKEN=$(aws ssm get-parameter \
+            --name /eazyserv/beta/INTERNAL_RELEASE_TOKEN \
+            --with-decryption --query 'Parameter.Value' --output text)
+          echo "::add-mask::$TOKEN"
+
+          # Build the JSON body. jq guarantees safe escaping — Bash string
+          # interpolation of arbitrary release-notes into JSON is a
+          # quoting nightmare (backticks, backslashes, curly braces).
+          BODY=$(jq -n \
+            --arg version "$VERSION" \
+            --arg release_notes "$RELEASE_NOTES" \
+            --arg min_supported "$MIN_SUPPORTED" \
+            '{version: $version}
+             + (if $release_notes == "" then {} else {release_notes: $release_notes} end)
+             + (if $min_supported == "" then {} else {min_supported_version: $min_supported} end)')
+          echo "Publishing to $API_URL/admin/app-versions/android/release"
+          echo "Body: $BODY"
+
+          HTTP_CODE=$(curl -sS -o /tmp/release_response.json -w "%{http_code}" \
+            -X POST "$API_URL/admin/app-versions/android/release" \
+            -H "X-Internal-Release-Token: $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$BODY")
+          echo "HTTP $HTTP_CODE"
+          cat /tmp/release_response.json | jq . || cat /tmp/release_response.json
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "::error::Release endpoint returned HTTP $HTTP_CODE — APK is uploaded but the version row was NOT bumped. Fix + re-run this step (or bump the row by hand)."
+            exit 1
+          fi
+          echo "✓ app_versions.android bumped to $VERSION; FCM broadcast enqueued."
