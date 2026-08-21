@@ -59,6 +59,15 @@
          a no-op (Play handles updates directly). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- SVC-226 follow-up (day-0 crash fix): DownloadManager.enqueue()
+         throws SecurityException when the Request has
+         setNotificationVisibility(VISIBILITY_HIDDEN) without this permission.
+         We do hide the system notification (the plugin paints its own
+         in-app progress bar — two notifications side by side would
+         confuse users about which to tap). Normal permission — declaring
+         it here grants it, no runtime prompt. -->
+    <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
+
     <!-- Declare camera as a soft feature (not all devices have one — don't block install) -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
