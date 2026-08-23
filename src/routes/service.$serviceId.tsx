@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ShieldCheck, LockKeyhole, Clock, ArrowLeft, Loader2, Check } from "lucide-react";
 import { useServices } from "@/hooks/useApi";
+import { usePageCtaHeight } from "@/hooks/usePageCtaHeight";
 import { useCart } from "@/lib/cart-context";
 import { VariantPicker } from "@/components/service/VariantPicker";
 
@@ -22,6 +23,10 @@ function ServiceDetailPage() {
   // the CTA with no price.
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
 
+  // This page's sticky CTA is taller than the BottomNav it replaces, and
+  // changes height between its two states. Publishing the measured height
+  // keeps CartFab clear of it in both.
+  const ctaRef = usePageCtaHeight<HTMLDivElement>();
 
   const variants = service?.variants ?? [];
   // Default to the first variant, matching the backend's own fallback — so a
@@ -70,7 +75,15 @@ function ServiceDetailPage() {
   };
 
   return (
-    <div className="min-h-screen pb-32">
+    // Bottom padding tracks the CTA rather than guessing it. `pb-32` (128px)
+    // was already short of the CTA's tall state (140px), and CartFab now
+    // floats above the CTA rather than behind it, so the page has to clear
+    // both: CTA height + the FAB (3.5rem) + its 0.5rem gap + breathing room.
+    // Without this the last variant card can never be scrolled into view.
+    <div
+      className="min-h-screen"
+      style={{ paddingBottom: "calc(var(--page-cta-height, 4rem) + 4.5rem)" }}
+    >
       {/* Header */}
       <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card px-4">
         <Link
@@ -147,8 +160,13 @@ function ServiceDetailPage() {
         </div>
       </div>
 
-      {/* Sticky bottom CTA. Two states — not yet added, and already in cart. */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 mx-auto max-w-md border-t border-border bg-card p-4 safe-bottom">
+      {/* Sticky bottom CTA. Two states — not yet added, and already in cart.
+          The ref publishes this container's height so CartFab can float
+          above it; the two states differ by ~50px. */}
+      <div
+        ref={ctaRef}
+        className="fixed bottom-0 left-0 right-0 z-40 mx-auto max-w-md border-t border-border bg-card p-4 safe-bottom"
+      >
         {inCart ? (
           <div className="flex flex-col gap-2">
             <div className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-success/10 text-sm font-medium text-success">
