@@ -168,6 +168,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/providers/me/payout-method": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Payout Method
+         * @description Erase all stored payout destinations.
+         *
+         *     Deliberate, explicit action — saving a new method never removes the old one, so
+         *     this is the only path that deletes payout details. Clears both methods, not just
+         *     the active one: "remove my payout details" should leave the platform holding
+         *     nothing. Afterwards ``payout_set`` is false and the provider cannot be paid until
+         *     they add a method again.
+         */
+        delete: operations["remove_payout_method_api_v1_providers_me_payout_method_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Set Active Payout Method
+         * @description Switch payouts to a method already on file, without re-entering it.
+         *
+         *     A provider who has both a UPI handle and a bank account stored can flip which
+         *     one gets paid. Returns 400 if nothing is stored for the requested method.
+         */
+        patch: operations["set_active_payout_method_api_v1_providers_me_payout_method_patch"];
+        trace?: never;
+    };
     "/api/v1/providers/me/status": {
         parameters: {
             query?: never;
@@ -464,6 +497,31 @@ export interface paths {
         patch: operations["cancel_booking_api_v1_bookings__booking_id__cancel_patch"];
         trace?: never;
     };
+    "/api/v1/bookings/{booking_id}/tip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tip Booking
+         * @description Consumer adds (or updates) a gratuity on a completed booking.
+         *
+         *     100% of the tip flows to the provider — added on top of provider_payout
+         *     at payout time. A subsequent call with a different amount replaces
+         *     rather than accumulates; ``amount=0`` removes the tip. Bounds live in
+         *     the request schema; state + access checks live in the service layer.
+         */
+        post: operations["tip_booking_api_v1_bookings__booking_id__tip_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bookings/{booking_id}/offer": {
         parameters: {
             query?: never;
@@ -502,6 +560,10 @@ export interface paths {
         /**
          * Get Booking
          * @description Fetch a single booking by ID. Only consumer or assigned provider may access.
+         *
+         *     Both parties get the same schema, so the response is built per-caller rather
+         *     than split by ``response_model``: the assigned provider sees the booking
+         *     without ``doorstep_otp`` (SVC-169).
          */
         get: operations["get_booking_api_v1_bookings__booking_id__get"];
         put?: never;
@@ -557,10 +619,38 @@ export interface paths {
         put?: never;
         /**
          * Razorpay Webhook
-         * @description Fix #7: Verify Razorpay webhook HMAC-SHA256 signature before processing.
-         *     Razorpay sends X-Razorpay-Signature header = HMAC(raw_body, webhook_secret).
+         * @description Razorpay Payments webhook — verified against RAZORPAY_WEBHOOK_SECRET.
          */
         post: operations["razorpay_webhook_api_v1_payments_webhook_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/payout-webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Razorpayx Payout Webhook
+         * @description RazorpayX (payouts) webhook — verified against RAZORPAYX_WEBHOOK_SECRET.
+         *
+         *     RazorpayX is a separate Razorpay product with its own webhook secret, so its
+         *     payout.processed / payout.failed / payout.reversed events must arrive on a
+         *     dedicated endpoint rather than the Payments webhook (different secret).
+         *
+         *     The provider's push is dispatched as a background task so it runs only after
+         *     ``get_db`` commits. If this delivery rolls back, RazorpayX retries it and the
+         *     retry settles the same bookings — pushing inline would notify the provider once
+         *     per attempt.
+         */
+        post: operations["razorpayx_payout_webhook_api_v1_payments_payout_webhook_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -595,6 +685,57 @@ export interface paths {
         get: operations["list_provider_reviews_api_v1_reviews_provider__provider_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/coupons/available": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Available Coupons
+         * @description Coupons the current user can apply to a new booking today.
+         *
+         *     The list matches what ``POST /coupons/validate`` will accept — the
+         *     filter set is shared through ``CouponService`` so a coupon shown here
+         *     is never refused there.
+         */
+        get: operations["list_available_coupons_api_v1_coupons_available_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/coupons/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate Coupon
+         * @description Price a coupon against a cart amount.
+         *
+         *     The cart hasn't been persisted as a Booking yet — the app calls this
+         *     while the user is on the Cart screen so the bill preview updates
+         *     live. On success we return the computed discount; a subsequent
+         *     ``POST /bookings`` with ``coupon_code`` recomputes on the server side
+         *     and applies the *authoritative* number, so a client that hoards a
+         *     stale discount can't over-apply.
+         */
+        post: operations["validate_coupon_api_v1_coupons_validate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -721,6 +862,187 @@ export interface paths {
         get: operations["list_all_bookings_api_v1_admin_bookings_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/bookings/{booking_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Any Booking
+         * @description Fetch any one booking by id, whoever it belongs to.
+         *
+         *     Distinct from ``GET /bookings/{id}``, which admits only that booking's own
+         *     consumer or assigned provider — an admin is neither, so the user-facing route
+         *     refuses them and there was previously no way for support to look at a single
+         *     booking at all.
+         *
+         *     This one carries the consumer's address, which the bulk listing above
+         *     deliberately does not (SVC-170). That is the whole distinction: one booking
+         *     asked for by id is a support question about a specific job, where a page of
+         *     every booking on the platform is a standing export of home addresses. It
+         *     still withholds the doorstep PIN — see ``BookingResponse.for_admin``.
+         */
+        get: operations["get_any_booking_api_v1_admin_bookings__booking_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/pending-settlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pending Settlements
+         * @description Providers awaiting settlement, with the amount and booking count owed.
+         *
+         *     The discovery half of the payout flow: ``POST /providers/{user_id}/payout`` can
+         *     only be triggered for a provider the admin already knows, so this answers "who
+         *     do we owe, and how much" for the admin payouts screen. Read-only, so it takes
+         *     the role guard rather than injecting the admin (nothing to audit).
+         */
+        get: operations["list_pending_settlements_api_v1_admin_providers_pending_settlements_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/{user_id}/payout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pay Out Provider
+         * @description Enqueue a RazorpayX payout for a provider's completed-but-unsettled bookings.
+         *
+         *     Returns 202 with a summary of what will be paid and the Celery task id. The
+         *     payout itself runs asynchronously (SVC-188 / G30): before this, the endpoint
+         *     awaited a 30-90s RazorpayX HTTP call while holding a DB connection and a
+         *     ``SELECT … FOR UPDATE`` lock on the provider's pending bookings, which
+         *     puts pool pressure on the same workers serving consumer traffic during a
+         *     RazorpayX slowdown.
+         *
+         *     The upfront reads compute the batch total + booking count without a row
+         *     lock, so the admin gets an accurate estimate immediately. The task then
+         *     runs the full flow (record audit → lock rows → RazorpayX → resolve audit
+         *     → update bookings → drain pushes) — every guarantee from the synchronous
+         *     path is preserved because the task calls the same
+         *     ``PayoutService.create_provider_payout``.
+         *
+         *     Every attempt is still recorded in ``payout_audits`` before the RazorpayX
+         *     call fires; the admin payouts screen surfaces the outcome from there, and
+         *     ``reconcile_payouts`` (nightly) resolves any breadcrumb whose task
+         *     process died mid-flight.
+         */
+        post: operations["pay_out_provider_api_v1_admin_providers__user_id__payout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/{user_id}/payout/requeue-failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Requeue Failed Settlements
+         * @description Reset a provider's FAILED settlements to PENDING so they can be paid again.
+         *
+         *     Manual recovery for payouts that failed (bad bank details, KYC hold, ...): once
+         *     the cause is fixed, an admin re-queues the failed settlements, which then become
+         *     eligible for the next payout run. The triggering admin is recorded in the audit
+         *     trail.
+         */
+        post: operations["requeue_failed_settlements_api_v1_admin_providers__user_id__payout_requeue_failed_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/{user_id}/payout/requeue-reversed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Requeue Reversed Settlements
+         * @description Reset a provider's REVERSED settlements to PENDING so they can be paid again.
+         *
+         *     A reversal means the payout reached the provider and was then clawed back —
+         *     often a KYC/compliance signal, not a simple retry. Only use this once you've
+         *     confirmed the provider is genuinely still owed and the underlying cause is
+         *     fixed; otherwise the re-payment will likely bounce again. Admin-only and
+         *     recorded in the audit trail.
+         */
+        post: operations["requeue_reversed_settlements_api_v1_admin_providers__user_id__payout_requeue_reversed_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/app-versions/{platform}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish App Release
+         * @description One-shot publish: bump `app_versions.{platform}` + (optionally) push
+         *     a "New version available" notification to every consumer with an
+         *     FCM token.
+         *
+         *     The two-step manual ritual — SQL update + separate broadcast call —
+         *     is easy to get wrong (bump the version without notifying, or notify
+         *     without bumping and users tap through to nothing new). This endpoint
+         *     does both atomically: the DB write happens first (so the poll-on-
+         *     foreground path immediately reflects the new version even if the
+         *     broadcast fails to enqueue), then the Celery task is fired.
+         *
+         *     Not the same as ``release-apk.yml`` — that builds and uploads the
+         *     APK. This endpoint tells the running fleet about it after the APK
+         *     is in place. The current publish ritual is:
+         *       1. `gh workflow run release-apk.yml -f version=X.Y.Z`
+         *       2. `POST /admin/app-versions/android/release {"version": "X.Y.Z"}`
+         */
+        post: operations["publish_app_release_api_v1_admin_app_versions__platform__release_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -880,6 +1202,79 @@ export interface components {
              */
             photo: string;
         };
+        /**
+         * BookingAddress
+         * @description Where the job is, as the booking's two parties see it (SVC-170).
+         *
+         *     Its own schema rather than a reuse of ``AddressResponse``, which backs the
+         *     consumer's own address book: that one carries ``is_default``, a detail of how
+         *     the consumer manages their saved addresses and nothing a provider standing
+         *     outside the building has any use for. Same principle that gave
+         *     ``BookingOfferResponse`` its own shape (SVC-153) — serve each audience the
+         *     fields its screen actually renders.
+         *
+         *     ``lat``/``lng`` are the point of this being a nested object rather than a bare
+         *     ``full_address`` string. The job to be done is *navigate there*: with
+         *     coordinates the app can hand off to the device maps app, without them the
+         *     provider retypes a free-text Indian address into Google Maps and trusts its
+         *     geocoder — the failure mode this ticket exists to remove. ``get_offer``
+         *     already reads the same geography to derive ``distance_km``.
+         *
+         *     Both are optional because ``location`` is nullable: ``CreateAddressRequest``
+         *     accepts an address with no coordinates, and older rows have none. Clients must
+         *     treat text as the source of truth and coordinates as the enhancement, never
+         *     the reverse.
+         */
+        BookingAddress: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Full Address */
+            full_address: string;
+            /** Lat */
+            lat: number | null;
+            /** Lng */
+            lng: number | null;
+        };
+        /**
+         * BookingItemResponse
+         * @description One line on a booking response.
+         *
+         *     ``service_name`` is denormalised into the response so the mobile app
+         *     doesn't have to cross-reference against /services for every booking it
+         *     displays — the list route already returns dozens of items and doing that
+         *     lookup client-side is exactly the sort of N+1 pattern the frontend keeps
+         *     hitting. Read from the loaded ``BookingItem.service`` relationship, which
+         *     must be eager-loaded (see ``BookingItem.service`` — ``raise_on_sql``).
+         */
+        BookingItemResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** Service Name */
+            service_name: string;
+            /** Service Variant Id */
+            service_variant_id?: string | null;
+            /** Variant Label */
+            variant_label?: string | null;
+            /** Quantity */
+            quantity: number;
+            /** Unit Price */
+            unit_price: number;
+            /** Total Price */
+            total_price: number;
+        };
         /** BookingListResponse */
         BookingListResponse: {
             /** Bookings */
@@ -951,11 +1346,8 @@ export interface components {
             consumer_id: string;
             /** Provider Id */
             provider_id: string | null;
-            /**
-             * Service Id
-             * Format: uuid
-             */
-            service_id: string;
+            /** Items */
+            items: components["schemas"]["BookingItemResponse"][];
             /** Status */
             status: string;
             /** Service Amount */
@@ -964,12 +1356,22 @@ export interface components {
             platform_commission: number;
             /** Provider Payout */
             provider_payout: number;
+            /** Discount Amount */
+            discount_amount: number;
+            /** Tip Amount */
+            tip_amount: number;
             /** Payment Method */
             payment_method: string | null;
             /** Payment Status */
             payment_status: string;
             /** Doorstep Otp */
             doorstep_otp?: string | null;
+            address: components["schemas"]["BookingAddress"] | null;
+            /**
+             * Is Disputed
+             * @default false
+             */
+            is_disputed: boolean;
             /** Scheduled At */
             scheduled_at: string | null;
             /**
@@ -1001,6 +1403,57 @@ export interface components {
             /** Sort Order */
             sort_order: number;
         };
+        /**
+         * CouponResponse
+         * @description One coupon in a user's available list.
+         *
+         *     ``discount_type`` lets the UI render the correct microcopy
+         *     ("20% off" vs "₹100 off") without needing to know the value's units
+         *     from context. ``expires_at`` is what the card renders — the internal
+         *     ``valid_from`` is not exposed, a coupon that hasn't started yet simply
+         *     doesn't appear in the list.
+         */
+        CouponResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Code */
+            code: string;
+            /** Discount Type */
+            discount_type: string;
+            /** Discount Value */
+            discount_value: number;
+            /** Max Discount */
+            max_discount: number | null;
+            /** Min Order Amount */
+            min_order_amount: number | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /**
+         * CouponValidateRequest
+         * @description User taps [Apply] on a coupon; the app asks the backend to price it.
+         */
+        CouponValidateRequest: {
+            /** Code */
+            code: string;
+            /** Cart Amount */
+            cart_amount: number;
+        };
+        /** CouponValidateResponse */
+        CouponValidateResponse: {
+            /** Code */
+            code: string;
+            /** Discount Type */
+            discount_type: string;
+            /** Discount Amount */
+            discount_amount: number;
+        };
         /** CreateAddressRequest */
         CreateAddressRequest: {
             /**
@@ -1020,13 +1473,40 @@ export interface components {
              */
             is_default: boolean;
         };
-        /** CreateBookingRequest */
-        CreateBookingRequest: {
+        /**
+         * CreateBookingItemRequest
+         * @description One line item on a booking-creation request.
+         */
+        CreateBookingItemRequest: {
             /**
              * Service Id
              * Format: uuid
              */
             service_id: string;
+            /** Service Variant Id */
+            service_variant_id?: string | null;
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+        };
+        /**
+         * CreateBookingRequest
+         * @description Create a booking as either a multi-item cart (``items``) or a single
+         *     service (``service_id``).
+         *
+         *     ``service_id`` is the legacy single-service shape retained for the mobile
+         *     app while the cart UI is rolling out (PR 2c). It is normalised to a
+         *     1-item ``items`` list inside the validator so the service layer sees one
+         *     shape. Once the cart UI has shipped everywhere the ``service_id`` field
+         *     can be removed and callers forced onto ``items``.
+         */
+        CreateBookingRequest: {
+            /** Items */
+            items?: components["schemas"]["CreateBookingItemRequest"][] | null;
+            /** Service Id */
+            service_id?: string | null;
             /**
              * Address Id
              * Format: uuid
@@ -1039,6 +1519,8 @@ export interface components {
              * @default online
              */
             payment_method: string;
+            /** Coupon Code */
+            coupon_code?: string | null;
         };
         /** CreatePaymentOrderRequest */
         CreatePaymentOrderRequest: {
@@ -1095,6 +1577,11 @@ export interface components {
             completed_at: string;
             /** Payout Amount */
             payout_amount: number;
+            /**
+             * Tip Amount
+             * @default 0
+             */
+            tip_amount: number;
         };
         /** EarningsResponse */
         EarningsResponse: {
@@ -1213,6 +1700,65 @@ export interface components {
             razorpay_key_id: string;
         };
         /**
+         * PayoutMethod
+         * @description Which stored destination a provider's payouts actually go to.
+         *
+         *     A provider may keep both a UPI handle and a bank account on file (SVC-148:
+         *     switching does not erase the old one). This is the single source of truth for
+         *     which one the money is sent to — the payout must never infer it from which
+         *     columns happen to be populated.
+         * @enum {string}
+         */
+        PayoutMethod: "upi" | "bank";
+        /**
+         * PayoutMethodSelect
+         * @description Switch payouts to a method the provider already has stored (SVC-148).
+         */
+        PayoutMethodSelect: {
+            method: components["schemas"]["PayoutMethod"];
+        };
+        /**
+         * PendingSettlementProvider
+         * @description One provider with money owed, as shown in the admin payouts list.
+         */
+        PendingSettlementProvider: {
+            /**
+             * Provider Id
+             * Format: uuid
+             */
+            provider_id: string;
+            /** Name */
+            name: string | null;
+            /** Phone */
+            phone: string;
+            /** Pending Booking Count */
+            pending_booking_count: number;
+            /** Pending Payout Paise */
+            pending_payout_paise: number;
+            /** Payout Set */
+            payout_set: boolean;
+            /** Is Active */
+            is_active: boolean;
+            /** Kyc Status */
+            kyc_status: string;
+        };
+        /**
+         * PendingSettlementsResponse
+         * @description Capped list of providers awaiting settlement.
+         *
+         *     Not paginated by design (SVC-144): the admin panel shows one screen of who is
+         *     owed. ``total`` is the true number of providers with pending settlements, so the
+         *     UI can say "showing 200 of 247" when ``truncated`` is set.
+         */
+        PendingSettlementsResponse: {
+            /** Providers */
+            providers: components["schemas"]["PendingSettlementProvider"][];
+            /** Total */
+            total: number;
+            /** Truncated */
+            truncated: boolean;
+        };
+        /**
          * PlatformVersion
          * @description Version metadata for one platform (android / pwa).
          *
@@ -1253,6 +1799,12 @@ export interface components {
             service_area_lng?: number | null;
             /** Service Area Radius Km */
             service_area_radius_km?: number | null;
+            /** Payout Vpa */
+            payout_vpa?: string | null;
+            /** Payout Account Number */
+            payout_account_number?: string | null;
+            /** Payout Ifsc */
+            payout_ifsc?: string | null;
             /** Languages */
             languages?: string[] | null;
         };
@@ -1284,6 +1836,16 @@ export interface components {
             is_online: boolean;
             /** Service Area Radius Km */
             service_area_radius_km: number;
+            /**
+             * Payout Set
+             * @default false
+             */
+            payout_set: boolean;
+            payout_method?: components["schemas"]["PayoutMethod"] | null;
+            /** Payout Display */
+            payout_display?: string | null;
+            /** Payout Methods Stored */
+            payout_methods_stored: components["schemas"]["PayoutMethod"][];
         };
         /** ProviderServiceSubscribeRequest */
         ProviderServiceSubscribeRequest: {
@@ -1315,6 +1877,60 @@ export interface components {
         ProviderStatusUpdate: {
             /** Is Online */
             is_online: boolean;
+        };
+        /**
+         * PublishReleaseRequest
+         * @description Bump the current version + optionally push a nudge to every device.
+         *
+         *     ``version`` is the customer-facing SemVer of the new build. The
+         *     matching APK must already be at ``app_versions.url`` (usually
+         *     ``s3://eazyserv-downloads/apk/latest.apk``, since ``release-apk.yml``
+         *     always overwrites that key). If they don't match, users will nudge
+         *     themselves onto a version we haven't shipped yet.
+         *
+         *     ``min_supported_version``, when passed, atomically hard-blocks anyone
+         *     below it — the SVC-162 emergency lever. Leave it unset to keep the
+         *     current threshold.
+         *
+         *     ``notify`` = true enqueues the FCM broadcast (``broadcast_update_available``).
+         *     Set to false when releasing a build we don't want to interrupt users
+         *     over (e.g. a silent metrics fix — the poll on next foreground will
+         *     still surface the nudge).
+         */
+        PublishReleaseRequest: {
+            /** Version */
+            version: string;
+            /** Min Supported Version */
+            min_supported_version?: string | null;
+            /** Release Notes */
+            release_notes?: string | null;
+            /**
+             * Url
+             * @description New APK URL. Usually stays the same because release-apk.yml overwrites apk/latest.apk in place.
+             */
+            url?: string | null;
+            /**
+             * Notify
+             * @description Fire the FCM broadcast so users learn about the update without opening the app.
+             * @default true
+             */
+            notify: boolean;
+        };
+        /** PublishReleaseResponse */
+        PublishReleaseResponse: {
+            /** Platform */
+            platform: string;
+            /** Version */
+            version: string;
+            /** Min Supported Version */
+            min_supported_version: string;
+            /** Notified */
+            notified: boolean;
+            /**
+             * Task Id
+             * @description Celery task id for the FCM broadcast (only when notify=true).
+             */
+            task_id?: string | null;
         };
         /** RefreshTokenRequest */
         RefreshTokenRequest: {
@@ -1401,6 +2017,52 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Variants
+             * @default []
+             */
+            variants: components["schemas"]["ServiceVariantResponse"][];
+        };
+        /**
+         * ServiceVariantResponse
+         * @description One priced option under a service.
+         *
+         *     ``base_price`` is what the customer sees before GST; ``gst_percent`` is 0
+         *     for the launch summary rows and 18 for the vertical sheets. Frontend
+         *     computes the customer total as ``base_price * (1 + gst_percent/100)``
+         *     when rendering the checkout.
+         *
+         *     ``provider_payout`` + ``platform_commission`` are stored, not derived,
+         *     because the split ratio isn't a global constant — the launch summary
+         *     rows are 70/30 and the vertical sheets are 65/35. The booking service
+         *     snapshots these fields into ``booking_items`` at booking time.
+         */
+        ServiceVariantResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Subcategory */
+            subcategory: string | null;
+            /** Base Price */
+            base_price: number;
+            /** Provider Payout */
+            provider_payout: number;
+            /** Platform Commission */
+            platform_commission: number;
+            /** Gst Percent */
+            gst_percent: number;
+            /** Duration Minutes */
+            duration_minutes: number | null;
+            /** Materials Note */
+            materials_note: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Is Active */
+            is_active: boolean;
         };
         /** SmsLinkRequest */
         SmsLinkRequest: {
@@ -1414,6 +2076,19 @@ export interface components {
         StartBookingRequest: {
             /** Otp */
             otp: string;
+        };
+        /**
+         * TipBookingRequest
+         * @description Consumer adds (or updates) a gratuity on a completed booking.
+         *
+         *     Zero is a valid amount — the client uses this to *remove* a tip the
+         *     consumer changed their mind about before payout has flowed. Bounded
+         *     at ₹10,000 so a fat-finger doesn't move real money by accident;
+         *     higher values need to route through support.
+         */
+        TipBookingRequest: {
+            /** Amount */
+            amount: number;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -1864,6 +2539,59 @@ export interface operations {
         requestBody: {
             content: {
                 "multipart/form-data": components["schemas"]["Body_upload_profile_photo_api_v1_providers_me_photo_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_payout_method_api_v1_providers_me_payout_method_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderResponse"];
+                };
+            };
+        };
+    };
+    set_active_payout_method_api_v1_providers_me_payout_method_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayoutMethodSelect"];
             };
         };
         responses: {
@@ -2506,6 +3234,62 @@ export interface operations {
             };
         };
     };
+    tip_booking_api_v1_bookings__booking_id__tip_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TipBookingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description Only the booking's own consumer can add a tip */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Booking is not in a state where a tip is accepted (only after COMPLETED, and not after refund). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_booking_offer_api_v1_bookings__booking_id__offer_get: {
         parameters: {
             query?: never;
@@ -2613,6 +3397,13 @@ export interface operations {
                     "application/json": components["schemas"]["PaymentOrderResponse"];
                 };
             };
+            /** @description You do not have access to this booking. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description A request with this Idempotency-Key is already in progress. Retry after a short backoff. */
             409: {
                 headers: {
@@ -2651,6 +3442,13 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description You do not have access to this booking. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2663,6 +3461,26 @@ export interface operations {
         };
     };
     razorpay_webhook_api_v1_payments_webhook_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    razorpayx_payout_webhook_api_v1_payments_payout_webhook_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2737,6 +3555,66 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ReviewListResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_available_coupons_api_v1_coupons_available_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouponResponse"][];
+                };
+            };
+        };
+    };
+    validate_coupon_api_v1_coupons_validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CouponValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouponValidateResponse"];
+                };
+            };
+            /** @description Coupon is not applicable to this cart */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -2943,6 +3821,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string | null;
+                /** @description Filter to bookings with (or without) a charged-back payment */
+                disputed?: boolean | null;
                 page?: number;
                 per_page?: number;
             };
@@ -2959,6 +3839,194 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BookingListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_any_booking_api_v1_admin_bookings__booking_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pending_settlements_api_v1_admin_providers_pending_settlements_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingSettlementsResponse"];
+                };
+            };
+        };
+    };
+    pay_out_provider_api_v1_admin_providers__user_id__payout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    requeue_failed_settlements_api_v1_admin_providers__user_id__payout_requeue_failed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    requeue_reversed_settlements_api_v1_admin_providers__user_id__payout_requeue_reversed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_app_release_api_v1_admin_app_versions__platform__release_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-internal-release-token"?: string | null;
+            };
+            path: {
+                platform: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishReleaseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishReleaseResponse"];
                 };
             };
             /** @description Validation Error */
