@@ -64,7 +64,9 @@ function ProfilePage() {
 
   const handleLogout = () => {
     logout();
-    navigate({ to: "/" });
+    // Replace: back after signing out must not return to a route that expects
+    // a signed-in user.
+    navigate({ to: "/", replace: true });
   };
 
   const handleSave = async () => {
@@ -83,7 +85,9 @@ function ProfilePage() {
       updateUser(response);
       setIsEditing(false);
       if (isSetupMode) {
-        navigate({ to: "/" });
+        // Replace: setup is a one-time gate the user has just cleared, so it
+        // shouldn't sit under home as somewhere back returns to.
+        navigate({ to: "/", replace: true });
       }
     } catch (e) {
       console.error(e);

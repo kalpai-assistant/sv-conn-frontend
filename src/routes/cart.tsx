@@ -81,6 +81,9 @@ function CartPage() {
       navigate({
         to: "/tracking/$bookingId",
         params: { bookingId: booking.id as string },
+        // The cart was just cleared, so backing into it renders EmptyCart.
+        // Replace it: back from tracking returns where the user came from.
+        replace: true,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to create booking. Please try again.";
