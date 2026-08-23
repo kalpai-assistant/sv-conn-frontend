@@ -11,6 +11,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
+import { PAGE_CTA_HEIGHT_VAR } from "@/hooks/usePageCtaHeight";
 
 export function CartFab() {
   const { totalQuantity, subtotal } = useCart();
@@ -39,10 +40,16 @@ export function CartFab() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          // 4rem from the bottom on tabs where the BottomNav is visible;
-          // adjustment lives on the container so the sticky primary CTA
-          // on service detail doesn't need to know about the FAB.
-          className="fixed bottom-16 left-0 right-0 z-30 mx-auto max-w-md px-4 pb-2 safe-bottom"
+          // Sits above whatever occupies the bottom of the screen. The 4rem
+          // fallback is the BottomNav's height, which is the case on every
+          // tab route. Pages with their own taller sticky CTA publish its
+          // measured height via `usePageCtaHeight` — service detail does,
+          // because its CTA is ~88px or ~140px depending on whether the item
+          // is already in the cart, and a fixed offset collides with one of
+          // those. The adjustment still lives here, so the CTA doesn't need
+          // to know the FAB exists.
+          style={{ bottom: `calc(var(${PAGE_CTA_HEIGHT_VAR}, 4rem) + 0.5rem)` }}
+          className="fixed left-0 right-0 z-30 mx-auto max-w-md px-4 pb-2 safe-bottom"
         >
           <Link
             to="/cart"

@@ -15,6 +15,26 @@ export interface ServiceProvider {
   photo?: string;
 }
 
+/**
+ * A priced option within a service — "2 BHK", "SUV", "Filter replacement".
+ *
+ * The booking is placed against a variant, not against the service's
+ * `base_price`: that field is only the "starting at" figure shown before the
+ * user has chosen. Booking without one lets the backend fall back to the first
+ * variant, which is how every Vehicle Wash was being sold at Hatchback
+ * pricing (SVC-232).
+ */
+export interface ServiceVariant {
+  id: string;
+  label: string;
+  /** Groups variants under a heading when one service mixes kinds of work
+   *  (RO Purifier: "Basic" / "Installation" / "Filter"). Null = ungrouped. */
+  subcategory: string | null;
+  price: number;
+  /** Variant-level override; falls back to the service's duration when unset. */
+  duration?: string;
+}
+
 export interface Service {
   id: string;
   name: string;
@@ -23,6 +43,9 @@ export interface Service {
   description: string;
   price: number;
   duration: string;
+  /** Active variants in catalogue order. Can be empty for a service the
+   *  catalogue hasn't priced yet — callers must handle that, not assume [0]. */
+  variants: ServiceVariant[];
   provider?: ServiceProvider;
   image?: string;
 }
@@ -154,6 +177,7 @@ export const services: Service[] = [
       "Professional deep cleaning of your entire home including kitchen, bathrooms, bedrooms and living areas. Includes dusting, mopping, sanitization.",
     price: 1999,
     duration: "3-4 hours",
+    variants: [],
     provider: providers[0],
   },
   {
@@ -164,6 +188,7 @@ export const services: Service[] = [
     description: "Thorough cleaning of bathrooms including tiles, fixtures, mirrors and floor.",
     price: 599,
     duration: "1 hour",
+    variants: [],
     provider: providers[1],
   },
   {
@@ -174,6 +199,7 @@ export const services: Service[] = [
     description: "Fix leaking pipes, joints and faucets. Includes basic materials.",
     price: 349,
     duration: "45 mins",
+    variants: [],
     provider: providers[2],
   },
   {
@@ -184,6 +210,7 @@ export const services: Service[] = [
     description: "Installation of new taps, mixers and other fittings.",
     price: 249,
     duration: "30 mins",
+    variants: [],
     provider: providers[2],
   },
   {
@@ -194,6 +221,7 @@ export const services: Service[] = [
     description: "Ceiling or wall fan installation with wiring.",
     price: 299,
     duration: "45 mins",
+    variants: [],
     provider: providers[4],
   },
   {
@@ -204,6 +232,7 @@ export const services: Service[] = [
     description: "Repair or replacement of switchboards and sockets.",
     price: 199,
     duration: "30 mins",
+    variants: [],
     provider: providers[4],
   },
   {
@@ -214,6 +243,7 @@ export const services: Service[] = [
     description: "Professional haircut at your doorstep by experienced stylist.",
     price: 499,
     duration: "45 mins",
+    variants: [],
     provider: providers[5],
   },
   {
@@ -224,6 +254,7 @@ export const services: Service[] = [
     description: "Complete bridal makeup package with HD finish.",
     price: 4999,
     duration: "2-3 hours",
+    variants: [],
     provider: providers[5],
   },
   {
@@ -234,6 +265,7 @@ export const services: Service[] = [
     description: "Complete painting of one room including primer and 2 coats.",
     price: 2499,
     duration: "1 day",
+    variants: [],
     provider: providers[3],
   },
   {
@@ -244,6 +276,7 @@ export const services: Service[] = [
     description: "Assembly of flat-pack furniture (beds, wardrobes, shelves).",
     price: 499,
     duration: "1-2 hours",
+    variants: [],
     provider: providers[0],
   },
   {
@@ -254,6 +287,7 @@ export const services: Service[] = [
     description: "Cockroach, ant and spider treatment for 1BHK.",
     price: 799,
     duration: "1 hour",
+    variants: [],
     provider: providers[3],
   },
   {
@@ -264,6 +298,7 @@ export const services: Service[] = [
     description: "Complete AC servicing including gas top-up, filter cleaning and general checkup.",
     price: 599,
     duration: "1 hour",
+    variants: [],
     provider: providers[2],
   },
 ];

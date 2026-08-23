@@ -468,6 +468,78 @@
         ]
       }
     },
+    "/api/v1/providers/me/payout-method": {
+      "delete": {
+        "tags": [
+          "Providers"
+        ],
+        "summary": "Remove Payout Method",
+        "description": "Erase all stored payout destinations.\n\nDeliberate, explicit action — saving a new method never removes the old one, so\nthis is the only path that deletes payout details. Clears both methods, not just\nthe active one: \"remove my payout details\" should leave the platform holding\nnothing. Afterwards ``payout_set`` is false and the provider cannot be paid until\nthey add a method again.",
+        "operationId": "remove_payout_method_api_v1_providers_me_payout_method_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Providers"
+        ],
+        "summary": "Set Active Payout Method",
+        "description": "Switch payouts to a method already on file, without re-entering it.\n\nA provider who has both a UPI handle and a bank account stored can flip which\none gets paid. Returns 400 if nothing is stored for the requested method.",
+        "operationId": "set_active_payout_method_api_v1_providers_me_payout_method_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayoutMethodSelect"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/providers/me/status": {
       "patch": {
         "tags": [
@@ -1437,6 +1509,74 @@
         }
       }
     },
+    "/api/v1/bookings/{booking_id}/tip": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Tip Booking",
+        "description": "Consumer adds (or updates) a gratuity on a completed booking.\n\n100% of the tip flows to the provider — added on top of provider_payout\nat payout time. A subsequent call with a different amount replaces\nrather than accumulates; ``amount=0`` removes the tip. Bounds live in\nthe request schema; state + access checks live in the service layer.",
+        "operationId": "tip_booking_api_v1_bookings__booking_id__tip_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TipBookingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only the booking's own consumer can add a tip"
+          },
+          "404": {
+            "description": "No such booking"
+          },
+          "409": {
+            "description": "Booking is not in a state where a tip is accepted (only after COMPLETED, and not after refund)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/bookings/{booking_id}/offer": {
       "get": {
         "tags": [
@@ -1501,7 +1641,7 @@
           "Bookings"
         ],
         "summary": "Get Booking",
-        "description": "Fetch a single booking by ID. Only consumer or assigned provider may access.",
+        "description": "Fetch a single booking by ID. Only consumer or assigned provider may access.\n\nBoth parties get the same schema, so the response is built per-caller rather\nthan split by ``response_model``: the assigned provider sees the booking\nwithout ``doorstep_otp`` (SVC-169).",
         "operationId": "get_booking_api_v1_bookings__booking_id__get",
         "security": [
           {
@@ -1595,6 +1735,9 @@
               }
             }
           },
+          "403": {
+            "description": "You do not have access to this booking."
+          },
           "409": {
             "description": "A request with this Idempotency-Key is already in progress. Retry after a short backoff."
           },
@@ -1630,6 +1773,9 @@
               }
             }
           },
+          "403": {
+            "description": "You do not have access to this booking."
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1654,8 +1800,28 @@
           "Payments"
         ],
         "summary": "Razorpay Webhook",
-        "description": "Fix #7: Verify Razorpay webhook HMAC-SHA256 signature before processing.\nRazorpay sends X-Razorpay-Signature header = HMAC(raw_body, webhook_secret).",
+        "description": "Razorpay Payments webhook — verified against RAZORPAY_WEBHOOK_SECRET.",
         "operationId": "razorpay_webhook_api_v1_payments_webhook_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/payout-webhook": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Razorpayx Payout Webhook",
+        "description": "RazorpayX (payouts) webhook — verified against RAZORPAYX_WEBHOOK_SECRET.\n\nRazorpayX is a separate Razorpay product with its own webhook secret, so its\npayout.processed / payout.failed / payout.reversed events must arrive on a\ndedicated endpoint rather than the Payments webhook (different secret).\n\nThe provider's push is dispatched as a background task so it runs only after\n``get_db`` commits. If this delivery rolls back, RazorpayX retries it and the\nretry settles the same bookings — pushing inline would notify the provider once\nper attempt.",
+        "operationId": "razorpayx_payout_webhook_api_v1_payments_payout_webhook_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1778,6 +1944,87 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/coupons/available": {
+      "get": {
+        "tags": [
+          "Coupons"
+        ],
+        "summary": "List Available Coupons",
+        "description": "Coupons the current user can apply to a new booking today.\n\nThe list matches what ``POST /coupons/validate`` will accept — the\nfilter set is shared through ``CouponService`` so a coupon shown here\nis never refused there.",
+        "operationId": "list_available_coupons_api_v1_coupons_available_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CouponResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Available Coupons Api V1 Coupons Available Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/coupons/validate": {
+      "post": {
+        "tags": [
+          "Coupons"
+        ],
+        "summary": "Validate Coupon",
+        "description": "Price a coupon against a cart amount.\n\nThe cart hasn't been persisted as a Booking yet — the app calls this\nwhile the user is on the Cart screen so the bill preview updates\nlive. On success we return the computed discount; a subsequent\n``POST /bookings`` with ``coupon_code`` recomputes on the server side\nand applies the *authoritative* number, so a client that hoards a\nstale discount can't over-apply.",
+        "operationId": "validate_coupon_api_v1_coupons_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CouponValidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CouponValidateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Coupon is not applicable to this cart"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/admin/users": {
@@ -2137,6 +2384,24 @@
             }
           },
           {
+            "name": "disputed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to bookings with (or without) a charged-back payment",
+              "title": "Disputed"
+            },
+            "description": "Filter to bookings with (or without) a charged-back payment"
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -2167,6 +2432,300 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BookingListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/bookings/{booking_id}": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Get Any Booking",
+        "description": "Fetch any one booking by id, whoever it belongs to.\n\nDistinct from ``GET /bookings/{id}``, which admits only that booking's own\nconsumer or assigned provider — an admin is neither, so the user-facing route\nrefuses them and there was previously no way for support to look at a single\nbooking at all.\n\nThis one carries the consumer's address, which the bulk listing above\ndeliberately does not (SVC-170). That is the whole distinction: one booking\nasked for by id is a support question about a specific job, where a page of\nevery booking on the platform is a standing export of home addresses. It\nstill withholds the doorstep PIN — see ``BookingResponse.for_admin``.",
+        "operationId": "get_any_booking_api_v1_admin_bookings__booking_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such booking"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/providers/pending-settlements": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List Pending Settlements",
+        "description": "Providers awaiting settlement, with the amount and booking count owed.\n\nThe discovery half of the payout flow: ``POST /providers/{user_id}/payout`` can\nonly be triggered for a provider the admin already knows, so this answers \"who\ndo we owe, and how much\" for the admin payouts screen. Read-only, so it takes\nthe role guard rather than injecting the admin (nothing to audit).",
+        "operationId": "list_pending_settlements_api_v1_admin_providers_pending_settlements_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingSettlementsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/providers/{user_id}/payout": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Pay Out Provider",
+        "description": "Enqueue a RazorpayX payout for a provider's completed-but-unsettled bookings.\n\nReturns 202 with a summary of what will be paid and the Celery task id. The\npayout itself runs asynchronously (SVC-188 / G30): before this, the endpoint\nawaited a 30-90s RazorpayX HTTP call while holding a DB connection and a\n``SELECT … FOR UPDATE`` lock on the provider's pending bookings, which\nputs pool pressure on the same workers serving consumer traffic during a\nRazorpayX slowdown.\n\nThe upfront reads compute the batch total + booking count without a row\nlock, so the admin gets an accurate estimate immediately. The task then\nruns the full flow (record audit → lock rows → RazorpayX → resolve audit\n→ update bookings → drain pushes) — every guarantee from the synchronous\npath is preserved because the task calls the same\n``PayoutService.create_provider_payout``.\n\nEvery attempt is still recorded in ``payout_audits`` before the RazorpayX\ncall fires; the admin payouts screen surfaces the outcome from there, and\n``reconcile_payouts`` (nightly) resolves any breadcrumb whose task\nprocess died mid-flight.",
+        "operationId": "pay_out_provider_api_v1_admin_providers__user_id__payout_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/providers/{user_id}/payout/requeue-failed": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Requeue Failed Settlements",
+        "description": "Reset a provider's FAILED settlements to PENDING so they can be paid again.\n\nManual recovery for payouts that failed (bad bank details, KYC hold, ...): once\nthe cause is fixed, an admin re-queues the failed settlements, which then become\neligible for the next payout run. The triggering admin is recorded in the audit\ntrail.",
+        "operationId": "requeue_failed_settlements_api_v1_admin_providers__user_id__payout_requeue_failed_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/providers/{user_id}/payout/requeue-reversed": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Requeue Reversed Settlements",
+        "description": "Reset a provider's REVERSED settlements to PENDING so they can be paid again.\n\nA reversal means the payout reached the provider and was then clawed back —\noften a KYC/compliance signal, not a simple retry. Only use this once you've\nconfirmed the provider is genuinely still owed and the underlying cause is\nfixed; otherwise the re-payment will likely bounce again. Admin-only and\nrecorded in the audit trail.",
+        "operationId": "requeue_reversed_settlements_api_v1_admin_providers__user_id__payout_requeue_reversed_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/app-versions/{platform}/release": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Publish App Release",
+        "description": "One-shot publish: bump `app_versions.{platform}` + (optionally) push\na \"New version available\" notification to every consumer with an\nFCM token.\n\nThe two-step manual ritual — SQL update + separate broadcast call —\nis easy to get wrong (bump the version without notifying, or notify\nwithout bumping and users tap through to nothing new). This endpoint\ndoes both atomically: the DB write happens first (so the poll-on-\nforeground path immediately reflects the new version even if the\nbroadcast fails to enqueue), then the Celery task is fired.\n\nNot the same as ``release-apk.yml`` — that builds and uploads the\nAPK. This endpoint tells the running fleet about it after the APK\nis in place. The current publish ritual is:\n  1. `gh workflow run release-apk.yml -f version=X.Y.Z`\n  2. `POST /admin/app-versions/android/release {\"version\": \"X.Y.Z\"}`",
+        "operationId": "publish_app_release_api_v1_admin_app_versions__platform__release_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "platform",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Platform"
+            }
+          },
+          {
+            "name": "x-internal-release-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Release-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishReleaseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishReleaseResponse"
                 }
               }
             }
@@ -2363,6 +2922,119 @@
         ],
         "title": "Body_upload_profile_photo_api_v1_providers_me_photo_post"
       },
+      "BookingAddress": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "full_address": {
+            "type": "string",
+            "title": "Full Address"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "full_address",
+          "lat",
+          "lng"
+        ],
+        "title": "BookingAddress",
+        "description": "Where the job is, as the booking's two parties see it (SVC-170).\n\nIts own schema rather than a reuse of ``AddressResponse``, which backs the\nconsumer's own address book: that one carries ``is_default``, a detail of how\nthe consumer manages their saved addresses and nothing a provider standing\noutside the building has any use for. Same principle that gave\n``BookingOfferResponse`` its own shape (SVC-153) — serve each audience the\nfields its screen actually renders.\n\n``lat``/``lng`` are the point of this being a nested object rather than a bare\n``full_address`` string. The job to be done is *navigate there*: with\ncoordinates the app can hand off to the device maps app, without them the\nprovider retypes a free-text Indian address into Google Maps and trusts its\ngeocoder — the failure mode this ticket exists to remove. ``get_offer``\nalready reads the same geography to derive ``distance_km``.\n\nBoth are optional because ``location`` is nullable: ``CreateAddressRequest``\naccepts an address with no coordinates, and older rows have none. Clients must\ntreat text as the source of truth and coordinates as the enhancement, never\nthe reverse."
+      },
+      "BookingItemResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          },
+          "service_name": {
+            "type": "string",
+            "title": "Service Name"
+          },
+          "service_variant_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Variant Id"
+          },
+          "variant_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Label"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "unit_price": {
+            "type": "number",
+            "title": "Unit Price"
+          },
+          "total_price": {
+            "type": "number",
+            "title": "Total Price"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "service_id",
+          "service_name",
+          "quantity",
+          "unit_price",
+          "total_price"
+        ],
+        "title": "BookingItemResponse",
+        "description": "One line on a booking response.\n\n``service_name`` is denormalised into the response so the mobile app\ndoesn't have to cross-reference against /services for every booking it\ndisplays — the list route already returns dozens of items and doing that\nlookup client-side is exactly the sort of N+1 pattern the frontend keeps\nhitting. Read from the loaded ``BookingItem.service`` relationship, which\nmust be eager-loaded (see ``BookingItem.service`` — ``raise_on_sql``)."
+      },
       "BookingListResponse": {
         "properties": {
           "bookings": {
@@ -2464,10 +3136,12 @@
             ],
             "title": "Provider Id"
           },
-          "service_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Service Id"
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BookingItemResponse"
+            },
+            "type": "array",
+            "title": "Items"
           },
           "status": {
             "type": "string",
@@ -2484,6 +3158,14 @@
           "provider_payout": {
             "type": "number",
             "title": "Provider Payout"
+          },
+          "discount_amount": {
+            "type": "number",
+            "title": "Discount Amount"
+          },
+          "tip_amount": {
+            "type": "number",
+            "title": "Tip Amount"
           },
           "payment_method": {
             "anyOf": [
@@ -2511,6 +3193,21 @@
             ],
             "title": "Doorstep Otp"
           },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookingAddress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_disputed": {
+            "type": "boolean",
+            "title": "Is Disputed",
+            "default": false
+          },
           "scheduled_at": {
             "anyOf": [
               {
@@ -2534,13 +3231,16 @@
           "id",
           "consumer_id",
           "provider_id",
-          "service_id",
+          "items",
           "status",
           "service_amount",
           "platform_commission",
           "provider_payout",
+          "discount_amount",
+          "tip_amount",
           "payment_method",
           "payment_status",
+          "address",
           "scheduled_at",
           "created_at"
         ],
@@ -2614,6 +3314,111 @@
         ],
         "title": "CategoryResponse"
       },
+      "CouponResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "discount_type": {
+            "type": "string",
+            "title": "Discount Type"
+          },
+          "discount_value": {
+            "type": "number",
+            "title": "Discount Value"
+          },
+          "max_discount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Discount"
+          },
+          "min_order_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Order Amount"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "discount_type",
+          "discount_value",
+          "max_discount",
+          "min_order_amount",
+          "expires_at"
+        ],
+        "title": "CouponResponse",
+        "description": "One coupon in a user's available list.\n\n``discount_type`` lets the UI render the correct microcopy\n(\"20% off\" vs \"₹100 off\") without needing to know the value's units\nfrom context. ``expires_at`` is what the card renders — the internal\n``valid_from`` is not exposed, a coupon that hasn't started yet simply\ndoesn't appear in the list."
+      },
+      "CouponValidateRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "cart_amount": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Cart Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "cart_amount"
+        ],
+        "title": "CouponValidateRequest",
+        "description": "User taps [Apply] on a coupon; the app asks the backend to price it."
+      },
+      "CouponValidateResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "discount_type": {
+            "type": "string",
+            "title": "Discount Type"
+          },
+          "discount_amount": {
+            "type": "number",
+            "title": "Discount Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "discount_type",
+          "discount_amount"
+        ],
+        "title": "CouponValidateResponse"
+      },
       "CreateAddressRequest": {
         "properties": {
           "label": {
@@ -2662,11 +3467,66 @@
         ],
         "title": "CreateAddressRequest"
       },
-      "CreateBookingRequest": {
+      "CreateBookingItemRequest": {
         "properties": {
           "service_id": {
             "type": "string",
             "format": "uuid",
+            "title": "Service Id"
+          },
+          "service_variant_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Variant Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "service_id"
+        ],
+        "title": "CreateBookingItemRequest",
+        "description": "One line item on a booking-creation request."
+      },
+      "CreateBookingRequest": {
+        "properties": {
+          "items": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CreateBookingItemRequest"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items"
+          },
+          "service_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Service Id"
           },
           "address_id": {
@@ -2691,14 +3551,26 @@
             "pattern": "^(cash|online)$",
             "title": "Payment Method",
             "default": "online"
+          },
+          "coupon_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coupon Code"
           }
         },
         "type": "object",
         "required": [
-          "service_id",
           "address_id"
         ],
-        "title": "CreateBookingRequest"
+        "title": "CreateBookingRequest",
+        "description": "Create a booking as either a multi-item cart (``items``) or a single\nservice (``service_id``).\n\n``service_id`` is the legacy single-service shape retained for the mobile\napp while the cart UI is rolling out (PR 2c). It is normalised to a\n1-item ``items`` list inside the validator so the service layer sees one\nshape. Once the cart UI has shipped everywhere the ``service_id`` field\ncan be removed and callers forced onto ``items``."
       },
       "CreatePaymentOrderRequest": {
         "properties": {
@@ -2812,6 +3684,11 @@
           "payout_amount": {
             "type": "number",
             "title": "Payout Amount"
+          },
+          "tip_amount": {
+            "type": "number",
+            "title": "Tip Amount",
+            "default": 0.0
           }
         },
         "type": "object",
@@ -3144,6 +4021,112 @@
         ],
         "title": "PaymentOrderResponse"
       },
+      "PayoutMethod": {
+        "type": "string",
+        "enum": [
+          "upi",
+          "bank"
+        ],
+        "title": "PayoutMethod",
+        "description": "Which stored destination a provider's payouts actually go to.\n\nA provider may keep both a UPI handle and a bank account on file (SVC-148:\nswitching does not erase the old one). This is the single source of truth for\nwhich one the money is sent to — the payout must never infer it from which\ncolumns happen to be populated."
+      },
+      "PayoutMethodSelect": {
+        "properties": {
+          "method": {
+            "$ref": "#/components/schemas/PayoutMethod"
+          }
+        },
+        "type": "object",
+        "required": [
+          "method"
+        ],
+        "title": "PayoutMethodSelect",
+        "description": "Switch payouts to a method the provider already has stored (SVC-148)."
+      },
+      "PendingSettlementProvider": {
+        "properties": {
+          "provider_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Provider Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "pending_booking_count": {
+            "type": "integer",
+            "title": "Pending Booking Count"
+          },
+          "pending_payout_paise": {
+            "type": "integer",
+            "title": "Pending Payout Paise"
+          },
+          "payout_set": {
+            "type": "boolean",
+            "title": "Payout Set"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "kyc_status": {
+            "type": "string",
+            "title": "Kyc Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_id",
+          "name",
+          "phone",
+          "pending_booking_count",
+          "pending_payout_paise",
+          "payout_set",
+          "is_active",
+          "kyc_status"
+        ],
+        "title": "PendingSettlementProvider",
+        "description": "One provider with money owed, as shown in the admin payouts list."
+      },
+      "PendingSettlementsResponse": {
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/PendingSettlementProvider"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "providers",
+          "total",
+          "truncated"
+        ],
+        "title": "PendingSettlementsResponse",
+        "description": "Capped list of providers awaiting settlement.\n\nNot paginated by design (SVC-144): the admin panel shows one screen of who is\nowed. ``total`` is the true number of providers with pending settlements, so the\nUI can say \"showing 200 of 247\" when ``truncated`` is set."
+      },
       "PlatformVersion": {
         "properties": {
           "version": {
@@ -3280,6 +4263,43 @@
             ],
             "title": "Service Area Radius Km"
           },
+          "payout_vpa": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payout Vpa"
+          },
+          "payout_account_number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 34,
+                "minLength": 5
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payout Account Number"
+          },
+          "payout_ifsc": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 11
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payout Ifsc"
+          },
           "languages": {
             "anyOf": [
               {
@@ -3349,6 +4369,39 @@
           "service_area_radius_km": {
             "type": "integer",
             "title": "Service Area Radius Km"
+          },
+          "payout_set": {
+            "type": "boolean",
+            "title": "Payout Set",
+            "default": false
+          },
+          "payout_method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PayoutMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payout_display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payout Display"
+          },
+          "payout_methods_stored": {
+            "items": {
+              "$ref": "#/components/schemas/PayoutMethod"
+            },
+            "type": "array",
+            "title": "Payout Methods Stored"
           }
         },
         "type": "object",
@@ -3360,7 +4413,8 @@
           "total_completed_jobs",
           "kyc_status",
           "is_online",
-          "service_area_radius_km"
+          "service_area_radius_km",
+          "payout_methods_stored"
         ],
         "title": "ProviderResponse"
       },
@@ -3416,6 +4470,105 @@
           "is_online"
         ],
         "title": "ProviderStatusUpdate"
+      },
+      "PublishReleaseRequest": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Version"
+          },
+          "min_supported_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Supported Version"
+          },
+          "release_notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Notes"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "New APK URL. Usually stays the same because release-apk.yml overwrites apk/latest.apk in place."
+          },
+          "notify": {
+            "type": "boolean",
+            "title": "Notify",
+            "description": "Fire the FCM broadcast so users learn about the update without opening the app.",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "PublishReleaseRequest",
+        "description": "Bump the current version + optionally push a nudge to every device.\n\n``version`` is the customer-facing SemVer of the new build. The\nmatching APK must already be at ``app_versions.url`` (usually\n``s3://eazyserv-downloads/apk/latest.apk``, since ``release-apk.yml``\nalways overwrites that key). If they don't match, users will nudge\nthemselves onto a version we haven't shipped yet.\n\n``min_supported_version``, when passed, atomically hard-blocks anyone\nbelow it — the SVC-162 emergency lever. Leave it unset to keep the\ncurrent threshold.\n\n``notify`` = true enqueues the FCM broadcast (``broadcast_update_available``).\nSet to false when releasing a build we don't want to interrupt users\nover (e.g. a silent metrics fix — the poll on next foreground will\nstill surface the nudge)."
+      },
+      "PublishReleaseResponse": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "min_supported_version": {
+            "type": "string",
+            "title": "Min Supported Version"
+          },
+          "notified": {
+            "type": "boolean",
+            "title": "Notified"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id",
+            "description": "Celery task id for the FCM broadcast (only when notify=true)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "version",
+          "min_supported_version",
+          "notified"
+        ],
+        "title": "PublishReleaseResponse"
       },
       "RefreshTokenRequest": {
         "properties": {
@@ -3579,6 +4732,14 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceVariantResponse"
+            },
+            "type": "array",
+            "title": "Variants",
+            "default": []
           }
         },
         "type": "object",
@@ -3593,6 +4754,92 @@
           "created_at"
         ],
         "title": "ServiceResponse"
+      },
+      "ServiceVariantResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "subcategory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subcategory"
+          },
+          "base_price": {
+            "type": "number",
+            "title": "Base Price"
+          },
+          "provider_payout": {
+            "type": "number",
+            "title": "Provider Payout"
+          },
+          "platform_commission": {
+            "type": "number",
+            "title": "Platform Commission"
+          },
+          "gst_percent": {
+            "type": "number",
+            "title": "Gst Percent"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "materials_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Materials Note"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "subcategory",
+          "base_price",
+          "provider_payout",
+          "platform_commission",
+          "gst_percent",
+          "duration_minutes",
+          "materials_note",
+          "sort_order",
+          "is_active"
+        ],
+        "title": "ServiceVariantResponse",
+        "description": "One priced option under a service.\n\n``base_price`` is what the customer sees before GST; ``gst_percent`` is 0\nfor the launch summary rows and 18 for the vertical sheets. Frontend\ncomputes the customer total as ``base_price * (1 + gst_percent/100)``\nwhen rendering the checkout.\n\n``provider_payout`` + ``platform_commission`` are stored, not derived,\nbecause the split ratio isn't a global constant — the launch summary\nrows are 70/30 and the vertical sheets are 65/35. The booking service\nsnapshots these fields into ``booking_items`` at booking time."
       },
       "SmsLinkRequest": {
         "properties": {
@@ -3623,6 +4870,22 @@
           "otp"
         ],
         "title": "StartBookingRequest"
+      },
+      "TipBookingRequest": {
+        "properties": {
+          "amount": {
+            "type": "number",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount"
+        ],
+        "title": "TipBookingRequest",
+        "description": "Consumer adds (or updates) a gratuity on a completed booking.\n\nZero is a valid amount — the client uses this to *remove* a tip the\nconsumer changed their mind about before payout has flowed. Bounded\nat ₹10,000 so a fat-finger doesn't move real money by accident;\nhigher values need to route through support."
       },
       "TokenResponse": {
         "properties": {

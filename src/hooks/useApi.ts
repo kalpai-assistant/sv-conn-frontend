@@ -39,14 +39,35 @@ const mapCategory = (cat: API_CategoryResponse): UI_Category => ({
 
 const mapService = (srv: API_ServiceResponse, cats: API_CategoryResponse[]): UI_Service => {
   const cat = cats.find((c) => c.id === srv.category_id);
+
+  // Inactive variants stay in the payload — the catalogue keeps them so
+  // historical bookings still resolve a label — but they must never be
+  // offered. Sorted by the catalogue's own `sort_order` so "1 BHK" precedes
+  // "4 BHK" instead of arriving in insertion order.
+  const variants = (srv.variants ?? [])
+    .filter((v) => v.is_active)
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((v) => ({
+      id: v.id,
+      label: v.label,
+      subcategory: v.subcategory,
+      price: v.base_price,
+      duration: v.duration_minutes ? `${v.duration_minutes} mins` : undefined,
+    }));
+
   return {
     id: srv.id,
     name: srv.name,
     categoryId: srv.category_id,
     categoryName: cat?.name || "Service",
     description: srv.description || "",
-    price: srv.base_price,
+    // `base_price` on the service is the "starting at" figure. Where variants
+    // exist the cheapest one is the honest headline — that is what "from ₹X"
+    // means to someone scanning the catalogue, and it matches what they'll be
+    // charged if they don't change the default selection.
+    price: variants.length > 0 ? Math.min(...variants.map((v) => v.price)) : srv.base_price,
     duration: `${srv.duration_minutes} mins`,
+    variants,
     provider: undefined, // Services are global, no specific provider
   };
 };
@@ -104,6 +125,10 @@ const mapBooking = (
     description: "",
     price: firstItem?.unitPrice ?? b.service_amount,
     duration: "",
+    // No variants on this fallback by design: it reconstructs a service from
+    // a booking line when the catalogue isn't cached, and a past booking's
+    // variant is already settled. Nothing should offer a picker from here.
+    variants: [],
   };
 
   const serviceAmount = b.service_amount ?? 0;
