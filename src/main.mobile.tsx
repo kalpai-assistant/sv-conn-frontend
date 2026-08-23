@@ -8,6 +8,7 @@
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { getRouter } from "./router";
 import { initSentry } from "./lib/sentry";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -23,7 +24,15 @@ import { SplashScreen } from "@capacitor/splash-screen";
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 
-async function initNative() {
+/**
+ * Window for the double-tap-to-exit gesture. Android's convention is 2s, but
+ * that measures from the press, not from when the toast finishes animating in
+ * — by the time a user sees it and reacts, much of it is gone. 3s is what the
+ * apps this is modelled on actually use.
+ */
+const EXIT_PROMPT_WINDOW_MS = 3000;
+
+async function initNative(router: ReturnType<typeof getRouter>) {
   if (!Capacitor.isNativePlatform()) return;
 
   try {
@@ -39,19 +48,47 @@ async function initNative() {
     // ignore
   }
 
-  // Handle Android hardware back button — navigate back or minimize
-  App.addListener("backButton", ({ canGoBack }) => {
-    if (canGoBack) {
-      window.history.back();
+  // Android hardware back button.
+  //
+  // Ask the router, not the WebView: the event's own `canGoBack` reflects
+  // window.history, which TanStack Router doesn't drive one-to-one, and
+  // window.history.back() bypasses the router entirely.
+  let lastBackPress = 0;
+
+  App.addListener("backButton", () => {
+    if (router.history.canGoBack()) {
+      router.history.back();
+      return;
+    }
+
+    // Nothing to pop. Anywhere but home, land on home rather than offering to
+    // exit from a deep-linked page (/privacy, /tracking/…). `replace` so the
+    // dead-end entry doesn't become somewhere back returns to.
+    if (router.state.location.pathname !== "/") {
+      router.navigate({ to: "/", replace: true });
+      return;
+    }
+
+    // Home with nothing behind it: double-tap to exit.
+    const now = Date.now();
+    if (now - lastBackPress < EXIT_PROMPT_WINDOW_MS) {
+      App.exitApp();
     } else {
-      App.minimizeApp();
+      lastBackPress = now;
+      // Duration must match the window: a toast that outlives it tells the
+      // user to press back again when doing so only restarts the timer.
+      // Fixed `id` so repeated presses replace the toast instead of stacking.
+      toast("Press back again to exit", {
+        id: "exit-prompt",
+        duration: EXIT_PROMPT_WINDOW_MS,
+      });
     }
   });
 }
 
-initNative();
-
 const router = getRouter();
+
+initNative(router);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -33,6 +33,10 @@ export function BottomNav() {
             <Link
               key={to}
               to={to}
+              // Tabs are lateral movement, not depth. Pushing let Home↔Bookings
+              // taps stack up, so back walked the pile and read as a two-page
+              // loop (SVC-230).
+              replace
               className={`flex flex-col items-center gap-1 px-3 py-1 transition-colors ${
                 active ? "text-primary" : "text-muted-foreground"
               }`}
