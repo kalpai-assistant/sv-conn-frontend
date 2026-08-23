@@ -67,7 +67,14 @@ function CartPage() {
     }
     try {
       const booking = await createBooking.mutateAsync({
-        items: items.map((i) => ({ service_id: i.serviceId, quantity: i.quantity })),
+        // service_variant_id is what the booking is actually priced against.
+        // Omitted only for a service the catalogue hasn't given variants —
+        // the backend then falls back as it always did.
+        items: items.map((i) => ({
+          service_id: i.serviceId,
+          quantity: i.quantity,
+          ...(i.variantId ? { service_variant_id: i.variantId } : {}),
+        })),
         address_id: selectedAddress.id,
         scheduled_at: scheduledAt ? scheduledAt.toISOString() : null,
         payment_method: paymentMethod,
@@ -143,46 +150,63 @@ function CartPage() {
       <section className="px-4 pt-4">
         <h2 className="pb-3 text-sm font-semibold text-foreground">Services ({items.length})</h2>
         <ul className="flex flex-col gap-3">
-          {items.map((item) => (
-            <li
-              key={item.serviceId}
-              className="flex items-start gap-3 rounded-xl border border-border bg-card p-3"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-foreground">{item.name}</p>
-                {item.duration && <p className="text-xs text-muted-foreground">{item.duration}</p>}
-                <p className="mt-1 text-sm font-bold text-primary">
-                  ₹{(item.unitPrice * item.quantity).toLocaleString("en-IN")}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <button
-                  onClick={() => remove(item.serviceId)}
-                  aria-label={`Remove ${item.name}`}
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-                <div className="flex items-center gap-2 rounded-full border border-border">
-                  <button
-                    onClick={() => updateQuantity(item.serviceId, item.quantity - 1)}
-                    aria-label={`Decrease ${item.name} quantity`}
-                    className="flex h-7 w-7 items-center justify-center text-foreground"
-                  >
-                    <Minus className="h-3.5 w-3.5" />
-                  </button>
-                  <span className="min-w-4 text-center text-sm font-semibold">{item.quantity}</span>
-                  <button
-                    onClick={() => updateQuantity(item.serviceId, item.quantity + 1)}
-                    aria-label={`Increase ${item.name} quantity`}
-                    className="flex h-7 w-7 items-center justify-center text-foreground"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
+          {items.map((item) => {
+            // Keyed on serviceId: a booking can hold only one row per service
+            // (uix_booking_item_service), so the variant lives ON the line
+            // rather than making a second one.
+            // Name the control by variant too, so the label reads
+            // "Remove Vehicle wash SUV" rather than being ambiguous.
+            const itemLabel = item.variantLabel ? `${item.name} ${item.variantLabel}` : item.name;
+            return (
+              <li
+                key={item.serviceId}
+                className="flex items-start gap-3 rounded-xl border border-border bg-card p-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-foreground">{item.name}</p>
+                  {item.variantLabel && (
+                    <p className="mt-0.5 text-xs font-medium text-muted-foreground">
+                      {item.variantLabel}
+                    </p>
+                  )}
+                  {item.duration && (
+                    <p className="text-xs text-muted-foreground">{item.duration}</p>
+                  )}
+                  <p className="mt-1 text-sm font-bold text-primary">
+                    ₹{(item.unitPrice * item.quantity).toLocaleString("en-IN")}
+                  </p>
                 </div>
-              </div>
-            </li>
-          ))}
+                <div className="flex flex-col items-end gap-2">
+                  <button
+                    onClick={() => remove(item.serviceId)}
+                    aria-label={`Remove ${itemLabel}`}
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <div className="flex items-center gap-2 rounded-full border border-border">
+                    <button
+                      onClick={() => updateQuantity(item.serviceId, item.quantity - 1)}
+                      aria-label={`Decrease ${itemLabel} quantity`}
+                      className="flex h-7 w-7 items-center justify-center text-foreground"
+                    >
+                      <Minus className="h-3.5 w-3.5" />
+                    </button>
+                    <span className="min-w-4 text-center text-sm font-semibold">
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={() => updateQuantity(item.serviceId, item.quantity + 1)}
+                      aria-label={`Increase ${itemLabel} quantity`}
+                      className="flex h-7 w-7 items-center justify-center text-foreground"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </section>
 

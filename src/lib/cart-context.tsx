@@ -18,18 +18,39 @@
  * backend's `UNIQUE(booking_id, service_id)` constraint (see
  * `backend/app/models/booking_item.py`). Attempting to add a service
  * that's already in the cart bumps its quantity instead.
+ *
+ * A line therefore stays keyed on `serviceId` alone even now that it carries
+ * a variant (SVC-232): that same UNIQUE constraint means one booking cannot
+ * hold two variants of one service, so a cart that could express "Hatchback
+ * wash + SUV wash" would only fail at checkout with an integrity error.
+ * Re-selecting a different variant REPLACES the one on the existing line.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "./auth-context";
 import type { Service } from "./mock-data";
 
-const STORAGE_KEY_PREFIX = "sc_cart_v1_";
+// v2 (SVC-232): line items gained `variantId`. A cart persisted under v1
+// predates that field, so loading one would send no service_variant_id and
+// the backend would fall back to the service's first variant — the exact bug
+// this ticket fixes, reproduced silently and only for users who happened to
+// have a cart open across the deploy.
+//
+// Bumping the prefix abandons v1 carts rather than migrating them. Every v1
+// line lacks a variant, so a migration would drop all of them anyway; the
+// prefix gets the same outcome without a permanent filter in the load path.
+const STORAGE_KEY_PREFIX = "sc_cart_v2_";
 
 export interface CartLineItem {
   serviceId: string;
+  // Which priced option of the service this line is for. Optional only for
+  // services the catalogue hasn't priced with variants; when set it is what
+  // the booking is actually placed against.
+  variantId?: string;
+  /** Shown next to the service name — "Full home deep cleaning · 2 BHK". */
+  variantLabel?: string;
   // Denormalised for offline display. Never trusted at booking time —
-  // backend recomputes from services.base_price.
+  // backend recomputes from the variant's own price.
   name: string;
   unitPrice: number;
   quantity: number;
@@ -40,9 +61,9 @@ interface CartContextValue {
   items: CartLineItem[];
   totalQuantity: number;
   subtotal: number;
-  add: (service: Service, quantity?: number) => void;
-  updateQuantity: (serviceId: string, quantity: number) => void;
-  remove: (serviceId: string) => void;
+  add: (service: Service, quantity?: number, variantId?: string) => void;
+  updateQuantity: (key: string, quantity: number) => void;
+  remove: (key: string) => void;
   clear: () => void;
 }
 
@@ -96,24 +117,48 @@ export function CartProvider({ children }: { children: ReactNode }) {
     saveCart(userId, items);
   }, [userId, items]);
 
-  const add = useCallback((service: Service, quantity = 1) => {
+  const add = useCallback((service: Service, quantity = 1, variantId?: string) => {
+    // Default to the first active variant so a caller that doesn't pass one
+    // still books something explicit, rather than leaving the choice to the
+    // backend's fallback — which is how every Vehicle Wash was sold at
+    // Hatchback pricing (SVC-232).
+    const variant =
+      service.variants.find((v) => v.id === variantId) ?? service.variants[0] ?? undefined;
+
     setItems((prev) => {
       const existing = prev.findIndex((i) => i.serviceId === service.id);
       if (existing >= 0) {
-        // Same service already in cart: bump quantity, don't create a
-        // second row. Backend enforces the same rule.
+        const line = prev[existing];
         const next = [...prev];
-        next[existing] = { ...next[existing], quantity: next[existing].quantity + quantity };
+        if (line.variantId === variant?.id) {
+          // Same service, same variant: bump quantity.
+          next[existing] = { ...line, quantity: line.quantity + quantity };
+        } else {
+          // Same service, DIFFERENT variant. A booking can hold only one row
+          // per service (uix_booking_item_service), so this replaces the
+          // choice rather than adding a second line — and re-prices the line
+          // to match. Quantity is preserved: the user changed which option
+          // they want, not how many.
+          next[existing] = {
+            ...line,
+            variantId: variant?.id,
+            variantLabel: variant?.label,
+            unitPrice: variant?.price ?? service.price,
+            duration: variant?.duration ?? service.duration,
+          };
+        }
         return next;
       }
       return [
         ...prev,
         {
           serviceId: service.id,
+          variantId: variant?.id,
+          variantLabel: variant?.label,
           name: service.name,
-          unitPrice: service.price,
+          unitPrice: variant?.price ?? service.price,
           quantity,
-          duration: service.duration,
+          duration: variant?.duration ?? service.duration,
         },
       ];
     });
