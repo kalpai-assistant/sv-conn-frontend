@@ -11,8 +11,14 @@ const tabs = [
 export function BottomNav() {
   const location = useLocation();
 
-  // Hide on auth, tracking, service detail, admin, and public legal pages
+  // Hide on auth, cart, tracking, service detail, admin, and public legal pages.
+  //
+  // /cart matters for more than tidiness: the cart's "Book & Pay" CTA is also
+  // fixed bottom-0 z-40, and this nav renders after <Outlet /> in __root, so at
+  // equal z-index it painted straight over the button. CartFab already assumed
+  // /cart was in this list ("redundant while already there") — it wasn't.
   if (
+    location.pathname === "/cart" ||
     location.pathname.startsWith("/tracking") ||
     location.pathname.startsWith("/service/") ||
     location.pathname.startsWith("/admin") ||
