@@ -1,5 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, PackageOpen } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { ServiceCardSkeleton } from "@/components/skeletons/ServiceCardSkeleton";
 import { useCategories, useServices } from "@/hooks/useApi";
 import { ServiceCard } from "@/components/ServiceCard";
 import { categoryIcon, categoryColor } from "@/lib/category-icons";
@@ -56,16 +59,7 @@ function CategoryPage() {
   // recorded in bookings.tsx, which "bit the beta hard" when /bookings 500'd.
   if (categoriesError) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
-        <AlertCircle className="h-8 w-8 text-destructive" />
-        <p className="text-sm text-muted-foreground">Couldn't load categories.</p>
-        <button
-          onClick={() => refetchCategories()}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-        >
-          Try again
-        </button>
-      </div>
+      <ErrorState message="Couldn't load categories." onRetry={refetchCategories} fullScreen />
     );
   }
 
@@ -115,29 +109,25 @@ function CategoryPage() {
 
       <div className="flex flex-col gap-3 px-4 pt-4">
         {servicesLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <>
+            <ServiceCardSkeleton />
+            <ServiceCardSkeleton />
+            <ServiceCardSkeleton />
+            <ServiceCardSkeleton />
+          </>
         ) : servicesError ? (
           // Ahead of the empty branch for the same reason as above: a failed
           // /services request would otherwise read as "this category has
           // nothing in it".
-          <div className="flex flex-col items-center gap-3 py-12 text-center">
-            <AlertCircle className="h-8 w-8 text-destructive" />
-            <p className="text-sm text-muted-foreground">Couldn't load these services.</p>
-            <button
-              onClick={() => refetchServices()}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-            >
-              Try again
-            </button>
-          </div>
+          <ErrorState message="Couldn't load these services." onRetry={refetchServices} />
         ) : services && services.length > 0 ? (
           services.map((s) => <ServiceCard key={s.id} service={s} />)
         ) : (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            No {category.name.toLowerCase()} services available yet.
-          </p>
+          <EmptyState
+            icon={PackageOpen}
+            title={`No ${category.name.toLowerCase()} services yet`}
+            subtitle="We're adding more in your area soon."
+          />
         )}
       </div>
     </div>
