@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useAuth } from "@/lib/auth-context";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, ApiError, apiFetch } from "@/lib/api";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,6 +13,25 @@ import { Phone, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 // through the splash and lands here is already committed to signing
 // in.
 type AuthStep = "phone" | "otp";
+
+/**
+ * How long "Resend OTP" stays disabled after a successful send. Purely a
+ * courtesy against double-tapping — the enforced limit is the backend's
+ * OTP_MAX_ATTEMPTS_PER_HOUR (5/hour/phone), and a 429 overrides this with
+ * the real remaining lockout from `Retry-After`.
+ */
+const RESEND_COOLDOWN_SECONDS = 30;
+
+/**
+ * Renders a countdown. Bare seconds below a minute, minutes above it — a
+ * rate-limit lockout can run to the better part of an hour, and "Resend OTP
+ * in 2431s" is not a number anyone can act on.
+ */
+function formatCountdown(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${String(seconds % 60).padStart(2, "0")}s`;
+}
 
 export function AuthFlow({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState<AuthStep>("phone");
@@ -45,16 +64,21 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
     setLoading(true);
     setErrorMsg("");
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
+      await apiFetch("/auth/send-otp", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: `+91${phone}` }),
       });
-      if (!res.ok) throw new Error("Failed to send OTP");
       setStep("otp");
-      setResendTimer(30);
+      setResendTimer(RESEND_COOLDOWN_SECONDS);
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Failed to send OTP. Please try again.");
+      // A 429 states exactly how long this phone is locked out for. Hold the
+      // resend button for that long instead of the courtesy 30s, which would
+      // re-arm the button well before the backend would accept it and hand
+      // the user a second identical failure.
+      if (e instanceof ApiError && e.status === 429 && e.retryAfter) {
+        setResendTimer(e.retryAfter);
+      }
     } finally {
       setLoading(false);
     }
@@ -75,17 +99,17 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
     verifying.current = true;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: `+91${phone}`, otp: code, role: "consumer" }),
-      });
-      if (!res.ok) throw new Error("Failed to verify OTP");
-      const tokenData = (await res.json()) as {
+      // apiFetch, not raw fetch: it surfaces the backend's own message, and
+      // its 401-refresh retry cannot fire here — InvalidOTP is a 400, so a
+      // wrong code will never cause the single-use OTP to be re-posted.
+      const tokenData = await apiFetch<{
         access_token: string;
         refresh_token: string;
         is_new_user?: boolean;
-      };
+      }>("/auth/verify-otp", {
+        method: "POST",
+        body: JSON.stringify({ phone: `+91${phone}`, otp: code, role: "consumer" }),
+      });
 
       // Fetch user profile using the access token. Deliberately a raw fetch
       // rather than `apiFetch`: the tokens are not in the api module yet —
@@ -245,7 +269,8 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
             <div className="mt-6 text-center">
               {resendTimer > 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Resend OTP in <span className="font-semibold text-primary">{resendTimer}s</span>
+                  Resend OTP in{" "}
+                  <span className="font-semibold text-primary">{formatCountdown(resendTimer)}</span>
                 </p>
               ) : (
                 <button
