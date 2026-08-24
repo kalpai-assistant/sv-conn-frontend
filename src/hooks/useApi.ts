@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import type { components } from "@/types/api";
 
@@ -25,6 +25,48 @@ type Schema<K extends keyof components["schemas"]> = components["schemas"][K];
 export type API_CategoryResponse = Schema<"CategoryResponse">;
 export type API_ServiceResponse = Schema<"ServiceResponse">;
 export type API_BookingResponse = Schema<"BookingResponse">;
+
+/**
+ * Makes a query that is `enabled`-gated on another one report its
+ * dependency's failure as its own.
+ *
+ * react-query v5 leaves a disabled query in `pending` + `idle`: `isLoading`
+ * is **false** and `data` is `undefined`. That is indistinguishable, at the
+ * call site, from a query that finished and found nothing — so when the
+ * dependency fails, every consumer renders its empty state. One failed
+ * `/categories` request emptied the catalogue on Home, category pages and
+ * service detail, and told a user tracking a live booking that it did not
+ * exist.
+ *
+ * `refetch` retries the dependency first and only re-runs the dependent
+ * query if that succeeded. Without this a "Try again" button re-runs a query
+ * that is still disabled, and appears to do nothing.
+ *
+ * `useBookings` avoids the whole problem by simply not gating (SVC-75); this
+ * is for the cases where the dependency's data is genuinely needed to map the
+ * response.
+ */
+function mergeDependentQuery<TQuery extends UseQueryResult<unknown>>(
+  query: TQuery,
+  dependency: UseQueryResult<unknown>,
+): TQuery {
+  return {
+    ...query,
+    isError: query.isError || dependency.isError,
+    error: query.error ?? dependency.error,
+    isLoading: query.isLoading || dependency.isLoading,
+    refetch: async (...args: Parameters<TQuery["refetch"]>) => {
+      if (dependency.isError) {
+        const retried = await dependency.refetch();
+        // Still broken — re-running the dependent query would just re-disable
+        // it, so report the dependency's result rather than a misleading
+        // success.
+        if (retried.isError) return retried;
+      }
+      return query.refetch(...args);
+    },
+  } as TQuery;
+}
 
 // ---------------------------------------------------------------------------
 // Adapters: API shape → UI shape
@@ -215,12 +257,13 @@ export const useCategories = () => {
 };
 
 export const useServices = (categoryId?: string) => {
-  const { data: categories } = useQuery({
+  const categoriesQuery = useQuery({
     queryKey: ["categories"],
     queryFn: () => apiFetch<API_CategoryResponse[]>("/categories"),
   });
+  const categories = categoriesQuery.data;
 
-  return useQuery({
+  const servicesQuery = useQuery({
     queryKey: ["services", categoryId],
     queryFn: async () => {
       const query = categoryId ? `?category_id=${categoryId}` : "";
@@ -229,6 +272,8 @@ export const useServices = (categoryId?: string) => {
     },
     enabled: categories !== undefined, // Wait for categories to map names
   });
+
+  return mergeDependentQuery(servicesQuery, categoriesQuery);
 };
 
 export const useAddresses = () => {
@@ -300,9 +345,10 @@ export const useReviews = (providerId?: string) => {
 };
 
 export const useBooking = (bookingId?: string) => {
-  const { data: services } = useServices(); // leverage cached services
+  const servicesQuery = useServices(); // leverage cached services
+  const services = servicesQuery.data;
 
-  return useQuery({
+  const bookingQuery = useQuery({
     queryKey: ["booking", bookingId],
     queryFn: async () => {
       if (!bookingId) return null;
@@ -312,6 +358,12 @@ export const useBooking = (bookingId?: string) => {
     enabled: !!bookingId && services !== undefined,
     refetchInterval: 4000,
   });
+
+  // Gated on services, which is itself gated on categories — so a single
+  // failed /categories request would otherwise leave this query disabled and
+  // the tracking screen telling someone their in-progress booking doesn't
+  // exist.
+  return mergeDependentQuery(bookingQuery, servicesQuery);
 };
 
 export const useCancelBooking = () => {
