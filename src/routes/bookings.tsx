@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import type { BookingStatus, Booking } from "@/lib/mock-data";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { BookingCardSkeleton } from "@/components/skeletons/BookingCardSkeleton";
@@ -47,8 +49,11 @@ function BookingsPage() {
   const past = bookings.filter((b) => !activeStatuses.includes(b.status as BookingStatus));
   const list = tab === "active" ? active : past;
 
+  const { pull, refreshing } = usePullToRefresh(refetch);
+
   return (
     <div className="min-h-screen pb-20">
+      <PullToRefreshIndicator pull={pull} refreshing={refreshing} />
       <div className="sticky top-0 z-30 border-b border-border bg-card px-4 pt-4">
         <h1 className="text-lg font-semibold text-foreground mb-3">My Bookings</h1>
         <div className="flex gap-1 bg-secondary rounded-lg p-1">

@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useBookings } from "@/hooks/useApi";
 import { Activity } from "lucide-react";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { BookingCardSkeleton } from "@/components/skeletons/BookingCardSkeleton";
@@ -22,8 +24,11 @@ function ActivityPage() {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
+  const { pull, refreshing } = usePullToRefresh(refetch);
+
   return (
     <div className="min-h-screen pb-20">
+      <PullToRefreshIndicator pull={pull} refreshing={refreshing} />
       <div className="sticky top-0 z-30 flex h-14 items-center border-b border-border bg-card px-4">
         <h1 className="text-lg font-semibold text-foreground">Activity</h1>
       </div>
