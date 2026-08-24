@@ -1,8 +1,15 @@
 export interface Category {
   id: string;
   name: string;
-  icon: string; // Lucide icon name
-  color: string;
+  /** URL-safe identifier from the backend. Keys the icon lookup in
+   *  `lib/category-icons.ts` and supplies the param for the
+   *  `/category/$slug` route — both need something stable and readable,
+   *  which the UUID id is not. */
+  slug: string;
+  /** Catalogue ordering from the backend. Doubles as the index into the tile
+   *  colour palette: the API exposes no colour per category, and this is the
+   *  only stable per-category number it does return. */
+  sortOrder: number;
 }
 
 export interface ServiceProvider {
@@ -105,15 +112,18 @@ export interface Booking {
   createdAt: string;
 }
 
+// Nothing imports this as a value — every consumer of this module uses
+// `import type`. Kept as a shape reference alongside the interfaces above,
+// with slugs matching the live catalogue so it doesn't drift into fiction.
 export const categories: Category[] = [
-  { id: "1", name: "Cleaning", icon: "Sparkles", color: "#6C5CE7" },
-  { id: "2", name: "Plumbing", icon: "Wrench", color: "#0984E3" },
-  { id: "3", name: "Electrical", icon: "Zap", color: "#FDCB6E" },
-  { id: "4", name: "Salon", icon: "Scissors", color: "#E17055" },
-  { id: "5", name: "Painting", icon: "Paintbrush", color: "#00B894" },
-  { id: "6", name: "Carpentry", icon: "Hammer", color: "#D63031" },
-  { id: "7", name: "Pest Control", icon: "Bug", color: "#636E72" },
-  { id: "8", name: "Appliance", icon: "Settings", color: "#2D3436" },
+  { id: "1", name: "Cleaning", slug: "cleaning", sortOrder: 0 },
+  { id: "2", name: "Pest Control", slug: "pest-control", sortOrder: 1 },
+  { id: "3", name: "AC", slug: "ac", sortOrder: 2 },
+  { id: "4", name: "Appliances", slug: "appliances", sortOrder: 3 },
+  { id: "5", name: "Electrician", slug: "electrician", sortOrder: 4 },
+  { id: "6", name: "Plumber", slug: "plumber", sortOrder: 5 },
+  { id: "7", name: "Carpenter", slug: "carpenter", sortOrder: 6 },
+  { id: "8", name: "Painting", slug: "painting", sortOrder: 7 },
 ];
 
 const providers: ServiceProvider[] = [

@@ -30,11 +30,17 @@ export type API_BookingResponse = Schema<"BookingResponse">;
 // Adapters: API shape → UI shape
 // ---------------------------------------------------------------------------
 
+// `icon_url` is null for every category in the live catalogue and the backend
+// has no colour column at all, so the previous mapping handed the grid a
+// constant "Sparkles" and a constant brand blue — 18 visually identical
+// tiles. Icons and colours are now derived client-side from slug and
+// sort_order (lib/category-icons.ts), so this only carries what that
+// derivation needs.
 const mapCategory = (cat: API_CategoryResponse): UI_Category => ({
   id: cat.id,
   name: cat.name,
-  icon: cat.icon_url || "Sparkles", // Fallback icon
-  color: "#1957D2", // Fallback color (brand blue)
+  slug: cat.slug,
+  sortOrder: cat.sort_order,
 });
 
 const mapService = (srv: API_ServiceResponse, cats: API_CategoryResponse[]): UI_Service => {

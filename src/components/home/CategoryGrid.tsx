@@ -12,22 +12,8 @@
  * page — for now we filter the existing Home service list by category id
  * via the parent's onSelect.
  */
-import type { LucideIcon } from "lucide-react";
-import { Sparkles, Wrench, Zap, Scissors, Paintbrush, Hammer, Bug, Settings } from "lucide-react";
 import { useCategories } from "@/hooks/useApi";
-
-// Lucide names the API can return today. Falls back to Sparkles if the
-// backend ships a name we don't know about — better than a blank tile.
-const iconMap: Record<string, LucideIcon> = {
-  Sparkles,
-  Wrench,
-  Zap,
-  Scissors,
-  Paintbrush,
-  Hammer,
-  Bug,
-  Settings,
-};
+import { categoryIcon, categoryColor } from "@/lib/category-icons";
 
 interface CategoryGridProps {
   onSelect?: (id: string) => void;
@@ -54,7 +40,8 @@ export function CategoryGrid({ onSelect, selectedId }: CategoryGridProps) {
   return (
     <div className="grid grid-cols-3 gap-3 px-4">
       {categories.map((cat) => {
-        const Icon = iconMap[cat.icon] || Sparkles;
+        const Icon = categoryIcon(cat.slug);
+        const tint = categoryColor(cat.sortOrder);
         const isSelected = selectedId === cat.id;
         return (
           <button
@@ -67,12 +54,12 @@ export function CategoryGrid({ onSelect, selectedId }: CategoryGridProps) {
           >
             <div
               className="flex h-12 w-12 items-center justify-center rounded-xl"
-              // Inline styling so per-category colours (which come from the
-              // API and can be any hex) don't need to live as Tailwind
-              // classes. `+ "18"` is a 9% alpha overlay for the background.
-              style={{ backgroundColor: (cat.color || "#1957D2") + "18" }}
+              // Inline styling because the palette is arbitrary hex and can't
+              // be enumerated as Tailwind classes. `+ "18"` is a 9% alpha
+              // overlay, keeping the tint legible on both light and dark cards.
+              style={{ backgroundColor: tint + "18" }}
             >
-              <Icon className="h-5 w-5" style={{ color: cat.color || "#1957D2" }} />
+              <Icon className="h-5 w-5" style={{ color: tint }} />
             </div>
             <span className="text-center text-[11px] font-medium leading-tight text-foreground">
               {cat.name}
