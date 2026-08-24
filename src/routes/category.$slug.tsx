@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
 import { useCategories, useServices } from "@/hooks/useApi";
 import { ServiceCard } from "@/components/ServiceCard";
 import { categoryIcon, categoryColor } from "@/lib/category-icons";
@@ -24,12 +24,22 @@ export const Route = createFileRoute("/category/$slug")({
  */
 function CategoryPage() {
   const { slug } = Route.useParams();
-  const { data: categories, isLoading: categoriesLoading } = useCategories();
+  const {
+    data: categories,
+    isLoading: categoriesLoading,
+    isError: categoriesError,
+    refetch: refetchCategories,
+  } = useCategories();
   const category = categories?.find((c) => c.slug === slug);
 
   // Only query once the slug resolves. Passing `undefined` would fetch the
   // whole catalogue and render it under this category's name.
-  const { data: services, isLoading: servicesLoading } = useServices(category?.id);
+  const {
+    data: services,
+    isLoading: servicesLoading,
+    isError: servicesError,
+    refetch: refetchServices,
+  } = useServices(category?.id);
 
   if (categoriesLoading) {
     return (
@@ -39,9 +49,28 @@ function CategoryPage() {
     );
   }
 
-  // A cold deep-link to a slug that no longer exists lands here. Say so,
-  // rather than rendering an empty list that reads like a category with
-  // nothing in it.
+  // Must sit ahead of the `!category` check below. A failed /categories
+  // request leaves `categories` undefined, so the lookup misses and the
+  // not-found branch tells the user this category doesn't exist — turning an
+  // outage into a claim about their data. Same class of bug as the one
+  // recorded in bookings.tsx, which "bit the beta hard" when /bookings 500'd.
+  if (categoriesError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
+        <AlertCircle className="h-8 w-8 text-destructive" />
+        <p className="text-sm text-muted-foreground">Couldn't load categories.</p>
+        <button
+          onClick={() => refetchCategories()}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  // A cold deep-link to a slug that no longer exists lands here. Reached only
+  // once categories have actually loaded, so it means what it says.
   if (!category) {
     return (
       <div className="flex min-h-screen items-center justify-center px-6">
@@ -88,6 +117,20 @@ function CategoryPage() {
         {servicesLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : servicesError ? (
+          // Ahead of the empty branch for the same reason as above: a failed
+          // /services request would otherwise read as "this category has
+          // nothing in it".
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+            <p className="text-sm text-muted-foreground">Couldn't load these services.</p>
+            <button
+              onClick={() => refetchServices()}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            >
+              Try again
+            </button>
           </div>
         ) : services && services.length > 0 ? (
           services.map((s) => <ServiceCard key={s.id} service={s} />)
