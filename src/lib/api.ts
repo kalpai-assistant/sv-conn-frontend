@@ -9,10 +9,18 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
  */
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /**
+   * Seconds to wait before retrying, parsed from the response's `Retry-After`
+   * header. The backend sets it on every 429 per RFC 6585 §4, computed from
+   * the live TTL of the limiter key — so it is the real remaining lockout,
+   * not a guess. Undefined when the header is absent or unparseable.
+   */
+  retryAfter?: number;
+  constructor(status: number, message: string, retryAfter?: number) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -138,7 +146,15 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
     } catch {
       // Ignored if response is not JSON
     }
-    throw new ApiError(res.status, errorMsg);
+    // Guard the parse rather than leaning on Number(): a missing header
+    // coerces to 0, which would read as "retry immediately".
+    const rawRetryAfter = res.headers.get("Retry-After");
+    const retryAfter = rawRetryAfter === null ? NaN : Number(rawRetryAfter);
+    throw new ApiError(
+      res.status,
+      errorMsg,
+      Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter : undefined,
+    );
   }
 
   // 204 No Content — return undefined without trying to parse JSON.

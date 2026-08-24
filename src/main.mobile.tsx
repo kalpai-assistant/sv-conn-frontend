@@ -11,6 +11,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { getRouter } from "./router";
 import { initSentry } from "./lib/sentry";
+import { runBackInterceptors } from "./lib/back-interceptor";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles.css";
 
@@ -56,6 +57,10 @@ async function initNative(router: ReturnType<typeof getRouter>) {
   let lastBackPress = 0;
 
   App.addListener("backButton", () => {
+    // UI mounted outside the router gets first refusal — the auth gate in
+    // __root.tsx is not a route, so nothing below this line can see it.
+    if (runBackInterceptors()) return;
+
     if (router.history.canGoBack()) {
       router.history.back();
       return;
