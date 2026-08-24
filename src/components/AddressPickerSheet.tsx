@@ -10,6 +10,7 @@
  * form. Bundling them would penalise the common case.
  */
 import { useState } from "react";
+import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { motion } from "framer-motion";
 import { X, MapPin, Plus, Check, Loader2 } from "lucide-react";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
@@ -20,6 +21,10 @@ interface AddressPickerSheetProps {
 }
 
 export function AddressPickerSheet({ onClose }: AddressPickerSheetProps) {
+  // Sheets are mounted only while open, so locking on mount is the same as
+  // locking on open. Without this the page scrolls behind the backdrop.
+  useLockBodyScroll(true);
+
   const { selected, setSelectedId, addresses, isLoading } = useSelectedAddress();
   const [showAdd, setShowAdd] = useState(false);
 

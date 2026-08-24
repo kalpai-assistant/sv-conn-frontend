@@ -13,6 +13,7 @@
  * ``POST /bookings/``, so a stale value here can never over-apply.
  */
 import { useState } from "react";
+import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { motion } from "framer-motion";
 import { X, Ticket, Loader2 } from "lucide-react";
 import { useAvailableCoupons, useValidateCoupon } from "@/hooks/useCoupons";
@@ -32,6 +33,9 @@ export function CouponsSheet({
   onRemoved,
   onClose,
 }: CouponsSheetProps) {
+  // Sheets are mounted only while open, so locking on mount is the same as
+  // locking on open. Without this the page scrolls behind the backdrop.
+  useLockBodyScroll(true);
   const { data: available, isLoading } = useAvailableCoupons();
   const validate = useValidateCoupon();
   const [typed, setTyped] = useState("");
