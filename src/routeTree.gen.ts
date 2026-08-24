@@ -20,6 +20,7 @@ import { Route as RefundRouteImport } from './routes/refund'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminKycRouteImport } from './routes/admin.kyc'
 import { Route as AdminPayoutsRouteImport } from './routes/admin.payouts'
+import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 import { Route as ServiceServiceIdRouteImport } from './routes/service.$serviceId'
 import { Route as TrackingBookingIdRouteImport } from './routes/tracking.$bookingId'
 
@@ -78,6 +79,11 @@ const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
   path: '/admin/payouts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CategorySlugRoute = CategorySlugRouteImport.update({
+  id: '/category/$slug',
+  path: '/category/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ServiceServiceIdRoute = ServiceServiceIdRouteImport.update({
   id: '/service/$serviceId',
   path: '/service/$serviceId',
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/admin/kyc': typeof AdminKycRoute
   '/admin/payouts': typeof AdminPayoutsRoute
+  '/category/$slug': typeof CategorySlugRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
 }
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/admin/kyc': typeof AdminKycRoute
   '/admin/payouts': typeof AdminPayoutsRoute
+  '/category/$slug': typeof CategorySlugRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
 }
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/admin/kyc': typeof AdminKycRoute
   '/admin/payouts': typeof AdminPayoutsRoute
+  '/category/$slug': typeof CategorySlugRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
 }
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/kyc'
     | '/admin/payouts'
+    | '/category/$slug'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
   fileRoutesByTo: FileRoutesByTo
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/kyc'
     | '/admin/payouts'
+    | '/category/$slug'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
   id:
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/kyc'
     | '/admin/payouts'
+    | '/category/$slug'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
   fileRoutesById: FileRoutesById
@@ -195,6 +207,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   AdminKycRoute: typeof AdminKycRoute
   AdminPayoutsRoute: typeof AdminPayoutsRoute
+  CategorySlugRoute: typeof CategorySlugRoute
   ServiceServiceIdRoute: typeof ServiceServiceIdRoute
   TrackingBookingIdRoute: typeof TrackingBookingIdRoute
 }
@@ -278,6 +291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPayoutsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/category/$slug': {
+      id: '/category/$slug'
+      path: '/category/$slug'
+      fullPath: '/category/$slug'
+      preLoaderRoute: typeof CategorySlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/service/$serviceId': {
       id: '/service/$serviceId'
       path: '/service/$serviceId'
@@ -307,6 +327,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   AdminKycRoute: AdminKycRoute,
   AdminPayoutsRoute: AdminPayoutsRoute,
+  CategorySlugRoute: CategorySlugRoute,
   ServiceServiceIdRoute: ServiceServiceIdRoute,
   TrackingBookingIdRoute: TrackingBookingIdRoute,
 }

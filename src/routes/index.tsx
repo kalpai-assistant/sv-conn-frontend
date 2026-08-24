@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
 import { LocationBar } from "@/components/home/LocationBar";
 import { SearchBar } from "@/components/home/SearchBar";
 import { CategoryGrid } from "@/components/home/CategoryGrid";
@@ -23,11 +22,8 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
-  // Category selection is Home-local state — no reason for it to survive a
-  // navigation. A tap on the same tile deselects (undefined), which pushes
-  // the PopularSection back to its full "Most booked" view.
-  const [categoryId, setCategoryId] = useState<string | undefined>();
-
+  // No category state here any more: a tile is a link to that category's own
+  // page. Home is a launchpad, not a filtered view of itself.
   return (
     <div className="min-h-screen pb-20">
       <LocationBar />
@@ -35,15 +31,12 @@ function HomePage() {
 
       <section className="pb-4">
         <h2 className="px-4 pb-3 text-base font-semibold text-foreground">Categories</h2>
-        <CategoryGrid
-          selectedId={categoryId}
-          onSelect={(id) => setCategoryId((current) => (current === id ? undefined : id))}
-        />
+        <CategoryGrid />
       </section>
 
       <PromoCarousel />
       <BookAgainRow />
-      <PopularSection categoryId={categoryId} />
+      <PopularSection />
       <TrustBar />
     </div>
   );
