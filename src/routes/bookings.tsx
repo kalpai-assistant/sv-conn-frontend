@@ -93,9 +93,13 @@ function BookingsPage() {
               params={{ bookingId: b.id }}
               className="rounded-xl border border-border bg-card p-4 block"
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{b.service.name}</p>
+              <div className="flex items-start justify-between gap-3">
+                {/* min-w-0 so the truncate above actually clamps: a flex item
+                    defaults to min-width:auto and refuses to shrink below its
+                    content, which would let a long name push the card taller
+                    and break the skeleton's height match. */}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{b.service.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {b.service.provider?.name || "Finding nearby partner..."}
                   </p>
