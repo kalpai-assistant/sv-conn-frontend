@@ -28,6 +28,17 @@ const InputOTPGroup = React.forwardRef<
 ));
 InputOTPGroup.displayName = "InputOTPGroup";
 
+/**
+ * Slot styling deviates from stock shadcn deliberately.
+ *
+ * Stock renders one joined control (`border-y border-r` + `first:rounded-l`),
+ * which reads as a single segmented field. The OTP screen this backs shows
+ * six separate boxes, so the base classes are the separated look rather than
+ * an override at the call site: tailwind-merge treats `border-r` and
+ * `border-2` as different groups, and `rounded-l-md` as different from
+ * `rounded-xl`, so overriding would leave the joined edges in place and
+ * produce a mongrel border.
+ */
 const InputOTPSlot = React.forwardRef<
   React.ElementRef<"div">,
   React.ComponentPropsWithoutRef<"div"> & { index: number }
@@ -39,8 +50,8 @@ const InputOTPSlot = React.forwardRef<
     <div
       ref={ref}
       className={cn(
-        "relative flex h-9 w-9 items-center justify-center border-y border-r border-input text-sm shadow-sm transition-all first:rounded-l-md first:border-l last:rounded-r-md",
-        isActive && "z-10 ring-1 ring-ring",
+        "relative flex h-14 w-12 items-center justify-center rounded-xl border-2 border-border bg-card text-xl font-bold text-foreground transition-colors",
+        isActive && "border-primary",
         className,
       )}
       {...props}
