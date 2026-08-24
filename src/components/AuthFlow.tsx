@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useAuth } from "@/lib/auth-context";
 import { API_BASE_URL, ApiError, apiFetch } from "@/lib/api";
@@ -41,6 +41,9 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
   // filtering and one-time-code autofill work without hand-rolling them.
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  // Wall-clock instant the resend button re-arms, and the seconds derived
+  // from it for display. See the effect below for why it isn't a counter.
+  const [resendAt, setResendAt] = useState<number | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
   // Guards `onComplete` against re-entry. The user can backspace and retype
@@ -51,13 +54,33 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
   // before the user can retry.
   const verifying = useRef(false);
 
-  // Resend timer
+  // The cooldown is stored as a deadline and the displayed seconds are
+  // derived from it, rather than decremented.
+  //
+  // Android's WebView freezes timers while the app is backgrounded — which
+  // is exactly what a user does on this screen, leaving to read the SMS. A
+  // decrementing counter therefore stalls for however long they were away
+  // and then resumes as if no time had passed, so "30s" can span well over a
+  // minute of wall clock. Recomputing from Date.now() re-syncs within one
+  // tick of resume and needs no App resume listener.
   useEffect(() => {
-    if (resendTimer > 0) {
-      const t = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
-      return () => clearTimeout(t);
-    }
-  }, [resendTimer]);
+    if (resendAt === null) return;
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((resendAt - Date.now()) / 1000));
+      setResendTimer(remaining);
+      // Stop the interval once it's spent rather than ticking forever.
+      if (remaining === 0) setResendAt(null);
+    };
+
+    tick();
+    // Twice a second, so the number is never more than ~500ms stale after a
+    // resume. A 1s interval would leave a visible wrong value on return.
+    const id = setInterval(tick, 500);
+    return () => clearInterval(id);
+  }, [resendAt]);
+
+  const startResendCooldown = (seconds: number) => setResendAt(Date.now() + seconds * 1000);
 
   const handleSendOtp = async () => {
     if (phone.length < 10) return;
@@ -69,7 +92,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
         body: JSON.stringify({ phone: `+91${phone}` }),
       });
       setStep("otp");
-      setResendTimer(RESEND_COOLDOWN_SECONDS);
+      startResendCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Failed to send OTP. Please try again.");
       // A 429 states exactly how long this phone is locked out for. Hold the
@@ -77,7 +100,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
       // re-arm the button well before the backend would accept it and hand
       // the user a second identical failure.
       if (e instanceof ApiError && e.status === 429 && e.retryAfter) {
-        setResendTimer(e.retryAfter);
+        startResendCooldown(e.retryAfter);
       }
     } finally {
       setLoading(false);
@@ -138,14 +161,17 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
   // Returning to phone entry has to be possible from the OTP step. Without
   // it a single mistyped digit is unrecoverable: the code goes to a number
   // the user doesn't own, and there is nowhere to go but out of the app.
-  const goBackToPhone = () => {
+  // Stable so the back-interceptor effect below re-registers only when the
+  // step changes, not on every render.
+  const goBackToPhone = useCallback(() => {
     setStep("phone");
     setOtp("");
     setErrorMsg("");
     // The countdown belongs to the number we just left. Rate limiting is
     // per-phone, so a different number starts with its own budget.
+    setResendAt(null);
     setResendTimer(0);
-  };
+  }, []);
 
   // Claim the Android hardware back button while the OTP step is up. The
   // router's handler in main.mobile.tsx cannot see this component — it is an
@@ -157,7 +183,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
       goBackToPhone();
       return true;
     });
-  }, [step]);
+  }, [step, goBackToPhone]);
 
   return (
     <div className="fixed inset-0 z-50 bg-background">
