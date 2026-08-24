@@ -13,7 +13,7 @@
  * constructed with no options, so `refetchOnWindowFocus` is on and returning
  * to the app already refetches. This exists because users expect the gesture.
  */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /** Pull distance, in px, that commits to a refresh. */
 const THRESHOLD = 70;
@@ -24,15 +24,39 @@ const MAX_PULL = 110;
 export function usePullToRefresh(onRefresh: () => Promise<unknown> | unknown) {
   const [pull, setPull] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+
   const startY = useRef<number | null>(null);
   const startX = useRef(0);
   // Latched once a gesture is judged to be horizontal, so a diagonal drag
   // can't cross the axis threshold mid-swipe and trigger a refresh.
   const rejected = useRef(false);
 
+  // Mirrors of everything the listeners read.
+  //
+  // The listeners are registered ONCE, so they cannot close over state — a
+  // stale closure would read `pull` as 0 at touchend and never fire. Refs are
+  // the alternative to putting these in the dependency array, which would
+  // re-register all four listeners on every `touchmove`: dozens of
+  // teardown/re-add cycles per gesture, and a real chance of dropping an
+  // event mid-drag on a slower device.
+  const pullRef = useRef(0);
+  const refreshingRef = useRef(false);
+  const onRefreshRef = useRef(onRefresh);
+
+  // Kept current without re-running the listener effect, so a caller passing
+  // an inline arrow — the obvious thing to write — costs nothing.
+  useEffect(() => {
+    onRefreshRef.current = onRefresh;
+  });
+
+  const applyPull = useCallback((next: number) => {
+    pullRef.current = next;
+    setPull(next);
+  }, []);
+
   useEffect(() => {
     const onTouchStart = (e: TouchEvent) => {
-      if (window.scrollY > 0 || refreshing) {
+      if (window.scrollY > 0 || refreshingRef.current) {
         startY.current = null;
         return;
       }
@@ -50,27 +74,32 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | unknown) {
       // one of the snap-scrolling rails, not a pull.
       if (dy <= 0 || dx > Math.abs(dy)) {
         rejected.current = true;
-        setPull(0);
+        applyPull(0);
         return;
       }
       // Resisted so the indicator decelerates as it approaches the cap.
-      setPull(Math.min(MAX_PULL, dy * 0.5));
+      applyPull(Math.min(MAX_PULL, dy * 0.5));
     };
 
     const onTouchEnd = async () => {
       if (startY.current === null) return;
       startY.current = null;
-      if (pull < THRESHOLD * 0.5) {
-        setPull(0);
+
+      if (pullRef.current < THRESHOLD * 0.5) {
+        applyPull(0);
         return;
       }
+
+      refreshingRef.current = true;
       setRefreshing(true);
-      setPull(THRESHOLD * 0.5);
+      // Hold the indicator at rest height while the request is in flight.
+      applyPull(THRESHOLD * 0.5);
       try {
-        await onRefresh();
+        await onRefreshRef.current();
       } finally {
+        refreshingRef.current = false;
         setRefreshing(false);
-        setPull(0);
+        applyPull(0);
       }
     };
 
@@ -87,7 +116,9 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | unknown) {
       document.removeEventListener("touchend", onTouchEnd);
       document.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [onRefresh, pull, refreshing]);
+    // Registered once for the lifetime of the screen. Everything the handlers
+    // need is read through a ref.
+  }, [applyPull]);
 
   return { pull, refreshing };
 }

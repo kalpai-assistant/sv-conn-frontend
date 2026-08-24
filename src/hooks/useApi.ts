@@ -50,22 +50,42 @@ function mergeDependentQuery<TQuery extends UseQueryResult<unknown>>(
   query: TQuery,
   dependency: UseQueryResult<unknown>,
 ): TQuery {
-  return {
-    ...query,
-    isError: query.isError || dependency.isError,
-    error: query.error ?? dependency.error,
-    isLoading: query.isLoading || dependency.isLoading,
-    refetch: async (...args: Parameters<TQuery["refetch"]>) => {
-      if (dependency.isError) {
-        const retried = await dependency.refetch();
-        // Still broken — re-running the dependent query would just re-disable
-        // it, so report the dependency's result rather than a misleading
-        // success.
-        if (retried.isError) return retried;
-      }
-      return query.refetch(...args);
+  // `Object.create`, not a spread.
+  //
+  // react-query v5 hands back an object whose properties are getters that
+  // record which ones a component actually read, and re-renders only when
+  // those change. Spreading it reads every getter, so the component is marked
+  // as depending on all of them — including `isFetching` and `dataUpdatedAt`,
+  // which churn on their own. That turns `useBooking`'s 4s poll into a
+  // re-render of the whole tracking screen every 4s regardless of whether
+  // anything visible changed.
+  //
+  // Shadowing on a prototype chain keeps the getters lazy: the four fields
+  // below are resolved here because we genuinely use them, and everything
+  // else is still only tracked if the caller reads it. The getters close over
+  // the observer rather than `this`, so delegation works.
+  //
+  // Caveat: inherited properties are not own properties, so `{...useServices()}`
+  // would copy only the four below. Nothing does that today; destructuring,
+  // which everything does use, is unaffected.
+  return Object.create(query, {
+    isError: { value: query.isError || dependency.isError, enumerable: true },
+    error: { value: query.error ?? dependency.error, enumerable: true },
+    isLoading: { value: query.isLoading || dependency.isLoading, enumerable: true },
+    refetch: {
+      enumerable: true,
+      value: async (...args: Parameters<TQuery["refetch"]>) => {
+        if (dependency.isError) {
+          const retried = await dependency.refetch();
+          // Still broken — re-running the dependent query would just
+          // re-disable it, so report the dependency's result rather than a
+          // misleading success.
+          if (retried.isError) return retried;
+        }
+        return query.refetch(...args);
+      },
     },
-  } as TQuery;
+  }) as TQuery;
 }
 
 // ---------------------------------------------------------------------------
