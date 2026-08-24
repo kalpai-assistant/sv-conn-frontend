@@ -3,8 +3,9 @@ import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useAuth } from "@/lib/auth-context";
 import { API_BASE_URL } from "@/lib/api";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { pushBackInterceptor } from "@/lib/back-interceptor";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, ArrowRight, Loader2 } from "lucide-react";
+import { Phone, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 
 // The splash step was moved to a root-level `SplashGate` so the
 // animation runs on every cold app open regardless of auth state.
@@ -110,6 +111,30 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
     }
   };
 
+  // Returning to phone entry has to be possible from the OTP step. Without
+  // it a single mistyped digit is unrecoverable: the code goes to a number
+  // the user doesn't own, and there is nowhere to go but out of the app.
+  const goBackToPhone = () => {
+    setStep("phone");
+    setOtp("");
+    setErrorMsg("");
+    // The countdown belongs to the number we just left. Rate limiting is
+    // per-phone, so a different number starts with its own budget.
+    setResendTimer(0);
+  };
+
+  // Claim the Android hardware back button while the OTP step is up. The
+  // router's handler in main.mobile.tsx cannot see this component — it is an
+  // auth gate rendered outside the route tree — so without this, back falls
+  // through to "press back again to exit".
+  useEffect(() => {
+    if (step !== "otp") return;
+    return pushBackInterceptor(() => {
+      goBackToPhone();
+      return true;
+    });
+  }, [step]);
+
   return (
     <div className="fixed inset-0 z-50 bg-background">
       <AnimatePresence mode="wait">
@@ -170,6 +195,14 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
             <p className="mt-2 text-sm text-muted-foreground">
               Enter the 6-digit code sent to +91 {phone}
             </p>
+            {/* Sits directly under the number it edits, so the fix is where
+                the user notices the mistake. */}
+            <button
+              onClick={goBackToPhone}
+              className="mt-2 flex items-center gap-1 self-start text-sm font-semibold text-primary"
+            >
+              <ArrowLeft className="h-4 w-4" /> Change number
+            </button>
             {errorMsg && (
               <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
                 {errorMsg}
@@ -216,8 +249,9 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
                 </p>
               ) : (
                 <button
-                  onClick={() => setResendTimer(30)}
-                  className="text-sm font-semibold text-primary"
+                  onClick={handleSendOtp}
+                  disabled={loading}
+                  className="text-sm font-semibold text-primary disabled:opacity-50"
                 >
                   Resend OTP
                 </button>
