@@ -247,22 +247,44 @@ export function enablePushNotifications(): Promise<PushRegistrationResult> {
 }
 
 /**
- * Invalidate this device's token at logout.
+ * Tell the backend to drop this user's stored token (SVC-164).
  *
- * ⚠️ This clears the token **on the device**, not in the database. The backend
- * rejects an empty value — `UpdateFCMTokenRequest.fcm_token` is
- * `Field(..., max_length=255)`, i.e. required and non-empty — so the stored
- * string stays until SVC-164 relaxes it. Deleting the token at FCM is the half
- * we can do unilaterally, and it is the half that matters for privacy: the
- * stale string in the column no longer addresses a live device, so pushes for
- * the previous user (booking addresses included) stop landing on a handset
- * someone else may now be holding.
- *
- * Never throws — logout must complete regardless.
+ * Takes the JWT explicitly rather than leaning on the module-scoped one in
+ * `api.ts`. The endpoint identifies the row from the `Authorization` header,
+ * and `logout()` tears down auth state on the line right after it calls us —
+ * this function can't reach `fetch` before that happens, because
+ * `clearFcmToken` awaits a dynamic import first. Passing the token in makes
+ * the call correct regardless of who wins that race, instead of depending on
+ * it. `apiFetch` only overrides an explicit `Authorization` header while a
+ * module token still exists, and it's the same token either way.
  */
-export async function clearFcmToken(): Promise<void> {
-  lastSentToken = null;
+async function clearFcmTokenOnServer(accessToken: string | null): Promise<void> {
+  // No session → guaranteed 401 and pure log noise. Covers app-boot cleanup
+  // and repeat logouts.
+  if (!accessToken) return;
 
+  try {
+    await apiFetch<void>("/users/me/fcm-token", {
+      method: "PATCH",
+      // A LITERAL null, not an omitted key. `fcm_token` is required *and*
+      // nullable server-side, deliberately so a half-written client can't
+      // wipe push with an empty body — `{}` is a 422 and the token survives.
+      // `JSON.stringify` preserves null (it only drops `undefined`), and
+      // `apiFetch` passes `body` through untouched, so this reaches the wire
+      // as {"fcm_token":null}.
+      body: JSON.stringify({ fcm_token: null }),
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+  } catch (err) {
+    // Non-fatal by design: offline, a 500, or a backend predating SVC-164
+    // (which 422s on the null) must never block sign-out. The server returns
+    // 204 on a repeat clear, so retrying later is safe.
+    reportRegistrationFailure("logout-clear-server", err);
+  }
+}
+
+/** Delete the token at FCM itself, so this handset stops being addressable. */
+async function deleteDeviceToken(): Promise<void> {
   try {
     if (Capacitor.isNativePlatform()) {
       const PushNotifications = await loadPushPlugin();
@@ -280,8 +302,32 @@ export async function clearFcmToken(): Promise<void> {
   } catch (err) {
     // Best-effort: a failure here must not block logout, but we still want to
     // know, because it means a device kept a live token after sign-out.
-    reportRegistrationFailure("logout-clear", err);
+    reportRegistrationFailure("logout-clear-device", err);
   }
+}
+
+/**
+ * Invalidate this device's token at logout — both halves.
+ *
+ * 1. Server (SVC-164): NULLs `users.fcm_token`, so the backend stops
+ *    addressing pushes for the signed-out user to this device at all.
+ * 2. Device: deletes the token at FCM, so even a stale server copy no longer
+ *    resolves to a live handset.
+ *
+ * Both matter. The server call can fail (offline), and the device call can
+ * fail; doing both means a single failure isn't a silent privacy leak — and
+ * booking pushes carry the customer's address.
+ *
+ * ⚠️ `users.fcm_token` is a SINGLE column, so this drops push for the user on
+ * every device, not just this one. Known and accepted for beta; the real fix
+ * is a per-device token table and is its own ticket.
+ *
+ * Never throws — logout must complete regardless.
+ */
+export async function clearFcmToken(accessToken: string | null): Promise<void> {
+  lastSentToken = null;
+  // allSettled, not all: one half failing must not skip or reject the other.
+  await Promise.allSettled([clearFcmTokenOnServer(accessToken), deleteDeviceToken()]);
 }
 
 /**
