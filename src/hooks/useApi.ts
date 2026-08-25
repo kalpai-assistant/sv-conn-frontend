@@ -182,6 +182,12 @@ const mapBooking = (
     // gratuity. Kept as one field on the UI type so every screen shows
     // the same number.
     totalAmount: Math.max(0, serviceAmount - discountAmount + tipAmount),
+    // Snapshot from the booking (not derived): the split ratio isn't a global
+    // constant — see BookingItem.provider_payout / platform_commission notes in
+    // the spec — so the provider earnings screen has to trust these fields
+    // rather than compute a percentage.
+    platformCommission: b.platform_commission ?? 0,
+    providerPayout: b.provider_payout ?? 0,
     createdAt: b.created_at,
     otp: b.doorstep_otp || undefined,
     service: b.provider_id
@@ -328,6 +334,55 @@ export const useCancelBooking = () => {
     },
   });
 };
+
+// --- Provider-side booking transitions (SVC-41) ---
+//
+// The three legs of a job after it has been accepted. All share the same cache
+// invalidation, so they go through one factory rather than three near-identical
+// hooks: on success both the single booking (the job screen polls it) and the
+// list (the jobs tab) have to be refetched, or the screen keeps rendering the
+// step the provider just finished.
+//
+// The backend enforces the state machine, so a stale button press comes back as
+// 409 rather than silently moving the booking; callers surface that.
+const useBookingTransition = <V extends { bookingId: string }>(
+  leg: (vars: V) => { path: string; body?: string },
+) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: V) => {
+      const { path, body } = leg(vars);
+      return apiFetch<API_BookingResponse>(`/bookings/${vars.bookingId}/${path}`, {
+        method: "PATCH",
+        ...(body ? { body } : {}),
+      });
+    },
+    onSuccess: (_, { bookingId }) => {
+      queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    },
+  });
+};
+
+/** "I'm on my way" — ACCEPTED → EN_ROUTE. */
+export const useMarkEnRoute = () =>
+  useBookingTransition<{ bookingId: string }>(() => ({ path: "en-route" }));
+
+/**
+ * Doorstep OTP gate — EN_ROUTE → IN_PROGRESS.
+ *
+ * A wrong PIN is a 400 (`InvalidOTP`), which is the only error the OTP screen
+ * treats as "try again" rather than "something went wrong".
+ */
+export const useStartBooking = () =>
+  useBookingTransition<{ bookingId: string; otp: string }>(({ otp }) => ({
+    path: "start",
+    body: JSON.stringify({ otp }),
+  }));
+
+/** "Mark as Complete" — IN_PROGRESS → COMPLETED. */
+export const useCompleteBooking = () =>
+  useBookingTransition<{ bookingId: string }>(() => ({ path: "complete" }));
 
 export const useSubmitReview = () => {
   return useMutation({
@@ -522,5 +577,255 @@ export const useTriggerPayout = () => {
       );
       qc.invalidateQueries({ queryKey: ["admin", "settlements"] });
     },
+  });
+};
+
+// --- Provider service subscriptions (SVC-92) ---
+
+// GET /providers/me/services → [{ id, provider_id, service_id }]. We expose just the
+// set of subscribed service ids; the UI cross-references the full catalog (useServices).
+export const useProviderServices = () => {
+  return useQuery({
+    queryKey: ["providerServices"],
+    queryFn: async () => {
+      const data =
+        await apiFetch<{ id: string; provider_id: string; service_id: string }[]>(
+          "/providers/me/services",
+        );
+      return data.map((s) => s.service_id);
+    },
+  });
+};
+
+// Toggle a provider's subscription to a catalog service with optimistic update + rollback.
+// subscribe=true → POST /providers/me/services { service_id }; false → DELETE …/{id}.
+// A 403 (KYC not verified) surfaces as ApiError with status 403 for the caller to handle.
+export const useToggleProviderService = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ serviceId, subscribe }: { serviceId: string; subscribe: boolean }) => {
+      if (subscribe) {
+        return apiFetch("/providers/me/services", {
+          method: "POST",
+          body: JSON.stringify({ service_id: serviceId }),
+        });
+      }
+      return apiFetch(`/providers/me/services/${serviceId}`, { method: "DELETE" });
+    },
+    onMutate: async ({ serviceId, subscribe }) => {
+      await queryClient.cancelQueries({ queryKey: ["providerServices"] });
+      const previous = queryClient.getQueryData<string[]>(["providerServices"]);
+      queryClient.setQueryData<string[]>(["providerServices"], (old = []) =>
+        subscribe ? [...new Set([...old, serviceId])] : old.filter((id) => id !== serviceId),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      // Roll back to the snapshot taken in onMutate.
+      if (context?.previous) {
+        queryClient.setQueryData(["providerServices"], context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["providerServices"] });
+    },
+  });
+};
+
+// --- Provider onboarding (SVC-93) ---
+
+export type KycStatus = "pending" | "submitted" | "verified" | "rejected";
+
+export type PayoutMethodKind = "upi" | "bank";
+
+export interface ProviderProfile {
+  id: string;
+  user_id: string;
+  profile_photo_url: string | null;
+  languages: string[];
+  kyc_status: KycStatus;
+  // Whether the provider is accepting jobs right now (SVC-155). The booking
+  // broadcast filters on this, so a provider who never turns it on is matched by
+  // nothing. Server state, not a UI preference: it survives restarts, and it is
+  // only ever changed by an explicit user action — never by a lifecycle event.
+  is_online: boolean;
+  avg_rating: number;
+  total_completed_jobs: number;
+  // Derived on the backend: whether a payout destination is on file. Never the raw PII.
+  payout_set: boolean;
+  // Which stored destination payouts actually go to (SVC-148). A provider may keep
+  // both a UPI handle and a bank account on file — saving one never erases the
+  // other — so this, not "which details exist", is what decides where money lands.
+  payout_method: PayoutMethodKind | null;
+  // Display-safe label for the active method: the full handle for UPI (a VPA is
+  // public by design, and masking it would cost recognisability for no gain), the
+  // last 4 digits for a bank account. Null when nothing is on file — and also null
+  // for providers whose method predates SVC-148, since the backfill deliberately
+  // left it empty rather than guess. Callers must handle set-but-unlabelled.
+  payout_display: string | null;
+  // Which methods have details on file, active or not (SVC-152) — what makes it
+  // possible to know whether "switch back to your bank account" will work, rather
+  // than firing the switch and reading the 400. Names the filled slots, never their
+  // contents, and always includes the active method.
+  //
+  // Optional only for the window before the SVC-152 backend (PR #39) is deployed:
+  // against an older backend the field is absent, and callers fall back to offering
+  // the switch optimistically, which the 400 handling already covers. Drop the `?`
+  // once that backend is everywhere.
+  payout_methods_stored?: PayoutMethodKind[];
+}
+
+// GET /providers/me — the current provider's profile (kyc_status drives the
+// onboarding route guard and the Step 3 services-picker lock).
+export const useProviderProfile = (enabled = true) => {
+  return useQuery({
+    queryKey: ["providerProfile"],
+    queryFn: () => apiFetch<ProviderProfile>("/providers/me"),
+    enabled,
+  });
+};
+
+// PATCH /users/me { name } — name lives on the user, not the provider profile.
+export const useUpdateName = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiFetch("/users/me", { method: "PATCH", body: JSON.stringify({ name }) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+  });
+};
+
+// PATCH /providers/me { languages } — backend trims + de-duplicates server-side.
+export const useUpdateLanguages = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (languages: string[]) =>
+      apiFetch<ProviderProfile>("/providers/me", {
+        method: "PATCH",
+        body: JSON.stringify({ languages }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+  });
+};
+
+// PATCH /providers/me/status { is_online } — go online/offline (SVC-155).
+// Returns the full profile, same shape as GET /providers/me, so invalidating the
+// profile query is enough to settle every reader back onto server truth.
+//
+// Callers must only fire this from a deliberate user action. Going online means
+// "I am accepting jobs", not "the app is open", so it must never be driven by
+// mount, focus, foreground or background. Auto-offline-on-background would be
+// actively broken here: the app is backgrounded exactly when a push arrives.
+export const useSetOnlineStatus = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (is_online: boolean) =>
+      apiFetch<ProviderProfile>("/providers/me/status", {
+        method: "PATCH",
+        body: JSON.stringify({ is_online }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+  });
+};
+
+// POST /providers/me/photo (multipart) — upload/replace the provider photo.
+export const useUploadPhoto = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (photo: Blob) => {
+      const form = new FormData();
+      form.append("photo", photo, "photo.jpg");
+      return apiFetch<ProviderProfile>("/providers/me/photo", { method: "POST", body: form });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+  });
+};
+
+// POST /providers/me/kyc (multipart) — upload Aadhaar front + back + live selfie;
+// sets kyc_status=submitted. All three are captured live on the client (no upload).
+export const useSubmitKyc = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      aadhaarFront,
+      aadhaarBack,
+      selfie,
+    }: {
+      aadhaarFront: Blob;
+      aadhaarBack: Blob;
+      selfie: Blob;
+    }) => {
+      const form = new FormData();
+      form.append("aadhaar_front", aadhaarFront, "aadhaar-front.jpg");
+      form.append("aadhaar_back", aadhaarBack, "aadhaar-back.jpg");
+      form.append("selfie", selfie, "selfie.jpg");
+      return apiFetch<{ kyc_status: KycStatus; kyc_submitted_at: string | null }>(
+        "/providers/me/kyc",
+        { method: "POST", body: form },
+      );
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+  });
+};
+
+// PATCH /providers/me — save the provider's payout destination (SVC-133).
+// Send UPI *or* bank details; the backend encrypts at rest and returns the
+// derived payout_set flag (never the raw PII).
+//
+// The union is what stops "both at once" being expressible: the backend 422s on a
+// request carrying UPI and bank together, because saving a method also activates
+// it and two activations have no defined winner.
+export type PayoutInput =
+  { payout_vpa: string } | { payout_account_number: string; payout_ifsc: string };
+
+// Every payout endpoint returns the full provider profile, so each mutation seeds
+// the cache from its own response rather than invalidating and refetching. Saves a
+// round-trip, and — more importantly — avoids the window where the screen renders
+// stale payout state between a successful write and the refetch landing.
+const seedProfile =
+  (queryClient: ReturnType<typeof useQueryClient>) => (profile: ProviderProfile) =>
+    queryClient.setQueryData(["providerProfile"], profile);
+
+export const useUpdatePayout = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payout: PayoutInput) =>
+      apiFetch<ProviderProfile>("/providers/me", {
+        method: "PATCH",
+        body: JSON.stringify(payout),
+      }),
+    onSuccess: seedProfile(queryClient),
+  });
+};
+
+// PATCH /providers/me/payout-method — switch payouts to a method already on file,
+// without re-entering it (SVC-148). Saving a method never erases the other one, so
+// a provider who has both stored can flip between them.
+//
+// Throws ApiError with status 400 when nothing is stored for the requested method.
+// That 400 is currently the *only* way to discover what is stored: GET /providers/me
+// returns the active method and its label, but nothing about the inactive one.
+export const useSetPayoutMethod = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (method: PayoutMethodKind) =>
+      apiFetch<ProviderProfile>("/providers/me/payout-method", {
+        method: "PATCH",
+        body: JSON.stringify({ method }),
+      }),
+    onSuccess: seedProfile(queryClient),
+  });
+};
+
+// DELETE /providers/me/payout-method — erase every stored payout destination.
+// Clears *both* methods, not just the active one, so this is not an undo for a
+// switch: afterwards payout_set is false and the provider cannot be paid until
+// they add a method again. Callers must confirm before firing it.
+export const useRemovePayoutMethod = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<ProviderProfile>("/providers/me/payout-method", { method: "DELETE" }),
+    onSuccess: seedProfile(queryClient),
   });
 };

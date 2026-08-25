@@ -109,6 +109,11 @@ export interface Booking {
   tipAmount: number;
   // Sum the user was (or will be) charged: serviceAmount - discount + tip.
   totalAmount: number;
+  // Provider earnings breakdown (SVC-41). BookingResponse has always carried
+  // these — the mappers just weren't keeping them until the provider earnings
+  // screen needed them. Snapshotted at booking creation.
+  platformCommission: number;
+  providerPayout: number;
   createdAt: string;
 }
 
@@ -384,6 +389,8 @@ export const mockBookings: Booking[] = [
     discountAmount: 0,
     tipAmount: 0,
     totalAmount: 2099,
+    platformCommission: 420,
+    providerPayout: 1679,
     createdAt: "2026-04-15T09:30:00",
   },
   {
@@ -400,6 +407,8 @@ export const mockBookings: Booking[] = [
     discountAmount: 0,
     tipAmount: 0,
     totalAmount: 649,
+    platformCommission: 130,
+    providerPayout: 519,
     createdAt: "2026-04-15T12:00:00",
   },
   {
@@ -415,6 +424,8 @@ export const mockBookings: Booking[] = [
     discountAmount: 0,
     tipAmount: 0,
     totalAmount: 549,
+    platformCommission: 110,
+    providerPayout: 439,
     createdAt: "2026-04-12T10:00:00",
   },
   {
@@ -430,6 +441,8 @@ export const mockBookings: Booking[] = [
     discountAmount: 0,
     tipAmount: 0,
     totalAmount: 399,
+    platformCommission: 80,
+    providerPayout: 319,
     createdAt: "2026-04-10T15:00:00",
   },
   {
@@ -445,6 +458,8 @@ export const mockBookings: Booking[] = [
     discountAmount: 0,
     tipAmount: 0,
     totalAmount: 349,
+    platformCommission: 70,
+    providerPayout: 279,
     createdAt: "2026-04-08T08:00:00",
   },
 ];

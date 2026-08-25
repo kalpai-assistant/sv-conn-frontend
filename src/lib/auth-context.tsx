@@ -2,11 +2,18 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import { apiFetch, clearTokens, hasStoredAuth, setTokens } from "./api";
 import { setSentryUser } from "./sentry";
 import { clearFcmToken } from "./fcm";
+
+// SVC-41 back-port: three roles the backend recognises. The client uses this
+// to pick between consumer and provider UIs; `admin` isn't a mobile persona
+// but the type mirrors backend for exhaustiveness.
+export type UserRole = "consumer" | "provider" | "admin";
+
 interface User {
   id: string;
   name: string | null;
   phone: string;
   email: string | null;
+  role: UserRole;
 }
 
 interface AuthContextType {

@@ -80,3 +80,8 @@ dist-marketing
 # and unreviewed commentary, not a team document. Keep team-facing facts in
 # code comments, commit messages and PR descriptions instead.
 MARKETING_LANDING_WIP.md
+
+# Local tooling / editor / agent state
+.claude/
+.mcp.json
+*.tmp

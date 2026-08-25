@@ -1,8 +1,10 @@
 import { Outlet, Link, createRootRoute, useRouterState, Navigate } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { CartProvider } from "@/lib/cart-context";
 import { useNotificationRouter } from "@/lib/notifications";
 import { useFcmRegistration } from "@/lib/fcm";
+import { useProviderProfile } from "@/hooks/useApi";
 import { BottomNav } from "@/components/BottomNav";
 import { CartFab } from "@/components/cart/CartFab";
 import { SplashGate } from "@/components/SplashGate";
@@ -54,17 +56,14 @@ export const Route = createRootRoute({
   notFoundComponent: NotFoundComponent,
 });
 
-// `User.role` is added by junior's SVC-82 (provider role gate) and isn't on
-// main yet — see notifications.ts for the same defensive read pattern. Once
-// SVC-82 merges, this surfaces transparently with no change here.
-type UserWithMaybeRole = { role?: "consumer" | "provider" | "admin" };
-
 function AppGate({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isNewUser, isRestoring } = useAuth();
   const routerState = useRouterState();
   const pathname = routerState.location.pathname;
   const isProfileRoute = pathname.startsWith("/profile");
   const isAdminRoute = pathname.startsWith("/admin");
+  const isProviderRoute = pathname.startsWith("/provider");
+  const isProviderOnboardingRoute = pathname.startsWith("/provider/onboarding");
   // Public routes — reachable without login.
   // - SVC-37: legal pages (privacy, terms, refund) are hit anonymously by
   //   Razorpay merchant review, Play Store data-safety review, and App Store
@@ -77,7 +76,14 @@ function AppGate({ children }: { children: React.ReactNode }) {
     pathname === "/terms" ||
     pathname === "/refund" ||
     pathname === "/download";
-  const role = (user as UserWithMaybeRole | null)?.role ?? null;
+  const role = user?.role ?? null;
+  const isProvider = isAuthenticated && role === "provider";
+
+  // Only fetch the provider profile (drives the onboarding gate below) once
+  // we know they're actually a provider — otherwise every consumer would fire
+  // an extra API call at boot.
+  const { data: providerProfile, isLoading: providerProfileLoading } =
+    useProviderProfile(isProvider);
 
   // Wire FCM tap → in-app navigation. No-op on web; lazy-loads the Capacitor
   // plugin so the web bundle stays clean. Must live inside <AuthProvider/> for
@@ -125,11 +131,39 @@ function AppGate({ children }: { children: React.ReactNode }) {
     return <Navigate to="/" />;
   }
 
-  // Force setup mode for fresh registrations (is_new_user) or when name is missing.
-  // The name check also covers reloads, where the in-memory isNewUser flag resets.
-  // Skip for admins — they don't use the consumer onboarding flow.
-  if (role !== "admin" && user && (isNewUser || !user.name) && !isProfileRoute) {
-    return <Navigate to="/profile" />;
+  // Role-based landing (SVC-41). Providers live under /provider/*; consumers
+  // live everywhere else. Bouncing here means push-tap navigation from
+  // notifications lands cleanly on the right surface even if the URL was
+  // constructed for the wrong role.
+  if (role === "provider") {
+    if (!isProviderRoute) {
+      return <Navigate to="/provider" />;
+    }
+    // Force incomplete providers through onboarding — name missing OR KYC
+    // still pending (not submitted). Once KYC is submitted/verified/rejected
+    // they're free to roam the provider surface.
+    if (!isProviderOnboardingRoute) {
+      if (providerProfileLoading) {
+        return (
+          <div className="flex min-h-screen items-center justify-center bg-background">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        );
+      }
+      const incomplete = !user?.name || providerProfile?.kyc_status === "pending";
+      if (incomplete) {
+        return <Navigate to="/provider/onboarding" />;
+      }
+    }
+  } else if (role !== "admin") {
+    // Consumer path — bounce them out of /provider/*, force through profile
+    // setup for fresh registrations (name missing).
+    if (isProviderRoute) {
+      return <Navigate to="/" />;
+    }
+    if (user && (isNewUser || !user.name) && !isProfileRoute) {
+      return <Navigate to="/profile" />;
+    }
   }
 
   // Admin pages render full-width; consumer/provider keep the max-w-md mobile shell.
