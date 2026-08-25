@@ -21,8 +21,15 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminKycRouteImport } from './routes/admin.kyc'
 import { Route as AdminPayoutsRouteImport } from './routes/admin.payouts'
 import { Route as CategorySlugRouteImport } from './routes/category.$slug'
+import { Route as ProviderIndexRouteImport } from './routes/provider/index'
+import { Route as ProviderEarningsRouteImport } from './routes/provider/earnings'
+import { Route as ProviderOnboardingRouteImport } from './routes/provider/onboarding'
+import { Route as ProviderPayoutRouteImport } from './routes/provider/payout'
+import { Route as ProviderProfileRouteImport } from './routes/provider/profile'
 import { Route as ServiceServiceIdRouteImport } from './routes/service.$serviceId'
 import { Route as TrackingBookingIdRouteImport } from './routes/tracking.$bookingId'
+import { Route as ProviderBookingsIndexRouteImport } from './routes/provider/bookings/index'
+import { Route as ProviderBookingsBookingIdRouteImport } from './routes/provider/bookings/$bookingId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -84,6 +91,31 @@ const CategorySlugRoute = CategorySlugRouteImport.update({
   path: '/category/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProviderIndexRoute = ProviderIndexRouteImport.update({
+  id: '/provider/',
+  path: '/provider/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProviderEarningsRoute = ProviderEarningsRouteImport.update({
+  id: '/provider/earnings',
+  path: '/provider/earnings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProviderOnboardingRoute = ProviderOnboardingRouteImport.update({
+  id: '/provider/onboarding',
+  path: '/provider/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProviderPayoutRoute = ProviderPayoutRouteImport.update({
+  id: '/provider/payout',
+  path: '/provider/payout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProviderProfileRoute = ProviderProfileRouteImport.update({
+  id: '/provider/profile',
+  path: '/provider/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ServiceServiceIdRoute = ServiceServiceIdRouteImport.update({
   id: '/service/$serviceId',
   path: '/service/$serviceId',
@@ -94,6 +126,17 @@ const TrackingBookingIdRoute = TrackingBookingIdRouteImport.update({
   path: '/tracking/$bookingId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProviderBookingsIndexRoute = ProviderBookingsIndexRouteImport.update({
+  id: '/provider/bookings/',
+  path: '/provider/bookings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProviderBookingsBookingIdRoute =
+  ProviderBookingsBookingIdRouteImport.update({
+    id: '/provider/bookings/$bookingId',
+    path: '/provider/bookings/$bookingId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -108,8 +151,15 @@ export interface FileRoutesByFullPath {
   '/admin/kyc': typeof AdminKycRoute
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/provider/earnings': typeof ProviderEarningsRoute
+  '/provider/onboarding': typeof ProviderOnboardingRoute
+  '/provider/payout': typeof ProviderPayoutRoute
+  '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
+  '/provider/': typeof ProviderIndexRoute
+  '/provider/bookings/$bookingId': typeof ProviderBookingsBookingIdRoute
+  '/provider/bookings/': typeof ProviderBookingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -124,8 +174,15 @@ export interface FileRoutesByTo {
   '/admin/kyc': typeof AdminKycRoute
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/provider/earnings': typeof ProviderEarningsRoute
+  '/provider/onboarding': typeof ProviderOnboardingRoute
+  '/provider/payout': typeof ProviderPayoutRoute
+  '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
+  '/provider': typeof ProviderIndexRoute
+  '/provider/bookings/$bookingId': typeof ProviderBookingsBookingIdRoute
+  '/provider/bookings': typeof ProviderBookingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -141,8 +198,15 @@ export interface FileRoutesById {
   '/admin/kyc': typeof AdminKycRoute
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/provider/earnings': typeof ProviderEarningsRoute
+  '/provider/onboarding': typeof ProviderOnboardingRoute
+  '/provider/payout': typeof ProviderPayoutRoute
+  '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
+  '/provider/': typeof ProviderIndexRoute
+  '/provider/bookings/$bookingId': typeof ProviderBookingsBookingIdRoute
+  '/provider/bookings/': typeof ProviderBookingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -159,8 +223,15 @@ export interface FileRouteTypes {
     | '/admin/kyc'
     | '/admin/payouts'
     | '/category/$slug'
+    | '/provider/earnings'
+    | '/provider/onboarding'
+    | '/provider/payout'
+    | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
+    | '/provider/'
+    | '/provider/bookings/$bookingId'
+    | '/provider/bookings/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -175,8 +246,15 @@ export interface FileRouteTypes {
     | '/admin/kyc'
     | '/admin/payouts'
     | '/category/$slug'
+    | '/provider/earnings'
+    | '/provider/onboarding'
+    | '/provider/payout'
+    | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
+    | '/provider'
+    | '/provider/bookings/$bookingId'
+    | '/provider/bookings'
   id:
     | '__root__'
     | '/'
@@ -191,8 +269,15 @@ export interface FileRouteTypes {
     | '/admin/kyc'
     | '/admin/payouts'
     | '/category/$slug'
+    | '/provider/earnings'
+    | '/provider/onboarding'
+    | '/provider/payout'
+    | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
+    | '/provider/'
+    | '/provider/bookings/$bookingId'
+    | '/provider/bookings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -208,8 +293,15 @@ export interface RootRouteChildren {
   AdminKycRoute: typeof AdminKycRoute
   AdminPayoutsRoute: typeof AdminPayoutsRoute
   CategorySlugRoute: typeof CategorySlugRoute
+  ProviderEarningsRoute: typeof ProviderEarningsRoute
+  ProviderOnboardingRoute: typeof ProviderOnboardingRoute
+  ProviderPayoutRoute: typeof ProviderPayoutRoute
+  ProviderProfileRoute: typeof ProviderProfileRoute
   ServiceServiceIdRoute: typeof ServiceServiceIdRoute
   TrackingBookingIdRoute: typeof TrackingBookingIdRoute
+  ProviderIndexRoute: typeof ProviderIndexRoute
+  ProviderBookingsBookingIdRoute: typeof ProviderBookingsBookingIdRoute
+  ProviderBookingsIndexRoute: typeof ProviderBookingsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -298,6 +390,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CategorySlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/provider/': {
+      id: '/provider/'
+      path: '/provider'
+      fullPath: '/provider/'
+      preLoaderRoute: typeof ProviderIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/provider/earnings': {
+      id: '/provider/earnings'
+      path: '/provider/earnings'
+      fullPath: '/provider/earnings'
+      preLoaderRoute: typeof ProviderEarningsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/provider/onboarding': {
+      id: '/provider/onboarding'
+      path: '/provider/onboarding'
+      fullPath: '/provider/onboarding'
+      preLoaderRoute: typeof ProviderOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/provider/payout': {
+      id: '/provider/payout'
+      path: '/provider/payout'
+      fullPath: '/provider/payout'
+      preLoaderRoute: typeof ProviderPayoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/provider/profile': {
+      id: '/provider/profile'
+      path: '/provider/profile'
+      fullPath: '/provider/profile'
+      preLoaderRoute: typeof ProviderProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/service/$serviceId': {
       id: '/service/$serviceId'
       path: '/service/$serviceId'
@@ -310,6 +437,20 @@ declare module '@tanstack/react-router' {
       path: '/tracking/$bookingId'
       fullPath: '/tracking/$bookingId'
       preLoaderRoute: typeof TrackingBookingIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/provider/bookings/': {
+      id: '/provider/bookings/'
+      path: '/provider/bookings'
+      fullPath: '/provider/bookings/'
+      preLoaderRoute: typeof ProviderBookingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/provider/bookings/$bookingId': {
+      id: '/provider/bookings/$bookingId'
+      path: '/provider/bookings/$bookingId'
+      fullPath: '/provider/bookings/$bookingId'
+      preLoaderRoute: typeof ProviderBookingsBookingIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -328,8 +469,15 @@ const rootRouteChildren: RootRouteChildren = {
   AdminKycRoute: AdminKycRoute,
   AdminPayoutsRoute: AdminPayoutsRoute,
   CategorySlugRoute: CategorySlugRoute,
+  ProviderEarningsRoute: ProviderEarningsRoute,
+  ProviderOnboardingRoute: ProviderOnboardingRoute,
+  ProviderPayoutRoute: ProviderPayoutRoute,
+  ProviderProfileRoute: ProviderProfileRoute,
   ServiceServiceIdRoute: ServiceServiceIdRoute,
   TrackingBookingIdRoute: TrackingBookingIdRoute,
+  ProviderIndexRoute: ProviderIndexRoute,
+  ProviderBookingsBookingIdRoute: ProviderBookingsBookingIdRoute,
+  ProviderBookingsIndexRoute: ProviderBookingsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
