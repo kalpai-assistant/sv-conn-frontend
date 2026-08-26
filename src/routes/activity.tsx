@@ -24,11 +24,11 @@ function ActivityPage() {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
-  const { pull, refreshing } = usePullToRefresh(refetch);
+  const { pull, refreshing, armed } = usePullToRefresh(refetch);
 
   return (
     <div className="min-h-screen pb-20">
-      <PullToRefreshIndicator pull={pull} refreshing={refreshing} />
+      <PullToRefreshIndicator pull={pull} refreshing={refreshing} armed={armed} />
       <div className="sticky top-0 z-30 flex h-14 items-center border-b border-border bg-card px-4">
         <h1 className="text-lg font-semibold text-foreground">Activity</h1>
       </div>

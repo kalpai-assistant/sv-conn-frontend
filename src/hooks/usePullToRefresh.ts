@@ -15,11 +15,22 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** Pull distance, in px, that commits to a refresh. */
-const THRESHOLD = 70;
+/**
+ * How far the indicator moves per px of finger travel.
+ *
+ * Below ~0.6 the indicator visibly lags the finger and the gesture reads as
+ * unresponsive — the first version used 0.5 and testers reported it "looked
+ * like nothing". Not 1.0 either: some drag beyond the commit point is what
+ * makes the gesture feel deliberate rather than hair-trigger.
+ */
+const RESISTANCE = 0.7;
+
+/** Indicator travel, in px, at which release commits to a refresh. */
+const TRIGGER_PULL = 48;
+
 /** Past this the indicator stops following the finger, so an aggressive pull
  *  doesn't drag the whole header down the screen. */
-const MAX_PULL = 110;
+const MAX_PULL = 88;
 
 export function usePullToRefresh(onRefresh: () => Promise<unknown> | unknown) {
   const [pull, setPull] = useState(0);
@@ -78,14 +89,14 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | unknown) {
         return;
       }
       // Resisted so the indicator decelerates as it approaches the cap.
-      applyPull(Math.min(MAX_PULL, dy * 0.5));
+      applyPull(Math.min(MAX_PULL, dy * RESISTANCE));
     };
 
     const onTouchEnd = async () => {
       if (startY.current === null) return;
       startY.current = null;
 
-      if (pullRef.current < THRESHOLD * 0.5) {
+      if (pullRef.current < TRIGGER_PULL) {
         applyPull(0);
         return;
       }
@@ -93,7 +104,7 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | unknown) {
       refreshingRef.current = true;
       setRefreshing(true);
       // Hold the indicator at rest height while the request is in flight.
-      applyPull(THRESHOLD * 0.5);
+      applyPull(TRIGGER_PULL);
       try {
         await onRefreshRef.current();
       } finally {
@@ -120,5 +131,8 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | unknown) {
     // need is read through a ref.
   }, [applyPull]);
 
-  return { pull, refreshing };
+  // `armed` drives the indicator's "release now" state. Without a visual
+  // change at the commit point there is no way to tell a pull that will fire
+  // from one that will snap back, so the gesture feels like a guess.
+  return { pull, refreshing, armed: pull >= TRIGGER_PULL };
 }
