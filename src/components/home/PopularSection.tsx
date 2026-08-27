@@ -19,13 +19,16 @@
  */
 import { useServices, useCategories } from "@/hooks/useApi";
 import { ServiceCardCompact } from "@/components/home/ServiceCardCompact";
-import { Loader2 } from "lucide-react";
+import { PackageOpen } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 
 /** How many services the rail shows before the user has to search instead. */
 const RAIL_LIMIT = 8;
 
 export function PopularSection() {
-  const { data: services, isLoading } = useServices();
+  const { data: services, isLoading, isError, refetch } = useServices();
   // Already cached — `useServices` fetches categories itself to resolve names,
   // so this reads the same query rather than issuing a second request.
   const { data: categories } = useCategories();
@@ -37,9 +40,13 @@ export function PopularSection() {
       <h2 className="px-4 pb-3 text-base font-semibold text-foreground">Most booked in Pune</h2>
 
       {isLoading ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <div className="flex gap-3 overflow-hidden pl-4">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-56 w-40 flex-shrink-0 rounded-xl" />
+          ))}
         </div>
+      ) : isError ? (
+        <ErrorState message="Couldn't load services." onRetry={refetch} />
       ) : railServices.length > 0 ? (
         // `snap-x` + per-card `snap-start` so a flick settles on a card edge
         // rather than mid-card. Trailing gap is a spacer element, not
@@ -61,9 +68,7 @@ export function PopularSection() {
           <div className="w-4 shrink-0" aria-hidden />
         </div>
       ) : (
-        <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-          No services available yet.
-        </p>
+        <EmptyState icon={PackageOpen} title="No services yet" />
       )}
     </section>
   );

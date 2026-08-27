@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ShieldCheck, LockKeyhole, Clock, ArrowLeft, Loader2, Check } from "lucide-react";
 import { useServices } from "@/hooks/useApi";
+import { ErrorState } from "@/components/ErrorState";
 import { usePageCtaHeight } from "@/hooks/usePageCtaHeight";
 import { useCart } from "@/lib/cart-context";
 import { VariantPicker } from "@/components/service/VariantPicker";
@@ -12,7 +13,7 @@ export const Route = createFileRoute("/service/$serviceId")({
 
 function ServiceDetailPage() {
   const { serviceId } = Route.useParams();
-  const { data: services, isLoading } = useServices();
+  const { data: services, isLoading, isError, refetch } = useServices();
   const service = services?.find((s) => s.id === serviceId);
   const cart = useCart();
   const navigate = useNavigate();
@@ -51,6 +52,13 @@ function ServiceDetailPage() {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
+
+  // Ahead of the not-found branch: a failed catalogue request leaves
+  // `services` undefined, the lookup misses, and the user is told the service
+  // does not exist — a 500 reported as a 404.
+  if (isError) {
+    return <ErrorState message="Couldn't load this service." onRetry={refetch} fullScreen />;
   }
 
   if (!service) {

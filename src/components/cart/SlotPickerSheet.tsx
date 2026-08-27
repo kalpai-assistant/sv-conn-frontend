@@ -13,6 +13,7 @@
  * expects on ``bookings.scheduled_at``.
  */
 import { useMemo, useState } from "react";
+import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { motion } from "framer-motion";
 import { X, Sun, CloudSun, Sunset, Zap } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -89,6 +90,9 @@ export function SlotPickerSheet({
   daysAhead = 7,
   todayCutoffHour = 19,
 }: SlotPickerSheetProps) {
+  // Sheets are mounted only while open, so locking on mount is the same as
+  // locking on open. Without this the page scrolls behind the backdrop.
+  useLockBodyScroll(true);
   // Pre-compute the calendar. Runs once on mount; deliberately not
   // recomputed on interval — a user open for hours crossing midnight is
   // an edge case that doesn't justify the timer.

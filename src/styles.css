@@ -103,6 +103,24 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Two things, both wanted:
+       1. Suppresses Android's overscroll stretch/glow, which would otherwise
+          draw over the pull-to-refresh indicator and make it look broken.
+       2. In the PWA build, suppresses Chrome's own pull-to-refresh, which
+          reloads the page — wiping cart contents, auth restore and router
+          position. An accidental full reload is not a gesture an app shell
+          should offer.
+       The trade: the rubber-band bounce at the top and bottom of lists is
+       gone. Some users read that as "you've reached the end". */
+    overscroll-behavior-y: contain;
+  }
+
+  /* Must be on the root element, not just `body`. Unlike `overflow`,
+     `overscroll-behavior` is NOT propagated from body to the viewport, so a
+     rule on body alone applies to an element that isn't the scroll container
+     and does nothing — the Android glow survived it. */
+  html {
+    overscroll-behavior-y: contain;
   }
 }
 

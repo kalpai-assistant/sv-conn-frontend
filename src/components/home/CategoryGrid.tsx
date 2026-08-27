@@ -17,10 +17,11 @@
  */
 import { Link } from "@tanstack/react-router";
 import { useCategories } from "@/hooks/useApi";
+import { ErrorState } from "@/components/ErrorState";
 import { categoryIcon, categoryColor } from "@/lib/category-icons";
 
 export function CategoryGrid() {
-  const { data: categories, isLoading } = useCategories();
+  const { data: categories, isLoading, isError, refetch } = useCategories();
 
   if (isLoading) {
     return (
@@ -30,6 +31,13 @@ export function CategoryGrid() {
         ))}
       </div>
     );
+  }
+
+  // Ahead of the empty check: returning null on a failed load made the grid
+  // silently vanish under its own "Categories" heading, which reads as a
+  // rendering bug rather than an outage.
+  if (isError) {
+    return <ErrorState message="Couldn't load categories." onRetry={refetch} />;
   }
 
   if (!categories || categories.length === 0) {

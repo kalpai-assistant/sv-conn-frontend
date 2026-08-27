@@ -1,10 +1,15 @@
 import { useState } from "react";
+import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { X, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { MapPicker } from "./MapPicker";
 import { useAddAddress } from "@/hooks/useApi";
 
 export function AddAddressSheet({ onClose }: { onClose: () => void }) {
+  // Sheets are mounted only while open, so locking on mount is the same as
+  // locking on open. Without this the page scrolls behind the backdrop.
+  useLockBodyScroll(true);
+
   const [step, setStep] = useState<"map" | "form">("map");
   const [lat, setLat] = useState(0);
   const [lng, setLng] = useState(0);

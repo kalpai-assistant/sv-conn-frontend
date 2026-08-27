@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useBookings } from "@/hooks/useApi";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { Activity } from "lucide-react";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { BookingCardSkeleton } from "@/components/skeletons/BookingCardSkeleton";
 
 export const Route = createFileRoute("/activity")({
   head: () => ({
@@ -19,33 +24,33 @@ function ActivityPage() {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
+  const { pull, refreshing, armed } = usePullToRefresh(refetch);
+
   return (
     <div className="min-h-screen pb-20">
+      <PullToRefreshIndicator pull={pull} refreshing={refreshing} armed={armed} />
       <div className="sticky top-0 z-30 flex h-14 items-center border-b border-border bg-card px-4">
         <h1 className="text-lg font-semibold text-foreground">Activity</h1>
       </div>
 
       <div className="px-4 pt-4 flex flex-col gap-3">
         {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <>
+            <BookingCardSkeleton />
+            <BookingCardSkeleton />
+            <BookingCardSkeleton />
+          </>
         ) : isError ? (
           // Without this an API blip leaves users staring at the loader
           // forever — worse than a plain error, because it looks like real
           // data is on the way when nothing is coming.
-          <div className="flex flex-col items-center gap-3 py-12 text-center">
-            <AlertCircle className="h-8 w-8 text-destructive" />
-            <p className="text-sm text-muted-foreground">Couldn't load your activity.</p>
-            <button
-              onClick={() => refetch()}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              Try again
-            </button>
-          </div>
+          <ErrorState message="Couldn't load your activity." onRetry={refetch} />
         ) : sorted.length === 0 ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">No recent activity.</p>
+          <EmptyState
+            icon={Activity}
+            title="No recent activity"
+            subtitle="Your bookings and their updates will show up here."
+          />
         ) : (
           sorted.map((b) => (
             <div

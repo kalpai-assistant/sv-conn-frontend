@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/EmptyState";
 import { useCart } from "@/lib/cart-context";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import { useCreateBookingFromCart } from "@/hooks/useCreateBookingFromCart";
@@ -99,7 +100,15 @@ function CartPage() {
   };
 
   if (items.length === 0) {
-    return <EmptyCart />;
+    return (
+      <EmptyState
+        icon={ShoppingCart}
+        title="Your cart is empty"
+        subtitle="Browse services and add them to get started."
+        action={{ label: "Browse services", to: "/" }}
+        fullScreen
+      />
+    );
   }
 
   return (
@@ -343,24 +352,6 @@ function CartPage() {
           />
         )}
       </AnimatePresence>
-    </div>
-  );
-}
-
-function EmptyCart() {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-8 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent">
-        <ShoppingCart className="h-8 w-8 text-primary" />
-      </div>
-      <h1 className="text-xl font-semibold text-foreground">Your cart is empty</h1>
-      <p className="text-sm text-muted-foreground">Browse services and add them to get started.</p>
-      <Link
-        to="/"
-        className="rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
-      >
-        Browse services
-      </Link>
     </div>
   );
 }

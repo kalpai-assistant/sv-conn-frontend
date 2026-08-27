@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Phone, Loader2, Search, CheckCircle2 } from "lucide-react";
 import { StatusStepper } from "@/components/StatusStepper";
+import { ErrorState } from "@/components/ErrorState";
 import { ReviewSheet } from "@/components/ReviewSheet";
 import { TrackingMap } from "@/components/tracking/TrackingMap";
 import { TipSection } from "@/components/tracking/TipSection";
@@ -53,7 +54,7 @@ function markBookingReviewed(bookingId: string) {
 function TrackingPage() {
   const { bookingId } = Route.useParams();
   const navigate = useNavigate();
-  const { data: booking, isLoading, refetch } = useBooking(bookingId);
+  const { data: booking, isLoading, isError, refetch } = useBooking(bookingId);
   const cancelMutation = useCancelBooking();
   const reviewMutation = useSubmitReview();
   const paymentOrderMutation = useCreatePaymentOrder();
@@ -77,6 +78,13 @@ function TrackingPage() {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
+
+  // Ahead of the not-found branch. This is the worst instance of the pattern:
+  // someone watching a technician come to their door hits a network blip and
+  // is told their booking does not exist.
+  if (isError) {
+    return <ErrorState message="Couldn't load this booking." onRetry={refetch} fullScreen />;
   }
 
   if (!booking) {

@@ -14,6 +14,7 @@
  * have booking data we can replace with a real popularity endpoint.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { ArrowLeft, Search, X, Clock, TrendingUp, Loader2 } from "lucide-react";
@@ -51,6 +52,10 @@ interface SearchSheetProps {
 }
 
 export function SearchSheet({ onClose }: SearchSheetProps) {
+  // Sheets are mounted only while open, so locking on mount is the same as
+  // locking on open. Without this the page scrolls behind the backdrop.
+  useLockBodyScroll(true);
+
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState<string[]>(() => getRecent());
   const { data: services, isLoading } = useServices();
