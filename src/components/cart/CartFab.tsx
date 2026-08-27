@@ -1,35 +1,31 @@
 /**
  * Floating "N items · ₹X · View Cart" bar.
  *
- * Sits at the bottom of category / service-detail screens where a user
- * might add multiple items before checking out. Renders nothing when the
- * cart is empty (a persistent "View Cart" with zero inside would be
- * confusing negative-space signal) and hides itself on the /cart page
- * itself so it doesn't stack on top of the Book & Pay CTA down there.
+ * Narrower in scope than it used to be. The bottom nav now carries a Cart
+ * tab with a count badge, so on every route that has a nav this bar was the
+ * second cart entry point on one screen. It now shows only where the nav
+ * cannot: service detail, which is full-screen and is exactly where items get
+ * added — see `showsCartFab`.
+ *
+ * Still renders nothing when the cart is empty: a persistent "View cart" with
+ * zero inside is confusing negative-space signal, and the tab badge is the
+ * thing that carries state now.
  */
 import { Link, useLocation } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
+import { showsCartFab } from "@/lib/nav-visibility";
 import { PAGE_CTA_HEIGHT_VAR } from "@/hooks/usePageCtaHeight";
 
 export function CartFab() {
   const { totalQuantity, subtotal } = useCart();
   const location = useLocation();
 
-  // Same hide list as BottomNav — plus /cart itself (redundant while
-  // already there) and tracking (the tracking screen has a stack of
-  // status + payment CTAs; a floating "view cart" on top would fight
-  // for attention with the one action the user's actually on).
-  const path = location.pathname;
-  const hidden =
-    path === "/cart" ||
-    path.startsWith("/tracking") ||
-    path.startsWith("/admin") ||
-    path === "/privacy" ||
-    path === "/terms" ||
-    path === "/refund";
-  const shouldShow = totalQuantity > 0 && !hidden;
+  // An allow-list now, not a hide-list. The old one had to be kept in sync
+  // with BottomNav's by hand and wasn't; see `nav-visibility.ts` for what that
+  // drift went on to hide.
+  const shouldShow = totalQuantity > 0 && showsCartFab(location.pathname);
 
   return (
     <AnimatePresence>

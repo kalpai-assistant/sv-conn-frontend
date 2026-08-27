@@ -1,13 +1,18 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Home, CalendarDays, Clock, User, IndianRupee } from "lucide-react";
+import { Home, CalendarDays, Clock, User, IndianRupee, ShoppingCart } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useCart } from "@/lib/cart-context";
+import { isBottomNavHidden } from "@/lib/nav-visibility";
 
 // Two tab sets — the app is single-APK, role-gated (SVC-41). Consumer sees
 // home / bookings / activity / profile; provider sees home / jobs /
 // earnings / profile. Selected in the render based on user.role.
+// Cart is a consumer tab only — providers have no cart, so their set stays
+// at four.
 const consumerTabs = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/bookings", icon: CalendarDays, label: "Bookings" },
+  { to: "/cart", icon: ShoppingCart, label: "Cart" },
   { to: "/activity", icon: Clock, label: "Activity" },
   { to: "/profile", icon: User, label: "Profile" },
 ] as const;
@@ -22,26 +27,13 @@ const providerTabs = [
 export function BottomNav() {
   const location = useLocation();
   const { user } = useAuth();
+  // Safe for providers too: BottomNav renders inside CartProvider, and a
+  // provider's cart is simply always empty.
+  const { totalQuantity } = useCart();
 
-  // Hide on auth, cart, tracking, service detail, admin, and public legal pages.
-  //
-  // /cart matters for more than tidiness: the cart's "Book & Pay" CTA is also
-  // fixed bottom-0 z-40, and this nav renders after <Outlet /> in __root, so at
-  // equal z-index it painted straight over the button. CartFab already assumed
-  // /cart was in this list ("redundant while already there") — it wasn't.
-  //
-  // Provider onboarding also hides the nav — that route is a full-screen
-  // wizard, tabs would compete for attention.
-  if (
-    location.pathname === "/cart" ||
-    location.pathname.startsWith("/tracking") ||
-    location.pathname.startsWith("/service/") ||
-    location.pathname.startsWith("/admin") ||
-    location.pathname.startsWith("/provider/onboarding") ||
-    location.pathname === "/privacy" ||
-    location.pathname === "/terms" ||
-    location.pathname === "/refund"
-  ) {
+  // Which routes have no nav lives in one shared module — see the drift
+  // history in `nav-visibility.ts`.
+  if (isBottomNavHidden(location.pathname)) {
     return null;
   }
 
@@ -57,6 +49,7 @@ export function BottomNav() {
           // match by prefix.
           const isHome = to === "/" || to === "/provider";
           const active = isHome ? location.pathname === to : location.pathname.startsWith(to);
+          const cartCount = to === "/cart" ? totalQuantity : 0;
           return (
             <Link
               key={to}
@@ -68,8 +61,28 @@ export function BottomNav() {
               className={`flex flex-col items-center gap-1 px-3 py-1 transition-colors ${
                 active ? "text-primary" : "text-muted-foreground"
               }`}
+              aria-label={
+                cartCount > 0
+                  ? `${label}, ${cartCount} ${cartCount === 1 ? "item" : "items"}`
+                  : undefined
+              }
             >
-              <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
+              <span className="relative">
+                <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
+                {cartCount > 0 && (
+                  // Count, not a bare dot: "how many" is the question a user
+                  // actually has, and the badge is the only cart signal on the
+                  // tab routes now that CartFab has stepped back to /service/*.
+                  // Capped so a runaway quantity can't widen the tab and shove
+                  // its neighbours out of line.
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold leading-none text-destructive-foreground"
+                  >
+                    {cartCount > 9 ? "9+" : cartCount}
+                  </span>
+                )}
+              </span>
               <span className="text-[10px] font-medium">{label}</span>
             </Link>
           );
