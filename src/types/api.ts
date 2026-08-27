@@ -1367,6 +1367,8 @@ export interface components {
             /** Doorstep Otp */
             doorstep_otp?: string | null;
             address: components["schemas"]["BookingAddress"] | null;
+            /** Status History */
+            status_history: components["schemas"]["BookingStatusLogResponse"][];
             /**
              * Is Disputed
              * @default false
@@ -1374,6 +1376,36 @@ export interface components {
             is_disputed: boolean;
             /** Scheduled At */
             scheduled_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * BookingStatusLogResponse
+         * @description One state transition on a booking, as the tracking timeline sees it.
+         *
+         *     A deliberately narrow projection of ``booking_status_logs``, which is an
+         *     internal audit trail and not a consumer-facing record (SVC-248). Two
+         *     columns are withheld on purpose:
+         *
+         *     ``changed_by`` is a user id — usually the assigned provider's, sometimes an
+         *     admin's. Who moved a booking is an operational fact; handing it to the
+         *     consumer's app turns an audit row into a disclosure about another person.
+         *
+         *     ``metadata_`` is free-form JSONB written by whatever called
+         *     ``_log_transition``. Nobody has audited what is already in those rows
+         *     across the project's history, and a field whose contents are unknown
+         *     cannot be knowingly published. If some part of it is worth showing, it
+         *     should be promoted to a named column first.
+         *
+         *     ``from_status`` is left out for a plainer reason: on an ordered list the
+         *     previous state is always the ``to_status`` of the entry before it.
+         */
+        BookingStatusLogResponse: {
+            /** To Status */
+            to_status: string;
             /**
              * Created At
              * Format: date-time

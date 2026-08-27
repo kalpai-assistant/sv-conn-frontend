@@ -3203,6 +3203,13 @@
               }
             ]
           },
+          "status_history": {
+            "items": {
+              "$ref": "#/components/schemas/BookingStatusLogResponse"
+            },
+            "type": "array",
+            "title": "Status History"
+          },
           "is_disputed": {
             "type": "boolean",
             "title": "Is Disputed",
@@ -3241,10 +3248,31 @@
           "payment_method",
           "payment_status",
           "address",
+          "status_history",
           "scheduled_at",
           "created_at"
         ],
         "title": "BookingResponse"
+      },
+      "BookingStatusLogResponse": {
+        "properties": {
+          "to_status": {
+            "type": "string",
+            "title": "To Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "to_status",
+          "created_at"
+        ],
+        "title": "BookingStatusLogResponse",
+        "description": "One state transition on a booking, as the tracking timeline sees it.\n\nA deliberately narrow projection of ``booking_status_logs``, which is an\ninternal audit trail and not a consumer-facing record (SVC-248). Two\ncolumns are withheld on purpose:\n\n``changed_by`` is a user id — usually the assigned provider's, sometimes an\nadmin's. Who moved a booking is an operational fact; handing it to the\nconsumer's app turns an audit row into a disclosure about another person.\n\n``metadata_`` is free-form JSONB written by whatever called\n``_log_transition``. Nobody has audited what is already in those rows\nacross the project's history, and a field whose contents are unknown\ncannot be knowingly published. If some part of it is worth showing, it\nshould be promoted to a named column first.\n\n``from_status`` is left out for a plainer reason: on an ordered list the\nprevious state is always the ``to_status`` of the entry before it."
       },
       "CancelBookingRequest": {
         "properties": {

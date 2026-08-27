@@ -80,6 +80,22 @@ export interface Review {
 export type BookingStatus =
   "REQUESTED" | "ACCEPTED" | "EN_ROUTE" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "EXPIRED";
 
+/**
+ * One state change on a booking, as the API now reports it (SVC-248).
+ *
+ * `booking_status_logs` was write-only until then, so the tracking timeline
+ * knew only the current status and could show neither when a stage was
+ * reached nor, for a booking that ended early, how far it actually got.
+ *
+ * Empty is a real answer, not a loading state: bookings created before the
+ * audit table existed have no entries at all, and the timeline degrades to
+ * its old current-status-only rendering for them.
+ */
+export interface BookingStatusEvent {
+  status: BookingStatus;
+  at: string;
+}
+
 export interface BookingItem {
   id: string;
   serviceId: string;
@@ -115,6 +131,8 @@ export interface Booking {
   platformCommission: number;
   providerPayout: number;
   createdAt: string;
+  // Oldest first. See BookingStatusEvent — may legitimately be empty.
+  statusHistory: BookingStatusEvent[];
 }
 
 // Nothing imports this as a value — every consumer of this module uses
@@ -385,6 +403,7 @@ export const mockBookings: Booking[] = [
     otp: "4829",
     paymentMethod: "online",
     paymentStatus: "pending",
+    statusHistory: [],
     serviceAmount: 2099,
     discountAmount: 0,
     tipAmount: 0,
@@ -403,6 +422,7 @@ export const mockBookings: Booking[] = [
     otp: "7163",
     paymentMethod: "cash",
     paymentStatus: "pending",
+    statusHistory: [],
     serviceAmount: 649,
     discountAmount: 0,
     tipAmount: 0,
@@ -420,6 +440,7 @@ export const mockBookings: Booking[] = [
     scheduledAt: "2026-04-12T11:00:00",
     paymentMethod: "online",
     paymentStatus: "paid",
+    statusHistory: [],
     serviceAmount: 549,
     discountAmount: 0,
     tipAmount: 0,
@@ -437,6 +458,7 @@ export const mockBookings: Booking[] = [
     scheduledAt: "2026-04-10T16:00:00",
     paymentMethod: "cash",
     paymentStatus: "paid",
+    statusHistory: [],
     serviceAmount: 399,
     discountAmount: 0,
     tipAmount: 0,
@@ -454,6 +476,7 @@ export const mockBookings: Booking[] = [
     scheduledAt: "2026-04-08T09:00:00",
     paymentMethod: "online",
     paymentStatus: "refunded",
+    statusHistory: [],
     serviceAmount: 349,
     discountAmount: 0,
     tipAmount: 0,

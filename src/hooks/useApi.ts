@@ -251,6 +251,13 @@ const mapBooking = (
     platformCommission: b.platform_commission ?? 0,
     providerPayout: b.provider_payout ?? 0,
     createdAt: b.created_at,
+    // Uppercased to match `status` above: the API speaks lowercase enum
+    // values, the UI type is uppercase, and the timeline matches history
+    // entries against stage names by identity (SVC-248).
+    statusHistory: (b.status_history ?? []).map((e) => ({
+      status: e.to_status.toUpperCase() as UI_Booking["status"],
+      at: e.created_at,
+    })),
     otp: b.doorstep_otp || undefined,
     service: b.provider_id
       ? {
