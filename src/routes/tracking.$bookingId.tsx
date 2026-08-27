@@ -378,7 +378,13 @@ function TrackingPage() {
 
           {booking.paymentMethod === "online" &&
             booking.paymentStatus === "pending" &&
+            // Terminal states, both of them. EXPIRED means no provider was
+            // ever found, so the service cannot happen — offering to charge
+            // for it puts the user one tap from paying for nothing and us one
+            // refund behind. The screen was showing "No partners found
+            // nearby" and "Pay Now" at the same time.
             booking.status !== "CANCELLED" &&
+            booking.status !== "EXPIRED" &&
             paymentState !== "success" &&
             paymentState !== "failed" && (
               <button
