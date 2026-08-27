@@ -112,7 +112,7 @@ function CartPage() {
   }
 
   return (
-    <div className="min-h-screen pb-40">
+    <div className="min-h-screen pb-48">
       {/* Header */}
       <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card px-4">
         <Link
@@ -315,7 +315,19 @@ function CartPage() {
       )}
 
       {/* Sticky Book & Pay */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 mx-auto max-w-md border-t border-border bg-card p-4 safe-bottom">
+      {/*
+        Offset above the bottom nav rather than pinned to bottom-0.
+        The nav used to hide itself on /cart precisely because both are
+        `fixed bottom-0 z-40` and the nav renders after <Outlet/>, so it
+        painted over this button. Now that Cart is a nav tab, the nav has to
+        stay — a tab that disappears on the screen it navigates to is never
+        seen in its own active state — so the CTA moves up by the nav's
+        height (h-16) plus the safe-area inset the nav also reserves.
+      */}
+      <div
+        style={{ bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" }}
+        className="fixed left-0 right-0 z-40 mx-auto max-w-md border-t border-border bg-card p-4"
+      >
         <button
           onClick={handleBookAndPay}
           disabled={!canBook}
