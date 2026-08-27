@@ -353,9 +353,9 @@ function TrackingPage() {
             </span>
           </div>
 
-          {booking.status === "COMPLETED" &&
-            booking.paymentMethod === "online" &&
+          {booking.paymentMethod === "online" &&
             booking.paymentStatus === "pending" &&
+            booking.status !== "CANCELLED" &&
             paymentState !== "success" &&
             paymentState !== "failed" && (
               <button
