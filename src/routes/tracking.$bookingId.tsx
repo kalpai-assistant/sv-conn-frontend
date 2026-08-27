@@ -203,7 +203,7 @@ function TrackingPage() {
       <div className="px-4 pt-6">
         {/* Status Stepper */}
         <div className="rounded-xl border border-border bg-card p-4 mb-4">
-          <StatusStepper currentStatus={booking.status} />
+          <StatusStepper currentStatus={booking.status} history={booking.statusHistory} />
         </div>
 
         {/* Searching State */}
