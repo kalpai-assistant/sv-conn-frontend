@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Phone, Loader2, Search, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Phone, Loader2, Search, CheckCircle2, XCircle } from "lucide-react";
 import { StatusStepper } from "@/components/StatusStepper";
 import { ErrorState } from "@/components/ErrorState";
 import { ReviewSheet } from "@/components/ReviewSheet";
@@ -103,6 +103,7 @@ function TrackingPage() {
 
   const isSearching = booking.status === "REQUESTED";
   const isExpired = booking.status === "EXPIRED";
+  const isCancelled = booking.status === "CANCELLED";
 
   const handleCancel = async () => {
     try {
@@ -236,6 +237,28 @@ function TrackingPage() {
               className="rounded-xl bg-primary px-4 py-2 font-semibold text-primary-foreground"
             >
               Try Again
+            </button>
+          </div>
+        )}
+
+        {/* EXPIRED had a banner; CANCELLED had nothing — the screen simply
+            went quiet, leaving the timeline as the only (and until this
+            ticket, misleading) signal that anything had happened. Same slot,
+            same shape, so the two terminal states read consistently. */}
+        {isCancelled && (
+          <div className="rounded-xl border border-border bg-card p-8 mb-4 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+              <XCircle className="h-6 w-6 text-destructive" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-1">Booking cancelled</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              This booking was cancelled. You have not been charged.
+            </p>
+            <button
+              onClick={() => navigate({ to: "/" })}
+              className="rounded-xl bg-primary px-4 py-2 font-semibold text-primary-foreground"
+            >
+              Browse services
             </button>
           </div>
         )}
