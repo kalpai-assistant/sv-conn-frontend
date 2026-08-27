@@ -82,14 +82,15 @@ function CategoryPage() {
   const tint = categoryColor(category.sortOrder);
 
   return (
-    // Not `pb-20` like the tab routes: 80px clears the BottomNav but not
-    // CartFab floating above it, so the last card ends up partly behind the
-    // cart bar. Same calc the service detail screen uses — BottomNav (or a
-    // page CTA, if one is ever added here) plus the FAB and its gap.
-    <div
-      className="min-h-screen"
-      style={{ paddingBottom: "calc(var(--page-cta-height, 4rem) + 4.5rem)" }}
-    >
+    // `pb-20` like the tab routes: 80px clears the BottomNav, which is all
+    // that sits at the bottom here now.
+    //
+    // This used to add another 4.5rem for CartFab floating above the nav.
+    // The FAB no longer shows on this screen — the nav's Cart tab carries
+    // the badge instead, and the FAB stepped back to /service/*, which is
+    // the one browsing route with no nav. Keeping the extra room left ~56px
+    // of dead space under the last card.
+    <div className="min-h-screen pb-20">
       <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card px-4">
         <Link
           to="/"
