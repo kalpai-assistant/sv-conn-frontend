@@ -22,9 +22,9 @@ export function CartFab() {
   const { totalQuantity, subtotal } = useCart();
   const location = useLocation();
 
-  // An allow-list now, not a hide-list. The old hide-list had to be kept in
-  // sync with BottomNav's by hand and wasn't — that is what put the nav on
-  // top of the cart's Book & Pay button.
+  // An allow-list now, not a hide-list. The old one had to be kept in sync
+  // with BottomNav's by hand and wasn't; see `nav-visibility.ts` for what that
+  // drift went on to hide.
   const shouldShow = totalQuantity > 0 && showsCartFab(location.pathname);
 
   return (

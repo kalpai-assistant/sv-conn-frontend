@@ -3,9 +3,12 @@
  *
  * Both answers used to be written out twice — once in `BottomNav`, once in
  * `CartFab` under a comment claiming "same hide list as BottomNav". They had
- * already drifted: BottomNav was missing `/cart`, so the nav painted over the
- * cart's Book & Pay button (SVC-230). Keeping the rule in one place is what
- * stops that recurring, now that a third caller depends on it.
+ * already drifted, and the drift is what let a real bug sit unnoticed: the nav
+ * painted over the cart's Book & Pay button because BottomNav's own list was
+ * missing `/cart` (fixed in SVC-230, b3c6527). CartFab behaved correctly
+ * throughout — but its comment asserted the two lists agreed, so nobody
+ * checked whether they did. One source of truth removes the place that
+ * assertion could be wrong.
  */
 
 /**

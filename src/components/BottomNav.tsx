@@ -7,9 +7,8 @@ import { isBottomNavHidden } from "@/lib/nav-visibility";
 // Two tab sets — the app is single-APK, role-gated (SVC-41). Consumer sees
 // home / bookings / activity / profile; provider sees home / jobs /
 // earnings / profile. Selected in the render based on user.role.
-// Cart is a consumer tab only — providers have no cart. Five tabs is the
-// ceiling for this nav: `max-w-md` with `justify-around` still leaves the
-// 10px labels legible at five, but not at six.
+// Cart is a consumer tab only — providers have no cart, so their set stays
+// at four.
 const consumerTabs = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/bookings", icon: CalendarDays, label: "Bookings" },
@@ -59,10 +58,7 @@ export function BottomNav() {
               // taps stack up, so back walked the pile and read as a two-page
               // loop (SVC-230).
               replace
-              // px-2 rather than px-3: the consumer set is five tabs wide now,
-              // and at px-3 "Bookings" and "Activity" started colliding on a
-              // 360dp screen.
-              className={`flex flex-col items-center gap-1 px-2 py-1 transition-colors ${
+              className={`flex flex-col items-center gap-1 px-3 py-1 transition-colors ${
                 active ? "text-primary" : "text-muted-foreground"
               }`}
               aria-label={
