@@ -1,8 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AlertCircle, CheckCircle2, ChevronRight, Circle, Clock, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { ApiError } from "@/lib/api";
 import { useProviderProfile, useProviderServices, useSetOnlineStatus } from "@/hooks/useApi";
 import type { KycStatus } from "@/hooks/useApi";
 
@@ -52,6 +53,7 @@ function kycRow(status: KycStatus | undefined): Readiness {
 }
 
 function ProviderHomePage() {
+  const navigate = useNavigate();
   const { data: profile, isLoading } = useProviderProfile();
   const { data: serviceIds } = useProviderServices();
   const setOnlineStatus = useSetOnlineStatus();
@@ -75,9 +77,17 @@ function ProviderHomePage() {
       await setOnlineStatus.mutateAsync(next);
       toast.success(next ? "You're online — you'll get job requests" : "You're offline");
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Couldn't update your status. Please try again.",
-      );
+      // SVC-257: backend refuses go-online when `service_area_center` is NULL
+      // with a distinct code so the frontend routes to the missing wizard step
+      // instead of showing a dead-end toast.
+      if (err instanceof ApiError && err.code === "SERVICE_AREA_MISSING") {
+        toast.error("Set your service area to start getting jobs.");
+        navigate({ to: "/provider/onboarding" });
+      } else {
+        toast.error(
+          err instanceof Error ? err.message : "Couldn't update your status. Please try again.",
+        );
+      }
     } finally {
       // Success or failure, stop overriding the server. On success the invalidated
       // profile already carries the new value; on failure this is the revert.
