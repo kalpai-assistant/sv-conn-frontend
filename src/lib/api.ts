@@ -16,11 +16,19 @@ export class ApiError extends Error {
    * not a guess. Undefined when the header is absent or unparseable.
    */
   retryAfter?: number;
-  constructor(status: number, message: string, retryAfter?: number) {
+  /**
+   * SVC-257: optional app-level error identifier the backend sets on select
+   * exceptions (e.g. `SERVICE_AREA_MISSING`). Lets callers branch on a
+   * stable code instead of parsing the human message. Absent when the
+   * exception didn't set one — most 4xx bodies from FastAPI validation.
+   */
+  code?: string;
+  constructor(status: number, message: string, retryAfter?: number, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.retryAfter = retryAfter;
+    this.code = code;
   }
 }
 
@@ -143,10 +151,16 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
 
   if (!res.ok) {
     let errorMsg = `API error: ${res.status} ${res.statusText}`;
+    let errorCode: string | undefined;
     try {
       const errorData = await res.json();
       if (errorData && errorData.message) {
         errorMsg = errorData.message;
+      }
+      // SVC-257: backend `AppException` optionally carries a stable app-level
+      // code so callers can branch without parsing the message string.
+      if (errorData && typeof errorData.code === "string") {
+        errorCode = errorData.code;
       }
     } catch {
       // Ignored if response is not JSON
@@ -159,6 +173,7 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
       res.status,
       errorMsg,
       Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter : undefined,
+      errorCode,
     );
   }
 

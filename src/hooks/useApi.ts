@@ -877,6 +877,30 @@ export const useUpdatePayout = () => {
   });
 };
 
+// SVC-257: PATCH /providers/me { service_area_lat, service_area_lng,
+// service_area_radius_km } — save the provider's service-area centre + radius.
+// Without a centre set, the PostGIS dispatch treats the provider as invisible
+// and they receive zero offers, so the go-online toggle refuses with a
+// SERVICE_AREA_MISSING code and the onboarding wizard requires this step
+// before payout.
+export type ServiceAreaInput = {
+  service_area_lat: number;
+  service_area_lng: number;
+  service_area_radius_km: number;
+};
+
+export const useUpdateServiceArea = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (area: ServiceAreaInput) =>
+      apiFetch<ProviderProfile>("/providers/me", {
+        method: "PATCH",
+        body: JSON.stringify(area),
+      }),
+    onSuccess: seedProfile(queryClient),
+  });
+};
+
 // PATCH /providers/me/payout-method — switch payouts to a method already on file,
 // without re-entering it (SVC-148). Saving a method never erases the other one, so
 // a provider who has both stored can flip between them.
