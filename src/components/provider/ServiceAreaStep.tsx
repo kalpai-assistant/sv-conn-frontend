@@ -107,16 +107,19 @@ export function ServiceAreaStep({
           disabled={locating}
           className="w-full justify-start gap-2"
         >
-          {locating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <MapPin className="h-4 w-4" />
-          )}
-          {locating ? "Locating…" : lat !== null ? "Update to current location" : "Use my current location"}
+          {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+          {locating
+            ? "Locating…"
+            : lat !== null
+              ? "Update to current location"
+              : "Use my current location"}
         </Button>
         {lat !== null && lng !== null && (
           <p className="text-xs text-muted-foreground">
-            Saved centre: <span className="font-mono">{lat.toFixed(4)}, {lng.toFixed(4)}</span>
+            Saved centre:{" "}
+            <span className="font-mono">
+              {lat.toFixed(4)}, {lng.toFixed(4)}
+            </span>
           </p>
         )}
       </div>
@@ -145,11 +148,7 @@ export function ServiceAreaStep({
         <Button variant="outline" className="flex-1" onClick={onBack}>
           Back
         </Button>
-        <Button
-          className="flex-1"
-          disabled={saving || lat === null || lng === null}
-          onClick={save}
-        >
+        <Button className="flex-1" disabled={saving || lat === null || lng === null} onClick={save}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue"}
         </Button>
       </div>

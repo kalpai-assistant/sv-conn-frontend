@@ -259,10 +259,7 @@ function ProviderOnboardingPage() {
               // SVC-257: service-area capture between KYC and payout. Without
               // a centre set, the PostGIS dispatch treats the provider as
               // invisible and the go-online toggle refuses (SERVICE_AREA_MISSING).
-              <ServiceAreaStep
-                onBack={() => setStep(2)}
-                onDone={() => setStep(4)}
-              />
+              <ServiceAreaStep onBack={() => setStep(2)} onDone={() => setStep(4)} />
             )}
 
             {step === 4 && (
