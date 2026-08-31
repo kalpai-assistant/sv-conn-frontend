@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, type UserRole } from "@/lib/auth-context";
 import { API_BASE_URL, ApiError, apiFetch } from "@/lib/api";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
@@ -13,6 +13,15 @@ import { Phone, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 // through the splash and lands here is already committed to signing
 // in.
 type AuthStep = "phone" | "otp";
+
+/**
+ * The roles a signup can create. Derived from `UserRole` rather than spelled
+ * out so the two cannot drift, but narrowed: `admin` is a real backend role and
+ * a real value on `User`, yet `/auth/verify-otp` rejects it with a 422 — admins
+ * sign in as consumers and are recognised from their stored role. Sending it
+ * from here would be an instant, confusing failure.
+ */
+type SignupRole = Exclude<UserRole, "admin">;
 
 /**
  * How long "Resend OTP" stays disabled after a successful send. Purely a
@@ -36,6 +45,12 @@ function formatCountdown(seconds: number): string {
 export function AuthFlow({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState<AuthStep>("phone");
   const [phone, setPhone] = useState("");
+  // Which identity this signup creates. SVC-252: this was hardcoded
+  // "consumer" at the verify call, so every account made through the app was
+  // a consumer and every provider on beta had to be flipped by hand with
+  // `UPDATE users SET role='PROVIDER'`. Nothing is written server-side until
+  // verify-otp fires, so the choice stays free right up to that point.
+  const [role, setRole] = useState<SignupRole>("consumer");
   // One string, not six cells: `InputOTP` owns a single hidden input and
   // renders the boxes from its value. That is what makes paste, digit
   // filtering and one-time-code autofill work without hand-rolling them.
@@ -81,6 +96,14 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
   }, [resendAt]);
 
   const startResendCooldown = (seconds: number) => setResendAt(Date.now() + seconds * 1000);
+
+  // Switching identity invalidates whatever the last attempt said — most
+  // pointedly SVC-253's "already registered as consumer" 400, which is a
+  // verdict on the role being left behind, not the one being chosen.
+  const switchRole = (next: SignupRole) => {
+    setRole(next);
+    setErrorMsg("");
+  };
 
   const handleSendOtp = async () => {
     if (phone.length < 10) return;
@@ -131,7 +154,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
         is_new_user?: boolean;
       }>("/auth/verify-otp", {
         method: "POST",
-        body: JSON.stringify({ phone: `+91${phone}`, otp: code, role: "consumer" }),
+        body: JSON.stringify({ phone: `+91${phone}`, otp: code, role }),
       });
 
       // Fetch user profile using the access token. Deliberately a raw fetch
@@ -143,10 +166,13 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
       });
       if (!userRes.ok) throw new Error("Failed to fetch user profile");
       const userData = await userRes.json();
-      // Default to consumer if the profile somehow omits a role (older accounts
-      // predating SVC-41). Backend authoritative once the /users/me probe on
-      // cold-start re-fetches with the new field populated.
-      userData.role = userData.role ?? "consumer";
+      // Default to the role we just signed up as if the profile somehow omits
+      // one (older accounts predating SVC-41). Safe to trust the local value
+      // here: SVC-253 Policy A means verify-otp only succeeds when the stored
+      // role matches the one we asked for — a mismatch is a 400 we never get
+      // past. Backend stays authoritative once the /users/me probe on
+      // cold-start re-fetches with the field populated.
+      userData.role = userData.role ?? role;
 
       login(tokenData.access_token, tokenData.refresh_token, userData, tokenData.is_new_user);
       onComplete();
@@ -200,9 +226,17 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
             exit={{ x: -300, opacity: 0 }}
             className="flex h-full flex-col px-6 pt-20"
           >
-            <h1 className="text-2xl font-bold text-foreground">Enter your phone number</h1>
+            {/* The heading carries the role choice rather than a switch beside
+                the input. A phone is bound to one role for life (SVC-253
+                Policy A), so the commitment is restated in front of the user
+                while they type the number it will bind. */}
+            <h1 className="text-2xl font-bold text-foreground">
+              {role === "provider" ? "Join as a service provider" : "Enter your phone number"}
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              We'll send you an OTP to verify your identity
+              {role === "provider"
+                ? "Earn on your schedule. We'll verify your number first."
+                : "We'll send you an OTP to verify your identity"}
             </p>
             {errorMsg && (
               <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
@@ -234,6 +268,34 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
                 </>
               )}
             </button>
+            {/* SVC-252: the only route into provider signup. Deliberately a
+                link and not a toggle next to the phone field — the role is
+                permanent, so a mistapped switch would strand a consumer on a
+                number that can never book, and the remedy the backend offers
+                is "use a different phone". A link needs a deliberate press.
+                Quiet by design: providers are recruited and arrive knowing to
+                look for this, while consumers are the overwhelming majority
+                and should read straight past it. */}
+            {role === "consumer" ? (
+              <button
+                type="button"
+                onClick={() => switchRole("provider")}
+                className="mt-6 self-center text-sm font-medium text-muted-foreground underline underline-offset-4"
+              >
+                Are you a service provider?
+              </button>
+            ) : (
+              <div className="mt-6 flex flex-col items-center gap-1">
+                <span className="text-sm text-muted-foreground">Signing up as a provider</span>
+                <button
+                  type="button"
+                  onClick={() => switchRole("consumer")}
+                  className="text-sm font-semibold text-primary"
+                >
+                  Switch to booking a service
+                </button>
+              </div>
+            )}
           </motion.div>
         )}
 
