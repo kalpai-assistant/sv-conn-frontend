@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, type UserRole } from "@/lib/auth-context";
 import { API_BASE_URL, ApiError, apiFetch } from "@/lib/api";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
@@ -13,6 +13,15 @@ import { Phone, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 // through the splash and lands here is already committed to signing
 // in.
 type AuthStep = "phone" | "otp";
+
+/**
+ * The roles a signup can create. Derived from `UserRole` rather than spelled
+ * out so the two cannot drift, but narrowed: `admin` is a real backend role and
+ * a real value on `User`, yet `/auth/verify-otp` rejects it with a 422 — admins
+ * sign in as consumers and are recognised from their stored role. Sending it
+ * from here would be an instant, confusing failure.
+ */
+type SignupRole = Exclude<UserRole, "admin">;
 
 /**
  * How long "Resend OTP" stays disabled after a successful send. Purely a
@@ -41,7 +50,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
   // a consumer and every provider on beta had to be flipped by hand with
   // `UPDATE users SET role='PROVIDER'`. Nothing is written server-side until
   // verify-otp fires, so the choice stays free right up to that point.
-  const [role, setRole] = useState<"consumer" | "provider">("consumer");
+  const [role, setRole] = useState<SignupRole>("consumer");
   // One string, not six cells: `InputOTP` owns a single hidden input and
   // renders the boxes from its value. That is what makes paste, digit
   // filtering and one-time-code autofill work without hand-rolling them.
@@ -91,7 +100,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
   // Switching identity invalidates whatever the last attempt said — most
   // pointedly SVC-253's "already registered as consumer" 400, which is a
   // verdict on the role being left behind, not the one being chosen.
-  const switchRole = (next: "consumer" | "provider") => {
+  const switchRole = (next: SignupRole) => {
     setRole(next);
     setErrorMsg("");
   };
