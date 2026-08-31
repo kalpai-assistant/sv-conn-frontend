@@ -48,7 +48,41 @@ export default defineConfig(({ mode }) => {
   // variable still wins, which keeps CI and the documented
   // `VITE_API_BASE_URL=... npm run build:mobile` invocation working unchanged.
   const fileEnv = loadEnv(mode, process.cwd(), "VITE_");
-  const apiBaseUrl = process.env.VITE_API_BASE_URL ?? fileEnv.VITE_API_BASE_URL ?? "/api/v1";
+  const apiBaseUrl = process.env.VITE_API_BASE_URL ?? fileEnv.VITE_API_BASE_URL ?? "";
+
+  // No fallback. Reading .env is only half the fix: `.env` is gitignored, so a
+  // fresh clone with no shell variable would still have silently fallen back to
+  // a relative `/api/v1` — the exact failure this config exists to prevent, and
+  // one whose symptom (`Unexpected token '<'`) points nowhere near its cause.
+  //
+  // A relative path cannot work off-device under any configuration:
+  // `androidScheme: "https"` means the WebView resolves it against its own
+  // origin and serves the bundled index.html back for every API call.
+  //
+  // Safe to be strict — both CI paths already pass an absolute URL:
+  // release-apk.yml sets it inline, and deploy-app.yml loads it from the
+  // Cloudflare Pages config (verified against the live app.eazyserv.com bundle,
+  // which bakes https://api.eazyserv.com/api/v1).
+  if (!/^https?:\/\//.test(apiBaseUrl)) {
+    throw new Error(
+      `build:mobile needs an absolute VITE_API_BASE_URL, got ${apiBaseUrl ? `"${apiBaseUrl}"` : "nothing"}.\n` +
+        `A relative path resolves against the WebView's own origin on device and returns index.html for every API call.\n` +
+        `Set it in .env, or inline:\n` +
+        `  VITE_API_BASE_URL=https://api.eazyserv.com/api/v1 npm run build:mobile`,
+    );
+  }
+
+  // Absolute but local. Legitimate — with `adb reverse tcp:8000 tcp:8000` a
+  // device can reach a backend on the build machine — but it is dead on any
+  // device without that tunnel, and an APK built this way looks completely
+  // normal until its first request. Loud enough to notice, not an error,
+  // because the workflow is real.
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)([:/]|$)/.test(apiBaseUrl)) {
+    console.warn(
+      `\n[build:mobile] VITE_API_BASE_URL is ${apiBaseUrl} — a device can only reach that through` +
+        ` \`adb reverse\`. Any other device will fail on the first request.\n`,
+    );
+  }
 
   return {
     plugins: [react(), tailwindcss(), tsconfigPaths(), ...sentryPlugins],
