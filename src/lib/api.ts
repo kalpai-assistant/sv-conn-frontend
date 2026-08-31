@@ -156,6 +156,16 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
       const errorData = await res.json();
       if (errorData && errorData.message) {
         errorMsg = errorData.message;
+      } else if (errorData && typeof errorData.detail === "string") {
+        // FastAPI's own HTTPException serialises as {"detail": ...}, not the
+        // {"error", "message", "status_code"} shape our AppException handler
+        // emits. SVC-253's Policy A rejection ("This phone is already
+        // registered as consumer") is a raw HTTPException, so without this
+        // branch its text never reaches the user and they get the useless
+        // "API error: 400" placeholder instead — verified on device.
+        // Strings only: FastAPI's 422 validation errors put an array here,
+        // which would render as "[object Object]".
+        errorMsg = errorData.detail;
       }
       // SVC-257: backend `AppException` optionally carries a stable app-level
       // code so callers can branch without parsing the message string.
