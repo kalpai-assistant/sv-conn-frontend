@@ -31,6 +31,28 @@ type SignupRole = Exclude<UserRole, "admin">;
  */
 const RESEND_COOLDOWN_SECONDS = 30;
 
+/** Stable identifier for SVC-253's Policy A rejection, set by the backend's
+ *  `RoleMismatch` exception. */
+const ROLE_MISMATCH = "ROLE_MISMATCH";
+
+/**
+ * Did this failure mean "that phone belongs to the other role"?
+ *
+ * Reads the stable `code` the backend attaches (SVC-253). The message regex is
+ * a deliberate, temporary second chance: backend #146 carries the code but is
+ * not deployed everywhere yet, and until it is, a stuck user would otherwise
+ * lose the one affordance that unsticks them.
+ *
+ * DELETE THE REGEX once #146 is out. Keeping it leaves the copy load-bearing —
+ * reword that sentence and the button silently disappears — which is the exact
+ * coupling the code was added to remove.
+ */
+function isRoleMismatch(error: unknown): boolean {
+  if (!(error instanceof ApiError) || error.status !== 400) return false;
+  if (error.code === ROLE_MISMATCH) return true;
+  return /already registered as/i.test(error.message);
+}
+
 /**
  * Renders a countdown. Bare seconds below a minute, minutes above it — a
  * rate-limit lockout can run to the better part of an hour, and "Resend OTP
@@ -189,13 +211,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
     } catch (e) {
       console.error(e);
       setErrorMsg(e instanceof Error ? e.message : "Invalid OTP. Please try again.");
-      // SVC-253 Policy A refuses a phone already bound to the other role. It
-      // is a bare FastAPI HTTPException carrying no stable `code`, so this is
-      // a narrow match on the message. If the backend ever rewords it the
-      // affordance simply doesn't appear and "Change number" still works.
-      setRoleConflict(
-        e instanceof ApiError && e.status === 400 && /already registered as/i.test(e.message),
-      );
+      setRoleConflict(isRoleMismatch(e));
       // Clearing the value resets the boxes to the first slot. The hidden
       // input keeps focus throughout, so the user can retype immediately.
       setOtp("");
@@ -350,21 +366,23 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
             {errorMsg && (
               <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
                 {errorMsg}
+                {/* Inside the error box, in the error's own colour, rather than
+                    floating below it in the brand tint. The backend names the
+                    remedy — "sign in with the same role" — but cannot know our
+                    navigation, so this offers the move as one tap; sitting it
+                    within the message it acts on is what reads as cause and
+                    remedy instead of two unrelated things stacked. */}
+                {roleConflict && (
+                  <button
+                    onClick={retryAsOtherRole}
+                    className="mt-2 block font-semibold underline underline-offset-4"
+                  >
+                    {role === "provider"
+                      ? "Sign in as a customer instead"
+                      : "Sign in as a service provider instead"}
+                  </button>
+                )}
               </div>
-            )}
-            {/* Sits under the message it acts on. The backend tells the user
-                to sign in with the other role but cannot know our navigation,
-                so we offer the move as one tap rather than leaving them to
-                find the switcher a screen back. */}
-            {roleConflict && (
-              <button
-                onClick={retryAsOtherRole}
-                className="mt-3 self-start text-sm font-semibold text-primary underline underline-offset-4"
-              >
-                {role === "provider"
-                  ? "Sign in as a customer instead"
-                  : "Sign in as a service provider instead"}
-              </button>
             )}
             <div className="mt-8 flex justify-center">
               <InputOTP
