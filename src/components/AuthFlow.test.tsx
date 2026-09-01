@@ -14,6 +14,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/lib/api";
+
 const apiFetch = vi.fn();
 const login = vi.fn();
 
@@ -132,6 +134,90 @@ describe("AuthFlow role selection", () => {
       expect(apiFetch).toHaveBeenCalledWith("/auth/verify-otp", expect.anything()),
     );
     expect((await submitAndReadVerifyBody()).role).toBe("consumer");
+  });
+
+  describe("Policy A role conflict", () => {
+    /** Take the flow to a failed verify and return the userEvent handle. */
+    async function verifyAndFail(error: unknown) {
+      apiFetch.mockImplementation((path: string) => {
+        if (path === "/auth/send-otp") return Promise.resolve({});
+        if (path === "/auth/verify-otp") return Promise.reject(error);
+        return Promise.reject(new Error(`unexpected call: ${path}`));
+      });
+
+      const user = userEvent.setup();
+      render(<AuthFlow onComplete={() => {}} />);
+
+      await user.click(screen.getByRole("button", { name: /are you a service provider/i }));
+      await user.type(screen.getByPlaceholderText("98765 43210"), PHONE);
+      await user.click(screen.getByRole("button", { name: /send otp/i }));
+      await screen.findByText(/verify otp/i);
+      await user.type(document.querySelector("input[autocomplete='one-time-code']")!, OTP);
+      return user;
+    }
+
+    const REMEDY = /sign in as a customer instead/i;
+
+    it("offers the remedy when the backend sends the ROLE_MISMATCH code", async () => {
+      await verifyAndFail(new ApiError(400, "anything at all", undefined, "ROLE_MISMATCH"));
+
+      // Message text deliberately unrecognisable: the code alone must carry it,
+      // otherwise the copy is still load-bearing.
+      expect(await screen.findByRole("button", { name: REMEDY })).toBeInTheDocument();
+    });
+
+    it("still offers the remedy on a pre-#146 backend that sends only prose", async () => {
+      await verifyAndFail(
+        new ApiError(
+          400,
+          "This phone is already registered as consumer. Sign in with the same role.",
+        ),
+      );
+
+      expect(await screen.findByRole("button", { name: REMEDY })).toBeInTheDocument();
+    });
+
+    it("does not offer the remedy for an ordinary bad OTP", async () => {
+      await verifyAndFail(new ApiError(400, "OTP is incorrect or has expired"));
+
+      await screen.findByText(/OTP is incorrect/i);
+      expect(screen.queryByRole("button", { name: REMEDY })).not.toBeInTheDocument();
+    });
+
+    it("clears the remedy when the role is switched back", async () => {
+      const user = await verifyAndFail(
+        new ApiError(400, "already registered as consumer", undefined, "ROLE_MISMATCH"),
+      );
+      await screen.findByRole("button", { name: REMEDY });
+
+      // One tap: flips the role and returns for a fresh code, because the
+      // rejected verify already consumed this one server-side.
+      await user.click(screen.getByRole("button", { name: REMEDY }));
+
+      // The step change crosses an `AnimatePresence mode="wait"` boundary, so
+      // the phone step is not mounted synchronously.
+      expect(await screen.findByText(/enter your phone number/i)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: REMEDY })).not.toBeInTheDocument();
+      // The stale error is a verdict on the role just left behind.
+      expect(screen.queryByText(/already registered/i)).not.toBeInTheDocument();
+    });
+
+    it("clears the remedy when the number is changed", async () => {
+      const user = await verifyAndFail(
+        new ApiError(400, "already registered as consumer", undefined, "ROLE_MISMATCH"),
+      );
+      await screen.findByRole("button", { name: REMEDY });
+
+      await user.click(screen.getByRole("button", { name: /change number/i }));
+
+      // Anchored on the input, not the heading: "Change number" deliberately
+      // keeps the chosen role, so this screen still reads "Join as a service
+      // provider" — correcting a typo is not a change of identity.
+      await screen.findByPlaceholderText("98765 43210");
+      expect(screen.getByText(/join as a service provider/i)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: REMEDY })).not.toBeInTheDocument();
+      expect(screen.queryByText(/already registered/i)).not.toBeInTheDocument();
+    });
   });
 
   it("labels the user with the role that was signed up for when the profile omits one", async () => {

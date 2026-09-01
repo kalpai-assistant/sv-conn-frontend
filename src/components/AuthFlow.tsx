@@ -31,6 +31,28 @@ type SignupRole = Exclude<UserRole, "admin">;
  */
 const RESEND_COOLDOWN_SECONDS = 30;
 
+/** Stable identifier for SVC-253's Policy A rejection, set by the backend's
+ *  `RoleMismatch` exception. */
+const ROLE_MISMATCH = "ROLE_MISMATCH";
+
+/**
+ * Did this failure mean "that phone belongs to the other role"?
+ *
+ * Reads the stable `code` the backend attaches (SVC-253). The message regex is
+ * a deliberate, temporary second chance: backend #146 carries the code but is
+ * not deployed everywhere yet, and until it is, a stuck user would otherwise
+ * lose the one affordance that unsticks them.
+ *
+ * DELETE THE REGEX once #146 is out. Keeping it leaves the copy load-bearing —
+ * reword that sentence and the button silently disappears — which is the exact
+ * coupling the code was added to remove.
+ */
+function isRoleMismatch(error: unknown): boolean {
+  if (!(error instanceof ApiError) || error.status !== 400) return false;
+  if (error.code === ROLE_MISMATCH) return true;
+  return /already registered as/i.test(error.message);
+}
+
 /**
  * Renders a countdown. Bare seconds below a minute, minutes above it — a
  * rate-limit lockout can run to the better part of an hour, and "Resend OTP
@@ -61,6 +83,12 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
   const [resendAt, setResendAt] = useState<number | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
+  // Set when SVC-253 Policy A refuses the verify because this phone is bound
+  // to the other role. Drives an explicit "sign in as X instead" action on the
+  // OTP step: the backend's message tells the user to switch roles, but the
+  // switcher lives on the phone step, so without this they have to work out
+  // the two-step route on their own.
+  const [roleConflict, setRoleConflict] = useState(false);
   // Guards `onComplete` against re-entry. The user can backspace and retype
   // while a verify is in flight, which completes the value a second time —
   // and the OTP is single-use, so the second call would fail and race an
@@ -103,6 +131,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
   const switchRole = (next: SignupRole) => {
     setRole(next);
     setErrorMsg("");
+    setRoleConflict(false);
   };
 
   const handleSendOtp = async () => {
@@ -137,7 +166,10 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
     // Drop a previous failure the moment the user starts correcting it.
     // Leaving "Invalid OTP" on screen while they retype reads as a live
     // verdict on the code they are currently entering.
-    if (errorMsg) setErrorMsg("");
+    if (errorMsg) {
+      setErrorMsg("");
+      setRoleConflict(false);
+    }
   };
 
   const handleVerify = async (code: string) => {
@@ -179,6 +211,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
     } catch (e) {
       console.error(e);
       setErrorMsg(e instanceof Error ? e.message : "Invalid OTP. Please try again.");
+      setRoleConflict(isRoleMismatch(e));
       // Clearing the value resets the boxes to the first slot. The hidden
       // input keeps focus throughout, so the user can retype immediately.
       setOtp("");
@@ -201,7 +234,18 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
     // per-phone, so a different number starts with its own budget.
     setResendAt(null);
     setResendTimer(0);
+    setRoleConflict(false);
   }, []);
+
+  // One tap for the whole remedy the Policy A message describes. The rejected
+  // verify already consumed the code — `verify_otp` deletes the stored value
+  // the moment it matches and Policy A raises after that — so retrying these
+  // same digits under the other role would only earn "OTP is incorrect or has
+  // expired". Flip the role and return for a fresh code.
+  const retryAsOtherRole = () => {
+    switchRole(role === "provider" ? "consumer" : "provider");
+    goBackToPhone();
+  };
 
   // Claim the Android hardware back button while the OTP step is up. The
   // router's handler in main.mobile.tsx cannot see this component — it is an
@@ -322,6 +366,22 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
             {errorMsg && (
               <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
                 {errorMsg}
+                {/* Inside the error box, in the error's own colour, rather than
+                    floating below it in the brand tint. The backend names the
+                    remedy — "sign in with the same role" — but cannot know our
+                    navigation, so this offers the move as one tap; sitting it
+                    within the message it acts on is what reads as cause and
+                    remedy instead of two unrelated things stacked. */}
+                {roleConflict && (
+                  <button
+                    onClick={retryAsOtherRole}
+                    className="mt-2 block font-semibold underline underline-offset-4"
+                  >
+                    {role === "provider"
+                      ? "Sign in as a customer instead"
+                      : "Sign in as a service provider instead"}
+                  </button>
+                )}
               </div>
             )}
             <div className="mt-8 flex justify-center">
