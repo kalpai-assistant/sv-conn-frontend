@@ -38,6 +38,12 @@ export interface ServiceVariant {
    *  (RO Purifier: "Basic" / "Installation" / "Filter"). Null = ungrouped. */
   subcategory: string | null;
   price: number;
+  /** What the provider earns on this variant, from `service_variants.provider_payout`.
+   *  Carried because the provider-facing catalogue shows earnings rather than the
+   *  customer price (SVC-258) — the number they actually decide on. Stored
+   *  per-variant server-side even though today's values are a uniform 30% split,
+   *  so it is read rather than derived. */
+  payout: number;
   /** Variant-level override; falls back to the service's duration when unset. */
   duration?: string;
 }
@@ -49,6 +55,9 @@ export interface Service {
   categoryName: string;
   description: string;
   price: number;
+  /** Cheapest variant's payout — the "from ₹X" the provider catalogue shows.
+   *  Mirrors how `price` is derived for the consumer side. */
+  payout: number;
   duration: string;
   /** Active variants in catalogue order. Can be empty for a service the
    *  catalogue hasn't priced yet — callers must handle that, not assume [0]. */
@@ -209,6 +218,7 @@ export const services: Service[] = [
     description:
       "Professional deep cleaning of your entire home including kitchen, bathrooms, bedrooms and living areas. Includes dusting, mopping, sanitization.",
     price: 1999,
+    payout: 0,
     duration: "3-4 hours",
     variants: [],
     provider: providers[0],
@@ -220,6 +230,7 @@ export const services: Service[] = [
     categoryName: "Cleaning",
     description: "Thorough cleaning of bathrooms including tiles, fixtures, mirrors and floor.",
     price: 599,
+    payout: 0,
     duration: "1 hour",
     variants: [],
     provider: providers[1],
@@ -231,6 +242,7 @@ export const services: Service[] = [
     categoryName: "Plumbing",
     description: "Fix leaking pipes, joints and faucets. Includes basic materials.",
     price: 349,
+    payout: 0,
     duration: "45 mins",
     variants: [],
     provider: providers[2],
@@ -242,6 +254,7 @@ export const services: Service[] = [
     categoryName: "Plumbing",
     description: "Installation of new taps, mixers and other fittings.",
     price: 249,
+    payout: 0,
     duration: "30 mins",
     variants: [],
     provider: providers[2],
@@ -253,6 +266,7 @@ export const services: Service[] = [
     categoryName: "Electrical",
     description: "Ceiling or wall fan installation with wiring.",
     price: 299,
+    payout: 0,
     duration: "45 mins",
     variants: [],
     provider: providers[4],
@@ -264,6 +278,7 @@ export const services: Service[] = [
     categoryName: "Electrical",
     description: "Repair or replacement of switchboards and sockets.",
     price: 199,
+    payout: 0,
     duration: "30 mins",
     variants: [],
     provider: providers[4],
@@ -275,6 +290,7 @@ export const services: Service[] = [
     categoryName: "Salon",
     description: "Professional haircut at your doorstep by experienced stylist.",
     price: 499,
+    payout: 0,
     duration: "45 mins",
     variants: [],
     provider: providers[5],
@@ -286,6 +302,7 @@ export const services: Service[] = [
     categoryName: "Salon",
     description: "Complete bridal makeup package with HD finish.",
     price: 4999,
+    payout: 0,
     duration: "2-3 hours",
     variants: [],
     provider: providers[5],
@@ -297,6 +314,7 @@ export const services: Service[] = [
     categoryName: "Painting",
     description: "Complete painting of one room including primer and 2 coats.",
     price: 2499,
+    payout: 0,
     duration: "1 day",
     variants: [],
     provider: providers[3],
@@ -308,6 +326,7 @@ export const services: Service[] = [
     categoryName: "Carpentry",
     description: "Assembly of flat-pack furniture (beds, wardrobes, shelves).",
     price: 499,
+    payout: 0,
     duration: "1-2 hours",
     variants: [],
     provider: providers[0],
@@ -319,6 +338,7 @@ export const services: Service[] = [
     categoryName: "Pest Control",
     description: "Cockroach, ant and spider treatment for 1BHK.",
     price: 799,
+    payout: 0,
     duration: "1 hour",
     variants: [],
     provider: providers[3],
@@ -330,6 +350,7 @@ export const services: Service[] = [
     categoryName: "Appliance",
     description: "Complete AC servicing including gas top-up, filter cleaning and general checkup.",
     price: 599,
+    payout: 0,
     duration: "1 hour",
     variants: [],
     provider: providers[2],

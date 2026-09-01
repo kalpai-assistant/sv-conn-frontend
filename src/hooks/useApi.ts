@@ -126,6 +126,7 @@ const mapService = (
       label: v.label,
       subcategory: v.subcategory,
       price: v.base_price,
+      payout: v.provider_payout,
       duration: v.duration_minutes ? `${v.duration_minutes} mins` : undefined,
     }));
 
@@ -140,6 +141,10 @@ const mapService = (
     // means to someone scanning the catalogue, and it matches what they'll be
     // charged if they don't change the default selection.
     price: variants.length > 0 ? Math.min(...variants.map((v) => v.price)) : srv.base_price,
+    // Same "from ₹X" rule as price, in the provider's currency. A service with
+    // no priced variants has no payout to promise, so 0 — callers show the name
+    // alone rather than "from ₹0".
+    payout: variants.length > 0 ? Math.min(...variants.map((v) => v.payout)) : 0,
     duration: `${srv.duration_minutes} mins`,
     variants,
     provider: undefined, // Services are global, no specific provider
@@ -198,6 +203,10 @@ const mapBooking = (
     categoryName: "",
     description: "",
     price: firstItem?.unitPrice ?? b.service_amount,
+    // Placeholder for a booking whose service is no longer in the catalogue;
+    // nothing provider-facing reads it, and inventing a payout would be worse
+    // than admitting we don't have one.
+    payout: 0,
     duration: "",
     // No variants on this fallback by design: it reconstructs a service from
     // a booking line when the catalogue isn't cached, and a past booking's
