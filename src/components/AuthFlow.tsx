@@ -38,19 +38,15 @@ const ROLE_MISMATCH = "ROLE_MISMATCH";
 /**
  * Did this failure mean "that phone belongs to the other role"?
  *
- * Reads the stable `code` the backend attaches (SVC-253). The message regex is
- * a deliberate, temporary second chance: backend #146 carries the code but is
- * not deployed everywhere yet, and until it is, a stuck user would otherwise
- * lose the one affordance that unsticks them.
- *
- * DELETE THE REGEX once #146 is out. Keeping it leaves the copy load-bearing —
- * reword that sentence and the button silently disappears — which is the exact
- * coupling the code was added to remove.
+ * The `code` alone. This used to fall back to matching `/already registered
+ * as/i` on the message, which made the backend's wording load-bearing: reword
+ * that sentence and the one affordance that unsticks the user disappears, with
+ * no type and no test to notice. The fallback existed only for the window
+ * before backend #146 deployed; that shipped and is live on beta, verified
+ * returning `code: "ROLE_MISMATCH"`, so it is gone.
  */
 function isRoleMismatch(error: unknown): boolean {
-  if (!(error instanceof ApiError) || error.status !== 400) return false;
-  if (error.code === ROLE_MISMATCH) return true;
-  return /already registered as/i.test(error.message);
+  return error instanceof ApiError && error.status === 400 && error.code === ROLE_MISMATCH;
 }
 
 /**
