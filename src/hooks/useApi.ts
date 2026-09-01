@@ -105,7 +105,13 @@ const mapCategory = (cat: API_CategoryResponse): UI_Category => ({
   sortOrder: cat.sort_order,
 });
 
-const mapService = (srv: API_ServiceResponse, cats: API_CategoryResponse[]): UI_Service => {
+// `cats` is structural on purpose — this only needs id + name to resolve a
+// display label, and typing it that way lets the mapped UI categories be
+// passed straight in. See `useServices`.
+const mapService = (
+  srv: API_ServiceResponse,
+  cats: readonly { id: string; name: string }[],
+): UI_Service => {
   const cat = cats.find((c) => c.id === srv.category_id);
 
   // Inactive variants stay in the payload — the catalogue keeps them so
@@ -290,10 +296,18 @@ export const useCategories = () => {
 };
 
 export const useServices = (categoryId?: string) => {
-  const categoriesQuery = useQuery({
-    queryKey: ["categories"],
-    queryFn: () => apiFetch<API_CategoryResponse[]>("/categories"),
-  });
+  // Reuses `useCategories` rather than fetching `/categories` again.
+  //
+  // This used to run its own query under the SAME `["categories"]` key while
+  // returning the raw API shape, so the two hooks fought over one cache entry:
+  // React Query dedupes by key, so whichever fetched first won and the loser's
+  // consumers silently read the other's shape.
+  //
+  // The visible symptom was category tiles losing their colour. `sort_order`
+  // survives that swap, `sortOrder` does not, so `categoryColor()` received
+  // undefined and every icon fell back to plain foreground. Order-dependent,
+  // which is why it looked intermittent rather than broken.
+  const categoriesQuery = useCategories();
   const categories = categoriesQuery.data;
 
   const servicesQuery = useQuery({
