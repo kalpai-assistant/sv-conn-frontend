@@ -38,7 +38,14 @@ export function showIncomingRequest(bookingId: string): void {
   emit();
 }
 
-/** Close the card. Purely local — there is no decline endpoint (see the card). */
+/**
+ * Close the card. Purely local: this only clears the overlay.
+ *
+ * Recording a refusal is separate and belongs to the host, which calls
+ * `PATCH /bookings/{id}/decline` when the reason was Ignore (SVC-254). It has
+ * to, now that polling exists — a locally-dismissed offer that the server still
+ * considers open comes straight back on the next poll.
+ */
 export function dismissIncomingRequest(): void {
   if (currentBookingId === null) return;
   currentBookingId = null;

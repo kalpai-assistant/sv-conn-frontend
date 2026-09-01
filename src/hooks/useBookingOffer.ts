@@ -143,6 +143,93 @@ export function useBookingOffer(bookingId: string | null) {
 }
 
 /**
+ * How often the provider app asks for its open offers (SVC-254).
+ *
+ * A fraction of the server's offer window, which is
+ * `BOOKING_REQUEST_TIMEOUT_SECONDS` — 120s today. At 15s the worst case is
+ * learning about a job 15 seconds in, leaving 87% of the window to decide; at
+ * 60s it would be half. The client cannot read that setting, so if the window
+ * is ever retuned this constant has to follow.
+ *
+ * Getting it wrong costs discovery latency and nothing else: `seconds_remaining`
+ * is computed server-side on every response, so the countdown stays correct
+ * however often we ask.
+ */
+export const OFFER_POLL_INTERVAL_MS = 15_000;
+
+/**
+ * Open offers for the signed-in provider (SVC-254).
+ *
+ * The fallback for a push that never arrived. FCM is the fast path, not a
+ * reliable one — a stale token after a reinstall, a denied permission, iOS
+ * Safari's Web Push restrictions or an incognito tab all drop it silently — and
+ * before this endpoint existed that meant the job was simply invisible.
+ *
+ * Soonest-expiring first, server-side. Each entry is the same
+ * `BookingOfferResponse` the card fetches for a pushed offer, so neither the
+ * card nor this hook can tell the two delivery paths apart.
+ *
+ * `enabled` should be false for anyone who cannot receive work — a consumer, or
+ * a provider who is offline. The server returns an empty list for them anyway,
+ * so this is battery, not correctness.
+ *
+ * Note this polls only while the app is foregrounded: Android's WebView freezes
+ * timers in the background, which is the same reason the OTP resend countdown
+ * recomputes from a deadline. A provider with the app closed and a broken push
+ * is still unreachable — that gap is SVC-255's, not this hook's.
+ */
+export function useProviderOffers(enabled: boolean) {
+  return useQuery({
+    queryKey: ["provider-offers"],
+    queryFn: () => apiFetch<BookingOffer[]>("/providers/me/offers"),
+    enabled,
+    refetchInterval: OFFER_POLL_INTERVAL_MS,
+    // Stop polling in the background rather than queueing wake-ups that all
+    // fire at once on resume.
+    refetchIntervalInBackground: false,
+    // A poll is a snapshot of a fast-moving list; a stale one is never useful.
+    staleTime: 0,
+    // One retry, then wait for the next interval — which is only seconds away.
+    retry: 1,
+  });
+}
+
+/**
+ * Turn down an offer (SVC-254). Backs the card's Ignore.
+ *
+ * Before the backend recorded refusals, dismissing was purely local — and with
+ * polling that would mean the same card returning every 15 seconds until the
+ * window closed, which is worse than never showing it.
+ *
+ * Resolves rather than throwing when the offer is already gone or was never
+ * this provider's (410/403/404). All three mean there is nothing left to
+ * decline, which is exactly the state the caller wanted.
+ */
+export function useDeclineOffer() {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, string>({
+    mutationFn: async (bookingId: string) => {
+      try {
+        await apiFetch<void>(`/bookings/${bookingId}/decline`, { method: "PATCH" });
+      } catch (error) {
+        if (
+          error instanceof ApiError &&
+          (error.status === GONE || error.status === FORBIDDEN || error.status === NOT_FOUND)
+        ) {
+          return;
+        }
+        throw error;
+      }
+    },
+    onSettled: () => {
+      // Drop it from the polled list without waiting out the interval.
+      queryClient.invalidateQueries({ queryKey: ["provider-offers"] });
+    },
+  });
+}
+
+/**
  * Claim the booking. First provider to accept wins.
  *
  * Resolves with the reason the card should close: `"accepted"` when this
@@ -178,6 +265,10 @@ export function useAcceptOffer() {
     onSuccess: (outcome) => {
       // Won or lost, this provider's job list may have changed.
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      // Either outcome takes this booking off the open-offer list (SVC-254) —
+      // won, or claimed by someone else. Refetch rather than waiting out the
+      // interval, so the next card in the queue appears immediately.
+      queryClient.invalidateQueries({ queryKey: ["provider-offers"] });
       if (outcome === "accepted") {
         queryClient.invalidateQueries({ queryKey: ["provider-bookings"] });
       }
