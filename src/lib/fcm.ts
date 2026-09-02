@@ -103,8 +103,24 @@ function reportRegistrationFailure(stage: string, err: unknown): Error {
 /* ------------------------------------------------------------------ native */
 
 async function loadPushPlugin() {
-  const { PushNotifications } = await import("@capacitor/push-notifications");
-  return PushNotifications;
+  // Returns the module namespace, NOT `mod.PushNotifications`.
+  //
+  // An async function resolves whatever it returns, and resolution probes the
+  // value for a `.then` to see if it's a thenable. Capacitor plugin objects are
+  // Proxies that turn *any* unknown property access into a native method call,
+  // so that probe becomes a call to a plugin method named `then` and throws:
+  //
+  //     Uncaught (in promise) Error:
+  //       "PushNotifications.then()" is not implemented on android
+  //
+  // Every caller below goes through here, so returning the proxy broke native
+  // registration, the permission read, the enable button and the logout token
+  // clear — all of them, on Android, since SVC-67. It went unnoticed because
+  // `google-services.json` was also missing, which is the failure everyone
+  // reasonably blamed. A namespace object has no `.then`, so it survives the
+  // await untouched.
+  const mod = await import("@capacitor/push-notifications");
+  return mod;
 }
 
 /**
@@ -114,7 +130,7 @@ async function loadPushPlugin() {
  */
 async function registerNative(interactive: boolean): Promise<PushRegistrationResult> {
   try {
-    const PushNotifications = await loadPushPlugin();
+    const { PushNotifications } = await loadPushPlugin();
 
     let perm = await PushNotifications.checkPermissions();
     // `prompt-with-rationale` is Android's "user denied once, explain why".
@@ -222,7 +238,7 @@ async function registerWeb(interactive: boolean): Promise<PushRegistrationResult
 export async function getPushPermission(): Promise<PushPermission> {
   if (Capacitor.isNativePlatform()) {
     try {
-      const PushNotifications = await loadPushPlugin();
+      const { PushNotifications } = await loadPushPlugin();
       const perm = await PushNotifications.checkPermissions();
       if (perm.receive === "granted") return "granted";
       return perm.receive === "denied" ? "denied" : "prompt";
@@ -287,7 +303,7 @@ async function clearFcmTokenOnServer(accessToken: string | null): Promise<void> 
 async function deleteDeviceToken(): Promise<void> {
   try {
     if (Capacitor.isNativePlatform()) {
-      const PushNotifications = await loadPushPlugin();
+      const { PushNotifications } = await loadPushPlugin();
       // Deletes the Firebase token on Android (plugin ≥ 5.0).
       await PushNotifications.unregister();
       return;
@@ -358,7 +374,7 @@ export function useFcmRegistration(isAuthenticated: boolean): void {
     }
 
     void (async () => {
-      const PushNotifications = await loadPushPlugin();
+      const { PushNotifications } = await loadPushPlugin();
 
       // Attached before register() so the first token isn't missed, and left
       // attached for the session so rotations are caught too.
