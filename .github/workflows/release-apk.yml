@@ -107,12 +107,53 @@ jobs:
           echo "$KEYSTORE_B64" | base64 -d > android/keystore/eazyserv-release.jks
           cp android/keystore.properties.example android/keystore.properties
 
+      # google-services.json is gitignored (it carries the Firebase API key),
+      # so the runner has no copy and Gradle's google-services plugin is
+      # skipped — see the try/catch in android/app/build.gradle. That produced
+      # an APK with no google_app_id, and the app died on launch with
+      # "Default FirebaseApp is not initialized" the moment #103 made
+      # PushNotifications.register() actually reach native code.
+      #
+      # Failing hard here rather than warning: a release APK without Firebase
+      # config crashes on every device, so shipping one is never the outcome
+      # we want. The Gradle-side catch stays lenient for local dev builds.
+      - name: Materialise google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON_B64" ]; then
+            echo "::error::GOOGLE_SERVICES_JSON_B64 is not set. A release APK built"                  "without it crashes on launch (Default FirebaseApp is not initialized)."
+            exit 1
+          fi
+          echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > android/app/google-services.json
+          # Validate rather than trust: a truncated or mis-pasted secret decodes
+          # to garbage that Gradle would happily skip over, putting us straight
+          # back to a crashing APK with a green build.
+          python3 -c "import json,sys; d=json.load(open('android/app/google-services.json'));             pkgs=[c['client_info']['android_client_info']['package_name'] for c in d['client']];             sys.exit(0 if 'com.eazyserv.app' in pkgs else 'com.eazyserv.app missing from google-services.json: %s' % pkgs)"
+          echo "google-services.json OK (project: $(python3 -c "import json; print(json.load(open('android/app/google-services.json'))['project_info']['project_id'])"))"
+
       - name: Build signed release APK
         env:
           ANDROID_KEYSTORE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_STORE_PASSWORD }}
           ANDROID_KEYSTORE_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_KEY_PASSWORD }}
         working-directory: android
         run: ./gradlew assembleRelease
+
+      # The step above cannot fail for a missing google_app_id — Gradle skips
+      # the plugin silently and logs it at info level. This is what turns that
+      # silence into a red build: the resource only exists if the plugin ran.
+      - name: Verify Firebase config landed in the APK
+        run: |
+          RES=android/app/build/generated/res/processReleaseGoogleServices/values/values.xml
+          test -f "$RES" || {
+            echo "::error::google-services plugin did not run — the APK has no Firebase"                  "config and will crash on launch."
+            exit 1
+          }
+          grep -q "google_app_id" "$RES" || {
+            echo "::error::google_app_id missing from generated resources."
+            exit 1
+          }
+          echo "Firebase config present in the release build."
 
       # Belt-and-braces verify: gradle's `validateSigningRelease` already
       # refuses to build a release APK without a signing config, so this
