@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, WalletCards } from "lucide-react";
+import { NotificationsRow } from "@/components/NotificationsRow";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
 import { useProviderProfile } from "@/hooks/useApi";
 
@@ -34,6 +35,21 @@ function ProviderProfilePage() {
         </div>
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
       </Link>
+
+      {/* The only way back from a declined notification prompt.
+          
+          This row has existed since SVC-67 but was mounted solely on the
+          consumer profile, and `__root.tsx` bounces a provider off every
+          non-provider route — so the one persona that depends on push had no
+          route to the control that restores it. Android prompts once; after
+          that the OS settings were the only recovery, with nothing in the app
+          saying so.
+          
+          Placed above the services list because it reports readiness, like the
+          payout row above it, rather than being something to browse. */}
+      <div className="mt-4">
+        <NotificationsRow />
+      </div>
 
       <ServicesPicker />
     </div>
