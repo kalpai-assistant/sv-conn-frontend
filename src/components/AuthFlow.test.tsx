@@ -166,7 +166,11 @@ describe("AuthFlow role selection", () => {
       expect(await screen.findByRole("button", { name: REMEDY })).toBeInTheDocument();
     });
 
-    it("still offers the remedy on a pre-#146 backend that sends only prose", async () => {
+    it("ignores the prose when the code is absent", async () => {
+      // The inverse of the old fallback test, and the point of backend #146.
+      // This message is exactly what Policy A used to say, and it must no
+      // longer be enough on its own — otherwise the copy is still what drives
+      // the affordance and rewording it would silently remove the button.
       await verifyAndFail(
         new ApiError(
           400,
@@ -174,7 +178,8 @@ describe("AuthFlow role selection", () => {
         ),
       );
 
-      expect(await screen.findByRole("button", { name: REMEDY })).toBeInTheDocument();
+      await screen.findByText(/already registered as consumer/i);
+      expect(screen.queryByRole("button", { name: REMEDY })).not.toBeInTheDocument();
     });
 
     it("does not offer the remedy for an ordinary bad OTP", async () => {
