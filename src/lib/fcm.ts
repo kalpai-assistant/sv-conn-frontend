@@ -43,6 +43,7 @@ import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import type { PluginListenerHandle } from "@capacitor/core";
 import { apiFetch } from "./api";
+import { detectPlatform } from "./platform";
 import { reportError } from "./sentry";
 
 /**
@@ -83,6 +84,9 @@ export async function sendFcmToken(token: string): Promise<void> {
     body: JSON.stringify({ fcm_token: token }),
   });
   lastSentToken = token;
+  // The one moment we know push works end-to-end on this device: a real token
+  // reached the backend. Settles whichever attempt is still open (SVC-255).
+  reportPushCapability(true);
 }
 
 /**
@@ -98,6 +102,108 @@ function reportRegistrationFailure(stage: string, err: unknown): Error {
   const error = err instanceof Error ? err : new Error(String(err));
   reportError(error, { scope: "fcm-registration", stage });
   return error;
+}
+
+/* --------------------------------------------------- capability telemetry */
+
+/**
+ * How long to wait for a native token before calling the attempt a failure.
+ *
+ * Native `register()` resolves before the token exists — it arrives later on
+ * the `registration` listener, or it never does. "Permission granted but no
+ * token ever showed up" is the silent failure this whole ticket is about, so
+ * it has to be counted, which means giving up on the wait at some point.
+ * Issuance is normally sub-second; 15s is slack for a cold start on a bad
+ * connection, not a real expectation.
+ */
+const NATIVE_TOKEN_WAIT_MS = 15_000;
+
+/** The attempt awaiting an outcome, or null when nothing is in flight. */
+let pendingAttempt: { interactive: boolean; permission: PushPermission } | null = null;
+let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Tell the backend what this device can actually do about push (SVC-255).
+ *
+ * Nobody can currently say how many providers are reachable by push at all, so
+ * there is no way to judge whether the iOS install walkthrough is worth
+ * building or whether the answer is "everyone is on the Android APK anyway".
+ * Sentry has the failures but no denominator, and no other request carries the
+ * platform, so there is nothing to mine after the fact.
+ *
+ * Fire-and-forget in the strongest sense: it is deliberately not awaited and
+ * swallows every error. A measurement that could break push would be worse
+ * than no measurement.
+ */
+function sendCapabilityReport(
+  permission: PushPermission,
+  tokenObtained: boolean,
+  interactive: boolean,
+): void {
+  const { platform, isChromeIOS, isIosStandalone } = detectPlatform();
+  void apiFetch<void>("/users/me/push-capability", {
+    method: "POST",
+    body: JSON.stringify({
+      platform,
+      is_native: Capacitor.isNativePlatform(),
+      ios_standalone: isIosStandalone,
+      is_chrome_ios: isChromeIOS,
+      push_permission: permission,
+      token_obtained: tokenObtained,
+      interactive,
+    }),
+  }).catch(() => {
+    // Swallowed on purpose, including a 404 from a backend that predates this
+    // endpoint. Not even Sentry — a failing telemetry call would report itself
+    // on every app start on every stale build.
+  });
+}
+
+/** Close out the open attempt, if there still is one. */
+function reportPushCapability(tokenObtained: boolean): void {
+  const attempt = pendingAttempt;
+  if (!attempt) return;
+  pendingAttempt = null;
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+    pendingTimer = null;
+  }
+  sendCapabilityReport(attempt.permission, tokenObtained, attempt.interactive);
+}
+
+/**
+ * Turn a registration result into exactly one report.
+ *
+ * One line per *attempt*, not per app start: the passive attempt on mount and
+ * an explicit Enable tap are different questions ("never tried" vs "tried and
+ * it still failed") and both are worth a row.
+ *
+ * The wait exists only for native-granted, where the token arrives out of band
+ * — see `NATIVE_TOKEN_WAIT_MS`. Every other outcome is already final, because
+ * without permission no token is coming, and on web the token (or its absence)
+ * is part of the result.
+ */
+function settlePushCapability(result: PushRegistrationResult, interactive: boolean): void {
+  // A still-open attempt is superseded rather than dropped — it had no token,
+  // or `sendFcmToken` would already have closed it.
+  reportPushCapability(false);
+  pendingAttempt = { interactive, permission: result.status };
+
+  const awaitingNativeToken = Capacitor.isNativePlatform() && result.status === "granted";
+  if (!awaitingNativeToken) {
+    reportPushCapability(Boolean(result.token));
+    return;
+  }
+  pendingTimer = setTimeout(() => reportPushCapability(false), NATIVE_TOKEN_WAIT_MS);
+}
+
+/** Drop an in-flight attempt — the session is over and the POST needs a JWT. */
+function cancelPushCapability(): void {
+  pendingAttempt = null;
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+    pendingTimer = null;
+  }
 }
 
 /* ------------------------------------------------------------------ native */
@@ -258,8 +364,10 @@ export async function getPushPermission(): Promise<PushPermission> {
  * This is the only path that may prompt on web — see the Safari gesture
  * requirement in the module docs. Safe to call on either platform.
  */
-export function enablePushNotifications(): Promise<PushRegistrationResult> {
-  return Capacitor.isNativePlatform() ? registerNative(true) : registerWeb(true);
+export async function enablePushNotifications(): Promise<PushRegistrationResult> {
+  const result = await (Capacitor.isNativePlatform() ? registerNative(true) : registerWeb(true));
+  settlePushCapability(result, true);
+  return result;
 }
 
 /**
@@ -342,6 +450,7 @@ async function deleteDeviceToken(): Promise<void> {
  */
 export async function clearFcmToken(accessToken: string | null): Promise<void> {
   lastSentToken = null;
+  cancelPushCapability();
   // allSettled, not all: one half failing must not skip or reject the other.
   await Promise.allSettled([clearFcmTokenOnServer(accessToken), deleteDeviceToken()]);
 }
@@ -369,7 +478,7 @@ export function useFcmRegistration(isAuthenticated: boolean): void {
       // Web: re-mint on every app start so a token that rotated while the app
       // was closed gets re-sent. Only for users who already granted — the
       // first grant needs a gesture (Profile → Notifications).
-      void registerWeb(false);
+      void registerWeb(false).then((result) => settlePushCapability(result, false));
       return;
     }
 
@@ -396,11 +505,15 @@ export function useFcmRegistration(isAuthenticated: boolean): void {
       }
       handles.push(failed);
 
-      await registerNative(false);
+      const result = await registerNative(false);
+      settlePushCapability(result, false);
     })();
 
     return () => {
       cancelled = true;
+      // Any wait for a native token dies with the mount — the report needs a
+      // JWT and this cleanup is what a logout runs through.
+      cancelPushCapability();
       handles.forEach((h) => void h.remove());
     };
   }, [isAuthenticated]);
