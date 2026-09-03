@@ -24,6 +24,8 @@ import { Bell, BellOff, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { enablePushNotifications, getPushPermission, type PushPermission } from "@/lib/fcm";
 import { detectPlatform } from "@/lib/platform";
+import { useInstallState } from "@/lib/install";
+import { InstallSheet } from "@/components/InstallSheet";
 
 export function NotificationsRow() {
   const [permission, setPermission] = useState<PushPermission | null>(null);
@@ -33,6 +35,12 @@ export function NotificationsRow() {
   // token actually reached the backend — that reassurance is exactly what AC4
   // is trying to prevent.
   const [hasFailed, setHasFailed] = useState(false);
+  // SVC-255 item 3: `unsupported` on iOS has a real remedy, and a toast was not
+  // it. A toast is dismissed in three seconds and cannot show a numbered
+  // sequence — the provider needed the actual Share-menu steps in front of
+  // them, plus the warning that installing costs them their session.
+  const [showInstall, setShowInstall] = useState(false);
+  const { state: installState, promptInstall } = useInstallState();
 
   // Why push is unavailable, when it is. `unsupported` is one value from
   // `getPushPermission()` but it covers two very different situations, and only
@@ -81,22 +89,16 @@ export function NotificationsRow() {
     // Share menu — so the most this button can do is say what to do. Silence
     // was the previous behaviour and is what SVC-255 was raised about.
     if (permission === "unsupported") {
-      if (unsupportedReason === "ios-add-to-home") {
-        toast("Add EazyServ to your Home Screen", {
-          description:
-            "Tap Share in Safari, then “Add to Home Screen”. Open it from there and you can turn job alerts on.",
-        });
-      } else if (unsupportedReason === "ios-wrong-browser") {
-        toast("Open EazyServ in Safari", {
-          description:
-            "Chrome on iPhone can’t add apps to the Home Screen. Open this page in Safari first, then Share → “Add to Home Screen”.",
-        });
-      } else {
+      // A browser that genuinely cannot do this gets a straight answer; the
+      // rest get the walkthrough, because for them there is something to do.
+      if (installState === "unavailable" || installState === "installed") {
         toast.error("This browser can’t receive job alerts", {
           description:
             "Private windows and in-app browsers block notifications. Use the EazyServ app, or open the site in your normal browser.",
         });
+        return;
       }
+      setShowInstall(true);
       return;
     }
 
@@ -122,7 +124,21 @@ export function NotificationsRow() {
     } finally {
       setIsBusy(false);
     }
-  }, [isBusy, permission, unsupportedReason]);
+  }, [isBusy, permission, installState]);
+
+  const handleInstall = useCallback(async () => {
+    const accepted = await promptInstall();
+    if (accepted) {
+      setShowInstall(false);
+      // Android installs in place, so the permission prompt can follow straight
+      // away. iOS never reaches here — there the app relaunches from the Home
+      // Screen and the provider enables it there.
+      const result = await enablePushNotifications();
+      setPermission(result.status);
+      setHasFailed(!!result.error);
+      if (result.status === "granted" && !result.error) toast.success("Notifications are on");
+    }
+  }, [promptInstall]);
 
   // Still reading the permission — render nothing rather than flashing a
   // wrong state for a frame.
@@ -160,19 +176,27 @@ export function NotificationsRow() {
       : "text-muted-foreground";
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={isBusy}
-      className="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-secondary disabled:opacity-50"
-    >
-      <Icon className={`h-5 w-5 ${isBad ? "text-destructive" : "text-muted-foreground"}`} />
-      <span className="flex-1 text-left text-sm font-medium text-foreground">Notifications</span>
-      <span className={`text-xs font-medium ${statusColor}`}>{isBusy ? "" : status}</span>
-      {isBusy ? (
-        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-      ) : (
-        !isOn && <ChevronRight className="h-4 w-4 text-muted-foreground" />
-      )}
-    </button>
+    <>
+      <InstallSheet
+        open={showInstall}
+        onOpenChange={setShowInstall}
+        state={installState}
+        onInstall={handleInstall}
+      />
+      <button
+        onClick={handleClick}
+        disabled={isBusy}
+        className="flex w-full items-center gap-3 rounded-xl p-3 transition-colors hover:bg-secondary disabled:opacity-50"
+      >
+        <Icon className={`h-5 w-5 ${isBad ? "text-destructive" : "text-muted-foreground"}`} />
+        <span className="flex-1 text-left text-sm font-medium text-foreground">Notifications</span>
+        <span className={`text-xs font-medium ${statusColor}`}>{isBusy ? "" : status}</span>
+        {isBusy ? (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        ) : (
+          !isOn && <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        )}
+      </button>
+    </>
   );
 }

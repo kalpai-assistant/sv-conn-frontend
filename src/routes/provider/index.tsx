@@ -1,9 +1,20 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { AlertCircle, CheckCircle2, ChevronRight, Circle, Clock, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  AlertCircle,
+  BellOff,
+  CheckCircle2,
+  ChevronRight,
+  Circle,
+  Clock,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { InstallSheet } from "@/components/InstallSheet";
 import { ApiError } from "@/lib/api";
+import { enablePushNotifications, getPushPermission, type PushPermission } from "@/lib/fcm";
+import { useInstallState } from "@/lib/install";
 import { useProviderProfile, useProviderServices, useSetOnlineStatus } from "@/hooks/useApi";
 import type { KycStatus } from "@/hooks/useApi";
 
@@ -54,6 +65,19 @@ function kycRow(status: KycStatus | undefined): Readiness {
 
 function ProviderHomePage() {
   const navigate = useNavigate();
+  const { state: installState, promptInstall } = useInstallState();
+  const [showInstall, setShowInstall] = useState(false);
+  const [pushPermission, setPushPermission] = useState<PushPermission | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getPushPermission().then((p) => {
+      if (!cancelled) setPushPermission(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const { data: profile, isLoading } = useProviderProfile();
   const { data: serviceIds } = useProviderServices();
   const setOnlineStatus = useSetOnlineStatus();
@@ -118,6 +142,23 @@ function ProviderHomePage() {
 
   const eligible = checklist.every((item) => item.done);
 
+  // SVC-255 item 3. A provider in an iOS Safari tab passes all three checks
+  // above and is still unreachable — Apple grants Web Push only to an installed
+  // site — so "You're set up to receive jobs" is, for them, a false
+  // reassurance. That is the ticket's original bug wearing a green tick.
+  //
+  // Surfaced here rather than as a modal after login: the checklist is already
+  // the place that explains why work is or isn't arriving, so this belongs in
+  // that vocabulary instead of interrupting. It is also deliberately not shown
+  // at the go-online toggle — installing signs the provider out on iOS, and
+  // dropping their session the instant they ask for work would read as the app
+  // breaking. Here they choose the moment.
+  const canFixPush =
+    pushPermission === "unsupported" &&
+    (installState === "can-prompt" ||
+      installState === "ios-manual" ||
+      installState === "ios-wrong-browser");
+
   if (isLoading) {
     return (
       <div className="min-h-screen p-6">
@@ -151,6 +192,38 @@ function ProviderHomePage() {
           />
         </div>
       </div>
+
+      {canFixPush && (
+        <button
+          onClick={() => setShowInstall(true)}
+          className="mt-6 flex w-full items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-left transition-colors hover:bg-amber-100 dark:bg-amber-950/40"
+        >
+          <BellOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-900 dark:text-amber-100">
+              You won't be alerted about new jobs
+            </p>
+            <p className="text-amber-800 dark:text-amber-200">
+              {installState === "ios-wrong-browser"
+                ? "Open EazyServ in Safari to fix this."
+                : "Add EazyServ to your Home Screen to get job requests as notifications."}
+            </p>
+          </div>
+        </button>
+      )}
+
+      <InstallSheet
+        open={showInstall}
+        onOpenChange={setShowInstall}
+        state={installState}
+        onInstall={async () => {
+          if (await promptInstall()) {
+            setShowInstall(false);
+            const result = await enablePushNotifications();
+            setPushPermission(result.status);
+          }
+        }}
+      />
 
       {/* Why the provider is or isn't getting work. */}
       <div className="mt-6">

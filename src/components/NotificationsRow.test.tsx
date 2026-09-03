@@ -105,6 +105,9 @@ describe("NotificationsRow", () => {
     });
 
     it("explains the Share-menu steps when tapped", async () => {
+      // SVC-255 item 3: this used to be a toast. A toast cannot hold a numbered
+      // sequence and is gone in three seconds, so the steps now open in a sheet
+      // the provider can read while actually performing them.
       getPushPermission.mockResolvedValue("unsupported");
       platform({ platform: "ios", isSafari: true });
       const user = userEvent.setup();
@@ -112,8 +115,25 @@ describe("NotificationsRow", () => {
       render(<NotificationsRow />);
       await user.click(await screen.findByRole("button"));
 
-      await waitFor(() => expect(toastFn).toHaveBeenCalled());
-      expect(String(toastFn.mock.calls[0][1]?.description)).toMatch(/share/i);
+      // "Add to Home Screen" is also the row's own status label, so assert on
+      // the sheet's step text instead — that only exists once it has opened.
+      expect(await screen.findByText(/Scroll down and tap/i)).toBeInTheDocument();
+      expect(screen.getByText(/at the bottom of Safari/i)).toBeInTheDocument();
+    });
+
+    it("warns that installing signs them out before they commit to it", async () => {
+      // Confirmed on a real iPhone: the Home Screen app has its own storage, so
+      // the session does not survive the install. Discovering that afterwards
+      // reads as the app breaking at the exact moment we promised it would
+      // start working.
+      getPushPermission.mockResolvedValue("unsupported");
+      platform({ platform: "ios", isSafari: true });
+      const user = userEvent.setup();
+
+      render(<NotificationsRow />);
+      await user.click(await screen.findByRole("button"));
+
+      expect(await screen.findByText(/sign in once more/i)).toBeInTheDocument();
     });
 
     it("sends Chrome-on-iOS to Safari first, because it cannot install", async () => {
@@ -127,8 +147,9 @@ describe("NotificationsRow", () => {
       expect(await screen.findByText("Unavailable")).toBeInTheDocument();
 
       await user.click(screen.getByRole("button"));
-      await waitFor(() => expect(toastFn).toHaveBeenCalled());
-      expect(String(toastFn.mock.calls[0][0])).toMatch(/safari/i);
+      expect(await screen.findByText(/Open EazyServ in Safari/i)).toBeInTheDocument();
+      // And crucially NOT the Home Screen steps, which do not exist in Chrome.
+      expect(screen.queryByText(/Scroll down and tap/i)).not.toBeInTheDocument();
     });
 
     it("says so plainly where nothing can be done", async () => {
