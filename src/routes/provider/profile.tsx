@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, WalletCards } from "lucide-react";
+import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationsRow } from "@/components/NotificationsRow";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
 import { useProviderProfile } from "@/hooks/useApi";
@@ -52,6 +53,21 @@ function ProviderProfilePage() {
       </div>
 
       <ServicesPicker />
+
+      {/* Sign out (SVC-269). Providers had no way to do this at all: the button
+          was consumer-only and `__root.tsx` bounces them off that route.
+
+          Bottom of the screen, matching the consumer profile — it is a long
+          scroll past the services list, but signing out should not be the first
+          thing a thumb lands on.
+
+          `isOnline` makes this more than a button. Nothing else clears
+          `is_online` on the way out, and the booking broadcast filters on that
+          flag alone, so a signed-out provider would keep being matched to jobs
+          they can no longer receive. */}
+      <div className="mt-8 pb-4">
+        <LogoutButton isOnline={profile?.is_online ?? false} />
+      </div>
     </div>
   );
 }
