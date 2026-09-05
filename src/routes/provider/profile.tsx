@@ -4,6 +4,7 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationsRow } from "@/components/NotificationsRow";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
 import { useProviderProfile } from "@/hooks/useApi";
+import { APP_VERSION } from "@/lib/version";
 
 export const Route = createFileRoute("/provider/profile")({
   component: ProviderProfilePage,
@@ -65,9 +66,17 @@ function ProviderProfilePage() {
           `is_online` on the way out, and the booking broadcast filters on that
           flag alone, so a signed-out provider would keep being matched to jobs
           they can no longer receive. */}
-      <div className="mt-8 pb-4">
+      <div className="mt-8">
         <LogoutButton isOnline={profile?.is_online ?? false} />
       </div>
+
+      {/* Running bundle version, same as the consumer profile. Doubles as a
+          live check that the release pipeline (SVC-227.2) landed the intended
+          bundle — worth having on the provider surface too, since providers are
+          the ones we ask "which version are you on?" when a job goes missing. */}
+      <p className="pb-6 pt-4 text-center text-[10px] text-muted-foreground">
+        EazyServ · v{APP_VERSION}
+      </p>
     </div>
   );
 }
