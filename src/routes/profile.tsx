@@ -6,7 +6,6 @@ import {
   CreditCard,
   HelpCircle,
   Info,
-  LogOut,
   ChevronRight,
   Edit,
   Trash2,
@@ -14,6 +13,7 @@ import {
   Save,
   X,
 } from "lucide-react";
+import { LogoutButton } from "@/components/LogoutButton";
 import { useAddresses } from "@/hooks/useApi";
 import { apiFetch } from "@/lib/api";
 import type { components } from "@/types/api";
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/profile")({
 });
 
 function ProfilePage() {
-  const { user, login, logout, updateUser } = useAuth();
+  const { user, login, updateUser } = useAuth();
   const {
     data: savedAddresses,
     isLoading: isAddressesLoading,
@@ -61,13 +61,6 @@ function ProfilePage() {
       setIsEditing(true);
     }
   }, [user, isSetupMode]);
-
-  const handleLogout = () => {
-    logout();
-    // Replace: back after signing out must not return to a route that expects
-    // a signed-in user.
-    navigate({ to: "/", replace: true });
-  };
 
   const handleSave = async () => {
     if (!editName.trim()) {
@@ -279,15 +272,13 @@ function ProfilePage() {
             ))}
           </div>
 
-          {/* Logout */}
+          {/* Logout — shared with the provider profile (SVC-269). Extracted
+              rather than duplicated: this control was consumer-only, and
+              `__root.tsx` bounces providers off this route, so providers had no
+              way to sign out at all. Sharing it means the next change to how
+              signing out works cannot reach one persona and miss the other. */}
           <div className="px-4 pt-8 pb-4">
-            <button
-              onClick={handleLogout}
-              disabled={isEditing}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-destructive p-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
-            >
-              <LogOut className="h-4 w-4" /> Logout
-            </button>
+            <LogoutButton disabled={isEditing} />
           </div>
 
           {/* Small footer with the running JS bundle version. Doubles as a
