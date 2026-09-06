@@ -13,12 +13,23 @@ import {
   X,
 } from "lucide-react";
 import { LogoutButton } from "@/components/LogoutButton";
-import { useAddresses } from "@/hooks/useApi";
+import { toast } from "sonner";
+import { useAddresses, useDeleteAddress } from "@/hooks/useApi";
 import { apiFetch } from "@/lib/api";
 import type { components } from "@/types/api";
 import { useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { AddAddressSheet } from "@/components/AddAddressSheet";
+import { AddAddressSheet, type EditingAddress } from "@/components/AddAddressSheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { NotificationsRow } from "@/components/NotificationsRow";
 import { APP_VERSION } from "@/lib/version";
 
@@ -53,6 +64,10 @@ function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [showAddAddress, setShowAddAddress] = useState(false);
+  // SVC-277: both of these controls rendered and did nothing.
+  const [editingAddress, setEditingAddress] = useState<EditingAddress | null>(null);
+  const [deletingAddress, setDeletingAddress] = useState<{ id: string; full: string } | null>(null);
+  const deleteAddress = useDeleteAddress();
 
   // Sync state if user arrives late
   useEffect(() => {
@@ -228,10 +243,26 @@ function ProfilePage() {
                       <p className="text-xs text-muted-foreground truncate">{addr.full}</p>
                     </div>
                     <div className="flex gap-1">
-                      <button className="p-1.5 rounded-lg hover:bg-secondary">
+                      <button
+                        onClick={() =>
+                          setEditingAddress({
+                            id: addr.id,
+                            label: addr.label,
+                            full: addr.full,
+                          })
+                        }
+                        aria-label={`Edit ${addr.label} address`}
+                        className="p-1.5 rounded-lg hover:bg-secondary"
+                      >
                         <Edit className="h-3.5 w-3.5 text-muted-foreground" />
                       </button>
-                      <button className="p-1.5 rounded-lg hover:bg-secondary">
+                      {/* Confirmed, not immediate: removing a saved address is
+                          not something to do on one stray tap next to Edit. */}
+                      <button
+                        onClick={() => setDeletingAddress({ id: addr.id, full: addr.full })}
+                        aria-label={`Delete ${addr.label} address`}
+                        className="p-1.5 rounded-lg hover:bg-secondary"
+                      >
                         <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                       </button>
                     </div>
@@ -295,6 +326,42 @@ function ProfilePage() {
       )}
 
       {showAddAddress && <AddAddressSheet onClose={() => setShowAddAddress(false)} />}
+      {editingAddress && (
+        <AddAddressSheet editing={editingAddress} onClose={() => setEditingAddress(null)} />
+      )}
+
+      <AlertDialog
+        open={deletingAddress !== null}
+        onOpenChange={(open) => !open && setDeletingAddress(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this address?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingAddress?.full} will be removed from your saved addresses. Bookings that
+              already used it are not affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const target = deletingAddress;
+                setDeletingAddress(null);
+                if (!target) return;
+                deleteAddress.mutate(target.id, {
+                  onError: (err) =>
+                    toast.error(
+                      err instanceof Error ? err.message : "Couldn't delete that address.",
+                    ),
+                });
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
