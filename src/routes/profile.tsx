@@ -1,9 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import {
   AlertCircle,
   MapPin,
-  CreditCard,
   HelpCircle,
   Info,
   ChevronRight,
@@ -254,13 +253,18 @@ function ProfilePage() {
                 iOS Safari won't prompt without one. Renders nothing where
                 push isn't supported. */}
             <NotificationsRow />
+            {/* SVC-277: these were <button>s with no handler and no destination —
+                a chevron promising a screen that did not exist. Payment History
+                is deliberately absent rather than left dead: there is no such
+                screen yet, and a row that does nothing is the exact bug this
+                ticket is about. It comes back when it has somewhere to go. */}
             {[
-              { icon: CreditCard, label: "Payment History" },
-              { icon: HelpCircle, label: "Help & Support" },
-              { icon: Info, label: "About" },
-            ].map(({ icon: Icon, label }) => (
-              <button
-                key={label}
+              { to: "/support", icon: HelpCircle, label: "Help & Support" },
+              { to: "/about", icon: Info, label: "About" },
+            ].map(({ to, icon: Icon, label }) => (
+              <Link
+                key={to}
+                to={to}
                 className="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-secondary"
               >
                 <Icon className="h-5 w-5 text-muted-foreground" />
@@ -268,7 +272,7 @@ function ProfilePage() {
                   {label}
                 </span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </button>
+              </Link>
             ))}
           </div>
 

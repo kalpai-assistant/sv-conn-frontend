@@ -18,6 +18,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getPushPermission = vi.fn();
 const enablePushNotifications = vi.fn();
+const disablePushNotifications = vi.fn();
 const detectPlatform = vi.fn();
 const toastFn = vi.fn();
 const toastError = vi.fn();
@@ -25,6 +26,7 @@ const toastError = vi.fn();
 vi.mock("@/lib/fcm", () => ({
   getPushPermission: () => getPushPermission(),
   enablePushNotifications: () => enablePushNotifications(),
+  disablePushNotifications: () => disablePushNotifications(),
 }));
 
 vi.mock("@/lib/platform", () => ({
@@ -180,5 +182,84 @@ describe("NotificationsRow", () => {
     const { container } = render(<NotificationsRow />);
 
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("turning notifications off (SVC-277)", () => {
+  // The row previously had no off path at all: tapping while granted re-ran
+  // registration and landed back on "On", so it looked like nothing happened.
+
+  it("asks before turning off — it stops job requests reaching a provider", async () => {
+    getPushPermission.mockResolvedValue("granted");
+    platform({ platform: "android" });
+    const user = userEvent.setup();
+
+    render(<NotificationsRow />);
+    await user.click(await screen.findByRole("button", { name: /notifications/i }));
+
+    expect(await screen.findByText(/Turn off notifications\?/i)).toBeInTheDocument();
+    // Not turned off yet — asking is not doing.
+    expect(disablePushNotifications).not.toHaveBeenCalled();
+  });
+
+  it("cancelling leaves notifications on", async () => {
+    getPushPermission.mockResolvedValue("granted");
+    platform({ platform: "android" });
+    const user = userEvent.setup();
+
+    render(<NotificationsRow />);
+    await user.click(await screen.findByRole("button", { name: /notifications/i }));
+    await user.click(await screen.findByRole("button", { name: /keep them on/i }));
+
+    expect(disablePushNotifications).not.toHaveBeenCalled();
+    expect(await screen.findByText("On")).toBeInTheDocument();
+  });
+
+  it("confirming clears the token and reads Off", async () => {
+    getPushPermission.mockResolvedValue("granted");
+    disablePushNotifications.mockResolvedValue(undefined);
+    platform({ platform: "android" });
+    const user = userEvent.setup();
+
+    render(<NotificationsRow />);
+    await user.click(await screen.findByRole("button", { name: /notifications/i }));
+    await user.click(await screen.findByRole("button", { name: /turn off/i }));
+
+    await waitFor(() => expect(disablePushNotifications).toHaveBeenCalledOnce());
+    expect(await screen.findByText("Off")).toBeInTheDocument();
+  });
+
+  it("does not say Blocked when the user chose Off", async () => {
+    // The OS permission is still granted. Calling it "Blocked" would contradict
+    // what the device settings show and read as a fault rather than a choice.
+    getPushPermission.mockResolvedValue("granted");
+    disablePushNotifications.mockResolvedValue(undefined);
+    platform({ platform: "android" });
+    const user = userEvent.setup();
+
+    render(<NotificationsRow />);
+    await user.click(await screen.findByRole("button", { name: /notifications/i }));
+    await user.click(await screen.findByRole("button", { name: /turn off/i }));
+
+    await screen.findByText("Off");
+    expect(screen.queryByText("Blocked")).not.toBeInTheDocument();
+  });
+
+  it("turning back on re-registers", async () => {
+    getPushPermission.mockResolvedValue("granted");
+    disablePushNotifications.mockResolvedValue(undefined);
+    enablePushNotifications.mockResolvedValue({ status: "granted" });
+    platform({ platform: "android" });
+    const user = userEvent.setup();
+
+    render(<NotificationsRow />);
+    await user.click(await screen.findByRole("button", { name: /notifications/i }));
+    await user.click(await screen.findByRole("button", { name: /turn off/i }));
+    await screen.findByText("Off");
+
+    await user.click(screen.getByRole("button", { name: /notifications/i }));
+
+    await waitFor(() => expect(enablePushNotifications).toHaveBeenCalled());
+    expect(await screen.findByText("On")).toBeInTheDocument();
   });
 });

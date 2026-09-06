@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as CartRouteImport } from './routes/cart'
@@ -17,6 +18,7 @@ import { Route as DownloadRouteImport } from './routes/download'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RefundRouteImport } from './routes/refund'
+import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminKycRouteImport } from './routes/admin.kyc'
 import { Route as AdminPayoutsRouteImport } from './routes/admin.payouts'
@@ -34,6 +36,11 @@ import { Route as ProviderBookingsBookingIdRouteImport } from './routes/provider
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ActivityRoute = ActivityRouteImport.update({
@@ -69,6 +76,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const RefundRoute = RefundRouteImport.update({
   id: '/refund',
   path: '/refund',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -140,6 +152,7 @@ const ProviderBookingsBookingIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/activity': typeof ActivityRoute
   '/bookings': typeof BookingsRoute
   '/cart': typeof CartRoute
@@ -147,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
+  '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/admin/kyc': typeof AdminKycRoute
   '/admin/payouts': typeof AdminPayoutsRoute
@@ -163,6 +177,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/activity': typeof ActivityRoute
   '/bookings': typeof BookingsRoute
   '/cart': typeof CartRoute
@@ -170,6 +185,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
+  '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/admin/kyc': typeof AdminKycRoute
   '/admin/payouts': typeof AdminPayoutsRoute
@@ -187,6 +203,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/activity': typeof ActivityRoute
   '/bookings': typeof BookingsRoute
   '/cart': typeof CartRoute
@@ -194,6 +211,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
+  '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/admin/kyc': typeof AdminKycRoute
   '/admin/payouts': typeof AdminPayoutsRoute
@@ -212,6 +230,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/activity'
     | '/bookings'
     | '/cart'
@@ -219,6 +238,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/refund'
+    | '/support'
     | '/terms'
     | '/admin/kyc'
     | '/admin/payouts'
@@ -235,6 +255,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/activity'
     | '/bookings'
     | '/cart'
@@ -242,6 +263,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/refund'
+    | '/support'
     | '/terms'
     | '/admin/kyc'
     | '/admin/payouts'
@@ -258,6 +280,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/about'
     | '/activity'
     | '/bookings'
     | '/cart'
@@ -265,6 +288,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/refund'
+    | '/support'
     | '/terms'
     | '/admin/kyc'
     | '/admin/payouts'
@@ -282,6 +306,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   ActivityRoute: typeof ActivityRoute
   BookingsRoute: typeof BookingsRoute
   CartRoute: typeof CartRoute
@@ -289,6 +314,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   RefundRoute: typeof RefundRoute
+  SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   AdminKycRoute: typeof AdminKycRoute
   AdminPayoutsRoute: typeof AdminPayoutsRoute
@@ -311,6 +337,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/activity': {
@@ -360,6 +393,13 @@ declare module '@tanstack/react-router' {
       path: '/refund'
       fullPath: '/refund'
       preLoaderRoute: typeof RefundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -458,6 +498,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   ActivityRoute: ActivityRoute,
   BookingsRoute: BookingsRoute,
   CartRoute: CartRoute,
@@ -465,6 +506,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   RefundRoute: RefundRoute,
+  SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   AdminKycRoute: AdminKycRoute,
   AdminPayoutsRoute: AdminPayoutsRoute,

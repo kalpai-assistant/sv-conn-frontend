@@ -22,10 +22,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bell, BellOff, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { enablePushNotifications, getPushPermission, type PushPermission } from "@/lib/fcm";
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  getPushPermission,
+  type PushPermission,
+} from "@/lib/fcm";
 import { detectPlatform } from "@/lib/platform";
 import { useInstallState } from "@/lib/install";
 import { InstallSheet } from "@/components/InstallSheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export function NotificationsRow() {
   const [permission, setPermission] = useState<PushPermission | null>(null);
@@ -40,6 +55,12 @@ export function NotificationsRow() {
   // sequence — the provider needed the actual Share-menu steps in front of
   // them, plus the warning that installing costs them their session.
   const [showInstall, setShowInstall] = useState(false);
+  // SVC-277: the row had no Off at all — tapping while On silently re-ran
+  // registration and looked like nothing happened. `isOff` is our own state
+  // rather than a permission value because the OS permission stays granted;
+  // what changes is whether the backend has a token to send to.
+  const [isOff, setIsOff] = useState(false);
+  const [confirmOff, setConfirmOff] = useState(false);
   const { state: installState, promptInstall } = useInstallState();
 
   // Why push is unavailable, when it is. `unsupported` is one value from
@@ -102,6 +123,13 @@ export function NotificationsRow() {
       return;
     }
 
+    // Already on → offer to turn it off. Asked rather than done, because for a
+    // provider this stops job requests reaching them.
+    if (permission === "granted" && !isOff && !hasFailed) {
+      setConfirmOff(true);
+      return;
+    }
+
     setIsBusy(true);
     try {
       const result = await enablePushNotifications();
@@ -115,6 +143,7 @@ export function NotificationsRow() {
           description: "We've logged the problem. Please try again shortly.",
         });
       } else if (result.status === "granted") {
+        setIsOff(false);
         toast.success("Notifications are on");
       } else if (result.status === "denied") {
         toast.error("Permission denied", {
@@ -124,7 +153,25 @@ export function NotificationsRow() {
     } finally {
       setIsBusy(false);
     }
-  }, [isBusy, permission, installState]);
+  }, [isBusy, permission, isOff, hasFailed, installState]);
+
+  const turnOff = useCallback(async () => {
+    setConfirmOff(false);
+    setIsBusy(true);
+    try {
+      await disablePushNotifications();
+      setIsOff(true);
+      toast.success("Notifications are off", {
+        description: "We won't send you any until you turn them back on here.",
+      });
+    } catch {
+      toast.error("Couldn't turn notifications off", {
+        description: "Please try again in a moment.",
+      });
+    } finally {
+      setIsBusy(false);
+    }
+  }, []);
 
   const handleInstall = useCallback(async () => {
     const accepted = await promptInstall();
@@ -144,7 +191,7 @@ export function NotificationsRow() {
   // wrong state for a frame.
   if (permission === null) return null;
 
-  const isOn = permission === "granted" && !hasFailed;
+  const isOn = permission === "granted" && !hasFailed && !isOff;
   const isUnsupported = permission === "unsupported";
   const isBad = permission === "denied" || hasFailed || isUnsupported;
   const Icon = isBad ? BellOff : Bell;
@@ -161,14 +208,20 @@ export function NotificationsRow() {
       ? "Retry"
       : isOn
         ? "On"
-        : permission === "denied"
-          ? "Blocked"
-          : "Enable";
+        : isOff
+          ? // The user's own choice, deliberately not "Blocked": nothing is
+            // wrong and the OS permission is still granted. Tapping restores it.
+            "Off"
+          : permission === "denied"
+            ? "Blocked"
+            : "Enable";
 
   // Colour the word, not just the icon — the status is what gets read. Green
   // matches the readiness ticks on Provider Home so the row belongs to that
   // vocabulary. "Enable" stays neutral: nothing has gone wrong, the provider
   // simply hasn't chosen yet, and colouring it would cry wolf.
+  // "Off" stays neutral for the same reason "Enable" does — the user chose it,
+  // nothing failed, and red would report a problem that does not exist.
   const statusColor = isOn
     ? "text-emerald-600"
     : isBad
@@ -177,6 +230,22 @@ export function NotificationsRow() {
 
   return (
     <>
+      <AlertDialog open={confirmOff} onOpenChange={setConfirmOff}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Turn off notifications?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You won&apos;t be alerted about booking updates or job requests until you turn them
+              back on here.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep them on</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void turnOff()}>Turn off</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <InstallSheet
         open={showInstall}
         onOpenChange={setShowInstall}
