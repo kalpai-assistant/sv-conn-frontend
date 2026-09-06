@@ -3,19 +3,40 @@ import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { X, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { MapPicker } from "./MapPicker";
-import { useAddAddress } from "@/hooks/useApi";
+import { useAddAddress, useUpdateAddress } from "@/hooks/useApi";
 
-export function AddAddressSheet({ onClose }: { onClose: () => void }) {
+/** The address being edited, when the sheet is opened from Edit (SVC-277). */
+export interface EditingAddress {
+  id: string;
+  label: string;
+  full: string;
+}
+
+export function AddAddressSheet({
+  onClose,
+  editing,
+}: {
+  onClose: () => void;
+  editing?: EditingAddress;
+}) {
   // Sheets are mounted only while open, so locking on mount is the same as
   // locking on open. Without this the page scrolls behind the backdrop.
   useLockBodyScroll(true);
 
-  const [step, setStep] = useState<"map" | "form">("map");
+  // Editing opens straight on the form. The map step exists to pick a point
+  // for a brand-new address; someone correcting a flat number should not have
+  // to re-pin their building, and re-pinning is how a small text edit turns
+  // into a moved location.
+  const [step, setStep] = useState<"map" | "form">(editing ? "form" : "map");
   const [lat, setLat] = useState(0);
   const [lng, setLng] = useState(0);
-  const [addressLine, setAddressLine] = useState("");
-  const [label, setLabel] = useState("Home");
-  const { mutateAsync: addAddress, isPending } = useAddAddress();
+  const [addressLine, setAddressLine] = useState(editing?.full ?? "");
+  const [label, setLabel] = useState(
+    editing ? editing.label.charAt(0).toUpperCase() + editing.label.slice(1) : "Home",
+  );
+  const { mutateAsync: addAddress, isPending: isAdding } = useAddAddress();
+  const { mutateAsync: updateAddress, isPending: isUpdating } = useUpdateAddress();
+  const isPending = isAdding || isUpdating;
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleLocationSelected = (l: number, g: number, addr: string) => {
@@ -27,7 +48,20 @@ export function AddAddressSheet({ onClose }: { onClose: () => void }) {
   const handleSave = async () => {
     try {
       setErrorMsg("");
-      await addAddress({ label: label.toLowerCase(), full_address: addressLine, lat, lng });
+      if (editing) {
+        // Coordinates are omitted unless the user actually re-pinned: sending
+        // the initial 0,0 would move the address to the Gulf of Guinea. The
+        // backend keeps the existing point when lat/lng are absent.
+        const moved = lat !== 0 || lng !== 0;
+        await updateAddress({
+          addressId: editing.id,
+          label: label.toLowerCase(),
+          full_address: addressLine,
+          ...(moved ? { lat, lng } : {}),
+        });
+      } else {
+        await addAddress({ label: label.toLowerCase(), full_address: addressLine, lat, lng });
+      }
       onClose();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Failed to save address");
@@ -46,7 +80,7 @@ export function AddAddressSheet({ onClose }: { onClose: () => void }) {
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
           <h2 className="text-lg font-semibold text-foreground">
-            {step === "map" ? "Pin Location" : "Address Details"}
+            {step === "map" ? "Pin Location" : editing ? "Edit Address" : "Address Details"}
           </h2>
           <button onClick={onClose} className="rounded-full p-2 hover:bg-secondary">
             <X className="h-5 w-5 text-muted-foreground" />

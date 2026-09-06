@@ -361,6 +361,50 @@ export const useAddAddress = () => {
   });
 };
 
+/**
+ * Edit a saved address (SVC-277).
+ *
+ * Copy-on-write server-side: the old row is hidden and a new one returned, so
+ * bookings that already point at the old address keep recording where the job
+ * actually happened. The id in the response is therefore a *new* id — callers
+ * must not assume it matches the one they sent.
+ */
+export const useUpdateAddress = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      addressId,
+      ...body
+    }: { addressId: string } & Partial<Schema<"CreateAddressRequest">>) =>
+      apiFetch<Schema<"AddressResponse">>(`/users/me/addresses/${addressId}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["addresses"] });
+    },
+  });
+};
+
+/**
+ * Remove a saved address (SVC-277).
+ *
+ * A soft delete server-side — the row survives because a booking may point at
+ * it — but from here it is simply gone from the list.
+ */
+export const useDeleteAddress = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (addressId: string) =>
+      apiFetch<void>(`/users/me/addresses/${addressId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["addresses"] });
+    },
+  });
+};
+
 export const useBookings = (status?: string) => {
   const { data: services } = useServices(); // leverage cached services
 

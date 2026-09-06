@@ -371,6 +371,36 @@ export async function enablePushNotifications(): Promise<PushRegistrationResult>
 }
 
 /**
+ * Stop sending this user notifications, without un-registering the device
+ * (SVC-277 bug 2).
+ *
+ * The Profile row had no Off. It could not simply call `clearFcmToken`: that
+ * is the *logout* path, which also deletes the token at FCM itself — the user
+ * would have to grant permission again to come back, and on iOS Safari a
+ * declined re-prompt cannot be re-asked at all.
+ *
+ * So Off means "the backend has nowhere to send", not "this device is no
+ * longer capable". NULLing `users.fcm_token` is enough: every send path is
+ * guarded on `recipient.fcm_token`, so the user simply stops being a
+ * recipient. Tapping again re-registers with the token the device still holds.
+ *
+ * Note the OS permission stays granted, which is why the row must not claim
+ * notifications are "blocked" — someone who checks their device settings would
+ * see the app still allowed and reasonably conclude the app is lying.
+ */
+export async function disablePushNotifications(): Promise<void> {
+  // Clear the local memo first: without this, re-enabling in the same session
+  // would find `lastSentToken` unchanged and skip the PATCH that restores it.
+  lastSentToken = null;
+  await apiFetch<void>("/users/me/fcm-token", {
+    method: "PATCH",
+    // A literal null, not an omitted key — the field is required and nullable
+    // server-side so a half-written client cannot wipe push with `{}`.
+    body: JSON.stringify({ fcm_token: null }),
+  });
+}
+
+/**
  * Tell the backend to drop this user's stored token (SVC-164).
  *
  * Takes the JWT explicitly rather than leaning on the module-scoped one in
