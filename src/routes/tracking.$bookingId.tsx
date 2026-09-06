@@ -12,6 +12,7 @@ import {
   useCreatePaymentOrder,
   useVerifyPayment,
 } from "@/hooks/useApi";
+import { paymentStatusLabel, paymentStatusTone } from "@/lib/payment-status";
 import type { RazorpayCheckoutOptions, RazorpaySuccessResponse } from "@/types/razorpay";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
@@ -346,6 +347,24 @@ function TrackingPage() {
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Payment</span>
             <span className="font-medium text-foreground capitalize">{booking.paymentMethod}</span>
+          </div>
+          {/* SVC-259: whether the money actually moved.
+              
+              The panel showed the method and the amount but never the status,
+              so a paid booking said nothing — you inferred it from the absence
+              of the Pay Now button below. That inference is weak on a good day
+              and wrong on a bad one: the button is suppressed for CANCELLED and
+              EXPIRED regardless of payment, so an expired booking looked
+              identical whether or not it had been charged.
+              
+              It matters more now that this screen is only reached *after*
+              paying rather than before — it is the confirmation, so it should
+              confirm something. */}
+          <div className="flex justify-between text-sm mt-2">
+            <span className="text-muted-foreground">Status</span>
+            <span className={`font-medium ${paymentStatusTone(booking.paymentStatus)}`}>
+              {paymentStatusLabel(booking.paymentStatus)}
+            </span>
           </div>
           <div className="flex justify-between text-sm mt-2">
             <span className="text-muted-foreground">Subtotal</span>
