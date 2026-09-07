@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ShieldCheck, LockKeyhole, Clock, ArrowLeft, Loader2, Check } from "lucide-react";
+import { ShieldCheck, LockKeyhole, Clock, Loader2, Check } from "lucide-react";
 import { useServices } from "@/hooks/useApi";
 import { ErrorState } from "@/components/ErrorState";
 import { usePageCtaHeight } from "@/hooks/usePageCtaHeight";
 import { useCart } from "@/lib/cart-context";
 import { VariantPicker } from "@/components/service/VariantPicker";
+import { BackButton } from "@/components/BackButton";
 
 export const Route = createFileRoute("/service/$serviceId")({
   component: ServiceDetailPage,
@@ -94,13 +95,9 @@ function ServiceDetailPage() {
     >
       {/* Header */}
       <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card px-4">
-        <Link
-          to="/"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary"
-          aria-label="Back"
-        >
-          <ArrowLeft className="h-4 w-4 text-foreground" />
-        </Link>
+        {/* Home only when this page was opened cold — from a category listing,
+            back belongs on that listing. See BackButton. */}
+        <BackButton fallbackTo="/" />
         <h1 className="truncate text-base font-semibold text-foreground">{service.name}</h1>
       </div>
 
