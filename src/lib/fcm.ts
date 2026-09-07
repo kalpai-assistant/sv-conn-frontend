@@ -43,6 +43,7 @@ import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import type { PluginListenerHandle } from "@capacitor/core";
 import { apiFetch } from "./api";
+import { ensureJobRequestChannel } from "./notification-channels";
 import { detectPlatform } from "./platform";
 import { reportError } from "./sentry";
 
@@ -252,6 +253,17 @@ async function registerNative(interactive: boolean): Promise<PushRegistrationRes
 
     // Kicks off token issuance; resolves before the token exists.
     await PushNotifications.register();
+
+    // SVC-278: the channel must exist before the first push lands on it —
+    // Android files a notification against whatever channel is present at
+    // delivery time, so a late one leaves the earliest job requests on the
+    // default sound. After `register()` rather than before: the token cannot
+    // arrive until registration has been asked for, so this still wins the
+    // race, and it keeps an extra await out of the path the capability report
+    // times. Never throws; a provider without the channel still gets pushes,
+    // just undifferentiated ones.
+    void ensureJobRequestChannel();
+
     return { status: "granted" };
   } catch (err) {
     return { status: "denied", error: reportRegistrationFailure("native-register", err) };

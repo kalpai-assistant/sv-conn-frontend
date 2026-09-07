@@ -51,6 +51,11 @@ function mockNativePlugin(receive: string) {
       requestPermissions: vi.fn().mockResolvedValue({ receive }),
       register: vi.fn().mockResolvedValue(undefined),
       unregister: vi.fn().mockResolvedValue(undefined),
+      // Registration creates the job-request channel on the way past
+      // (SVC-278). Stubbed because the real plugin has it — omitting it would
+      // exercise `ensureJobRequestChannel`'s error path on every test here.
+      createChannel: vi.fn().mockResolvedValue(undefined),
+      deleteChannel: vi.fn().mockResolvedValue(undefined),
     },
   }));
 }
