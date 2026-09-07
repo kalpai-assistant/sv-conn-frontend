@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/EmptyState";
 import { useCart } from "@/lib/cart-context";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
-import { useCreateBookingFromCart } from "@/hooks/useCreateBookingFromCart";
+import { useBookAndPay } from "@/hooks/useBookAndPay";
 import { AddressPickerSheet } from "@/components/AddressPickerSheet";
 import { SlotPickerSheet } from "@/components/cart/SlotPickerSheet";
 import { CouponsSheet } from "@/components/cart/CouponsSheet";
@@ -37,7 +37,7 @@ function CartPage() {
   const navigate = useNavigate();
   const { items, subtotal, updateQuantity, remove, clear } = useCart();
   const { selected: selectedAddress } = useSelectedAddress();
-  const createBooking = useCreateBookingFromCart();
+  const { bookAndPay, isBusy } = useBookAndPay();
 
   // Slot state — null = "Now (instant)", non-null = scheduled datetime.
   // Default label matches the wireframe's smart-default hint.
@@ -59,15 +59,18 @@ function CartPage() {
     return { discount, total };
   }, [subtotal, coupon]);
 
-  const canBook = items.length > 0 && !!selectedAddress && !createBooking.isPending;
+  const canBook = items.length > 0 && !!selectedAddress && !isBusy;
 
   const handleBookAndPay = async () => {
     if (!selectedAddress) {
       toast.error("Add an address first.");
       return;
     }
-    try {
-      const booking = await createBooking.mutateAsync({
+    // SVC-259: the whole booking-and-pay intent is one tap now. Checkout opens
+    // on top of the cart instead of the user being dropped on a status screen
+    // with a Pay Now button they have to go looking for.
+    await bookAndPay({
+      booking: {
         // service_variant_id is what the booking is actually priced against.
         // Omitted only for a service the catalogue hasn't given variants —
         // the backend then falls back as it always did.
@@ -80,23 +83,22 @@ function CartPage() {
         scheduled_at: scheduledAt ? scheduledAt.toISOString() : null,
         payment_method: paymentMethod,
         coupon_code: coupon?.code,
-        // Fresh key per tap of Book & Pay. React-query's own retry replays
-        // the same key (backend collapses those). A subsequent user tap
-        // after failure is a new intent — new key.
-        idempotencyKey: crypto.randomUUID(),
-      });
-      clear();
-      navigate({
-        to: "/tracking/$bookingId",
-        params: { bookingId: booking.id as string },
-        // The cart was just cleared, so backing into it renders EmptyCart.
-        // Replace it: back from tracking returns where the user came from.
-        replace: true,
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to create booking. Please try again.";
-      toast.error(msg);
-    }
+      },
+      isOnline: paymentMethod === "online",
+      items,
+      // Only once the money is in (or the booking is cash) — a dismissed
+      // checkout must leave the cart intact to retry from.
+      onComplete: (bookingId) => {
+        clear();
+        navigate({
+          to: "/tracking/$bookingId",
+          params: { bookingId },
+          // The cart was just cleared, so backing into it renders EmptyCart.
+          // Replace it: back from tracking returns where the user came from.
+          replace: true,
+        });
+      },
+    });
   };
 
   if (items.length === 0) {
@@ -333,7 +335,7 @@ function CartPage() {
           disabled={!canBook}
           className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary text-base font-semibold text-primary-foreground disabled:opacity-50"
         >
-          {createBooking.isPending ? (
+          {isBusy ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
             `Book${paymentMethod === "online" ? " & Pay" : ""} — ₹${bill.total.toLocaleString("en-IN")}`
