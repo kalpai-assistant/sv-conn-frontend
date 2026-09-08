@@ -797,6 +797,16 @@ export interface ProviderProfile {
   is_online: boolean;
   avg_rating: number;
   total_completed_jobs: number;
+  // Where this provider works, and how far they travel (SVC-279). The dispatch
+  // geo-fence needs all three: a provider with a null centre matches no booking
+  // at all, however online they are.
+  //
+  // Optional because the fields only exist against a backend carrying #156.
+  // A stale backend omits them, and `null` means "never set" — which is not the
+  // same as 0,0, a real point in the Gulf of Guinea.
+  service_area_lat?: number | null;
+  service_area_lng?: number | null;
+  service_area_radius_km?: number;
   // Derived on the backend: whether a payout destination is on file. Never the raw PII.
   payout_set: boolean;
   // Which stored destination payouts actually go to (SVC-148). A provider may keep
