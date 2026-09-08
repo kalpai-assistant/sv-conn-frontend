@@ -26,10 +26,23 @@ function RecenterMap({ center }: { center: [number, number] }) {
 
 export function MapPicker({
   onLocationSelected,
+  initialCenter,
 }: {
   onLocationSelected: (lat: number, lng: number, address: string) => void;
+  /**
+   * Where to open the map (SVC-279). Omit and it falls back to DEFAULT_CENTER.
+   *
+   * Exists because a provider editing their service area must see the area they
+   * already set — opening on a constant would show them somewhere they have
+   * never been and invite them to overwrite it by accident.
+   *
+   * SVC-281 is what makes the *consumer* pickers pass this too: today they take
+   * the fallback, which is Bangalore, so a user anywhere else opens the map ~800km
+   * from where they are.
+   */
+  initialCenter?: [number, number] | null;
 }) {
-  const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
+  const [center, setCenter] = useState<[number, number]>(initialCenter ?? DEFAULT_CENTER);
   const [address, setAddress] = useState("Fetching location...");
   const [isFetching, setIsFetching] = useState(false);
 

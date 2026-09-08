@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, WalletCards } from "lucide-react";
+import { ChevronRight, MapPin, WalletCards } from "lucide-react";
 import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationsRow } from "@/components/NotificationsRow";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
@@ -32,6 +32,29 @@ function ProviderProfilePage() {
                 ? (profile.payout_display ??
                   (profile.payout_method === "bank" ? "Bank account on file" : "UPI ID on file"))
                 : "Not set up yet"}
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </Link>
+
+      {/* Service location (SVC-279). Sits with the payout row rather than in the
+          list below because both report *readiness* — a provider missing either
+          one earns nothing, and neither failure announces itself. A missing
+          service area is the quieter of the two: the dispatch geo-fence simply
+          never matches them. */}
+      <Link
+        to="/provider/location"
+        className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-secondary/50"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <MapPin className="h-5 w-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">Service location</p>
+            <p className="truncate text-sm text-muted-foreground">
+              {profile?.service_area_lat != null && profile?.service_area_lng != null
+                ? `Within ${profile.service_area_radius_km ?? 10} km of your centre`
+                : "Not set — you won't receive jobs"}
             </p>
           </div>
         </div>

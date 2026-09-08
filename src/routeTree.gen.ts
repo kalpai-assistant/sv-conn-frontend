@@ -25,6 +25,7 @@ import { Route as AdminPayoutsRouteImport } from './routes/admin.payouts'
 import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 import { Route as ProviderIndexRouteImport } from './routes/provider/index'
 import { Route as ProviderEarningsRouteImport } from './routes/provider/earnings'
+import { Route as ProviderLocationRouteImport } from './routes/provider/location'
 import { Route as ProviderOnboardingRouteImport } from './routes/provider/onboarding'
 import { Route as ProviderPayoutRouteImport } from './routes/provider/payout'
 import { Route as ProviderProfileRouteImport } from './routes/provider/profile'
@@ -113,6 +114,11 @@ const ProviderEarningsRoute = ProviderEarningsRouteImport.update({
   path: '/provider/earnings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProviderLocationRoute = ProviderLocationRouteImport.update({
+  id: '/provider/location',
+  path: '/provider/location',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProviderOnboardingRoute = ProviderOnboardingRouteImport.update({
   id: '/provider/onboarding',
   path: '/provider/onboarding',
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/provider/earnings': typeof ProviderEarningsRoute
+  '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
   '/provider/payout': typeof ProviderPayoutRoute
   '/provider/profile': typeof ProviderProfileRoute
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/provider/earnings': typeof ProviderEarningsRoute
+  '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
   '/provider/payout': typeof ProviderPayoutRoute
   '/provider/profile': typeof ProviderProfileRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/provider/earnings': typeof ProviderEarningsRoute
+  '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
   '/provider/payout': typeof ProviderPayoutRoute
   '/provider/profile': typeof ProviderProfileRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/admin/payouts'
     | '/category/$slug'
     | '/provider/earnings'
+    | '/provider/location'
     | '/provider/onboarding'
     | '/provider/payout'
     | '/provider/profile'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/admin/payouts'
     | '/category/$slug'
     | '/provider/earnings'
+    | '/provider/location'
     | '/provider/onboarding'
     | '/provider/payout'
     | '/provider/profile'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/admin/payouts'
     | '/category/$slug'
     | '/provider/earnings'
+    | '/provider/location'
     | '/provider/onboarding'
     | '/provider/payout'
     | '/provider/profile'
@@ -320,6 +332,7 @@ export interface RootRouteChildren {
   AdminPayoutsRoute: typeof AdminPayoutsRoute
   CategorySlugRoute: typeof CategorySlugRoute
   ProviderEarningsRoute: typeof ProviderEarningsRoute
+  ProviderLocationRoute: typeof ProviderLocationRoute
   ProviderOnboardingRoute: typeof ProviderOnboardingRoute
   ProviderPayoutRoute: typeof ProviderPayoutRoute
   ProviderProfileRoute: typeof ProviderProfileRoute
@@ -444,6 +457,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProviderEarningsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/provider/location': {
+      id: '/provider/location'
+      path: '/provider/location'
+      fullPath: '/provider/location'
+      preLoaderRoute: typeof ProviderLocationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/provider/onboarding': {
       id: '/provider/onboarding'
       path: '/provider/onboarding'
@@ -512,6 +532,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminPayoutsRoute: AdminPayoutsRoute,
   CategorySlugRoute: CategorySlugRoute,
   ProviderEarningsRoute: ProviderEarningsRoute,
+  ProviderLocationRoute: ProviderLocationRoute,
   ProviderOnboardingRoute: ProviderOnboardingRoute,
   ProviderPayoutRoute: ProviderPayoutRoute,
   ProviderProfileRoute: ProviderProfileRoute,
