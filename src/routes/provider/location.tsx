@@ -128,7 +128,7 @@ function ProviderLocationPage() {
   };
 
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen pb-24">
       <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card px-4">
         <Link
           to="/provider/profile"
@@ -230,22 +230,25 @@ function ProviderLocationPage() {
               Bookings outside this radius won&apos;t reach you.
             </p>
           </div>
+
+          {/* Inline, not a fixed footer. `__root.tsx` renders BottomNav over
+              every provider route, so anything pinned to bottom-0 sits behind
+              it — which made this button unreachable on a real device even
+              though it rendered fine in tests. provider/payout flows its
+              actions the same way for the same reason. */}
+          <Button
+            className="w-full"
+            disabled={updateServiceArea.isPending || lat === null || lng === null}
+            onClick={save}
+          >
+            {updateServiceArea.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Save service area"
+            )}
+          </Button>
         </div>
       )}
-
-      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-card p-4">
-        <Button
-          className="w-full"
-          disabled={updateServiceArea.isPending || lat === null || lng === null}
-          onClick={save}
-        >
-          {updateServiceArea.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            "Save service area"
-          )}
-        </Button>
-      </div>
     </div>
   );
 }
