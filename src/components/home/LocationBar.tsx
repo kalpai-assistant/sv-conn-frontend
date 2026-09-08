@@ -9,9 +9,22 @@
  * app is set to the right place without having to open anything.
  *
  * Falls back to a "Set your location" prompt when no address is on file
- * (new user). We deliberately don't auto-prompt for GPS here — a permission
- * request the moment Home loads has a much lower grant rate than one tied
- * to a user action.
+ * (new user).
+ *
+ * This bar used to carry the note that we deliberately never prompt for GPS on
+ * load, because an uninvited permission request converts worse than one tied to
+ * a user action. **That reasoning still holds and is still honoured** — but the
+ * behaviour it described has been superseded by SVC-281.
+ *
+ * `LocationGate` in `__root.tsx` now asks, on every launch, where the user is.
+ * It does not change the grant-rate argument: the OS dialog still fires only on
+ * an explicit tap of "Use my current location", never on load. What changed is
+ * that the question is asked at all, because a *stale* address turned out to be
+ * costlier than a missing one — a booking placed against yesterday's city finds
+ * no providers and fails silently.
+ *
+ * So this bar is no longer the only place a location gets set, and a user
+ * reaching Home has already answered the question once this launch.
  */
 import { useState } from "react";
 import { MapPin, ChevronDown } from "lucide-react";
