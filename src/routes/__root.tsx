@@ -10,6 +10,8 @@ import { CartFab } from "@/components/cart/CartFab";
 import { SplashGate } from "@/components/SplashGate";
 import { IncomingRequestHost } from "@/components/provider/IncomingRequestHost";
 import { AuthFlow } from "@/components/AuthFlow";
+import { ConsumerLocationGate, ProviderLocationGate } from "@/components/LocationGateHost";
+import { hasConfirmedLocation } from "@/lib/location-gate";
 import { AppVersionGate } from "@/components/AppVersionGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
@@ -64,6 +66,9 @@ function AppGate({ children }: { children: React.ReactNode }) {
   const isAdminRoute = pathname.startsWith("/admin");
   const isProviderRoute = pathname.startsWith("/provider");
   const isProviderOnboardingRoute = pathname.startsWith("/provider/onboarding");
+  // The gate sends providers here for the full map + radius picker, so it must
+  // not then block that route.
+  const isProviderLocationRoute = pathname.startsWith("/provider/location");
   // Public routes — reachable without login.
   // - SVC-37: legal pages (privacy, terms, refund) are hit anonymously by
   //   Razorpay merchant review, Play Store data-safety review, and App Store
@@ -154,6 +159,27 @@ function AppGate({ children }: { children: React.ReactNode }) {
       if (incomplete) {
         return <Navigate to="/provider/onboarding" />;
       }
+
+      // SVC-281: confirm where they are working, once per launch.
+      //
+      // After onboarding on purpose — the wizard already asks (SVC-257), and
+      // asking again inside it would be the same question twice. This catches
+      // providers who finished onboarding before that step existed, and anyone
+      // who has since moved.
+      //
+      // A stale centre is not a cosmetic problem here: the dispatch geo-fence
+      // searches around it, so a provider who moved city is online, verified,
+      // subscribed — and receives nothing, with no indication why.
+      if (!isProviderLocationRoute && !hasConfirmedLocation()) {
+        return (
+          <ProviderLocationGate
+            savedLabel={
+              providerProfile?.service_area_lat != null ? "your saved service area" : null
+            }
+            radiusKm={providerProfile?.service_area_radius_km ?? 10}
+          />
+        );
+      }
     }
   } else if (role !== "admin") {
     // Consumer path — bounce them out of /provider/*, force through profile
@@ -163,6 +189,17 @@ function AppGate({ children }: { children: React.ReactNode }) {
     }
     if (user && (isNewUser || !user.name) && !isProfileRoute) {
       return <Navigate to="/profile" />;
+    }
+
+    // SVC-281: confirm the service location, once per launch.
+    //
+    // Every launch rather than only when unset, because the costly failure is a
+    // *stale* address, not a missing one: someone in Pune yesterday and Mumbai
+    // today books against their Pune address, the geo-fence finds nobody, and
+    // the booking dies as "no partners found nearby" in a city full of
+    // providers.
+    if (isAuthenticated && !hasConfirmedLocation()) {
+      return <ConsumerLocationGate />;
     }
   }
 
