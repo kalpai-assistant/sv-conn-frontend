@@ -9,7 +9,7 @@
  * So the assertions are about what reaches the map and what reaches the server,
  * not about pixels.
  */
-import type { ReactElement } from "react";
+import { useEffect, type ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -21,13 +21,31 @@ let profileState = { isLoading: false, isError: false };
 /** What MapPicker was handed — the assertion target for "opens on the saved area". */
 let mapProps: { initialCenter?: [number, number] | null } = {};
 
+/** MapPicker's own default — Bangalore — which it reports when given no centre. */
+const MAP_FALLBACK: [number, number] = [12.9716, 77.5946];
+
 vi.mock("@/hooks/useApi", () => ({
   useProviderProfile: () => ({ data: profile, ...profileState }),
   useUpdateServiceArea: () => ({ mutateAsync: updateServiceArea, isPending: false }),
 }));
 vi.mock("@/components/MapPicker", () => ({
-  MapPicker: (props: { initialCenter?: [number, number] | null }) => {
+  // Mirrors the real component: it reverse-geocodes on mount and reports the
+  // result straight back, so the screen receives an `onLocationSelected` for a
+  // centre the provider never touched. Mocking that away hid two bugs.
+  MapPicker: (props: {
+    initialCenter?: [number, number] | null;
+    onLocationSelected: (lat: number, lng: number, address: string) => void;
+    onUserMoved?: () => void;
+  }) => {
     mapProps = props;
+    // Unconditional, like the real one: it reverse-geocodes whatever centre it
+    // opened on — including its own Bangalore fallback when no initialCenter is
+    // given. That is the case that made the no-area warning disappear.
+    const c = props.initialCenter ?? MAP_FALLBACK;
+    useEffect(() => {
+      props.onLocationSelected(c[0], c[1], "Somewhere");
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     return <div data-testid="map" />;
   },
 }));
@@ -121,5 +139,48 @@ describe("saving", () => {
       service_area_lng: 73.8567,
       service_area_radius_km: 15,
     });
+  });
+});
+
+describe("the map reporting its own centre on mount", () => {
+  it("does not call an untouched centre 'New centre'", () => {
+    // MapPicker reverse-geocodes on mount and reports back, so the screen hears
+    // about a centre nobody moved. Labelling that "New centre" tells a provider
+    // they changed something they did not.
+    render(<Page />);
+
+    expect(screen.getByText("Your service centre")).toBeInTheDocument();
+    expect(screen.queryByText("New centre")).not.toBeInTheDocument();
+  });
+
+  it("keeps the no-area warning visible for a provider who has none", () => {
+    // The worse half of the same bug: the mount callback made the one message
+    // that explains why they receive no work vanish the instant it rendered.
+    profile = { service_area_lat: null, service_area_lng: null };
+
+    render(<Page />);
+
+    expect(screen.getByText(/job requests can't reach you/i)).toBeInTheDocument();
+  });
+});
+
+describe("a provider with no area, when the map reports its own default", () => {
+  beforeEach(() => {
+    profile = { service_area_lat: null, service_area_lng: null };
+  });
+
+  it("does not treat the map's fallback centre as a choice", () => {
+    // The dangerous one. MapPicker opens on Bangalore when given no centre and
+    // reverse-geocodes it on mount. Accepting that would enable Save and let a
+    // single tap move this provider's service area ~840km.
+    render(<Page />);
+
+    expect(screen.getByRole("button", { name: /save service area/i })).toBeDisabled();
+  });
+
+  it("still tells them they will receive no jobs", () => {
+    render(<Page />);
+
+    expect(screen.getByText(/job requests can't reach you/i)).toBeInTheDocument();
   });
 });

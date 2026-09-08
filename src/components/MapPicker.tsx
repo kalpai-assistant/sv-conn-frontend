@@ -27,8 +27,17 @@ function RecenterMap({ center }: { center: [number, number] }) {
 export function MapPicker({
   onLocationSelected,
   initialCenter,
+  onUserMoved,
 }: {
   onLocationSelected: (lat: number, lng: number, address: string) => void;
+  /**
+   * Fired only when the *user* moves the pin, never for the mount-time
+   * reverse-geocode of whatever centre the map opened on. Callers that must
+   * tell "they chose this" from "this is just where the map started" need the
+   * difference — see the provider Location screen, where confusing the two
+   * would save a default centre as a real service area.
+   */
+  onUserMoved?: () => void;
   /**
    * Where to open the map (SVC-279). Omit and it falls back to DEFAULT_CENTER.
    *
@@ -70,6 +79,7 @@ export function MapPicker({
   }, []);
 
   const handleCenterChanged = (lat: number, lng: number) => {
+    onUserMoved?.();
     setCenter([lat, lng]);
     fetchAddress(lat, lng);
   };

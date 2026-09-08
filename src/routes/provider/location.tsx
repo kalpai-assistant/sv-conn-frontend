@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { ChevronLeft, Loader2, MapPin, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,9 @@ function ProviderLocationPage() {
   const [picked, setPicked] = useState<{ lat: number; lng: number; address: string } | null>(null);
   const [radiusKm, setRadiusKm] = useState<number | null>(null);
   const [locating, setLocating] = useState(false);
+  // True once the provider has actually dragged the pin. Distinguishes a real
+  // choice from MapPicker's mount-time report of its own default centre.
+  const userMoved = useRef(false);
 
   const savedLat = profile?.service_area_lat ?? null;
   const savedLng = profile?.service_area_lng ?? null;
@@ -62,6 +65,19 @@ function ProviderLocationPage() {
   const lat = picked?.lat ?? savedLat;
   const lng = picked?.lng ?? savedLng;
 
+  // MapPicker reverse-geocodes on mount and reports the result, so `picked` is
+  // set even when the provider has touched nothing. Comparing against the saved
+  // centre is what actually answers "did they move it" — labelling an untouched
+  // centre "New centre" tells them they changed something they didn't.
+  // Rounded to ~1m: the map hands back more precision than it was given, so an
+  // exact comparison is never equal.
+  const hasMoved =
+    picked !== null &&
+    (savedLat === null ||
+      savedLng === null ||
+      Math.abs(picked.lat - savedLat) > 1e-5 ||
+      Math.abs(picked.lng - savedLng) > 1e-5);
+
   const useCurrentLocation = () => {
     if (!("geolocation" in navigator)) {
       toast.error("Location isn't available on this device.");
@@ -71,6 +87,7 @@ function ProviderLocationPage() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLocating(false);
+        userMoved.current = true;
         setPicked({
           lat: Number(pos.coords.latitude.toFixed(6)),
           lng: Number(pos.coords.longitude.toFixed(6)),
@@ -137,7 +154,7 @@ function ProviderLocationPage() {
           {/* Said out loud because the consequence is invisible: no centre means
               the geo-fence excludes this provider from every broadcast, and
               nothing else in the app would tell them. */}
-          {!hasSavedArea && !picked && (
+          {!hasSavedArea && !hasMoved && (
             <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
               You haven&apos;t set a service area yet, so job requests can&apos;t reach you. Pick
               where you work to start receiving them.
@@ -148,9 +165,19 @@ function ProviderLocationPage() {
             <div className="h-64">
               <MapPicker
                 initialCenter={lat !== null && lng !== null ? [lat, lng] : null}
-                onLocationSelected={(pickedLat, pickedLng, address) =>
-                  setPicked({ lat: pickedLat, lng: pickedLng, address })
-                }
+                onLocationSelected={(pickedLat, pickedLng, address) => {
+                  // MapPicker reverse-geocodes on mount and reports whatever it
+                  // opened on — including its own Bangalore fallback when this
+                  // provider has no saved centre. Accepting that would enable
+                  // Save and let one tap move their service area 800km, so the
+                  // first report is only taken when it tells us something we
+                  // did not already know.
+                  if (!hasSavedArea && !userMoved.current) return;
+                  setPicked({ lat: pickedLat, lng: pickedLng, address });
+                }}
+                onUserMoved={() => {
+                  userMoved.current = true;
+                }}
               />
             </div>
           </div>
@@ -175,7 +202,7 @@ function ProviderLocationPage() {
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <div className="min-w-0">
                 <p className="text-sm font-medium text-foreground">
-                  {picked ? "New centre" : "Your service centre"}
+                  {hasMoved ? "New centre" : "Your service centre"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {picked?.address ?? `${lat.toFixed(4)}, ${lng.toFixed(4)}`}
