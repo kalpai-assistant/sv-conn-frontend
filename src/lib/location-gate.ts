@@ -32,6 +32,13 @@
 
 let confirmedThisLaunch = false;
 
+// Subscribers, so a change re-renders the gate away. Module state alone is
+// invisible to React: the first build set the flag and nothing re-evaluated,
+// which left a user who tapped "yes, I'm here" staring at the same screen —
+// locked out of the app entirely. Found on device; no unit test can see it,
+// because the bug is in the wiring between this and the component tree.
+const listeners = new Set<() => void>();
+
 /** True once the user has confirmed or set a location since the app started. */
 export function hasConfirmedLocation(): boolean {
   return confirmedThisLaunch;
@@ -39,10 +46,19 @@ export function hasConfirmedLocation(): boolean {
 
 /** Called when the user confirms an existing location or sets a new one. */
 export function markLocationConfirmed(): void {
+  if (confirmedThisLaunch) return;
   confirmedThisLaunch = true;
+  for (const listener of listeners) listener();
+}
+
+/** `useSyncExternalStore` subscribe. */
+export function subscribeToLocationGate(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 /** Test-only: return to the "not yet asked" state. */
 export function resetLocationGate(): void {
   confirmedThisLaunch = false;
+  for (const listener of listeners) listener();
 }

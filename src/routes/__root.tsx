@@ -11,7 +11,7 @@ import { SplashGate } from "@/components/SplashGate";
 import { IncomingRequestHost } from "@/components/provider/IncomingRequestHost";
 import { AuthFlow } from "@/components/AuthFlow";
 import { ConsumerLocationGate, ProviderLocationGate } from "@/components/LocationGateHost";
-import { hasConfirmedLocation } from "@/lib/location-gate";
+import { useLocationConfirmed } from "@/hooks/useLocationConfirmed";
 import { AppVersionGate } from "@/components/AppVersionGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
@@ -89,6 +89,10 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // an extra API call at boot.
   const { data: providerProfile, isLoading: providerProfileLoading } =
     useProviderProfile(isProvider);
+
+  // Subscribed, not read: a plain module read would not re-render when the user
+  // answers, leaving the gate on screen forever. See useLocationConfirmed.
+  const locationConfirmed = useLocationConfirmed();
 
   // Wire FCM tap → in-app navigation. No-op on web; lazy-loads the Capacitor
   // plugin so the web bundle stays clean. Must live inside <AuthProvider/> for
@@ -170,7 +174,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
       // A stale centre is not a cosmetic problem here: the dispatch geo-fence
       // searches around it, so a provider who moved city is online, verified,
       // subscribed — and receives nothing, with no indication why.
-      if (!isProviderLocationRoute && !hasConfirmedLocation()) {
+      if (!isProviderLocationRoute && !locationConfirmed) {
         return (
           <ProviderLocationGate
             savedLabel={
@@ -198,7 +202,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
     // today books against their Pune address, the geo-fence finds nobody, and
     // the booking dies as "no partners found nearby" in a city full of
     // providers.
-    if (isAuthenticated && !hasConfirmedLocation()) {
+    if (isAuthenticated && !locationConfirmed) {
       return <ConsumerLocationGate />;
     }
   }
