@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { LocationGate } from "@/components/LocationGate";
 import { AddAddressSheet } from "@/components/AddAddressSheet";
 import { markLocationConfirmed } from "@/lib/location-gate";
+import { localityFrom } from "@/lib/locality";
 import { useAddAddress, useUpdateServiceArea } from "@/hooks/useApi";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 
@@ -46,7 +47,13 @@ export function ConsumerLocationGate() {
     <LocationGate
       title="Where do you want your service?"
       subtitle="Professionals are matched to your location, so it needs to be right."
-      saved={selected ? { label: selected.label, full: selected.full } : null}
+      // The locality, not the label. "Yes, I'm at home" is true in every city
+      // — see localityFrom for why that breaks the whole mechanism.
+      saved={
+        selected
+          ? { label: localityFrom(selected.full, selected.label), full: selected.full }
+          : null
+      }
       isSaving={isPending}
       onConfirmSaved={markLocationConfirmed}
       onUseCurrent={async (lat, lng) => {
