@@ -41,10 +41,13 @@ beforeEach(() => {
 });
 
 describe("adding (unchanged behaviour)", () => {
-  it("opens on the map step", () => {
+  it("opens on the map step", async () => {
     render(<AddAddressSheet onClose={vi.fn()} />);
 
-    expect(screen.getByTestId("map-picker")).toBeInTheDocument();
+    // Awaited since SVC-281: the map is not mounted until we know where to
+    // open it, so it renders somewhere it might actually be rather than
+    // recentring out from under a user who has already grabbed the pin.
+    expect(await screen.findByTestId("map-picker")).toBeInTheDocument();
   });
 });
 

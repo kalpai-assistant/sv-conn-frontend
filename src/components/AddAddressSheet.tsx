@@ -4,6 +4,7 @@ import { X, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { MapPicker } from "./MapPicker";
 import { useAddAddress, useUpdateAddress } from "@/hooks/useApi";
+import { useMapOpeningCentre } from "@/hooks/useMapOpeningCentre";
 
 /** The address being edited, when the sheet is opened from Edit (SVC-277). */
 export interface EditingAddress {
@@ -38,6 +39,8 @@ export function AddAddressSheet({
   const { mutateAsync: updateAddress, isPending: isUpdating } = useUpdateAddress();
   const isPending = isAdding || isUpdating;
   const [errorMsg, setErrorMsg] = useState("");
+  // Where the map should open. Null until resolved — see useMapOpeningCentre.
+  const opening = useMapOpeningCentre();
 
   const handleLocationSelected = (l: number, g: number, addr: string) => {
     setLat(l);
@@ -89,7 +92,30 @@ export function AddAddressSheet({
 
         {step === "map" ? (
           <div className="flex-1 flex flex-col relative min-h-0">
-            <MapPicker onLocationSelected={handleLocationSelected} />
+            {/* SVC-281: don't mount the map until we know where to open it.
+                Rendering first and recentring after would drag the view out
+                from under anyone who started moving the pin immediately. */}
+            {opening.centre === null ? (
+              <div className="flex flex-1 items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <>
+                {/* AC2: a wrong-city map used to be silent. If we are guessing,
+                    name the guess so the user knows to move it rather than
+                    trusting a pin 840km from home. */}
+                {opening.source === "fallback" && (
+                  <p className="bg-secondary px-4 py-2 text-xs text-muted-foreground">
+                    Showing {opening.fallbackLabel} — drag the pin or tap the locate button to set
+                    your area.
+                  </p>
+                )}
+                <MapPicker
+                  initialCenter={opening.centre}
+                  onLocationSelected={handleLocationSelected}
+                />
+              </>
+            )}
             <div className="p-4 border-t border-border bg-card">
               <button
                 onClick={() => setStep("form")}
