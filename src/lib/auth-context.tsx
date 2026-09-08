@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import { apiFetch, clearTokens, getAccessToken, hasStoredAuth, setTokens } from "./api";
 import { setSentryUser } from "./sentry";
 import { clearFcmToken } from "./fcm";
+import { resetLocationGate } from "./location-gate";
 
 // SVC-41 back-port: three roles the backend recognises. The client uses this
 // to pick between consumer and provider UIs; `admin` isn't a mobile persona
@@ -157,6 +158,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setIsNewUser(false);
     setSentryUser(null);
+    // SVC-281: the location answer belongs to a session, not to the app
+    // process. Without this the next person to sign in on this device inherits
+    // the previous user's "yes, I'm here" and never sees the question — found
+    // on device, where a provider logged in after a consumer and went straight
+    // to their home screen with no location confirmed.
+    resetLocationGate();
   }, []);
 
   const updateUser = useCallback((data: Partial<User>) => {
