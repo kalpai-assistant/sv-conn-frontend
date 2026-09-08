@@ -17,6 +17,15 @@ import { renderHook, waitFor } from "@testing-library/react";
 const getCurrentPosition = vi.fn();
 const permissionsQuery = vi.fn();
 
+/** The saved address, when there is one. Source 2 — see the hook docs. */
+let savedAddress: { lat?: number | null; lng?: number | null } | undefined;
+
+// Mocked rather than wrapped in a QueryClientProvider: these tests are about
+// which source wins and whether a prompt fires, not about fetching addresses.
+vi.mock("@/hooks/useSelectedAddress", () => ({
+  useSelectedAddress: () => ({ selected: savedAddress }),
+}));
+
 import { useMapOpeningCentre } from "@/hooks/useMapOpeningCentre";
 
 const BANGALORE: [number, number] = [12.9716, 77.5946];
@@ -24,6 +33,7 @@ const PUNE = { latitude: 18.5204, longitude: 73.8567 };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  savedAddress = undefined;
   vi.stubGlobal("navigator", {
     geolocation: { getCurrentPosition },
     permissions: { query: permissionsQuery },
@@ -121,5 +131,56 @@ describe("the fallback", () => {
     // So the UI can say "Showing Bangalore" rather than presenting a map of
     // the wrong city as though it were the user's own.
     expect(result.current.fallbackLabel).toBe("Bangalore");
+  });
+});
+
+describe("a saved address", () => {
+  it("beats the constant when there is no permission", async () => {
+    // Needs no permission at all, and someone with a Pune address is far more
+    // likely adding another in Pune than in Bangalore.
+    permissionsQuery.mockResolvedValue({ state: "prompt" });
+    savedAddress = { lat: PUNE.latitude, lng: PUNE.longitude };
+
+    const { result } = renderHook(() => useMapOpeningCentre());
+
+    await waitFor(() => expect(result.current.centre).not.toBeNull());
+    expect(result.current.centre).toEqual([PUNE.latitude, PUNE.longitude]);
+    expect(result.current.source).toBe("saved-address");
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it("loses to an actual position, which is more current", async () => {
+    permissionsQuery.mockResolvedValue({ state: "granted" });
+    getCurrentPosition.mockImplementation((ok) => ok({ coords: PUNE }));
+    savedAddress = { lat: 19.076, lng: 72.8777 };
+
+    const { result } = renderHook(() => useMapOpeningCentre());
+
+    await waitFor(() => expect(result.current.source).not.toBeNull());
+    expect(result.current.source).toBe("position");
+  });
+
+  it("is ignored when it has no pin", async () => {
+    // An address can be created without coordinates, and older rows predate
+    // them. Null is not a location.
+    permissionsQuery.mockResolvedValue({ state: "prompt" });
+    savedAddress = { lat: null, lng: null };
+
+    const { result } = renderHook(() => useMapOpeningCentre());
+
+    await waitFor(() => expect(result.current.centre).not.toBeNull());
+    expect(result.current.source).toBe("fallback");
+  });
+
+  it("is ignored when its pin is null island", async () => {
+    // 0,0 is a real point in the Gulf of Guinea and is what a coerced null
+    // looks like. Opening there would be worse than the fallback, not better.
+    permissionsQuery.mockResolvedValue({ state: "prompt" });
+    savedAddress = { lat: 0, lng: 0 };
+
+    const { result } = renderHook(() => useMapOpeningCentre());
+
+    await waitFor(() => expect(result.current.centre).not.toBeNull());
+    expect(result.current.source).toBe("fallback");
   });
 });

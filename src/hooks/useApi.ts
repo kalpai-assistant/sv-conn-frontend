@@ -341,6 +341,12 @@ export const useAddresses = () => {
         id: a.id,
         label: a.label,
         full: a.full_address,
+        // SVC-281: the pin, so a map can open on an address the user already
+        // saved. `?? null` because a stale backend omits these entirely, and an
+        // address can genuinely have been created without one — both mean "no
+        // pin", which callers must not read as 0,0.
+        lat: a.lat ?? null,
+        lng: a.lng ?? null,
       }));
     },
   });

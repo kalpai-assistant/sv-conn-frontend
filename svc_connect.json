@@ -1,16 +1,14 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "ServiceConnect",
+    "title": "Eazyserv",
     "description": "On-demand home services marketplace API",
     "version": "1.0.0"
   },
   "paths": {
     "/api/v1/auth/send-otp": {
       "post": {
-        "tags": [
-          "Authentication"
-        ],
+        "tags": ["Authentication"],
         "summary": "Send Otp",
         "operationId": "send_otp_api_v1_auth_send_otp_post",
         "requestBody": {
@@ -47,9 +45,7 @@
     },
     "/api/v1/auth/verify-otp": {
       "post": {
-        "tags": [
-          "Authentication"
-        ],
+        "tags": ["Authentication"],
         "summary": "Verify Otp",
         "operationId": "verify_otp_api_v1_auth_verify_otp_post",
         "requestBody": {
@@ -88,9 +84,7 @@
     },
     "/api/v1/auth/refresh": {
       "post": {
-        "tags": [
-          "Authentication"
-        ],
+        "tags": ["Authentication"],
         "summary": "Refresh Token",
         "operationId": "refresh_token_api_v1_auth_refresh_post",
         "requestBody": {
@@ -127,11 +121,42 @@
         }
       }
     },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Logout",
+        "description": "SVC-241: revoke a refresh token so /auth/refresh with it returns 401.\n\nSilently succeeds on any token — even malformed / already-expired — so\nthe client can call this once, drop its stored tokens, and never care\nwhether the server had anything to blacklist.",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me": {
       "get": {
-        "tags": [
-          "Users"
-        ],
+        "tags": ["Users"],
         "summary": "Get Me",
         "operationId": "get_me_api_v1_users_me_get",
         "responses": {
@@ -153,9 +178,7 @@
         ]
       },
       "patch": {
-        "tags": [
-          "Users"
-        ],
+        "tags": ["Users"],
         "summary": "Update Me",
         "operationId": "update_me_api_v1_users_me_patch",
         "requestBody": {
@@ -199,9 +222,7 @@
     },
     "/api/v1/users/me/fcm-token": {
       "patch": {
-        "tags": [
-          "Users"
-        ],
+        "tags": ["Users"],
         "summary": "Update Fcm Token",
         "description": "Register the caller's FCM token, or clear it by sending `null` on sign-out.\n\nThe field is required, so an empty body is rejected — clearing must be explicit.",
         "operationId": "update_fcm_token_api_v1_users_me_fcm_token_patch",
@@ -237,11 +258,47 @@
         ]
       }
     },
+    "/api/v1/users/me/push-capability": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Report Push Capability",
+        "description": "Record what the caller's device can do about push (SVC-255). Logs only.\n\nSVC-255 is about providers who never receive notifications, and nobody can\ncurrently say how many that is. Sentry captures registration *failures*, but\nwith no denominator — and no existing request carries the platform, so there\nis nothing to mine retroactively. The version check looks like it would help\nand does not: it reads a static `latest.json` and picks the platform branch\non the client, so the server never sees which one.\n\nDeliberately stores nothing. One structured line, counted in CloudWatch\nInsights. The question is \"should we invest in the iOS path at all\", which\nneeds answering once — a column on `users` would answer a different\nquestion (\"which providers should we chase\") and is only worth adding if\nthe distribution says the problem is real.\n\nFire-and-forget from the client's side: a failure here must never affect\nwhether push itself registers.",
+        "operationId": "report_push_capability_api_v1_users_me_push_capability_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushCapabilityReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/users/me/addresses": {
       "get": {
-        "tags": [
-          "Users"
-        ],
+        "tags": ["Users"],
         "summary": "List Addresses",
         "operationId": "list_addresses_api_v1_users_me_addresses_get",
         "responses": {
@@ -267,9 +324,7 @@
         ]
       },
       "post": {
-        "tags": [
-          "Users"
-        ],
+        "tags": ["Users"],
         "summary": "Add Address",
         "operationId": "add_address_api_v1_users_me_addresses_post",
         "requestBody": {
@@ -312,11 +367,65 @@
       }
     },
     "/api/v1/users/me/addresses/{address_id}": {
-      "delete": {
-        "tags": [
-          "Users"
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Update Address",
+        "description": "Edit a saved address (SVC-277).\n\nCopy-on-write: the old row is soft-deleted and a new one returned. Bookings\nthat already point at the old address keep recording where the job actually\nhappened, and a provider en route to it is not silently redirected.",
+        "operationId": "update_address_api_v1_users_me_addresses__address_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
         ],
+        "parameters": [
+          {
+            "name": "address_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Address Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAddressRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddressResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Users"],
         "summary": "Delete Address",
+        "description": "Remove a saved address (SVC-277: now a soft delete).\n\nThe row is hidden, not deleted — `bookings.consumer_address_id` is an\nunqualified FK, so removing an address any booking has ever used raises.",
         "operationId": "delete_address_api_v1_users_me_addresses__address_id__delete",
         "security": [
           {
@@ -330,6 +439,7 @@
             "required": true,
             "schema": {
               "type": "string",
+              "format": "uuid",
               "title": "Address Id"
             }
           }
@@ -353,9 +463,7 @@
     },
     "/api/v1/providers/me": {
       "get": {
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "summary": "Get Provider Profile",
         "operationId": "get_provider_profile_api_v1_providers_me_get",
         "responses": {
@@ -377,9 +485,7 @@
         ]
       },
       "patch": {
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "summary": "Update Provider Profile",
         "operationId": "update_provider_profile_api_v1_providers_me_patch",
         "requestBody": {
@@ -423,9 +529,7 @@
     },
     "/api/v1/providers/me/photo": {
       "post": {
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "summary": "Upload Profile Photo",
         "description": "Upload/replace the provider's profile photo. Returns the updated profile.",
         "operationId": "upload_profile_photo_api_v1_providers_me_photo_post",
@@ -470,9 +574,7 @@
     },
     "/api/v1/providers/me/payout-method": {
       "delete": {
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "summary": "Remove Payout Method",
         "description": "Erase all stored payout destinations.\n\nDeliberate, explicit action — saving a new method never removes the old one, so\nthis is the only path that deletes payout details. Clears both methods, not just\nthe active one: \"remove my payout details\" should leave the platform holding\nnothing. Afterwards ``payout_set`` is false and the provider cannot be paid until\nthey add a method again.",
         "operationId": "remove_payout_method_api_v1_providers_me_payout_method_delete",
@@ -495,9 +597,7 @@
         ]
       },
       "patch": {
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "summary": "Set Active Payout Method",
         "description": "Switch payouts to a method already on file, without re-entering it.\n\nA provider who has both a UPI handle and a bank account stored can flip which\none gets paid. Returns 400 if nothing is stored for the requested method.",
         "operationId": "set_active_payout_method_api_v1_providers_me_payout_method_patch",
@@ -542,9 +642,7 @@
     },
     "/api/v1/providers/me/status": {
       "patch": {
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "summary": "Set Online Status",
         "operationId": "set_online_status_api_v1_providers_me_status_patch",
         "requestBody": {
@@ -588,9 +686,7 @@
     },
     "/api/v1/providers/nearby": {
       "get": {
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "summary": "Find Nearby Providers",
         "operationId": "find_nearby_providers_api_v1_providers_nearby_get",
         "security": [
@@ -664,9 +760,7 @@
     },
     "/api/v1/providers/me/services": {
       "get": {
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "summary": "List My Services",
         "description": "List the services the current provider is subscribed to.",
         "operationId": "list_my_services_api_v1_providers_me_services_get",
@@ -693,9 +787,7 @@
         ]
       },
       "post": {
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "summary": "Subscribe To Service",
         "operationId": "subscribe_to_service_api_v1_providers_me_services_post",
         "requestBody": {
@@ -737,11 +829,38 @@
         ]
       }
     },
+    "/api/v1/providers/me/offers": {
+      "get": {
+        "tags": ["Providers"],
+        "summary": "List My Offers",
+        "description": "Open job offers for the current provider (SVC-254).\n\nThe fallback delivery path. Until this existed, an FCM push was the only way\nan offer reached anyone — so a stale token, a denied notification permission\nor an iOS Safari tab meant the provider was silently deaf to paid work.\n\nThe provider app polls this while online. Each entry is the same\n``BookingOfferResponse`` the push route's card fetches, so a polled offer and\na pushed one are indistinguishable to the UI. Soonest-expiring first.\n\nAlso tops up: a provider who came online after a booking was dispatched has\nno offer row for it, and its push has already been sent. This is the only\nplace they can be added, so the read writes the missing rows.",
+        "operationId": "list_my_offers_api_v1_providers_me_offers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BookingOfferResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List My Offers Api V1 Providers Me Offers Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/providers/me/earnings": {
       "get": {
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "summary": "Get My Earnings",
         "description": "Provider earnings summary + per-booking breakdown for the chosen window.\n\nWindow is the IST calendar boundary (today = since 00:00 IST, week = since\nMonday 00:00 IST, month = since the 1st 00:00 IST). Refunded payments are\nexcluded. Used by the provider Earnings dashboard (SC-27).",
         "operationId": "get_my_earnings_api_v1_providers_me_earnings_get",
@@ -756,11 +875,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "enum": [
-                "today",
-                "week",
-                "month"
-              ],
+              "enum": ["today", "week", "month"],
               "type": "string",
               "default": "week",
               "title": "Range"
@@ -793,9 +908,7 @@
     },
     "/api/v1/providers/me/services/{service_id}": {
       "delete": {
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "summary": "Unsubscribe From Service",
         "operationId": "unsubscribe_from_service_api_v1_providers_me_services__service_id__delete",
         "security": [
@@ -834,9 +947,7 @@
     },
     "/api/v1/providers/me/kyc": {
       "post": {
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "summary": "Submit Kyc",
         "description": "Upload KYC documents. Sets the profile's kyc_status to SUBMITTED.",
         "operationId": "submit_kyc_api_v1_providers_me_kyc_post",
@@ -881,9 +992,7 @@
     },
     "/api/v1/categories": {
       "get": {
-        "tags": [
-          "Catalog"
-        ],
+        "tags": ["Catalog"],
         "summary": "List Categories",
         "operationId": "list_categories_api_v1_categories_get",
         "responses": {
@@ -906,9 +1015,7 @@
     },
     "/api/v1/services": {
       "get": {
-        "tags": [
-          "Catalog"
-        ],
+        "tags": ["Catalog"],
         "summary": "List Services",
         "description": "List global catalog services, optionally filtered by category.",
         "operationId": "list_services_api_v1_services_get",
@@ -959,9 +1066,7 @@
         }
       },
       "post": {
-        "tags": [
-          "Catalog"
-        ],
+        "tags": ["Catalog"],
         "summary": "Create Service",
         "description": "Admin-only: add a service to the global catalog.",
         "operationId": "create_service_api_v1_services_post",
@@ -1006,9 +1111,7 @@
     },
     "/api/v1/services/{service_id}": {
       "patch": {
-        "tags": [
-          "Catalog"
-        ],
+        "tags": ["Catalog"],
         "summary": "Update Service",
         "description": "Admin-only: update a catalog service.",
         "operationId": "update_service_api_v1_services__service_id__patch",
@@ -1063,9 +1166,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Catalog"
-        ],
+        "tags": ["Catalog"],
         "summary": "Delete Service",
         "description": "Admin-only: soft-delete a catalog service.",
         "operationId": "delete_service_api_v1_services__service_id__delete",
@@ -1105,9 +1206,7 @@
     },
     "/api/v1/bookings/": {
       "post": {
-        "tags": [
-          "Bookings"
-        ],
+        "tags": ["Bookings"],
         "summary": "Create Booking",
         "operationId": "create_booking_api_v1_bookings__post",
         "security": [
@@ -1163,9 +1262,7 @@
         }
       },
       "get": {
-        "tags": [
-          "Bookings"
-        ],
+        "tags": ["Bookings"],
         "summary": "List Bookings",
         "operationId": "list_bookings_api_v1_bookings__get",
         "security": [
@@ -1240,9 +1337,7 @@
     },
     "/api/v1/bookings/{booking_id}/accept": {
       "patch": {
-        "tags": [
-          "Bookings"
-        ],
+        "tags": ["Bookings"],
         "summary": "Accept Booking",
         "description": "Claim a broadcast booking. First provider to accept wins.\n\nIdempotent: a provider re-accepting a booking they already hold gets 200 and\nthe booking, with no second notification to the consumer. That case is a\nretry after a lost response, not a new acceptance — notifying again would\ntell the consumer twice, and returning an error would tell the *winning*\nprovider they lost (SVC-154).",
         "operationId": "accept_booking_api_v1_bookings__booking_id__accept_patch",
@@ -1296,11 +1391,52 @@
         }
       }
     },
+    "/api/v1/bookings/{booking_id}/decline": {
+      "patch": {
+        "tags": ["Bookings"],
+        "summary": "Decline Booking",
+        "description": "Turn down a job offer (SVC-254). Backs the card's \"Not now\".\n\nWithout this the poll would re-serve a dismissed offer every fifteen seconds\nuntil the window closed — worse than never showing it. Declining only\nsilences it for this provider; the booking stays open for everyone else.\n\nIdempotent, and quiet about it: declining an offer already answered returns\n204 rather than an error. A double tap is the common cause, and the\nprovider's intent is satisfied either way. 403 when they were never offered\nthe booking — the same answer ``/offer`` gives a non-recipient, so decline\ncan't be used to probe which bookings exist.",
+        "operationId": "decline_booking_api_v1_bookings__booking_id__decline_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "You were not offered this booking"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/bookings/{booking_id}/en-route": {
       "patch": {
-        "tags": [
-          "Bookings"
-        ],
+        "tags": ["Bookings"],
         "summary": "Mark En Route",
         "operationId": "mark_en_route_api_v1_bookings__booking_id__en_route_patch",
         "security": [
@@ -1346,9 +1482,7 @@
     },
     "/api/v1/bookings/{booking_id}/start": {
       "patch": {
-        "tags": [
-          "Bookings"
-        ],
+        "tags": ["Bookings"],
         "summary": "Start Booking",
         "description": "Provider verifies doorstep OTP to start the service.",
         "operationId": "start_booking_api_v1_bookings__booking_id__start_patch",
@@ -1405,9 +1539,7 @@
     },
     "/api/v1/bookings/{booking_id}/complete": {
       "patch": {
-        "tags": [
-          "Bookings"
-        ],
+        "tags": ["Bookings"],
         "summary": "Complete Booking",
         "operationId": "complete_booking_api_v1_bookings__booking_id__complete_patch",
         "security": [
@@ -1453,9 +1585,7 @@
     },
     "/api/v1/bookings/{booking_id}/cancel": {
       "patch": {
-        "tags": [
-          "Bookings"
-        ],
+        "tags": ["Bookings"],
         "summary": "Cancel Booking",
         "operationId": "cancel_booking_api_v1_bookings__booking_id__cancel_patch",
         "security": [
@@ -1511,9 +1641,7 @@
     },
     "/api/v1/bookings/{booking_id}/tip": {
       "post": {
-        "tags": [
-          "Bookings"
-        ],
+        "tags": ["Bookings"],
         "summary": "Tip Booking",
         "description": "Consumer adds (or updates) a gratuity on a completed booking.\n\n100% of the tip flows to the provider — added on top of provider_payout\nat payout time. A subsequent call with a different amount replaces\nrather than accumulates; ``amount=0`` removes the tip. Bounds live in\nthe request schema; state + access checks live in the service layer.",
         "operationId": "tip_booking_api_v1_bookings__booking_id__tip_post",
@@ -1579,9 +1707,7 @@
     },
     "/api/v1/bookings/{booking_id}/offer": {
       "get": {
-        "tags": [
-          "Bookings"
-        ],
+        "tags": ["Bookings"],
         "summary": "Get Booking Offer",
         "description": "What a provider may see about a broadcast job before accepting it (SVC-153).\n\nBacks the Incoming Request Card: the ``new_request`` push carries only a booking\nid, and ``GET /{booking_id}`` refuses a provider who has not been assigned yet.\n\n403 when the caller was not offered this booking, 410 once it is no longer\nopen. Both come from the service so they carry the standard error shape — the\ncard keys off the status code, not the message. Role is not gated here: the\neligibility check subsumes it, since only a matching provider can pass it.",
         "operationId": "get_booking_offer_api_v1_bookings__booking_id__offer_get",
@@ -1637,9 +1763,7 @@
     },
     "/api/v1/bookings/{booking_id}": {
       "get": {
-        "tags": [
-          "Bookings"
-        ],
+        "tags": ["Bookings"],
         "summary": "Get Booking",
         "description": "Fetch a single booking by ID. Only consumer or assigned provider may access.\n\nBoth parties get the same schema, so the response is built per-caller rather\nthan split by ``response_model``: the assigned provider sees the booking\nwithout ``doorstep_otp`` (SVC-169).",
         "operationId": "get_booking_api_v1_bookings__booking_id__get",
@@ -1686,9 +1810,7 @@
     },
     "/api/v1/payments/orders": {
       "post": {
-        "tags": [
-          "Payments"
-        ],
+        "tags": ["Payments"],
         "summary": "Create Payment Order",
         "operationId": "create_payment_order_api_v1_payments_orders_post",
         "security": [
@@ -1749,9 +1871,7 @@
     },
     "/api/v1/payments/verify": {
       "post": {
-        "tags": [
-          "Payments"
-        ],
+        "tags": ["Payments"],
         "summary": "Verify Payment",
         "operationId": "verify_payment_api_v1_payments_verify_post",
         "requestBody": {
@@ -1796,9 +1916,7 @@
     },
     "/api/v1/payments/webhook": {
       "post": {
-        "tags": [
-          "Payments"
-        ],
+        "tags": ["Payments"],
         "summary": "Razorpay Webhook",
         "description": "Razorpay Payments webhook — verified against RAZORPAY_WEBHOOK_SECRET.",
         "operationId": "razorpay_webhook_api_v1_payments_webhook_post",
@@ -1816,9 +1934,7 @@
     },
     "/api/v1/payments/payout-webhook": {
       "post": {
-        "tags": [
-          "Payments"
-        ],
+        "tags": ["Payments"],
         "summary": "Razorpayx Payout Webhook",
         "description": "RazorpayX (payouts) webhook — verified against RAZORPAYX_WEBHOOK_SECRET.\n\nRazorpayX is a separate Razorpay product with its own webhook secret, so its\npayout.processed / payout.failed / payout.reversed events must arrive on a\ndedicated endpoint rather than the Payments webhook (different secret).\n\nThe provider's push is dispatched as a background task so it runs only after\n``get_db`` commits. If this delivery rolls back, RazorpayX retries it and the\nretry settles the same bookings — pushing inline would notify the provider once\nper attempt.",
         "operationId": "razorpayx_payout_webhook_api_v1_payments_payout_webhook_post",
@@ -1836,9 +1952,7 @@
     },
     "/api/v1/reviews/": {
       "post": {
-        "tags": [
-          "Reviews"
-        ],
+        "tags": ["Reviews"],
         "summary": "Create Review",
         "operationId": "create_review_api_v1_reviews__post",
         "requestBody": {
@@ -1882,9 +1996,7 @@
     },
     "/api/v1/reviews/provider/{provider_id}": {
       "get": {
-        "tags": [
-          "Reviews"
-        ],
+        "tags": ["Reviews"],
         "summary": "List Provider Reviews",
         "operationId": "list_provider_reviews_api_v1_reviews_provider__provider_id__get",
         "parameters": [
@@ -1948,9 +2060,7 @@
     },
     "/api/v1/coupons/available": {
       "get": {
-        "tags": [
-          "Coupons"
-        ],
+        "tags": ["Coupons"],
         "summary": "List Available Coupons",
         "description": "Coupons the current user can apply to a new booking today.\n\nThe list matches what ``POST /coupons/validate`` will accept — the\nfilter set is shared through ``CouponService`` so a coupon shown here\nis never refused there.",
         "operationId": "list_available_coupons_api_v1_coupons_available_get",
@@ -1979,9 +2089,7 @@
     },
     "/api/v1/coupons/validate": {
       "post": {
-        "tags": [
-          "Coupons"
-        ],
+        "tags": ["Coupons"],
         "summary": "Validate Coupon",
         "description": "Price a coupon against a cart amount.\n\nThe cart hasn't been persisted as a Booking yet — the app calls this\nwhile the user is on the Cart screen so the bill preview updates\nlive. On success we return the computed discount; a subsequent\n``POST /bookings`` with ``coupon_code`` recomputes on the server side\nand applies the *authoritative* number, so a client that hoards a\nstale discount can't over-apply.",
         "operationId": "validate_coupon_api_v1_coupons_validate_post",
@@ -2029,9 +2137,7 @@
     },
     "/api/v1/admin/users": {
       "get": {
-        "tags": [
-          "Admin"
-        ],
+        "tags": ["Admin"],
         "summary": "List Users",
         "operationId": "list_users_api_v1_admin_users_get",
         "security": [
@@ -2094,9 +2200,7 @@
     },
     "/api/v1/admin/users/{user_id}/deactivate": {
       "patch": {
-        "tags": [
-          "Admin"
-        ],
+        "tags": ["Admin"],
         "summary": "Deactivate User",
         "operationId": "deactivate_user_api_v1_admin_users__user_id__deactivate_patch",
         "security": [
@@ -2135,9 +2239,7 @@
     },
     "/api/v1/admin/providers/kyc/pending": {
       "get": {
-        "tags": [
-          "Admin"
-        ],
+        "tags": ["Admin"],
         "summary": "List Pending Kyc",
         "description": "List providers whose KYC is awaiting admin review.",
         "operationId": "list_pending_kyc_api_v1_admin_providers_kyc_pending_get",
@@ -2201,9 +2303,7 @@
     },
     "/api/v1/admin/providers/{user_id}/kyc": {
       "get": {
-        "tags": [
-          "Admin"
-        ],
+        "tags": ["Admin"],
         "summary": "Get Provider Kyc Review",
         "description": "Full KYC review payload for an admin: profile metadata + presigned URLs for\nthe uploaded docs (1h TTL). Powers the admin KYC review page (SVC-90).",
         "operationId": "get_provider_kyc_review_api_v1_admin_providers__user_id__kyc_get",
@@ -2250,9 +2350,7 @@
     },
     "/api/v1/admin/providers/{user_id}/kyc/verify": {
       "post": {
-        "tags": [
-          "Admin"
-        ],
+        "tags": ["Admin"],
         "summary": "Verify Provider Kyc",
         "operationId": "verify_provider_kyc_api_v1_admin_providers__user_id__kyc_verify_post",
         "security": [
@@ -2298,9 +2396,7 @@
     },
     "/api/v1/admin/providers/{user_id}/kyc/reject": {
       "post": {
-        "tags": [
-          "Admin"
-        ],
+        "tags": ["Admin"],
         "summary": "Reject Provider Kyc",
         "operationId": "reject_provider_kyc_api_v1_admin_providers__user_id__kyc_reject_post",
         "security": [
@@ -2356,9 +2452,7 @@
     },
     "/api/v1/admin/bookings": {
       "get": {
-        "tags": [
-          "Admin"
-        ],
+        "tags": ["Admin"],
         "summary": "List All Bookings",
         "operationId": "list_all_bookings_api_v1_admin_bookings_get",
         "security": [
@@ -2451,9 +2545,7 @@
     },
     "/api/v1/admin/bookings/{booking_id}": {
       "get": {
-        "tags": [
-          "Admin"
-        ],
+        "tags": ["Admin"],
         "summary": "Get Any Booking",
         "description": "Fetch any one booking by id, whoever it belongs to.\n\nDistinct from ``GET /bookings/{id}``, which admits only that booking's own\nconsumer or assigned provider — an admin is neither, so the user-facing route\nrefuses them and there was previously no way for support to look at a single\nbooking at all.\n\nThis one carries the consumer's address, which the bulk listing above\ndeliberately does not (SVC-170). That is the whole distinction: one booking\nasked for by id is a support question about a specific job, where a page of\nevery booking on the platform is a standing export of home addresses. It\nstill withholds the doorstep PIN — see ``BookingResponse.for_admin``.",
         "operationId": "get_any_booking_api_v1_admin_bookings__booking_id__get",
@@ -2503,9 +2595,7 @@
     },
     "/api/v1/admin/providers/pending-settlements": {
       "get": {
-        "tags": [
-          "Admin"
-        ],
+        "tags": ["Admin"],
         "summary": "List Pending Settlements",
         "description": "Providers awaiting settlement, with the amount and booking count owed.\n\nThe discovery half of the payout flow: ``POST /providers/{user_id}/payout`` can\nonly be triggered for a provider the admin already knows, so this answers \"who\ndo we owe, and how much\" for the admin payouts screen. Read-only, so it takes\nthe role guard rather than injecting the admin (nothing to audit).",
         "operationId": "list_pending_settlements_api_v1_admin_providers_pending_settlements_get",
@@ -2530,9 +2620,7 @@
     },
     "/api/v1/admin/providers/{user_id}/payout": {
       "post": {
-        "tags": [
-          "Admin"
-        ],
+        "tags": ["Admin"],
         "summary": "Pay Out Provider",
         "description": "Enqueue a RazorpayX payout for a provider's completed-but-unsettled bookings.\n\nReturns 202 with a summary of what will be paid and the Celery task id. The\npayout itself runs asynchronously (SVC-188 / G30): before this, the endpoint\nawaited a 30-90s RazorpayX HTTP call while holding a DB connection and a\n``SELECT … FOR UPDATE`` lock on the provider's pending bookings, which\nputs pool pressure on the same workers serving consumer traffic during a\nRazorpayX slowdown.\n\nThe upfront reads compute the batch total + booking count without a row\nlock, so the admin gets an accurate estimate immediately. The task then\nruns the full flow (record audit → lock rows → RazorpayX → resolve audit\n→ update bookings → drain pushes) — every guarantee from the synchronous\npath is preserved because the task calls the same\n``PayoutService.create_provider_payout``.\n\nEvery attempt is still recorded in ``payout_audits`` before the RazorpayX\ncall fires; the admin payouts screen surfaces the outcome from there, and\n``reconcile_payouts`` (nightly) resolves any breadcrumb whose task\nprocess died mid-flight.",
         "operationId": "pay_out_provider_api_v1_admin_providers__user_id__payout_post",
@@ -2577,9 +2665,7 @@
     },
     "/api/v1/admin/providers/{user_id}/payout/requeue-failed": {
       "post": {
-        "tags": [
-          "Admin"
-        ],
+        "tags": ["Admin"],
         "summary": "Requeue Failed Settlements",
         "description": "Reset a provider's FAILED settlements to PENDING so they can be paid again.\n\nManual recovery for payouts that failed (bad bank details, KYC hold, ...): once\nthe cause is fixed, an admin re-queues the failed settlements, which then become\neligible for the next payout run. The triggering admin is recorded in the audit\ntrail.",
         "operationId": "requeue_failed_settlements_api_v1_admin_providers__user_id__payout_requeue_failed_post",
@@ -2624,9 +2710,7 @@
     },
     "/api/v1/admin/providers/{user_id}/payout/requeue-reversed": {
       "post": {
-        "tags": [
-          "Admin"
-        ],
+        "tags": ["Admin"],
         "summary": "Requeue Reversed Settlements",
         "description": "Reset a provider's REVERSED settlements to PENDING so they can be paid again.\n\nA reversal means the payout reached the provider and was then clawed back —\noften a KYC/compliance signal, not a simple retry. Only use this once you've\nconfirmed the provider is genuinely still owed and the underlying cause is\nfixed; otherwise the re-payment will likely bounce again. Admin-only and\nrecorded in the audit trail.",
         "operationId": "requeue_reversed_settlements_api_v1_admin_providers__user_id__payout_requeue_reversed_post",
@@ -2671,9 +2755,7 @@
     },
     "/api/v1/admin/app-versions/{platform}/release": {
       "post": {
-        "tags": [
-          "Admin"
-        ],
+        "tags": ["Admin"],
         "summary": "Publish App Release",
         "description": "One-shot publish: bump `app_versions.{platform}` + (optionally) push\na \"New version available\" notification to every consumer with an\nFCM token.\n\nThe two-step manual ritual — SQL update + separate broadcast call —\nis easy to get wrong (bump the version without notifying, or notify\nwithout bumping and users tap through to nothing new). This endpoint\ndoes both atomically: the DB write happens first (so the poll-on-\nforeground path immediately reflects the new version even if the\nbroadcast fails to enqueue), then the Celery task is fired.\n\nNot the same as ``release-apk.yml`` — that builds and uploads the\nAPK. This endpoint tells the running fleet about it after the APK\nis in place. The current publish ritual is:\n  1. `gh workflow run release-apk.yml -f version=X.Y.Z`\n  2. `POST /admin/app-versions/android/release {\"version\": \"X.Y.Z\"}`",
         "operationId": "publish_app_release_api_v1_admin_app_versions__platform__release_post",
@@ -2745,9 +2827,7 @@
     },
     "/api/v1/downloads/sms-link": {
       "post": {
-        "tags": [
-          "Downloads"
-        ],
+        "tags": ["Downloads"],
         "summary": "Send Download Link Sms",
         "description": "SMS the download page URL to the phone number the visitor entered.\n\nPublic. Rate-limited by IP (3/hour). No user record created — this is\nthe pre-signup surface.\n\nReturns 501 when the feature flag is off, which is the default during\nbeta until the MSG91 template is approved.",
         "operationId": "send_download_link_sms_api_v1_downloads_sms_link_post",
@@ -2783,9 +2863,7 @@
     },
     "/api/v1/downloads/latest.json": {
       "get": {
-        "tags": [
-          "Downloads"
-        ],
+        "tags": ["Downloads"],
         "summary": "Get Latest Version",
         "description": "Return the latest + minimum-supported version for each platform.\n\nHit on every app cold start + foreground event. Cached at the CDN edge\nfor 5 minutes so a burst of foregrounds after a network blip doesn't\nhammer the DB. Long enough to spare load; short enough that flipping\n``min_supported_version`` during an incident propagates in minutes,\nnot hours.\n\n503 rather than an empty response if seed rows are missing — that's a\ndeployment bug (missing migration), and returning defaults would\nsilently mask it.",
         "operationId": "get_latest_version_api_v1_downloads_latest_json_get",
@@ -2808,9 +2886,7 @@
     },
     "/health": {
       "get": {
-        "tags": [
-          "Health"
-        ],
+        "tags": ["Health"],
         "summary": "Liveness",
         "description": "Liveness probe — the process is running.\n\nNever touches the DB / Redis. Used by container orchestrators to decide\nwhen to restart; a failed DB should NOT trigger a restart (that just\nthrashes the pod without fixing anything).",
         "operationId": "liveness_health_get",
@@ -2828,9 +2904,7 @@
     },
     "/healthz": {
       "get": {
-        "tags": [
-          "Health"
-        ],
+        "tags": ["Health"],
         "summary": "Readiness",
         "description": "Readiness probe — the process can actually serve requests.\n\nPings each dependency with a short timeout, returns a per-dependency\nresult. If ANY dependency fails, response is HTTP 503 (Service\nUnavailable) — so load balancers can drain traffic from this pod without\nalso killing it.",
         "operationId": "readiness_healthz_get",
@@ -2867,15 +2941,32 @@
           "is_default": {
             "type": "boolean",
             "title": "Is Default"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
           }
         },
         "type": "object",
-        "required": [
-          "id",
-          "label",
-          "full_address",
-          "is_default"
-        ],
+        "required": ["id", "label", "full_address", "is_default"],
         "title": "AddressResponse"
       },
       "Body_submit_kyc_api_v1_providers_me_kyc_post": {
@@ -2900,11 +2991,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "aadhaar_front",
-          "aadhaar_back",
-          "selfie"
-        ],
+        "required": ["aadhaar_front", "aadhaar_back", "selfie"],
         "title": "Body_submit_kyc_api_v1_providers_me_kyc_post"
       },
       "Body_upload_profile_photo_api_v1_providers_me_photo_post": {
@@ -2917,9 +3004,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "photo"
-        ],
+        "required": ["photo"],
         "title": "Body_upload_profile_photo_api_v1_providers_me_photo_post"
       },
       "BookingAddress": {
@@ -2961,13 +3046,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "id",
-          "label",
-          "full_address",
-          "lat",
-          "lng"
-        ],
+        "required": ["id", "label", "full_address", "lat", "lng"],
         "title": "BookingAddress",
         "description": "Where the job is, as the booking's two parties see it (SVC-170).\n\nIts own schema rather than a reuse of ``AddressResponse``, which backs the\nconsumer's own address book: that one carries ``is_default``, a detail of how\nthe consumer manages their saved addresses and nothing a provider standing\noutside the building has any use for. Same principle that gave\n``BookingOfferResponse`` its own shape (SVC-153) — serve each audience the\nfields its screen actually renders.\n\n``lat``/``lng`` are the point of this being a nested object rather than a bare\n``full_address`` string. The job to be done is *navigate there*: with\ncoordinates the app can hand off to the device maps app, without them the\nprovider retypes a free-text Indian address into Google Maps and trusts its\ngeocoder — the failure mode this ticket exists to remove. ``get_offer``\nalready reads the same geography to derive ``distance_km``.\n\nBoth are optional because ``location`` is nullable: ``CreateAddressRequest``\naccepts an address with no coordinates, and older rows have none. Clients must\ntreat text as the source of truth and coordinates as the enhancement, never\nthe reverse."
       },
@@ -3024,14 +3103,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "id",
-          "service_id",
-          "service_name",
-          "quantity",
-          "unit_price",
-          "total_price"
-        ],
+        "required": ["id", "service_id", "service_name", "quantity", "unit_price", "total_price"],
         "title": "BookingItemResponse",
         "description": "One line on a booking response.\n\n``service_name`` is denormalised into the response so the mobile app\ndoesn't have to cross-reference against /services for every booking it\ndisplays — the list route already returns dozens of items and doing that\nlookup client-side is exactly the sort of N+1 pattern the frontend keeps\nhitting. Read from the loaded ``BookingItem.service`` relationship, which\nmust be eager-loaded (see ``BookingItem.service`` — ``raise_on_sql``)."
       },
@@ -3058,12 +3130,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "bookings",
-          "total",
-          "page",
-          "per_page"
-        ],
+        "required": ["bookings", "total", "page", "per_page"],
         "title": "BookingListResponse"
       },
       "BookingOfferResponse": {
@@ -3267,10 +3334,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "to_status",
-          "created_at"
-        ],
+        "required": ["to_status", "created_at"],
         "title": "BookingStatusLogResponse",
         "description": "One state transition on a booking, as the tracking timeline sees it.\n\nA deliberately narrow projection of ``booking_status_logs``, which is an\ninternal audit trail and not a consumer-facing record (SVC-248). Two\ncolumns are withheld on purpose:\n\n``changed_by`` is a user id — usually the assigned provider's, sometimes an\nadmin's. Who moved a booking is an operational fact; handing it to the\nconsumer's app turns an audit row into a disclosure about another person.\n\n``metadata_`` is free-form JSONB written by whatever called\n``_log_transition``. Nobody has audited what is already in those rows\nacross the project's history, and a field whose contents are unknown\ncannot be knowingly published. If some part of it is worth showing, it\nshould be promoted to a named column first.\n\n``from_status`` is left out for a plainer reason: on an ordered list the\nprevious state is always the ``to_status`` of the entry before it."
       },
@@ -3284,9 +3348,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "reason"
-        ],
+        "required": ["reason"],
         "title": "CancelBookingRequest"
       },
       "CategoryResponse": {
@@ -3332,14 +3394,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "id",
-          "name",
-          "slug",
-          "icon_url",
-          "description",
-          "sort_order"
-        ],
+        "required": ["id", "name", "slug", "icon_url", "description", "sort_order"],
         "title": "CategoryResponse"
       },
       "CouponResponse": {
@@ -3417,10 +3472,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "code",
-          "cart_amount"
-        ],
+        "required": ["code", "cart_amount"],
         "title": "CouponValidateRequest",
         "description": "User taps [Apply] on a coupon; the app asks the backend to price it."
       },
@@ -3440,11 +3492,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "code",
-          "discount_type",
-          "discount_amount"
-        ],
+        "required": ["code", "discount_type", "discount_amount"],
         "title": "CouponValidateResponse"
       },
       "CreateAddressRequest": {
@@ -3490,9 +3538,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "full_address"
-        ],
+        "required": ["full_address"],
         "title": "CreateAddressRequest"
       },
       "CreateBookingItemRequest": {
@@ -3523,9 +3569,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "service_id"
-        ],
+        "required": ["service_id"],
         "title": "CreateBookingItemRequest",
         "description": "One line item on a booking-creation request."
       },
@@ -3594,9 +3638,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "address_id"
-        ],
+        "required": ["address_id"],
         "title": "CreateBookingRequest",
         "description": "Create a booking as either a multi-item cart (``items``) or a single\nservice (``service_id``).\n\n``service_id`` is the legacy single-service shape retained for the mobile\napp while the cart UI is rolling out (PR 2c). It is normalised to a\n1-item ``items`` list inside the validator so the service layer sees one\nshape. Once the cart UI has shipped everywhere the ``service_id`` field\ncan be removed and callers forced onto ``items``."
       },
@@ -3609,9 +3651,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "booking_id"
-        ],
+        "required": ["booking_id"],
         "title": "CreatePaymentOrderRequest"
       },
       "CreateReviewRequest": {
@@ -3641,10 +3681,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "booking_id",
-          "rating"
-        ],
+        "required": ["booking_id", "rating"],
         "title": "CreateReviewRequest"
       },
       "CreateServiceRequest": {
@@ -3686,11 +3723,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "category_id",
-          "name",
-          "base_price"
-        ],
+        "required": ["category_id", "name", "base_price"],
         "title": "CreateServiceRequest"
       },
       "EarningsBookingItem": {
@@ -3720,12 +3753,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "booking_id",
-          "service_name",
-          "completed_at",
-          "payout_amount"
-        ],
+        "required": ["booking_id", "service_name", "completed_at", "payout_amount"],
         "title": "EarningsBookingItem"
       },
       "EarningsResponse": {
@@ -3751,12 +3779,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "range",
-          "total_payout",
-          "completed_count",
-          "bookings"
-        ],
+        "required": ["range", "total_payout", "completed_count", "bookings"],
         "title": "EarningsResponse"
       },
       "HTTPValidationError": {
@@ -3880,9 +3903,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "reason"
-        ],
+        "required": ["reason"],
         "title": "KYCRejectionRequest"
       },
       "KYCReviewResponse": {
@@ -3915,21 +3936,12 @@
           }
         },
         "type": "object",
-        "required": [
-          "kyc_status",
-          "kyc_reviewed_at",
-          "kyc_rejection_reason"
-        ],
+        "required": ["kyc_status", "kyc_reviewed_at", "kyc_rejection_reason"],
         "title": "KYCReviewResponse"
       },
       "KYCStatus": {
         "type": "string",
-        "enum": [
-          "pending",
-          "submitted",
-          "verified",
-          "rejected"
-        ],
+        "enum": ["pending", "submitted", "verified", "rejected"],
         "title": "KYCStatus"
       },
       "KYCSubmissionResponse": {
@@ -3951,10 +3963,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "kyc_status",
-          "kyc_submitted_at"
-        ],
+        "required": ["kyc_status", "kyc_submitted_at"],
         "title": "KYCSubmissionResponse"
       },
       "LatestVersionResponse": {
@@ -3967,12 +3976,21 @@
           }
         },
         "type": "object",
-        "required": [
-          "android",
-          "pwa"
-        ],
+        "required": ["android", "pwa"],
         "title": "LatestVersionResponse",
         "description": "The whole payload returned by GET /downloads/latest.json.\n\nShape is stable — the frontend hook branches on the presence of each\nplatform key. Adding a new platform (post-beta iOS native) means\nadding a new required key here + a matching row in ``app_versions``."
+      },
+      "LogoutRequest": {
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token"
+          }
+        },
+        "type": "object",
+        "required": ["refresh_token"],
+        "title": "LogoutRequest",
+        "description": "SVC-241: refresh token to blacklist. The access token is short-lived\nand expires on its own; the refresh token is the durable credential a\nthief could otherwise use to mint fresh access tokens for 30 days."
       },
       "NearbyProviderResponse": {
         "properties": {
@@ -4011,13 +4029,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "id",
-          "user_id",
-          "avg_rating",
-          "total_completed_jobs",
-          "is_online"
-        ],
+        "required": ["id", "user_id", "avg_rating", "total_completed_jobs", "is_online"],
         "title": "NearbyProviderResponse",
         "description": "Slim response for the 'nearby providers' discovery endpoint."
       },
@@ -4042,19 +4054,12 @@
           }
         },
         "type": "object",
-        "required": [
-          "razorpay_order_id",
-          "amount",
-          "razorpay_key_id"
-        ],
+        "required": ["razorpay_order_id", "amount", "razorpay_key_id"],
         "title": "PaymentOrderResponse"
       },
       "PayoutMethod": {
         "type": "string",
-        "enum": [
-          "upi",
-          "bank"
-        ],
+        "enum": ["upi", "bank"],
         "title": "PayoutMethod",
         "description": "Which stored destination a provider's payouts actually go to.\n\nA provider may keep both a UPI handle and a bank account on file (SVC-148:\nswitching does not erase the old one). This is the single source of truth for\nwhich one the money is sent to — the payout must never infer it from which\ncolumns happen to be populated."
       },
@@ -4065,9 +4070,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "method"
-        ],
+        "required": ["method"],
         "title": "PayoutMethodSelect",
         "description": "Switch payouts to a method the provider already has stored (SVC-148)."
       },
@@ -4147,11 +4150,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "providers",
-          "total",
-          "truncated"
-        ],
+        "required": ["providers", "total", "truncated"],
         "title": "PendingSettlementsResponse",
         "description": "Capped list of providers awaiting settlement.\n\nNot paginated by design (SVC-144): the admin panel shows one screen of who is\nowed. ``total`` is the true number of providers with pending settlements, so the\nUI can say \"showing 200 of 247\" when ``truncated`` is set."
       },
@@ -4194,13 +4193,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "version",
-          "min_supported_version",
-          "url",
-          "release_notes",
-          "released_at"
-        ],
+        "required": ["version", "min_supported_version", "url", "release_notes", "released_at"],
         "title": "PlatformVersion",
         "description": "Version metadata for one platform (android / pwa).\n\n``version`` and ``min_supported_version`` are SemVer strings. Clients\ncompare using SemVer semantics — a lex compare would treat 1.10 < 1.2."
       },
@@ -4398,6 +4391,28 @@
             "type": "integer",
             "title": "Service Area Radius Km"
           },
+          "service_area_lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Area Lat"
+          },
+          "service_area_lng": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Area Lng"
+          },
           "payout_set": {
             "type": "boolean",
             "title": "Payout Set",
@@ -4455,9 +4470,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "service_id"
-        ],
+        "required": ["service_id"],
         "title": "ProviderServiceSubscribeRequest"
       },
       "ProviderServiceSubscriptionResponse": {
@@ -4479,11 +4492,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "id",
-          "provider_id",
-          "service_id"
-        ],
+        "required": ["id", "provider_id", "service_id"],
         "title": "ProviderServiceSubscriptionResponse"
       },
       "ProviderStatusUpdate": {
@@ -4494,9 +4503,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "is_online"
-        ],
+        "required": ["is_online"],
         "title": "ProviderStatusUpdate"
       },
       "PublishReleaseRequest": {
@@ -4552,9 +4559,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "version"
-        ],
+        "required": ["version"],
         "title": "PublishReleaseRequest",
         "description": "Bump the current version + optionally push a nudge to every device.\n\n``version`` is the customer-facing SemVer of the new build. The\nmatching APK must already be at ``app_versions.url`` (usually\n``s3://eazyserv-downloads/apk/latest.apk``, since ``release-apk.yml``\nalways overwrites that key). If they don't match, users will nudge\nthemselves onto a version we haven't shipped yet.\n\n``min_supported_version``, when passed, atomically hard-blocks anyone\nbelow it — the SVC-162 emergency lever. Leave it unset to keep the\ncurrent threshold.\n\n``notify`` = true enqueues the FCM broadcast (``broadcast_update_available``).\nSet to false when releasing a build we don't want to interrupt users\nover (e.g. a silent metrics fix — the poll on next foreground will\nstill surface the nudge)."
       },
@@ -4590,13 +4595,49 @@
           }
         },
         "type": "object",
-        "required": [
-          "platform",
-          "version",
-          "min_supported_version",
-          "notified"
-        ],
+        "required": ["platform", "version", "min_supported_version", "notified"],
         "title": "PublishReleaseResponse"
+      },
+      "PushCapabilityReport": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": ["android", "ios", "desktop"],
+            "title": "Platform"
+          },
+          "is_native": {
+            "type": "boolean",
+            "title": "Is Native"
+          },
+          "ios_standalone": {
+            "type": "boolean",
+            "title": "Ios Standalone",
+            "default": false
+          },
+          "is_chrome_ios": {
+            "type": "boolean",
+            "title": "Is Chrome Ios",
+            "default": false
+          },
+          "push_permission": {
+            "type": "string",
+            "enum": ["granted", "denied", "prompt", "unsupported"],
+            "title": "Push Permission"
+          },
+          "token_obtained": {
+            "type": "boolean",
+            "title": "Token Obtained"
+          },
+          "interactive": {
+            "type": "boolean",
+            "title": "Interactive",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["platform", "is_native", "push_permission", "token_obtained"],
+        "title": "PushCapabilityReport",
+        "description": "What the client can tell us about its ability to receive push (SVC-255).\n\nSent on every registration attempt, successful or not. That \"or not\" is the\nwhole point: Sentry already records failures, but with no denominator —\n\"12 failures this week\" is unreadable without knowing whether that is 12 out\nof 12 or 12 out of 400. Reporting every attempt supplies the denominator.\n\nNothing here is stored. The handler logs one line and returns; the question\nit answers (\"how many providers can actually receive push, and on what?\") is\na one-off scoping question, not a per-user fact worth a column."
       },
       "RefreshTokenRequest": {
         "properties": {
@@ -4606,9 +4647,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "refresh_token"
-        ],
+        "required": ["refresh_token"],
         "title": "RefreshTokenRequest"
       },
       "ReviewListResponse": {
@@ -4638,13 +4677,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "reviews",
-          "total",
-          "page",
-          "per_page",
-          "avg_rating"
-        ],
+        "required": ["reviews", "total", "page", "per_page", "avg_rating"],
         "title": "ReviewListResponse"
       },
       "ReviewResponse": {
@@ -4712,9 +4745,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "phone"
-        ],
+        "required": ["phone"],
         "title": "SendOTPRequest"
       },
       "ServiceResponse": {
@@ -4879,9 +4910,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "phone"
-        ],
+        "required": ["phone"],
         "title": "SmsLinkRequest"
       },
       "StartBookingRequest": {
@@ -4894,9 +4923,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "otp"
-        ],
+        "required": ["otp"],
         "title": "StartBookingRequest"
       },
       "TipBookingRequest": {
@@ -4909,9 +4936,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "amount"
-        ],
+        "required": ["amount"],
         "title": "TipBookingRequest",
         "description": "Consumer adds (or updates) a gratuity on a completed booking.\n\nZero is a valid amount — the client uses this to *remove* a tip the\nconsumer changed their mind about before payout has flowed. Bounded\nat ₹10,000 so a fat-finger doesn't move real money by accident;\nhigher values need to route through support."
       },
@@ -4944,14 +4969,73 @@
           }
         },
         "type": "object",
-        "required": [
-          "access_token",
-          "refresh_token",
-          "user_id",
-          "role",
-          "is_new_user"
-        ],
+        "required": ["access_token", "refresh_token", "user_id", "role", "is_new_user"],
         "title": "TokenResponse"
+      },
+      "UpdateAddressRequest": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(home|work|other)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "full_address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "minLength": 5
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Address"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "is_default": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Default"
+          }
+        },
+        "type": "object",
+        "title": "UpdateAddressRequest",
+        "description": "Edit a saved address (SVC-277). Every field optional — this is a PATCH.\n\nServed by a copy-on-write update: the old row is soft-deleted and a new one\ncreated, so bookings that already point at the old address keep recording\nwhere the job actually happened. See `UserService.update_address`."
       },
       "UpdateFCMTokenRequest": {
         "properties": {
@@ -4969,9 +5053,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "fcm_token"
-        ],
+        "required": ["fcm_token"],
         "title": "UpdateFCMTokenRequest",
         "description": "Register or clear the caller's FCM token.\n\n`fcm_token` is nullable but *required* — `null` clears the stored token\n(sign-out), while an omitted field is a 422. Without that distinction an\nempty body would silently wipe push for the user."
       },
@@ -5137,11 +5219,7 @@
       },
       "UserRole": {
         "type": "string",
-        "enum": [
-          "consumer",
-          "provider",
-          "admin"
-        ],
+        "enum": ["consumer", "provider", "admin"],
         "title": "UserRole"
       },
       "ValidationError": {
@@ -5170,11 +5248,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
+        "required": ["loc", "msg", "type"],
         "title": "ValidationError"
       },
       "VerifyOTPRequest": {
@@ -5198,10 +5272,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "phone",
-          "otp"
-        ],
+        "required": ["phone", "otp"],
         "title": "VerifyOTPRequest"
       },
       "VerifyPaymentRequest": {
@@ -5220,11 +5291,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "razorpay_order_id",
-          "razorpay_payment_id",
-          "razorpay_signature"
-        ],
+        "required": ["razorpay_order_id", "razorpay_payment_id", "razorpay_signature"],
         "title": "VerifyPaymentRequest"
       }
     },
