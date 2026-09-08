@@ -177,9 +177,8 @@ function AppGate({ children }: { children: React.ReactNode }) {
       if (!isProviderLocationRoute && !locationConfirmed) {
         return (
           <ProviderLocationGate
-            savedLabel={
-              providerProfile?.service_area_lat != null ? "your saved service area" : null
-            }
+            lat={providerProfile?.service_area_lat ?? null}
+            lng={providerProfile?.service_area_lng ?? null}
             radiusKm={providerProfile?.service_area_radius_km ?? 10}
           />
         );

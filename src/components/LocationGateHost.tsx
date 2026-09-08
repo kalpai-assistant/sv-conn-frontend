@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { LocationGate } from "@/components/LocationGate";
 import { AddAddressSheet } from "@/components/AddAddressSheet";
 import { markLocationConfirmed } from "@/lib/location-gate";
+import { useLocalityAt } from "@/hooks/useLocalityAt";
 import { localityFrom } from "@/lib/locality";
 import { useAddAddress, useUpdateServiceArea } from "@/hooks/useApi";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
@@ -86,19 +87,29 @@ export function ConsumerLocationGate() {
  * would quietly shrink or widen the jobs they see.
  */
 export function ProviderLocationGate({
-  savedLabel,
+  lat,
+  lng,
   radiusKm,
 }: {
-  savedLabel: string | null;
+  lat: number | null;
+  lng: number | null;
   radiusKm: number;
 }) {
   const { mutateAsync: updateServiceArea, isPending } = useUpdateServiceArea();
+  // A service area is a point, not an address — so the only way to name it is
+  // to ask. Null while resolving, and on failure; see useLocalityAt.
+  const locality = useLocalityAt(lat, lng);
+  const hasArea = lat != null && lng != null;
 
   return (
     <LocationGate
       title="Where are you working today?"
       subtitle="Only jobs inside your service area reach you, so this decides what you see."
-      saved={savedLabel ? { label: savedLabel, full: `Within ${radiusKm} km` } : null}
+      // "your saved service area" was the placeholder this replaced: true
+      // wherever the provider stands, so it confirmed nothing. Until the
+      // geocode lands the card is withheld rather than shown with filler — a
+      // button that cannot be disagreed with is worse than one more tap.
+      saved={hasArea && locality ? { label: locality, full: `Within ${radiusKm} km` } : null}
       isSaving={isPending}
       onConfirmSaved={markLocationConfirmed}
       onUseCurrent={async (lat, lng) => {
