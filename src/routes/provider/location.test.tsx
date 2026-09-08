@@ -9,6 +9,7 @@
  * So the assertions are about what reaches the map and what reaches the server,
  * not about pixels.
  */
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -39,7 +40,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { Route } from "@/routes/provider/location";
 
-const Page = (Route as unknown as { component: () => JSX.Element }).component;
+const Page = (Route as unknown as { component: () => ReactElement }).component;
 
 beforeEach(() => {
   vi.clearAllMocks();
