@@ -23,6 +23,12 @@ vi.mock("@/hooks/useApi", () => ({
   useUpdateAddress: () => ({ mutateAsync: updateAddress, isPending: false }),
 }));
 vi.mock("@/hooks/useLockBodyScroll", () => ({ useLockBodyScroll: vi.fn() }));
+// SVC-281: the sheet resolves where to open the map, which reads the selected
+// address. Mocked so these tests stay about the sheet rather than dragging in
+// React Query and the address list.
+vi.mock("@/hooks/useSelectedAddress", () => ({
+  useSelectedAddress: () => ({ selected: undefined }),
+}));
 vi.mock("./MapPicker", () => ({
   MapPicker: () => <div data-testid="map-picker" />,
 }));

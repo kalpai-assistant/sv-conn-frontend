@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Navigation } from "lucide-react";
 import { motion } from "framer-motion";
 import { MapPicker } from "./MapPicker";
 import { useAddAddress, useUpdateAddress } from "@/hooks/useApi";
@@ -41,6 +41,36 @@ export function AddAddressSheet({
   const [errorMsg, setErrorMsg] = useState("");
   // Where the map should open. Null until resolved — see useMapOpeningCentre.
   const opening = useMapOpeningCentre();
+  const [locating, setLocating] = useState(false);
+  // Set once the user asks for their position, so the map recentres on it.
+  const [override, setOverride] = useState<[number, number] | null>(null);
+
+  /** Ask for the current position — an explicit user action, so prompting here
+   *  is exactly right. `useMapOpeningCentre` deliberately never does this. */
+  const locateMe = () => {
+    if (!("geolocation" in navigator)) {
+      setErrorMsg("Location isn't available on this device.");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        setOverride([pos.coords.latitude, pos.coords.longitude]);
+      },
+      (err) => {
+        setLocating(false);
+        // Code 1 is a denial, and on Android that is one-shot — say where to
+        // fix it rather than inviting a retry that resolves instantly.
+        setErrorMsg(
+          err.code === 1
+            ? "Location permission is off. Turn it on in your device settings, or drag the pin."
+            : "Couldn't get your location. Drag the pin instead.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
+    );
+  };
 
   const handleLocationSelected = (l: number, g: number, addr: string) => {
     setLat(l);
@@ -105,13 +135,38 @@ export function AddAddressSheet({
                     name the guess so the user knows to move it rather than
                     trusting a pin 840km from home. */}
                 {opening.source === "fallback" && (
-                  <p className="bg-secondary px-4 py-2 text-xs text-muted-foreground">
-                    Showing {opening.fallbackLabel} — drag the pin or tap the locate button to set
-                    your area.
-                  </p>
+                  <div className="border-b border-border bg-secondary px-4 py-3">
+                    <p className="text-xs text-muted-foreground">
+                      We don&apos;t know where you are yet, so this map is a guess.
+                    </p>
+                    {/* A button, not a sentence pointing at the small icon
+                        inside the map. The provider Location screen has had one
+                        since SVC-279; the consumer sheet only had the icon, so
+                        the fix for a wrong-city map was hidden in the corner of
+                        the wrong-city map. */}
+                    <button
+                      type="button"
+                      onClick={locateMe}
+                      disabled={locating}
+                      className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-2.5 text-sm font-medium text-foreground disabled:opacity-50"
+                    >
+                      {locating ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Navigation className="h-4 w-4 text-primary" />
+                      )}
+                      {locating ? "Locating…" : "Use my current location"}
+                    </button>
+                  </div>
                 )}
                 <MapPicker
-                  initialCenter={opening.centre}
+                  // `initialCenter` seeds MapPicker's state once, so changing
+                  // it cannot move an already-rendered map. Keying on the
+                  // coordinates remounts it instead — which is what makes "use
+                  // my current location" actually jump the pin rather than
+                  // silently fetching a position and doing nothing with it.
+                  key={(override ?? opening.centre)?.join(",")}
+                  initialCenter={override ?? opening.centre}
                   onLocationSelected={handleLocationSelected}
                 />
               </>
