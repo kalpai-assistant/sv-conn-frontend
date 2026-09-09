@@ -332,8 +332,12 @@ export const useServices = (categoryId?: string) => {
   return mergeDependentQuery(servicesQuery, categoriesQuery);
 };
 
-export const useAddresses = () => {
+// `enabled` so the root gate can ask "does this user have any address?"
+// without a provider or a logged-out visitor firing the call. Defaults true —
+// every existing caller already knows it wants addresses.
+export const useAddresses = (enabled = true) => {
   return useQuery({
+    enabled,
     queryKey: ["addresses"],
     queryFn: async () => {
       const data = await apiFetch<Schema<"AddressResponse">[]>("/users/me/addresses");
