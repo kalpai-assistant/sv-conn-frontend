@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, useMapEvents, useMap } from "react-leaflet";
 import { MapPin, Navigation } from "lucide-react";
+import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
 
 const DEFAULT_CENTER: [number, number] = [12.9716, 77.5946];
@@ -84,19 +85,47 @@ export function MapPicker({
     fetchAddress(lat, lng);
   };
 
+  /**
+   * Locate-me, with the three ways this used to strand the user fixed.
+   *
+   * It called `alert()`, which on Android is a **native modal that blocks the
+   * entire WebView** — nothing on the screen responds until someone taps OK.
+   * Found on device: the map sat behind an unanswered dialog with the pin
+   * mid-move. A toast says the same thing without seizing the app.
+   *
+   * It also passed no `timeout`, and Android does not fail fast when the OS
+   * location toggle is off — it simply never answers (measured: still silent at
+   * 20s; see useLocationAvailability). So "Locating…" could spin indefinitely
+   * and neither callback would ever run.
+   *
+   * And a device without geolocation fell through the `if` entirely, leaving
+   * the button dead with no explanation.
+   */
   const handleLocateMe = () => {
-    if ("geolocation" in navigator) {
-      setIsFetching(true);
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          handleCenterChanged(pos.coords.latitude, pos.coords.longitude);
-        },
-        () => {
-          setIsFetching(false);
-          alert("Could not get your location automatically.");
-        },
-      );
+    if (!("geolocation" in navigator)) {
+      toast.error("Location isn't available on this device. Move the pin instead.");
+      return;
     }
+
+    setIsFetching(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        handleCenterChanged(pos.coords.latitude, pos.coords.longitude);
+      },
+      (err) => {
+        setIsFetching(false);
+        // Naming the cause matters: "turn on location" is useless advice to
+        // someone who denied the permission, and vice versa.
+        toast.error(
+          err.code === err.PERMISSION_DENIED
+            ? "Location is off for this app. Turn it on in settings, or move the pin."
+            : "Couldn't get your location. Move the pin to set it instead.",
+        );
+      },
+      // Bounded so a disabled toggle surfaces as a message rather than a
+      // spinner that never resolves.
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
+    );
   };
 
   return (
@@ -122,10 +151,14 @@ export function MapPicker({
           <MapPin className="h-10 w-10 text-primary" fill="currentColor" />
         </div>
 
-        {/* Locate Me Button */}
+        {/* Locate Me Button. Icon-only, so it needs a name of its own —
+            without one a screen reader announces "button" and nothing else. */}
         <button
+          type="button"
+          aria-label="Use my current location"
+          disabled={isFetching}
           onClick={handleLocateMe}
-          className="absolute bottom-4 right-4 z-10 h-12 w-12 bg-card rounded-full shadow-lg border border-border flex items-center justify-center"
+          className="absolute bottom-4 right-4 z-10 h-12 w-12 bg-card rounded-full shadow-lg border border-border flex items-center justify-center disabled:opacity-60"
         >
           <Navigation className="h-5 w-5 text-primary" />
         </button>

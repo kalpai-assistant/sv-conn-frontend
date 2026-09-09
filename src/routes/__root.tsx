@@ -210,6 +210,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
             lat={providerProfile?.service_area_lat ?? null}
             lng={providerProfile?.service_area_lng ?? null}
             radiusKm={providerProfile?.service_area_radius_km ?? 10}
+            reason={availability.reason}
           />
         );
       }
@@ -255,7 +256,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
         );
       }
       if (verdict === "gate") {
-        return <ConsumerLocationGate />;
+        return <ConsumerLocationGate reason={availability.reason} />;
       }
     }
   }

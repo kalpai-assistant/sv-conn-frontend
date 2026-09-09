@@ -1,14 +1,15 @@
 /**
- * The launch-time location question (SVC-281).
+ * The gate shown when we cannot locate the user (SVC-281).
  *
- * This screen is the app's front door, and two of its properties are load-
- * bearing in ways that are easy to erode later:
+ * Three properties are load-bearing and all three are easy to erode later:
  *
- * 1. **The confirm button names the place.** A returning user in the same city
- *    sees this daily. "Continue" would become a toll — tapped through unread
- *    within a week, and then tapped through on the one day they are in another
- *    city too. Naming the place is what forces the check.
- * 2. **Manual entry is always available.** Without it a blocking screen strands
+ * 1. **The copy names the actual problem.** Three states have three different
+ *    remedies, and sending someone to the wrong settings screen wastes their
+ *    time.
+ * 2. **Enable is disabled when permission is denied.** Android will not ask
+ *    twice, so an enabled button would silently do nothing — and get tapped
+ *    repeatedly until the user concludes the app is broken.
+ * 3. **Manual entry is always available.** Without it a blocking screen strands
  *    anyone who declined the OS permission, which on Android cannot be
  *    re-requested. That would lock a user out of the app entirely.
  */
@@ -21,13 +22,13 @@ const permissionsQuery = vi.fn();
 
 import { LocationGate } from "@/components/LocationGate";
 
-const SAVED = { label: "Karve Nagar", full: "Lane Number 7, Karve Nagar, Pune" };
+const HOME = { id: "a1", label: "Karve Nagar", full: "Lane Number 7, Karve Nagar, Pune" };
+const WORK = { id: "a2", label: "Kothrud", full: "Paud Road, Kothrud, Pune" };
 
 function props(over: Partial<Parameters<typeof LocationGate>[0]> = {}) {
   return {
-    title: "Where do you want your service?",
-    subtitle: "Professionals are matched to your location.",
-    saved: null,
+    reason: "device-off" as const,
+    saved: [],
     onConfirmSaved: vi.fn(),
     onUseCurrent: vi.fn(),
     onEnterManually: vi.fn(),
@@ -44,56 +45,45 @@ beforeEach(() => {
   });
 });
 
-describe("a returning user with a saved location", () => {
-  it("names the place on the confirm button", async () => {
-    render(<LocationGate {...props({ saved: SAVED })} />);
+describe("naming the actual problem", () => {
+  it("blames the device toggle when that is what is off", async () => {
+    render(<LocationGate {...props({ reason: "device-off" })} />);
 
-    // The mechanism, not the wording. A generic label turns a daily check into
-    // a reflex, and a reflex cannot notice that the city is wrong.
-    expect(await screen.findByRole("button", { name: /I'm at Karve Nagar/i })).toBeInTheDocument();
+    // Not "allow location for this app" — that would send them to a screen
+    // where the app permission already looks correct, and the real toggle is
+    // somewhere else entirely.
+    expect(await screen.findByText(/your device location is off/i)).toBeInTheDocument();
   });
 
-  it("confirming does not write anything", async () => {
-    const p = props({ saved: SAVED });
-    render(<LocationGate {...p} />);
+  it("blames the app permission when that is what is off", async () => {
+    render(<LocationGate {...props({ reason: "permission-prompt" })} />);
 
-    await userEvent.click(await screen.findByRole("button", { name: /I'm at Karve Nagar/i }));
-
-    expect(p.onConfirmSaved).toHaveBeenCalledOnce();
-    // Already stored and already selected — re-saving an unchanged value would
-    // be a request for nothing.
-    expect(p.onUseCurrent).not.toHaveBeenCalled();
+    expect(await screen.findByText(/location permission is off/i)).toBeInTheDocument();
   });
 
-  it("still offers a way to say they have moved", async () => {
-    render(<LocationGate {...props({ saved: SAVED })} />);
+  it("falls back to a neutral question when the cause is unknown", async () => {
+    render(<LocationGate {...props({ reason: "unknown" })} />);
 
-    expect(await screen.findByRole("button", { name: /somewhere else/i })).toBeInTheDocument();
-  });
-});
-
-describe("a user with no saved location", () => {
-  it("does not show a confirm button for a location that does not exist", async () => {
-    render(<LocationGate {...props()} />);
-
-    await screen.findByRole("button", { name: /use my current location/i });
-    expect(screen.queryByRole("button", { name: /I'm at/i })).not.toBeInTheDocument();
+    // Guessing wrong is worse than admitting we do not know: naming a fix that
+    // is not the problem sends the user somewhere pointless.
+    expect(await screen.findByText(/where are you\?/i)).toBeInTheDocument();
   });
 
-  it("offers manual entry", async () => {
-    render(<LocationGate {...props()} />);
+  it("lets a caller override the headline entirely", async () => {
+    // The provider gate has something more useful to say when the real problem
+    // is a missing service area rather than a location toggle.
+    render(<LocationGate {...props({ title: "Set your service area" })} />);
 
-    expect(
-      await screen.findByRole("button", { name: /enter location manually/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Set your service area")).toBeInTheDocument();
+    expect(screen.queryByText(/your device location is off/i)).not.toBeInTheDocument();
   });
 });
 
-describe("using the current location", () => {
-  it("prompts only when the button is tapped", async () => {
+describe("the Enable button", () => {
+  it("prompts only when tapped", async () => {
     const p = props();
     render(<LocationGate {...p} />);
-    await screen.findByRole("button", { name: /use my current location/i });
+    await screen.findByRole("button", { name: /enable/i });
 
     // Rendering must not ask. The OS dialog is one-shot on Android, and
     // spending it without the user asking is how a denial happens.
@@ -102,43 +92,92 @@ describe("using the current location", () => {
     getCurrentPosition.mockImplementation((ok) =>
       ok({ coords: { latitude: 18.5204, longitude: 73.8567 } }),
     );
-    await userEvent.click(screen.getByRole("button", { name: /use my current location/i }));
+    await userEvent.click(screen.getByRole("button", { name: /enable/i }));
 
     expect(p.onUseCurrent).toHaveBeenCalledWith(18.5204, 73.8567);
+  });
+
+  it("is disabled when permission is denied, rather than doing nothing", async () => {
+    // Android will not ask twice. An enabled button here is a button that
+    // silently fails, and it gets tapped repeatedly.
+    render(<LocationGate {...props({ reason: "permission-denied" })} />);
+
+    await vi.waitFor(() => expect(screen.getByRole("button", { name: /enable/i })).toBeDisabled());
+    expect(screen.getByText(/turn this on in settings/i)).toBeInTheDocument();
   });
 
   it("explains where to fix a denial rather than looping", async () => {
     getCurrentPosition.mockImplementation((_ok, fail) => fail({ code: 1 }));
     render(<LocationGate {...props()} />);
 
-    await userEvent.click(await screen.findByRole("button", { name: /use my current location/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /enable/i }));
 
-    // Android will not ask twice, so "try again" would be a lie.
+    // "Try again" would be a lie — the OS will not ask a second time.
     expect(await screen.findByText(/turn it on in settings/i)).toBeInTheDocument();
   });
 });
 
-describe("when permission is already denied", () => {
-  beforeEach(() => {
-    permissionsQuery.mockResolvedValue({ state: "denied" });
+describe("saved locations", () => {
+  it("lists every one, so the common case is a single tap", async () => {
+    // "Location is off but I'm at home" is the case Zepto's sheet handles in
+    // one tap. Showing only the selected address would force a map on someone
+    // whose answer is already on file.
+    render(<LocationGate {...props({ saved: [HOME, WORK] })} />);
+
+    expect(await screen.findByText("Karve Nagar")).toBeInTheDocument();
+    expect(screen.getByText("Kothrud")).toBeInTheDocument();
   });
 
-  it("does not offer an action the OS will refuse", async () => {
-    render(<LocationGate {...props()} />);
+  it("reports which one was picked", async () => {
+    const p = props({ saved: [HOME, WORK] });
+    render(<LocationGate {...p} />);
 
-    await vi.waitFor(() =>
-      expect(screen.getByRole("button", { name: /use my current location/i })).toBeDisabled(),
-    );
+    await userEvent.click(await screen.findByText("Kothrud"));
+
+    // The id, not the index — the caller has to know which address to select.
+    expect(p.onConfirmSaved).toHaveBeenCalledWith("a2");
+    // Already stored and already known: picking one is a selection, not a write.
+    expect(p.onUseCurrent).not.toHaveBeenCalled();
   });
 
-  it("still lets them in via manual entry", async () => {
-    // The reason a blocking screen is safe at all. Without this, a denied
-    // permission would lock the user out of the app permanently.
-    const p = props();
+  it("shows no list when there is nothing saved", async () => {
+    render(<LocationGate {...props({ saved: [] })} />);
+
+    await screen.findByRole("button", { name: /enable/i });
+    expect(screen.queryByText(/saved locations/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("the exit that needs no permission", () => {
+  it("is offered when there are saved locations", async () => {
+    const p = props({ saved: [HOME] });
+    render(<LocationGate {...p} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /somewhere else/i }));
+
+    expect(p.onEnterManually).toHaveBeenCalledOnce();
+  });
+
+  it("is offered when there are none", async () => {
+    const p = props({ saved: [] });
     render(<LocationGate {...p} />);
 
     await userEvent.click(await screen.findByRole("button", { name: /enter location manually/i }));
 
+    expect(p.onEnterManually).toHaveBeenCalledOnce();
+  });
+
+  it("survives a denied permission with nothing saved", async () => {
+    // The reason a blocking screen is safe at all. This user cannot use Enable
+    // (Android will not re-ask) and has no saved location to tap. Without this
+    // path they would be locked out of the app permanently.
+    const p = props({ reason: "permission-denied", saved: [] });
+    render(<LocationGate {...p} />);
+
+    const manual = await screen.findByRole("button", { name: /enter location manually/i });
+    expect(manual).toBeEnabled();
+
+    await userEvent.click(manual);
     expect(p.onEnterManually).toHaveBeenCalledOnce();
   });
 });
