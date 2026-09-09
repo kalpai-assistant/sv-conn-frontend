@@ -190,13 +190,30 @@ npm run build:mobile     # Capacitor SPA build → dist-mobile/
 npm run lint             # ESLint + TypeScript
 npm run format           # Prettier
 
+# Tests
+npm test                 # Vitest (jsdom + @testing-library/react)
+
 # Mobile (Capacitor)
 npm run cap:sync         # Build mobile + sync to native projects
 npm run cap:android      # Build + open Android Studio
 npm run cap:ios          # Build + open Xcode
 ```
 
-There is no test suite currently.
+## Tests
+
+Vitest with jsdom, run by `npm test`. Config lives in `vitest.config.ts`, kept separate from `vite.config.ts` because the app config loads the TanStack Start SSR plugin and the Cloudflare plugin, neither of which a component test survives.
+
+CI runs three checks, and all three are worth running locally before pushing — a typecheck failure only CI sees costs a round trip:
+
+```bash
+npx tsc --noEmit && npm run lint && npm test
+```
+
+**What tests here cannot catch.** A recurring pattern in this repo is bugs that appear only on a real device: a button painted underneath the bottom nav, a `getCurrentPosition` mock that fails instantly where Android hangs indefinitely, an `alert()` that freezes the entire WebView. A unit test asserts the mock, and the mock encodes an assumption — so anything touching geolocation, native dialogs, or z-order needs a device pass before it ships.
+
+To drive a real device: build a debug APK (`npx cap sync android`, then `./gradlew assembleDebug` from `android/`), install it, and attach Chrome DevTools over `adb forward tcp:9222 localabstract:webview_devtools_remote_<pid>` — find the socket name with `adb shell cat /proc/net/unix`. Debug builds allow WebView debugging; release builds do not.
+
+**Two things that block browser testing today.** `npm run dev` returns HTTP 500 on every route (`ReferenceError: window is not defined`, from Leaflet during SSR), and the backend's CORS policy admits only `https://app.eazyserv.com` and `capacitor://localhost` — so a locally served build cannot reach the beta API from a browser either way. Use a debug APK until both are fixed.
 
 ## Architecture
 

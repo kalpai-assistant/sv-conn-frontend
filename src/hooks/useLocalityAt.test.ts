@@ -2,12 +2,12 @@
  * Naming a provider's service area (SVC-281).
  *
  * A service area is a point and a radius — no address text exists for it. That
- * left the launch gate's confirm button reading "Yes, I'm at your saved service
- * area": a placeholder, true wherever the provider is standing, confirming
- * nothing. Found on device.
+ * left the location gate's row reading "your saved service area": a
+ * placeholder, true wherever the provider is standing, confirming nothing.
+ * Found on device.
  *
  * The failure mode to guard is not "no name" — the caller handles that by
- * withholding the card. It is a name that *looks* like an answer while being
+ * withholding the row. It is a name that *looks* like an answer while being
  * unfalsifiable.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";

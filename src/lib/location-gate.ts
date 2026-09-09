@@ -1,33 +1,40 @@
 /**
- * Has the user confirmed where they are, this launch? (SVC-281)
+ * Has the user answered the location gate, this launch? (SVC-281)
  *
- * ## Why every launch, and not once
+ * ## What this is, and what decides the gate
  *
- * The expensive failure is not a missing address — it is a *stale* one. Someone
- * in Pune yesterday and Mumbai today books against their saved Pune address, the
- * geo-fence looks for providers around Pune, and the booking dies as "no
- * partners found nearby" with nothing explaining why. The consumer is in a city
- * full of providers and cannot reach any of them.
+ * This flag alone does **not** decide whether the gate appears. It only records
+ * that the user has already answered it during this launch, so the screen does
+ * not reappear underneath them mid-session. Whether the gate is shown at all is
+ * `shouldGateLocation`, driven by `useLocationAvailability`: the gate appears
+ * when we cannot locate the user — OS location off, permission off — or when
+ * they have no location on file.
  *
- * Asking once, or only when no address exists, cannot catch that: the user has
- * an address, it is simply the wrong one. So the question is asked every launch
- * — the cost is a tap, and the thing it prevents is a booking sent to the wrong
- * city.
+ * ## A note on the version this replaced
+ *
+ * The first build asked everyone, on every launch, and this file argued for it
+ * at length: the expensive failure is a *stale* address rather than a missing
+ * one, so asking only when nothing is saved cannot catch a user who moved city.
+ *
+ * That premise is still true. The conclusion was wrong. Asking daily charges
+ * every user a tap on every launch to catch a rare case, and does not reliably
+ * catch it either — a prompt seen every day becomes a reflex within a week, and
+ * a reflex cannot notice that the city is wrong. Reverted after it shipped;
+ * see `should-gate-location.ts` for the rule that replaced it.
  *
  * ## Module state, deliberately not localStorage
  *
- * Persisting this would defeat the point: a relaunch is exactly when someone may
- * have travelled, and a stored "already confirmed" would skip the question
- * forever. Module scope resets when the app process does, which is the
+ * Persisting this would outlive the launch it describes and silently disable
+ * the gate. Module scope resets when the app process does, which is exactly the
  * definition of "this launch" we want.
  *
  * ## Launch, not foreground
  *
  * Deliberately not wired to Capacitor's `appStateChange`. Re-asking every time
- * someone switches back from WhatsApp would be intolerable and would train
- * people to dismiss the screen without reading it — which is the failure mode
- * this whole feature is built to avoid. A time-based rule ("re-ask after N
- * hours in background") is a reasonable follow-up; it is not this.
+ * someone switches back from WhatsApp would train people to dismiss the screen
+ * without reading it — the same reflex that sank the every-launch version. A
+ * time-based rule ("re-ask after N hours in background") is a reasonable
+ * follow-up; it is not this.
  */
 
 let confirmedThisLaunch = false;
