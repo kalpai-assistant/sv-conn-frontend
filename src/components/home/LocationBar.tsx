@@ -16,15 +16,18 @@
  * a user action. **That reasoning still holds and is still honoured** — but the
  * behaviour it described has been superseded by SVC-281.
  *
- * `LocationGate` in `__root.tsx` now asks, on every launch, where the user is.
- * It does not change the grant-rate argument: the OS dialog still fires only on
- * an explicit tap of "Use my current location", never on load. What changed is
- * that the question is asked at all, because a *stale* address turned out to be
- * costlier than a missing one — a booking placed against yesterday's city finds
- * no providers and fails silently.
+ * `LocationGate` in `__root.tsx` asks where the user is when the app cannot
+ * work it out — the OS location toggle is off, permission is off, or there is
+ * no saved address at all. It does not change the grant-rate argument: the OS
+ * dialog still fires only on an explicit tap, never on load.
  *
- * So this bar is no longer the only place a location gets set, and a user
- * reaching Home has already answered the question once this launch.
+ * A first version of that gate asked on *every* launch, and this comment used
+ * to say so. It was reverted: a daily prompt becomes a reflex, and a reflex
+ * cannot notice that the city is wrong, which was the entire point of asking.
+ *
+ * So this bar is no longer the only place a location gets set — but most users
+ * reach Home without having seen the gate, and changing the address here stays
+ * the ordinary way to do it.
  */
 import { useState } from "react";
 import { MapPin, ChevronDown } from "lucide-react";

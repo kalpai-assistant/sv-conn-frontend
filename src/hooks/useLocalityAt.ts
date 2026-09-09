@@ -2,13 +2,13 @@
  * The place-name for a pair of coordinates (SVC-281).
  *
  * A provider's service area is stored as a point and a radius — there is no
- * address text anywhere. That left the launch gate's confirm button reading
- * "Yes, I'm at your saved service area", which is a placeholder rather than a
- * place: it is true wherever the provider is standing, so someone who moved from
- * Pune to Mumbai confirms a Pune centre and keeps receiving nothing.
+ * address text anywhere. That left the location gate's row reading "your saved
+ * service area", which is a placeholder rather than a place: it is true
+ * wherever the provider is standing, so someone who moved from Pune to Mumbai
+ * keeps a Pune centre and goes on receiving nothing.
  *
- * The button only works if it can be *disagreed with*. That needs a name, and
- * the only source of one is a reverse geocode — the same Nominatim call
+ * The row only works if it can be *disagreed with*. That needs a name, and the
+ * only source of one is a reverse geocode — the same Nominatim call
  * `MapPicker` already makes when a pin moves.
  *
  * Returns null while resolving and on failure. The caller shows a neutral

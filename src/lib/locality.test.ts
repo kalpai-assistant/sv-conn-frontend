@@ -1,11 +1,11 @@
 /**
- * Naming the place on the confirm button (SVC-281).
+ * Naming the place on each saved-location row (SVC-281).
  *
- * The gate's protection rests entirely on the button being falsifiable. "Yes,
- * I'm at home" is true wherever the user is standing, so someone who moved from
- * Pune to Mumbai taps it and confirms a Pune address — the exact failure the
- * gate exists to catch. Found on device: the button rendered the address
- * *label*, not the place.
+ * The gate's protection rests entirely on a row being falsifiable. A row
+ * reading "Home" is true wherever the user is standing, so someone who moved
+ * from Pune to Mumbai taps it and picks a Pune address — the exact failure the
+ * gate exists to catch. Found on device, when the rows rendered the address
+ * *label* rather than the place.
  */
 import { describe, expect, it } from "vitest";
 import { localityFrom } from "@/lib/locality";

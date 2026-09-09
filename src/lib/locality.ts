@@ -1,14 +1,14 @@
 /**
  * The recognisable place-name inside a full address (SVC-281).
  *
- * The launch gate's confirm button has to name *where* the user is, and the
+ * The location gate's rows have to name *where* each saved place is, and the
  * address label does not: "Home" is a category. Someone who moved from Pune to
- * Mumbai reads "Yes, I'm at home" and taps it, because they are at home — their
- * Mumbai home. The button then confirms a Pune address and the booking finds no
+ * Mumbai reads a row saying "Home" and taps it, because they are at home —
+ * their Mumbai home. That picks a Pune address, and the booking finds no
  * providers, which is the exact failure the gate exists to prevent.
  *
- * A locality does the job: "Yes, I'm at Karve Nagar" is false in Mumbai, and
- * visibly so.
+ * A locality does the job: a row reading "Karve Nagar" is visibly wrong in
+ * Mumbai, where "Home" is not.
  *
  * Nominatim returns a comma-separated string ordered narrowest-first, e.g.
  *   "Lane Number 7, Mavale vasti, Karve Nagar, Anandnagar, Pune City
