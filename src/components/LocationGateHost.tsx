@@ -19,6 +19,29 @@ import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import type { LocationBlockedReason } from "@/hooks/useLocationAvailability";
 
 /**
+ * One row per distinct place.
+ *
+ * The address book legitimately holds duplicates — every tap of "Use my
+ * current location" saves another "Home" — and on this screen they render as
+ * identical rows the user cannot choose between. The first one wins because
+ * it is the older record, and therefore the one anything else already
+ * selected.
+ *
+ * Deliberately not deduping by label: two different addresses both called
+ * "Home" are two real choices, and hiding one would silently take away the
+ * right answer.
+ */
+function dedupeByAddress<T extends { full: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = item.full.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
  * Consumer: pick a delivery address, or set a new one.
  *
  * Picking a saved address is purely local — the address already exists, so
@@ -53,7 +76,14 @@ export function ConsumerLocationGate({ reason }: { reason: LocationBlockedReason
       //
       // Labelled by locality rather than by label: "Home" is true in every city,
       // so a row saying it confirms nothing. See localityFrom.
-      saved={(addresses ?? []).map((a) => ({
+      //
+      // Deduped by address, because "Use my current location" writes a new
+      // "Home" every time it is tapped. Found on device: two rows reading
+      // "Karve Nagar / Lane Number 7…", identical in every visible respect,
+      // with no way to tell which one you were choosing. They also *were* the
+      // same place — picking either had the same effect — so the second row
+      // was pure noise on a screen whose whole job is a quick decision.
+      saved={dedupeByAddress(addresses ?? []).map((a) => ({
         id: a.id,
         label: localityFrom(a.full, a.label),
         full: a.full,
