@@ -17,7 +17,7 @@
  *
  * The one way to tell them apart:
  *
- *   permission `granted` + `getCurrentPosition` fails  →  the OS toggle is off
+ *   permission `granted` + no position available  →  the OS toggle is off
  *
  * That probe is safe precisely because permission is already granted: no dialog
  * can appear, so we spend nothing. In every other permission state we must not
@@ -25,12 +25,21 @@
  * without the user asking is how a permanent denial happens. So the permission
  * state *is* the answer there, and the probe never runs.
  *
- * ## Fail open
+ * ## The probe reads cache only, and never waits
  *
- * Every failure path resolves to `blocked: false`. A spurious gate is worse
- * than a missed one: it blocks a user who is perfectly locatable, which is the
- * exact complaint this change exists to fix. The timeout below is the same
- * bet — see PROBE_TIMEOUT_MS.
+ * "No position available" has to mean *right now*, not *after five seconds*.
+ * Android does not report a disabled toggle as an error — it just never
+ * answers — so waiting cannot distinguish "off" from "the GPS is still
+ * warming up", and trying to stalls every launch behind a spinner. See
+ * `hasCachedPosition` for the measurements that killed the waiting version.
+ *
+ * ## Unknowns fail open; a missing fix does not
+ *
+ * When we cannot tell what is going on — no Permissions API, or it threw — the
+ * answer is `unknown` and the user is let through. But a granted permission
+ * with no cached position is not an unknown: it is the specific state the gate
+ * exists for. Letting that through would silently reintroduce the "no partners
+ * found nearby" failure this whole feature is built to prevent.
  */
 import { useEffect, useState } from "react";
 
@@ -59,18 +68,14 @@ export interface LocationAvailability {
 }
 
 /**
- * How long to wait for the granted-permission probe.
+ * How old a cached fix may be and still count as "we know where they are".
  *
- * This is the hook's one real risk. The probe only runs when permission is
- * granted, and the interesting case is the OS toggle being off — where Android
- * is expected to fail fast with POSITION_UNAVAILABLE. If some device instead
- * hangs, every launch would stall for this long, so it is deliberately short
- * and a timeout resolves to *not blocked* rather than to `device-off`.
- *
- * Guessing "device-off" on a slow fix would gate a user whose location works —
- * reintroducing the complaint. Verified on device before merge.
+ * Ten minutes is chosen for what it is used for: proving location *works*, not
+ * deciding where to send a plumber. Anything the OS still holds is evidence the
+ * radio is on and the app can read it, which is the entire question here. The
+ * actual position is read later, by the picker, on an explicit tap.
  */
-const PROBE_TIMEOUT_MS = 5_000;
+const CACHE_MAX_AGE_MS = 600_000;
 
 const AVAILABLE: LocationAvailability = { isResolving: false, blocked: false, reason: null };
 
@@ -97,36 +102,48 @@ async function readPermission(): Promise<PermissionState | null> {
 }
 
 /**
- * Does a position actually resolve? Only ever called with permission granted,
- * so this cannot raise a dialog.
+ * Is there a position the OS already holds? Only ever called with permission
+ * granted, so this cannot raise a dialog.
+ *
+ * ## `timeout: 0` is the whole design, and it is not a mistake
+ *
+ * The first version of this waited up to 5s for a fix and treated a failure as
+ * "the OS toggle is off". Measured on a real device (Samsung, Android 14,
+ * Chrome 152), that does not work:
+ *
+ * | OS location | outcome                    | time                     |
+ * |-------------|----------------------------|--------------------------|
+ * | off         | `TIMEOUT` (code 3), never 2 | exactly the timeout given |
+ * | on, cold    | success                     | ~5.0 s                    |
+ * | on, warm    | success                     | ~1 ms                     |
+ *
+ * Android never reports POSITION_UNAVAILABLE for a disabled toggle — it simply
+ * never answers, for as long as you are willing to wait (verified at 5s and
+ * 20s). So "off" and "cold GPS" are separated by about 30ms of luck, and any
+ * threshold between them is a coin flip that also stalls every launch behind a
+ * spinner.
+ *
+ * `timeout: 0` removes the guess. It never starts the hardware: either a fresh
+ * enough fix is already cached, or the call fails immediately. Measured on the
+ * same device: 1ms to succeed with a cached fix, 3ms to fail without one.
+ *
+ * ## What this deliberately gets "wrong"
+ *
+ * Location on, but nothing cached — a genuine cold first launch — reads as
+ * blocked. That is accepted, because the gate is not a punishment: it offers
+ * "Use my current location", and the slow GPS wait then happens behind a
+ * spinner the user asked for. A five-second mystery stall on launch is worse
+ * than one extra tap, and unlike the stall it explains itself.
  */
-function positionResolves(): Promise<boolean> {
+function hasCachedPosition(): Promise<boolean> {
   return new Promise((resolve) => {
-    let settled = false;
-    const finish = (value: boolean) => {
-      if (settled) return;
-      settled = true;
-      resolve(value);
-    };
-
-    // Belt and braces: `timeout` below should fire first, but a WebView that
-    // never calls either callback would otherwise leave the app on a spinner
-    // forever. Fail open.
-    const timer = setTimeout(() => finish(true), PROBE_TIMEOUT_MS);
-
     navigator.geolocation.getCurrentPosition(
-      () => {
-        clearTimeout(timer);
-        finish(true);
-      },
-      () => {
-        clearTimeout(timer);
-        finish(false);
-      },
-      // A cached fix is enough to prove location works, and is far cheaper than
-      // waking the GPS on every launch. Low accuracy for the same reason: we
-      // are asking whether a position exists, not where it is.
-      { enableHighAccuracy: false, timeout: PROBE_TIMEOUT_MS, maximumAge: 60_000 },
+      () => resolve(true),
+      () => resolve(false),
+      // timeout: 0 — answer from cache or fail now; never wake the GPS.
+      // enableHighAccuracy is meaningless with no acquisition, and false keeps
+      // it explicit that this is not trying to fix a position.
+      { enableHighAccuracy: false, timeout: 0, maximumAge: CACHE_MAX_AGE_MS },
     );
   });
 }
@@ -169,7 +186,7 @@ export function useLocationAvailability(): LocationAvailability {
         return;
       }
 
-      settle((await positionResolves()) ? AVAILABLE : blockedBy("device-off"));
+      settle((await hasCachedPosition()) ? AVAILABLE : blockedBy("device-off"));
     })();
 
     return () => {
