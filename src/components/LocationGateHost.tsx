@@ -1,5 +1,5 @@
 /**
- * Wires the launch-time location question to each role's storage (SVC-281).
+ * Wires the location gate to each role's storage (SVC-281).
  *
  * The screen itself (`LocationGate`) is role-agnostic — it asks the question and
  * reports the answer. Where that answer *goes* differs entirely: a consumer's
@@ -16,16 +16,17 @@ import { useLocalityAt } from "@/hooks/useLocalityAt";
 import { localityFrom } from "@/lib/locality";
 import { useAddAddress, useUpdateServiceArea } from "@/hooks/useApi";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
+import type { LocationBlockedReason } from "@/hooks/useLocationAvailability";
 
 /**
- * Consumer: confirm the delivery address, or set a new one.
+ * Consumer: pick a delivery address, or set a new one.
  *
- * Confirming is purely local — the address is already stored and already
- * selected, so "yes, still here" needs no write. Only a *change* costs a
- * request.
+ * Picking a saved address is purely local — the address already exists, so
+ * "yes, I'm at this one" is a selection, not a write. Only a *new* location
+ * costs a request.
  */
-export function ConsumerLocationGate() {
-  const { selected } = useSelectedAddress();
+export function ConsumerLocationGate({ reason }: { reason: LocationBlockedReason | null }) {
+  const { addresses, setSelectedId } = useSelectedAddress();
   const { mutateAsync: addAddress, isPending } = useAddAddress();
   const [manual, setManual] = useState(false);
 
@@ -46,17 +47,23 @@ export function ConsumerLocationGate() {
 
   return (
     <LocationGate
-      title="Where do you want your service?"
-      subtitle="Professionals are matched to your location, so it needs to be right."
-      // The locality, not the label. "Yes, I'm at home" is true in every city
-      // — see localityFrom for why that breaks the whole mechanism.
-      saved={
-        selected
-          ? { label: localityFrom(selected.full, selected.label), full: selected.full }
-          : null
-      }
+      reason={reason}
+      // Every address, not just the selected one — the common case is "location
+      // is off and I'm at home", and a list makes that one tap.
+      //
+      // Labelled by locality rather than by label: "Home" is true in every city,
+      // so a row saying it confirms nothing. See localityFrom.
+      saved={(addresses ?? []).map((a) => ({
+        id: a.id,
+        label: localityFrom(a.full, a.label),
+        full: a.full,
+      }))}
       isSaving={isPending}
-      onConfirmSaved={markLocationConfirmed}
+      onConfirmSaved={(id) => {
+        // Selecting is the answer: it is what every later booking reads.
+        setSelectedId(id);
+        markLocationConfirmed();
+      }}
       onUseCurrent={async (lat, lng) => {
         try {
           await addAddress({
@@ -76,24 +83,33 @@ export function ConsumerLocationGate() {
 }
 
 /**
- * Provider: confirm or move the service-area centre.
+ * Provider: set or confirm the service-area centre.
  *
- * Unlike the consumer, "confirm" here is also local — the centre is already
- * stored, and re-writing an unchanged value would be a pointless request. Only
- * moving it PATCHes.
+ * ## Why the copy is not "where are you working today?"
  *
- * The radius is deliberately left alone: this screen asks *where* they are, not
- * how far they travel, and silently resetting a considered radius to a default
- * would quietly shrink or widen the jobs they see.
+ * It used to be, and that framing was wrong in a way that mattered. A service
+ * area is a **standing setting**, not a daily decision: a provider whose area is
+ * Karve Nagar has that area whether the app is open or not. "Today" turned a
+ * setting into a question, which is part of what justified asking every launch.
+ *
+ * It also made confirming feel like a lie. A provider sitting at home in
+ * Kothrud who serves Karve Nagar should be able to keep Karve Nagar without
+ * being asked where their body is.
+ *
+ * The radius is deliberately left alone: this screen sets *where*, not how far
+ * they travel, and silently resetting a considered radius would quietly shrink
+ * or widen the jobs they see.
  */
 export function ProviderLocationGate({
   lat,
   lng,
   radiusKm,
+  reason,
 }: {
   lat: number | null;
   lng: number | null;
   radiusKm: number;
+  reason: LocationBlockedReason | null;
 }) {
   const { mutateAsync: updateServiceArea, isPending } = useUpdateServiceArea();
   // A service area is a point, not an address — so the only way to name it is
@@ -103,20 +119,36 @@ export function ProviderLocationGate({
 
   return (
     <LocationGate
-      title="Where are you working today?"
-      subtitle="Only jobs inside your service area reach you, so this decides what you see."
-      // "your saved service area" was the placeholder this replaced: true
-      // wherever the provider stands, so it confirmed nothing. Until the
-      // geocode lands the card is withheld rather than shown with filler — a
-      // button that cannot be disagreed with is worse than one more tap.
-      saved={hasArea && locality ? { label: locality, full: `Within ${radiusKm} km` } : null}
+      // A missing service area outranks whatever the location probe said. Both
+      // can be true at once, and "your device location is off" is the wrong
+      // sentence for someone who has simply never set an area — it names a
+      // problem that is not the one blocking them.
+      //
+      // No service_area_center means the PostGIS dispatch query excludes them
+      // from every broadcast: online, verified, subscribed, receiving nothing,
+      // permanently. So the screen says what to do about *that*.
+      title={hasArea ? undefined : "Set your service area"}
+      subtitle={
+        hasArea
+          ? "Only jobs inside your service area reach you."
+          : "Only jobs inside your service area reach you. Set the centre, then choose your radius."
+      }
+      reason={reason}
+      // Withheld until the geocode lands rather than shown with filler: a row
+      // the provider cannot disagree with is worse than one more tap.
+      saved={
+        hasArea && locality
+          ? [{ id: "service-area", label: locality, full: `Within ${radiusKm} km` }]
+          : []
+      }
       isSaving={isPending}
-      onConfirmSaved={markLocationConfirmed}
-      onUseCurrent={async (lat, lng) => {
+      // Already stored and unchanged — keeping it is a local answer, not a write.
+      onConfirmSaved={() => markLocationConfirmed()}
+      onUseCurrent={async (nextLat, nextLng) => {
         try {
           await updateServiceArea({
-            service_area_lat: lat,
-            service_area_lng: lng,
+            service_area_lat: nextLat,
+            service_area_lng: nextLng,
             service_area_radius_km: radiusKm,
           });
           markLocationConfirmed();
