@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { CartProvider } from "@/lib/cart-context";
 import { useNotificationRouter } from "@/lib/notifications";
 import { useFcmRegistration } from "@/lib/fcm";
-import { useProviderProfile } from "@/hooks/useApi";
+import { useAddresses, useProviderProfile } from "@/hooks/useApi";
 import { BottomNav } from "@/components/BottomNav";
 import { CartFab } from "@/components/cart/CartFab";
 import { SplashGate } from "@/components/SplashGate";
@@ -12,6 +12,8 @@ import { IncomingRequestHost } from "@/components/provider/IncomingRequestHost";
 import { AuthFlow } from "@/components/AuthFlow";
 import { ConsumerLocationGate, ProviderLocationGate } from "@/components/LocationGateHost";
 import { useLocationConfirmed } from "@/hooks/useLocationConfirmed";
+import { useLocationAvailability } from "@/hooks/useLocationAvailability";
+import { shouldGateLocation } from "@/lib/should-gate-location";
 import { AppVersionGate } from "@/components/AppVersionGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
@@ -94,6 +96,19 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // answers, leaving the gate on screen forever. See useLocationConfirmed.
   const locationConfirmed = useLocationConfirmed();
 
+  // SVC-281: can we locate them at all? The gate used to appear on every
+  // launch; it now appears only when the answer is no. See useLocationAvailability.
+  const availability = useLocationAvailability();
+
+  // Only to answer "do they have *any* saved address" — a consumer with none
+  // cannot book, so the gate is how they get one. Gated on being a
+  // non-provider so providers and logged-out visitors don't fire the call.
+  const {
+    data: addresses,
+    isPending: addressesPending,
+    isError: addressesError,
+  } = useAddresses(isAuthenticated && !isProvider);
+
   // Wire FCM tap → in-app navigation. No-op on web; lazy-loads the Capacitor
   // plugin so the web bundle stays clean. Must live inside <AuthProvider/> for
   // `useAuth()` access — that's why it sits here, not in main.mobile.tsx.
@@ -152,7 +167,10 @@ function AppGate({ children }: { children: React.ReactNode }) {
     // still pending (not submitted). Once KYC is submitted/verified/rejected
     // they're free to roam the provider surface.
     if (!isProviderOnboardingRoute) {
-      if (providerProfileLoading) {
+      // Also waits on the location probe (SVC-281): deciding on a half-resolved
+      // answer would flash the gate on every launch for providers who never
+      // needed to see it.
+      if (providerProfileLoading || availability.isResolving) {
         return (
           <div className="flex min-h-screen items-center justify-center bg-background">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -164,17 +182,29 @@ function AppGate({ children }: { children: React.ReactNode }) {
         return <Navigate to="/provider/onboarding" />;
       }
 
-      // SVC-281: confirm where they are working, once per launch.
+      // SVC-281: ask about the service area only when something is actually
+      // wrong — either we cannot locate them, or they have no area at all.
+      //
+      // This used to fire on every launch. A service area is a standing
+      // setting, not a daily decision: a provider whose area is Karve Nagar
+      // has that area whether the app is open or not, and re-asking daily was
+      // pure friction that also invited a mis-tap moving their geo-fence.
+      //
+      // The null-area clause is not optional and is *not* about location being
+      // unavailable. No `service_area_center` means the PostGIS dispatch query
+      // excludes them from every broadcast — online, verified, subscribed, and
+      // receiving nothing, permanently, with nothing on screen explaining why.
+      // That is a worse failure than a stale centre, so it gates regardless of
+      // whether we can locate them.
       //
       // After onboarding on purpose — the wizard already asks (SVC-257), and
-      // asking again inside it would be the same question twice. This catches
-      // providers who finished onboarding before that step existed, and anyone
-      // who has since moved.
-      //
-      // A stale centre is not a cosmetic problem here: the dispatch geo-fence
-      // searches around it, so a provider who moved city is online, verified,
-      // subscribed — and receives nothing, with no indication why.
-      if (!isProviderLocationRoute && !locationConfirmed) {
+      // asking again inside it would be the same question twice.
+      const providerVerdict = shouldGateLocation({
+        confirmed: locationConfirmed,
+        blocked: availability.isResolving ? null : availability.blocked,
+        hasOwnLocation: providerProfile?.service_area_lat != null,
+      });
+      if (!isProviderLocationRoute && providerVerdict === "gate") {
         return (
           <ProviderLocationGate
             lat={providerProfile?.service_area_lat ?? null}
@@ -194,15 +224,39 @@ function AppGate({ children }: { children: React.ReactNode }) {
       return <Navigate to="/profile" />;
     }
 
-    // SVC-281: confirm the service location, once per launch.
+    // SVC-281: ask for a location only when we cannot determine one.
     //
-    // Every launch rather than only when unset, because the costly failure is a
-    // *stale* address, not a missing one: someone in Pune yesterday and Mumbai
-    // today books against their Pune address, the geo-fence finds nobody, and
-    // the booking dies as "no partners found nearby" in a city full of
-    // providers.
-    if (isAuthenticated && !locationConfirmed) {
-      return <ConsumerLocationGate />;
+    // This used to fire on every launch, on the theory that the costly failure
+    // is a *stale* address rather than a missing one. The stale case is real —
+    // someone in Pune yesterday and Mumbai today books against their Pune
+    // address and the booking dies as "no partners found nearby" — but asking
+    // everyone daily does not reliably catch it: a daily prompt becomes a
+    // reflex, and a reflex cannot notice the city is wrong.
+    //
+    // So the gate now appears only when we genuinely do not know where they
+    // are, or they have no address to book against at all.
+    if (isAuthenticated) {
+      const verdict = shouldGateLocation({
+        confirmed: locationConfirmed,
+        blocked: availability.isResolving ? null : availability.blocked,
+        // A failed fetch resolves to `false`, not `null`. Leaving it null on
+        // error would spin forever once React Query gives up retrying — the
+        // same lockout shape as #121, and offline is exactly when it happens.
+        // Gating instead is safe: the gate's manual entry needs no network.
+        hasOwnLocation: addressesError ? false : addressesPending ? null : !!addresses?.length,
+      });
+      // Deciding before both answers land would flash the gate at users who
+      // never needed it — the exact thing being fixed here.
+      if (verdict === "wait") {
+        return (
+          <div className="flex min-h-screen items-center justify-center bg-background">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        );
+      }
+      if (verdict === "gate") {
+        return <ConsumerLocationGate />;
+      }
     }
   }
 
