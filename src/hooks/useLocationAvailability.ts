@@ -15,15 +15,27 @@
  * Permissions API answers a different question — whether *this app* may ask —
  * and returns `granted` whether or not the device radio is on.
  *
- * The one way to tell them apart:
+ * ## The probe decides; the permission state only explains
  *
- *   permission `granted` + no position available  →  the OS toggle is off
+ * An earlier version asked the Permissions API first and only probed when it
+ * said `granted`. That gated users whose location worked perfectly.
  *
- * That probe is safe precisely because permission is already granted: no dialog
- * can appear, so we spend nothing. In every other permission state we must not
- * call it at all — the Android prompt is one-shot, and firing it on launch
- * without the user asking is how a permanent denial happens. So the permission
- * state *is* the answer there, and the probe never runs.
+ * Measured on device (Samsung, Android 14, Capacitor WebView): Android
+ * reported `ACCESS_FINE_LOCATION: granted=true`, `getCurrentPosition` returned
+ * a fix in **81ms** — and `navigator.permissions.query()` still said
+ * `"prompt"`. The OS grant and the WebView's own geolocation permission are
+ * two different things, and only the first had been given.
+ *
+ * So the probe runs first and a cached fix ends the question. The permission
+ * state is read only when there is no position, and then only to say *why* —
+ * "turn on Location in settings" is useless advice to someone who denied the
+ * app permission, and vice versa.
+ *
+ * Probing first is safe because the probe cannot prompt: a WebView with no
+ * geolocation permission fails the call rather than raising a dialog, and the
+ * probe is bounded (see PROBE_TIMEOUT_MS) so it cannot hang either. The
+ * Android prompt is one-shot and belongs on an explicit tap of "Enable" —
+ * which is where the gate still puts it.
  *
  * ## The probe reads cache only, and never waits
  *
@@ -76,6 +88,27 @@ export interface LocationAvailability {
  * actual position is read later, by the picker, on an explicit tap.
  */
 const CACHE_MAX_AGE_MS = 600_000;
+
+/**
+ * How long the probe waits before deciding there is no position.
+ *
+ * This started at 0 — cache or nothing — to guarantee launch never stalls.
+ * On device that gated people whose location worked: a fresh install has an
+ * empty cache, so the probe failed in 3ms while a real acquisition succeeded
+ * in 92ms. `timeout: 0` measured the cache, not the capability.
+ *
+ * Measured on device (Samsung, Android 14, cold cache, low accuracy):
+ *
+ *   location on   → success in ~92ms
+ *   location off  → failure, waits out whatever timeout is given
+ *
+ * 1.5s sits far above the success case and is short enough that the worst
+ * case — location genuinely off — is a brief spinner rather than the
+ * five-second stall the original timeout was written to prevent. Anything
+ * slower than this is not "working" from a user's point of view anyway, and
+ * the gate they get offers Enable, which does the patient acquisition.
+ */
+const PROBE_TIMEOUT_MS = 1_500;
 
 const AVAILABLE: LocationAvailability = { isResolving: false, blocked: false, reason: null };
 
@@ -140,10 +173,13 @@ function hasCachedPosition(): Promise<boolean> {
     navigator.geolocation.getCurrentPosition(
       () => resolve(true),
       () => resolve(false),
-      // timeout: 0 — answer from cache or fail now; never wake the GPS.
-      // enableHighAccuracy is meaningless with no acquisition, and false keeps
-      // it explicit that this is not trying to fix a position.
-      { enableHighAccuracy: false, timeout: 0, maximumAge: CACHE_MAX_AGE_MS },
+      {
+        // Low accuracy on purpose: this asks *whether* a position exists, not
+        // where. A coarse network fix answers that in milliseconds.
+        enableHighAccuracy: false,
+        timeout: PROBE_TIMEOUT_MS,
+        maximumAge: CACHE_MAX_AGE_MS,
+      },
     );
   });
 }
@@ -170,6 +206,17 @@ export function useLocationAvailability(): LocationAvailability {
         return;
       }
 
+      // The probe runs FIRST, and a cached fix ends it. See the module docs:
+      // inside a Capacitor WebView the Permissions API and the actual
+      // capability disagree, and the probe is the one that tells the truth.
+      if (await hasCachedPosition()) {
+        settle(AVAILABLE);
+        return;
+      }
+      if (cancelled) return;
+
+      // No position. Now the permission state is worth reading — not to decide
+      // *whether* to gate, but to say why, since the remedy differs.
       const permission = await readPermission();
       if (cancelled) return;
 
@@ -181,12 +228,10 @@ export function useLocationAvailability(): LocationAvailability {
         settle(blockedBy("permission-prompt"));
         return;
       }
-      if (permission !== "granted") {
-        settle(blockedBy("unknown"));
-        return;
-      }
-
-      settle((await hasCachedPosition()) ? AVAILABLE : blockedBy("device-off"));
+      // Granted (or unreadable) and still no fix: the OS toggle is off, or the
+      // GPS has simply never warmed up. `device-off` names the likelier cause
+      // and its remedy is the one that also fixes the other.
+      settle(blockedBy(permission === "granted" ? "device-off" : "unknown"));
     })();
 
     return () => {

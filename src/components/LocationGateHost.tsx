@@ -97,7 +97,11 @@ export function ConsumerLocationGate({ reason }: { reason: LocationBlockedReason
       onUseCurrent={async (lat, lng) => {
         try {
           await addAddress({
-            label: "Home",
+            // Lowercase, not "Home". The backend pins this to
+            // ^(home|work|other)$ (CreateAddressRequest), so a capital H is a
+            // 422 — found on device, where Enable failed with "API error: 422"
+            // while manual entry worked because AddAddressSheet lowercases.
+            label: "home",
             full_address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
             lat,
             lng,

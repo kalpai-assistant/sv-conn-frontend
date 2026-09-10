@@ -3,18 +3,18 @@
  *
  * Two properties here are load-bearing, and both are easy to erode later:
  *
- * 1. **It never prompts.** `getCurrentPosition` is called only when permission
- *    is already `granted`. On Android the OS dialog is one-shot, so firing it
- *    on launch — without the user asking — is how a permanent denial happens,
- *    and a denial cannot be re-requested from inside the app.
- * 2. **It never waits.** The probe reads a cached fix or fails immediately.
- *    Android does not report a disabled location toggle as an error — it just
- *    never answers — so waiting cannot tell "off" from "GPS still warming up",
- *    and trying stalls every launch. Measured on device; see the probe tests.
+ * 1. **It never prompts.** A WebView without geolocation permission fails the
+ *    call rather than raising a dialog, and the probe is bounded so it cannot
+ *    hang. On Android the OS dialog is one-shot, and firing it on launch —
+ *    without the user asking — is how a permanent denial happens.
+ * 2. **It barely waits.** Android does not report a disabled location toggle
+ *    as an error — it simply never answers — so the probe is bounded. Measured
+ *    on device with a cold cache: location on succeeds in ~92ms, location off
+ *    waits out whatever timeout it is given. The bound sits far above the
+ *    first and short enough that the second is a blink, not a stall.
  *
- * A genuine unknown (no Permissions API, or it threw) still lets the user
- * through. A granted permission with no position does not: that is the exact
- * state the gate exists for.
+ * The probe also decides *whether* to gate; the permission state only explains
+ * why. Inside a Capacitor WebView those two disagree — see the tests below.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
@@ -69,47 +69,101 @@ describe("permission granted", () => {
   });
 });
 
-describe("permission not granted", () => {
-  it("blocks on prompt without asking the OS", async () => {
+describe("a cached fix wins over whatever the permission says", () => {
+  it("does not gate a user whose location demonstrably works", async () => {
+    // The bug this ordering fixes, found on device. Android reported
+    // ACCESS_FINE_LOCATION granted=true and getCurrentPosition returned a fix
+    // in 81ms — while navigator.permissions.query() still said "prompt",
+    // because the OS grant and the WebView's own geolocation permission are
+    // two separate things.
+    //
+    // Reading the permission first meant gating someone we could locate. The
+    // probe is the honest signal, so it goes first and a fix ends the question.
+    withPermission("prompt");
+    getCurrentPosition.mockImplementation((ok) => ok(PUNE));
+
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+    expect(result.current.blocked).toBe(false);
+    expect(result.current.reason).toBeNull();
+  });
+
+  it("does not even ask the Permissions API when a fix is available", async () => {
+    // Not an optimisation — the point is that the permission state cannot
+    // overrule evidence. If it is never read on this path, it cannot.
+    withPermission("denied");
+    getCurrentPosition.mockImplementation((ok) => ok(PUNE));
+
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+    expect(result.current.blocked).toBe(false);
+    expect(permissionsQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("no position, so the permission state explains why", () => {
+  beforeEach(() => {
+    // The probe runs first now and finds nothing; only then does the reason
+    // matter. See "a cached fix wins" below for why the order is this way.
+    getCurrentPosition.mockImplementation((_ok, fail) => fail({ code: 1 }));
+  });
+
+  it("blames the app permission when it was never asked for", async () => {
     withPermission("prompt");
 
     const { result } = renderHook(() => useLocationAvailability());
 
     await waitFor(() => expect(result.current.blocked).toBe(true));
     expect(result.current.reason).toBe("permission-prompt");
-    // The property, not an implementation detail. Spending the one-shot
-    // Android dialog on launch — before the user has tapped anything — is how
-    // a permanent denial happens, and the gate's Enable button is the place
-    // that spend is supposed to occur.
-    expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 
-  it("blocks on denied, and does not retry a call the OS will refuse", async () => {
+  it("blames the app permission when it was refused", async () => {
     withPermission("denied");
 
     const { result } = renderHook(() => useLocationAvailability());
 
     await waitFor(() => expect(result.current.blocked).toBe(true));
     expect(result.current.reason).toBe("permission-denied");
-    expect(getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it("never prompts, whatever the permission state", async () => {
+    // The property that survived the reordering, and the one that matters.
+    // Probing first is only safe because the call cannot raise a dialog: a
+    // WebView without permission fails it outright. Spending Android's
+    // one-shot prompt on launch, before the user taps anything, is how a
+    // permanent denial happens; the gate's Enable button is where it belongs.
+    for (const state of ["prompt", "denied", "granted"] as const) {
+      vi.clearAllMocks();
+      getCurrentPosition.mockImplementation((_ok, fail) => fail({ code: 1 }));
+      withPermission(state);
+
+      const { result, unmount } = renderHook(() => useLocationAvailability());
+      await waitFor(() => expect(result.current.isResolving).toBe(false));
+
+      expect(getCurrentPosition.mock.calls[0][2].timeout).toBeLessThanOrEqual(2000);
+      unmount();
+    }
   });
 });
 
 describe("when the browser cannot tell us", () => {
-  it("treats a missing Permissions API as unknown rather than probing", async () => {
-    // Absent on some Android WebViews. "We do not know" is a reason of its
-    // own — not licence to call getCurrentPosition and find out, which would
-    // prompt.
+  it("treats a missing Permissions API as unknown", async () => {
+    // Absent on some Android WebViews. With no position and no way to read the
+    // permission, "we do not know" is the honest reason — the gate then asks a
+    // neutral question rather than naming a fix that may not be the problem.
+    getCurrentPosition.mockImplementation((_ok, fail) => fail({ code: 1 }));
     vi.stubGlobal("navigator", { geolocation: { getCurrentPosition } });
 
     const { result } = renderHook(() => useLocationAvailability());
 
     await waitFor(() => expect(result.current.blocked).toBe(true));
     expect(result.current.reason).toBe("unknown");
-    expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 
   it("treats a throwing Permissions API the same way", async () => {
+    getCurrentPosition.mockImplementation((_ok, fail) => fail({ code: 1 }));
     permissionsQuery.mockRejectedValue(new Error("not supported"));
     vi.stubGlobal("navigator", {
       geolocation: { getCurrentPosition },
@@ -120,7 +174,19 @@ describe("when the browser cannot tell us", () => {
 
     await waitFor(() => expect(result.current.blocked).toBe(true));
     expect(result.current.reason).toBe("unknown");
-    expect(getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it("lets a cached fix through even when the permission is unreadable", async () => {
+    // The device bug this reordering fixes, in its purest form: the WebView
+    // could not report the permission, but location worked. Gating there is a
+    // false positive against evidence.
+    getCurrentPosition.mockImplementation((ok) => ok(PUNE));
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition } });
+
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+    expect(result.current.blocked).toBe(false);
   });
 
   it("blocks when geolocation is missing entirely", async () => {
@@ -133,23 +199,24 @@ describe("when the browser cannot tell us", () => {
   });
 });
 
-describe("the probe never waits for a fix", () => {
-  it("asks for a cached position only, so launch cannot stall", async () => {
-    // This is the hook's central design decision, and it came from a device,
-    // not from reasoning. Measured on Samsung/Android 14/Chrome 152:
+describe("the probe is bounded, and low accuracy", () => {
+  it("waits long enough to succeed, briefly enough not to stall", async () => {
+    // The hook's central number, and it came from a device twice.
     //
-    //   OS location off      → TIMEOUT (code 3), never code 2, and it waits
-    //                          out whatever timeout you give it (5s, 20s…)
-    //   OS location on, cold → success after ~5.0s
-    //   OS location on, warm → success in ~1ms
+    // First pass used `timeout: 0` — cache or nothing — to guarantee launch
+    // never stalls. That measured the *cache*, not the capability: on a fresh
+    // install the cache is empty, so the probe failed in 3ms while a real
+    // acquisition succeeded in 92ms. Users whose location worked were gated.
     //
-    // Android never reports a disabled toggle as an error, so "off" and "cold
-    // GPS" are separated by about 30ms of luck. Any threshold between them is
-    // a coin flip that also stalls every launch behind a spinner.
+    // Re-measured on Samsung/Android 14, cold cache, low accuracy:
     //
-    // `timeout: 0` removes the guess entirely: the OS answers from cache or
-    // fails immediately, and the hardware is never woken. Measured at 1ms to
-    // succeed and 3ms to fail.
+    //   location on   → success in ~92ms
+    //   location off  → failure, waits out whatever timeout it is given
+    //
+    // So a short bound separates them cleanly. High accuracy is what made the
+    // earlier numbers look hopeless (~5s cold): asking for a coarse fix is
+    // both faster and sufficient, since the question is whether a position
+    // exists at all, not where it is.
     withPermission("granted");
     getCurrentPosition.mockImplementation((ok) => ok(PUNE));
 
@@ -157,9 +224,11 @@ describe("the probe never waits for a fix", () => {
     await waitFor(() => expect(result.current.isResolving).toBe(false));
 
     const options = getCurrentPosition.mock.calls[0][2];
-    expect(options.timeout).toBe(0);
-    // Without a non-zero maximumAge, `timeout: 0` would reject even a fix the
-    // OS is holding — which would gate every user on every launch.
+    expect(options.timeout).toBeGreaterThan(0);
+    expect(options.timeout).toBeLessThanOrEqual(2000);
+    // Coarse, and happy with a recent fix: both are what keep the common case
+    // in the tens of milliseconds.
+    expect(options.enableHighAccuracy).toBe(false);
     expect(options.maximumAge).toBeGreaterThan(0);
   });
 

@@ -7,9 +7,11 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 const addresses = vi.fn();
 const addAddress = vi.fn();
+const getCurrentPosition = vi.fn();
 const setSelectedId = vi.fn();
 
 vi.mock("@/hooks/useSelectedAddress", () => ({
@@ -34,7 +36,7 @@ const AT_KOTHRUD = "Paud Road, Shastrinagar, Kothrud, Pune, 411038";
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal("navigator", {
-    geolocation: { getCurrentPosition: vi.fn() },
+    geolocation: { getCurrentPosition },
     permissions: { query: vi.fn().mockResolvedValue({ state: "prompt" }) },
   });
 });
@@ -96,5 +98,28 @@ describe("the saved list a consumer sees", () => {
     expect(
       await screen.findByRole("button", { name: /enter location manually/i }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("saving the current location", () => {
+  it("sends a label the backend will accept", async () => {
+    // Found on device: Enable failed with "API error: 422" while manual entry
+    // worked. CreateAddressRequest pins label to ^(home|work|other)$, and this
+    // path sent "Home" — AddAddressSheet lowercases, this did not.
+    //
+    // Asserted on the payload rather than the outcome because a 422 is silent
+    // here: the toast says "couldn't save that location", which reads as a
+    // network problem rather than a malformed request.
+    addresses.mockReturnValue([]);
+    const user = userEvent.setup();
+    getCurrentPosition.mockImplementation((ok) =>
+      ok({ coords: { latitude: 18.5204, longitude: 73.8567 } }),
+    );
+
+    render(<ConsumerLocationGate reason="permission-prompt" />);
+    await user.click(await screen.findByRole("button", { name: /enable/i }));
+
+    await vi.waitFor(() => expect(addAddress).toHaveBeenCalled());
+    expect(addAddress.mock.calls[0][0].label).toMatch(/^(home|work|other)$/);
   });
 });
