@@ -11,7 +11,12 @@ import userEvent from "@testing-library/user-event";
 
 const addresses = vi.fn();
 const addAddress = vi.fn();
-const getCurrentPosition = vi.fn();
+const requestLocation = vi.fn();
+
+vi.mock("@/lib/geolocation", () => ({
+  requestLocation: (...a: unknown[]) => requestLocation(...a),
+  peekLocationPermission: () => Promise.resolve("prompt"),
+}));
 const setSelectedId = vi.fn();
 
 vi.mock("@/hooks/useSelectedAddress", () => ({
@@ -35,10 +40,7 @@ const AT_KOTHRUD = "Paud Road, Shastrinagar, Kothrud, Pune, 411038";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubGlobal("navigator", {
-    geolocation: { getCurrentPosition },
-    permissions: { query: vi.fn().mockResolvedValue({ state: "prompt" }) },
-  });
+  requestLocation.mockResolvedValue({ ok: false, failure: "unavailable", coords: null });
 });
 
 describe("the saved list a consumer sees", () => {
@@ -112,9 +114,11 @@ describe("saving the current location", () => {
     // network problem rather than a malformed request.
     addresses.mockReturnValue([]);
     const user = userEvent.setup();
-    getCurrentPosition.mockImplementation((ok) =>
-      ok({ coords: { latitude: 18.5204, longitude: 73.8567 } }),
-    );
+    requestLocation.mockResolvedValue({
+      ok: true,
+      failure: null,
+      coords: { lat: 18.5204, lng: 73.8567 },
+    });
 
     render(<ConsumerLocationGate reason="permission-prompt" />);
     await user.click(await screen.findByRole("button", { name: /enable/i }));

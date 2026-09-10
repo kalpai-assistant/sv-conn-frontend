@@ -40,6 +40,7 @@
 import { useEffect, useState } from "react";
 import { Check, Loader2, MapPin, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { peekLocationPermission, requestLocation } from "@/lib/geolocation";
 import type { LocationBlockedReason } from "@/hooks/useLocationAvailability";
 
 /** One place the user can pick without granting anything. */
@@ -50,6 +51,12 @@ export interface SavedLocation {
   /** The address line under it, or a radius for a provider's service area. */
   full: string;
 }
+
+/**
+ * The user asked for this and is watching a spinner, so patience is expected —
+ * unlike the launch check, this wait is one they chose.
+ */
+const LOCATE_TIMEOUT_MS = 20_000;
 
 export interface LocationGateProps {
   /** Headline — role- and reason-specific. See `copyFor`. */
@@ -130,46 +137,42 @@ export function LocationGate({
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      try {
-        const status = await navigator.permissions?.query({
-          name: "geolocation" as PermissionName,
-        });
-        if (!cancelled && status) setPermission(status.state);
-      } catch {
-        // Absent or throwing Permissions API — treat as unknown and keep the
-        // button, which is the safe default: it may still work.
-      }
+      // The app's permission, not the WebView's. `navigator.permissions.query`
+      // reported "prompt" on a device where Android had granted location and a
+      // real call succeeded in 81ms — see lib/geolocation.ts.
+      const state = await peekLocationPermission();
+      if (!cancelled) setPermission(state as PermissionState);
     })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const useCurrent = () => {
-    if (!("geolocation" in navigator)) {
-      setError("Location isn't available on this device. Choose where you are instead.");
-      return;
-    }
+  // Not `useCurrent`: the `use` prefix makes eslint read it as a hook, and it
+  // is a plain event handler.
+  const locateMe = async () => {
     setError(null);
     setLocating(true);
-    // A real acquisition, unlike the launch probe: the user asked for this, so
-    // waiting is expected and the spinner below explains the wait. The probe in
-    // useLocationAvailability reads cache only for exactly the opposite reason.
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false);
-        onUseCurrent(pos.coords.latitude, pos.coords.longitude);
-      },
-      (err) => {
-        setLocating(false);
-        setPermission(err.code === 1 ? "denied" : permission);
-        setError(
-          err.code === 1
-            ? "Location is off for this app. Turn it on in settings, or choose where you are below."
-            : "Couldn't get your location. Choose where you are instead.",
-        );
-      },
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
+
+    // Goes through the plugin, which is what raises the native Android dialog
+    // for a user who has never granted anything — the same prompt Urban
+    // Company and Zepto show. The web API could not do this, which is why
+    // Enable used to dead-end at "couldn't get your location".
+    const { ok, failure, coords } = await requestLocation(LOCATE_TIMEOUT_MS);
+    setLocating(false);
+
+    if (ok && coords) {
+      onUseCurrent(coords.lat, coords.lng);
+      return;
+    }
+
+    if (failure === "permission-denied") setPermission("denied");
+    setError(
+      failure === "permission-denied"
+        ? "Location is off for this app. Turn it on in settings, or choose where you are below."
+        : failure === "location-disabled"
+          ? "Turn on Location in your phone's settings, or choose where you are below."
+          : "Couldn't get your location. Choose where you are instead.",
     );
   };
 
@@ -210,7 +213,7 @@ export function LocationGate({
                 {denied ? "Turn this on in Settings to use it" : "Most accurate"}
               </p>
             </div>
-            <Button size="sm" disabled={busy || denied} onClick={useCurrent}>
+            <Button size="sm" disabled={busy || denied} onClick={() => void locateMe()}>
               {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enable"}
             </Button>
           </div>

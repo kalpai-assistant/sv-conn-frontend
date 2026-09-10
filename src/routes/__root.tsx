@@ -96,9 +96,14 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // answers, leaving the gate on screen forever. See useLocationConfirmed.
   const locationConfirmed = useLocationConfirmed();
 
-  // SVC-281: can we locate them at all? The gate used to appear on every
-  // launch; it now appears only when the answer is no. See useLocationAvailability.
-  const availability = useLocationAvailability();
+  // SVC-281: can we locate them at all? The gate appears only when the answer
+  // is no.
+  //
+  // Held until authenticated. This component mounts at launch, with the user
+  // still on the login screen, and the hook resolves once and keeps its answer
+  // — so probing here meant probing before the session existed, then showing a
+  // stale "cannot locate" gate to someone whose location worked fine.
+  const availability = useLocationAvailability(isAuthenticated);
 
   // Only to answer "do they have *any* saved address" — a consumer with none
   // cannot book, so the gate is how they get one. Gated on being a
@@ -167,10 +172,11 @@ function AppGate({ children }: { children: React.ReactNode }) {
     // still pending (not submitted). Once KYC is submitted/verified/rejected
     // they're free to roam the provider surface.
     if (!isProviderOnboardingRoute) {
-      // Also waits on the location probe (SVC-281): deciding on a half-resolved
-      // answer would flash the gate on every launch for providers who never
-      // needed to see it.
-      if (providerProfileLoading || availability.isResolving) {
+      // Deliberately not waiting on the location probe (SVC-281). That call
+      // can take seconds — it is what raises the native permission dialog —
+      // and holding the app blank for it was a worse bug than the flicker it
+      // was meant to prevent. The gate simply appears late if it appears.
+      if (providerProfileLoading) {
         return (
           <div className="flex min-h-screen items-center justify-center bg-background">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -246,9 +252,12 @@ function AppGate({ children }: { children: React.ReactNode }) {
         // Gating instead is safe: the gate's manual entry needs no network.
         hasOwnLocation: addressesError ? false : addressesPending ? null : !!addresses?.length,
       });
-      // Deciding before both answers land would flash the gate at users who
-      // never needed it — the exact thing being fixed here.
-      if (verdict === "wait") {
+      // Only the address query is worth a spinner — it is one fast request.
+      // The location probe is not: it can take seconds, since it is the call
+      // that raises the native permission dialog, and blocking on it would
+      // mean a blank launch for everyone. So the app renders while it runs and
+      // the gate appears only once the answer comes back negative.
+      if (verdict === "wait" && addressesPending && !addressesError) {
         return (
           <div className="flex min-h-screen items-center justify-center bg-background">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

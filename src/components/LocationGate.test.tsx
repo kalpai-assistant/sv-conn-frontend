@@ -17,8 +17,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-const getCurrentPosition = vi.fn();
-const permissionsQuery = vi.fn();
+const requestLocation = vi.fn();
+const peekLocationPermission = vi.fn();
+
+vi.mock("@/lib/geolocation", () => ({
+  requestLocation: (...a: unknown[]) => requestLocation(...a),
+  peekLocationPermission: () => peekLocationPermission(),
+}));
 
 import { LocationGate } from "@/components/LocationGate";
 
@@ -38,11 +43,8 @@ function props(over: Partial<Parameters<typeof LocationGate>[0]> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  permissionsQuery.mockResolvedValue({ state: "prompt" });
-  vi.stubGlobal("navigator", {
-    geolocation: { getCurrentPosition },
-    permissions: { query: permissionsQuery },
-  });
+  peekLocationPermission.mockResolvedValue("prompt");
+  requestLocation.mockResolvedValue({ ok: false, failure: "unavailable", coords: null });
 });
 
 describe("naming the actual problem", () => {
@@ -86,15 +88,19 @@ describe("the Enable button", () => {
     await screen.findByRole("button", { name: /enable/i });
 
     // Rendering must not ask. The OS dialog is one-shot on Android, and
-    // spending it without the user asking is how a denial happens.
-    expect(getCurrentPosition).not.toHaveBeenCalled();
+    // spending it without the user asking is how a denial happens — which is
+    // why the launch check peeks rather than requests, and only this tap
+    // reaches requestLocation.
+    expect(requestLocation).not.toHaveBeenCalled();
 
-    getCurrentPosition.mockImplementation((ok) =>
-      ok({ coords: { latitude: 18.5204, longitude: 73.8567 } }),
-    );
+    requestLocation.mockResolvedValue({
+      ok: true,
+      failure: null,
+      coords: { lat: 18.5204, lng: 73.8567 },
+    });
     await userEvent.click(screen.getByRole("button", { name: /enable/i }));
 
-    expect(p.onUseCurrent).toHaveBeenCalledWith(18.5204, 73.8567);
+    await vi.waitFor(() => expect(p.onUseCurrent).toHaveBeenCalledWith(18.5204, 73.8567));
   });
 
   it("is disabled when permission is denied, rather than doing nothing", async () => {
@@ -107,7 +113,7 @@ describe("the Enable button", () => {
   });
 
   it("explains where to fix a denial rather than looping", async () => {
-    getCurrentPosition.mockImplementation((_ok, fail) => fail({ code: 1 }));
+    requestLocation.mockResolvedValue({ ok: false, failure: "permission-denied", coords: null });
     render(<LocationGate {...props()} />);
 
     await userEvent.click(await screen.findByRole("button", { name: /enable/i }));

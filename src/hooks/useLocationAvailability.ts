@@ -1,59 +1,40 @@
 /**
  * Can we locate this user right now? (SVC-281)
  *
- * ## Why this exists
+ * ## The one sentence this serves
  *
- * The launch gate originally asked everyone, every launch. On device that
- * proved self-defeating: a daily prompt becomes a reflex, and a reflex cannot
- * notice that the city is wrong — which is the one thing the screen is for.
- * The ticket had specified a conditional trigger from the start ("on app open,
- * when there is no usable location"); this hook is that condition.
+ * The gate appears only when we genuinely cannot place the user — the OS
+ * location toggle is off, or the app has no permission. Someone with location
+ * switched on must never see it. Four attempts broke that sentence in four
+ * different ways before the cause turned out to be the API, not the logic;
+ * `lib/geolocation.ts` records what the web API could not tell us and why.
  *
- * ## The awkward part: nothing reports the OS location toggle
+ * ## Asking is the point
  *
- * There is no web API for "is Location switched on in Android settings". The
- * Permissions API answers a different question — whether *this app* may ask —
- * and returns `granted` whether or not the device radio is on.
+ * This does not peek at a permission and decide. It *asks*, through the
+ * Capacitor plugin, which means a user who has never granted anything gets the
+ * native Android dialog here — the same one Urban Company and Zepto show. A
+ * gate that reports "permission is off" without ever offering the prompt is a
+ * dead end, which is exactly what the earlier web-API version was.
  *
- * ## The probe decides; the permission state only explains
+ * ## Nothing waits on the answer
  *
- * An earlier version asked the Permissions API first and only probed when it
- * said `granted`. That gated users whose location worked perfectly.
+ * `isResolving` does not block the app. Callers render normally while the
+ * request is outstanding and raise the gate only once it comes back negative.
+ * That is what makes a generous timeout affordable, and it is why the earlier
+ * versions' race to answer fast — and the wrong answers that came from
+ * rushing — is no longer a trade worth making.
  *
- * Measured on device (Samsung, Android 14, Capacitor WebView): Android
- * reported `ACCESS_FINE_LOCATION: granted=true`, `getCurrentPosition` returned
- * a fix in **81ms** — and `navigator.permissions.query()` still said
- * `"prompt"`. The OS grant and the WebView's own geolocation permission are
- * two different things, and only the first had been given.
+ * ## `enabled`, and not asking too early
  *
- * So the probe runs first and a cached fix ends the question. The permission
- * state is read only when there is no position, and then only to say *why* —
- * "turn on Location in settings" is useless advice to someone who denied the
- * app permission, and vice versa.
- *
- * Probing first is safe because the probe cannot prompt: a WebView with no
- * geolocation permission fails the call rather than raising a dialog, and the
- * probe is bounded (see PROBE_TIMEOUT_MS) so it cannot hang either. The
- * Android prompt is one-shot and belongs on an explicit tap of "Enable" —
- * which is where the gate still puts it.
- *
- * ## The probe reads cache only, and never waits
- *
- * "No position available" has to mean *right now*, not *after five seconds*.
- * Android does not report a disabled toggle as an error — it just never
- * answers — so waiting cannot distinguish "off" from "the GPS is still
- * warming up", and trying to stalls every launch behind a spinner. See
- * `hasCachedPosition` for the measurements that killed the waiting version.
- *
- * ## Unknowns fail open; a missing fix does not
- *
- * When we cannot tell what is going on — no Permissions API, or it threw — the
- * answer is `unknown` and the user is let through. But a granted permission
- * with no cached position is not an unknown: it is the specific state the gate
- * exists for. Letting that through would silently reintroduce the "no partners
- * found nearby" failure this whole feature is built to prevent.
+ * The answer resolves once and is kept, so *when* it resolves decides what the
+ * user sees for the rest of the session. `AppGate` mounts at launch, on the
+ * login screen, before any session exists — resolving there produced a stale
+ * "cannot locate" that survived login. Callers hold `enabled` false until the
+ * question is real.
  */
 import { useEffect, useState } from "react";
+import { requestLocation, type LocationFailure } from "@/lib/geolocation";
 
 /**
  * Why we cannot locate them — the gate's copy turns on this, because the
@@ -80,35 +61,18 @@ export interface LocationAvailability {
 }
 
 /**
- * How old a cached fix may be and still count as "we know where they are".
+ * How long to wait for a fix.
  *
- * Ten minutes is chosen for what it is used for: proving location *works*, not
- * deciding where to send a plumber. Anything the OS still holds is evidence the
- * radio is on and the app can read it, which is the entire question here. The
- * actual position is read later, by the picker, on an explicit tap.
+ * Generous, and affordable because nothing is blocked on it: the caller
+ * renders the app while this runs and raises the gate only if the answer comes
+ * back negative. It also has to outlast a human answering the native
+ * permission dialog, which this call can raise.
+ *
+ * Measured on device before the plugin, location on throughout: consecutive
+ * cold starts answered in 1ms, 43ms, 836ms and 8256ms. Nothing shorter than
+ * this covers that spread.
  */
-const CACHE_MAX_AGE_MS = 600_000;
-
-/**
- * How long the probe waits before deciding there is no position.
- *
- * This started at 0 — cache or nothing — to guarantee launch never stalls.
- * On device that gated people whose location worked: a fresh install has an
- * empty cache, so the probe failed in 3ms while a real acquisition succeeded
- * in 92ms. `timeout: 0` measured the cache, not the capability.
- *
- * Measured on device (Samsung, Android 14, cold cache, low accuracy):
- *
- *   location on   → success in ~92ms
- *   location off  → failure, waits out whatever timeout is given
- *
- * 1.5s sits far above the success case and is short enough that the worst
- * case — location genuinely off — is a brief spinner rather than the
- * five-second stall the original timeout was written to prevent. Anything
- * slower than this is not "working" from a user's point of view anyway, and
- * the gate they get offers Enable, which does the patient acquisition.
- */
-const PROBE_TIMEOUT_MS = 1_500;
+const PROBE_TIMEOUT_MS = 10_000;
 
 const AVAILABLE: LocationAvailability = { isResolving: false, blocked: false, reason: null };
 
@@ -116,75 +80,15 @@ function blockedBy(reason: LocationBlockedReason): LocationAvailability {
   return { isResolving: false, blocked: true, reason };
 }
 
-/**
- * Read the permission state without prompting.
- *
- * `navigator.permissions` is missing on some Android WebViews and throws on
- * others; both mean "we do not know", which is a reason of its own rather than
- * an excuse to call `getCurrentPosition` and find out.
- */
-async function readPermission(): Promise<PermissionState | null> {
-  try {
-    const query = navigator.permissions?.query;
-    if (!query) return null;
-    const status = await navigator.permissions.query({ name: "geolocation" as PermissionName });
-    return status.state;
-  } catch {
-    return null;
-  }
-}
+/** Plugin failure → the reason the gate's copy is written against. */
+const REASON_FOR: Record<LocationFailure, LocationBlockedReason> = {
+  "location-disabled": "device-off",
+  "permission-denied": "permission-denied",
+  "permission-prompt": "permission-prompt",
+  unavailable: "unknown",
+};
 
-/**
- * Is there a position the OS already holds? Only ever called with permission
- * granted, so this cannot raise a dialog.
- *
- * ## `timeout: 0` is the whole design, and it is not a mistake
- *
- * The first version of this waited up to 5s for a fix and treated a failure as
- * "the OS toggle is off". Measured on a real device (Samsung, Android 14,
- * Chrome 152), that does not work:
- *
- * | OS location | outcome                    | time                     |
- * |-------------|----------------------------|--------------------------|
- * | off         | `TIMEOUT` (code 3), never 2 | exactly the timeout given |
- * | on, cold    | success                     | ~5.0 s                    |
- * | on, warm    | success                     | ~1 ms                     |
- *
- * Android never reports POSITION_UNAVAILABLE for a disabled toggle — it simply
- * never answers, for as long as you are willing to wait (verified at 5s and
- * 20s). So "off" and "cold GPS" are separated by about 30ms of luck, and any
- * threshold between them is a coin flip that also stalls every launch behind a
- * spinner.
- *
- * `timeout: 0` removes the guess. It never starts the hardware: either a fresh
- * enough fix is already cached, or the call fails immediately. Measured on the
- * same device: 1ms to succeed with a cached fix, 3ms to fail without one.
- *
- * ## What this deliberately gets "wrong"
- *
- * Location on, but nothing cached — a genuine cold first launch — reads as
- * blocked. That is accepted, because the gate is not a punishment: it offers
- * "Use my current location", and the slow GPS wait then happens behind a
- * spinner the user asked for. A five-second mystery stall on launch is worse
- * than one extra tap, and unlike the stall it explains itself.
- */
-function hasCachedPosition(): Promise<boolean> {
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      () => resolve(true),
-      () => resolve(false),
-      {
-        // Low accuracy on purpose: this asks *whether* a position exists, not
-        // where. A coarse network fix answers that in milliseconds.
-        enableHighAccuracy: false,
-        timeout: PROBE_TIMEOUT_MS,
-        maximumAge: CACHE_MAX_AGE_MS,
-      },
-    );
-  });
-}
-
-export function useLocationAvailability(): LocationAvailability {
+export function useLocationAvailability(enabled = true): LocationAvailability {
   const [state, setState] = useState<LocationAvailability>({
     isResolving: true,
     blocked: false,
@@ -192,54 +96,32 @@ export function useLocationAvailability(): LocationAvailability {
   });
 
   useEffect(() => {
+    // Not yet — see `enabled`. Stay in `isResolving` so callers render a
+    // spinner rather than acting on an answer that has not been sought.
+    if (!enabled) return;
+
     let cancelled = false;
     const settle = (next: LocationAvailability) => {
       if (!cancelled) setState(next);
     };
 
     void (async () => {
-      if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
-        // No geolocation at all — a desktop browser with it disabled, or an
-        // odd WebView. We cannot locate them, and the gate's manual entry is
-        // the whole point.
-        settle(blockedBy("unknown"));
-        return;
-      }
-
-      // The probe runs FIRST, and a cached fix ends it. See the module docs:
-      // inside a Capacitor WebView the Permissions API and the actual
-      // capability disagree, and the probe is the one that tells the truth.
-      if (await hasCachedPosition()) {
-        settle(AVAILABLE);
-        return;
-      }
+      // One question, asked through the plugin — the only thing that can
+      // answer it truthfully on Android, and the call that raises the native
+      // permission dialog when there is one to raise.
+      const { ok, failure } = await requestLocation(PROBE_TIMEOUT_MS);
       if (cancelled) return;
 
-      // No position. Now the permission state is worth reading — not to decide
-      // *whether* to gate, but to say why, since the remedy differs.
-      const permission = await readPermission();
-      if (cancelled) return;
-
-      if (permission === "denied") {
-        settle(blockedBy("permission-denied"));
-        return;
-      }
-      if (permission === "prompt") {
-        settle(blockedBy("permission-prompt"));
-        return;
-      }
-      // Granted (or unreadable) and still no fix: the OS toggle is off, or the
-      // GPS has simply never warmed up. `device-off` names the likelier cause
-      // and its remedy is the one that also fixes the other.
-      settle(blockedBy(permission === "granted" ? "device-off" : "unknown"));
+      settle(ok || !failure ? AVAILABLE : blockedBy(REASON_FOR[failure]));
     })();
 
     return () => {
       cancelled = true;
     };
-    // Resolved once per mount. Re-running would re-probe mid-session and could
-    // drop a gate the user is currently answering.
-  }, []);
+    // Resolves once, when `enabled` first turns true — not on every render.
+    // Re-probing mid-session could drop a gate the user is currently
+    // answering, so `enabled` is the only trigger.
+  }, [enabled]);
 
   return state;
 }
