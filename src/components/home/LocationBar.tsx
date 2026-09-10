@@ -33,33 +33,48 @@ import { useState } from "react";
 import { MapPin, ChevronDown } from "lucide-react";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import { AddressPickerSheet } from "@/components/AddressPickerSheet";
+import { AccountAvatar } from "@/components/AccountAvatar";
+import { useAuth } from "@/lib/auth-context";
 
 export function LocationBar() {
   const { selected } = useSelectedAddress();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="sticky top-0 z-30 flex w-full items-center gap-3 border-b border-border bg-card px-4 py-3 text-left"
-        aria-label="Change delivery address"
-      >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent">
-          <MapPin className="h-4 w-4 text-primary" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1">
-            <p className="text-sm font-semibold text-foreground capitalize">
-              {selected?.label || "Set your location"}
-            </p>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+      {/* Two tap targets, not one. The row used to be a single button; the
+          avatar cannot nest inside it (interactive elements must not contain
+          interactive elements, and the two hit areas would fight), so the
+          sticky container moved out and the button became a sibling of the
+          avatar — the layout Blinkit and Zepto both use. */}
+      <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-card px-4 py-3">
+        <button
+          onClick={() => setOpen(true)}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          aria-label="Change delivery address"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent">
+            <MapPin className="h-4 w-4 text-primary" />
           </div>
-          <p className="truncate text-xs text-muted-foreground">
-            {selected?.full || "Tap to add an address"}
-          </p>
-        </div>
-      </button>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1">
+              <p className="text-sm font-semibold text-foreground capitalize">
+                {selected?.label || "Set your location"}
+              </p>
+              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </div>
+            <p className="truncate text-xs text-muted-foreground">
+              {selected?.full || "Tap to add an address"}
+            </p>
+          </div>
+        </button>
+
+        {/* SVC-273: the only way into Profile now that it has left the tab bar.
+            Consumers have no photo field, so this is always initials or the
+            person glyph. */}
+        <AccountAvatar to="/profile" name={user?.name} />
+      </div>
 
       {open && <AddressPickerSheet onClose={() => setOpen(false)} />}
     </>

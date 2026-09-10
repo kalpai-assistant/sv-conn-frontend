@@ -1,13 +1,14 @@
 /**
  * Which tabs each role sees (SVC-273).
  *
- * Profile moved out of the provider bar and onto the Home header avatar. The
- * bar itself stays — an earlier draft of this ticket removed it entirely, and
- * these tests exist partly so that reversal cannot happen by accident.
+ * Both roles moved Profile out of the bar and onto a header avatar. The bars
+ * themselves stay — an earlier draft of this ticket removed the provider one
+ * entirely, and these tests exist partly so that reversal cannot happen by
+ * accident.
  *
- * The load-bearing part is the asymmetry: the provider set loses Profile, the
- * consumer set keeps it. A consumer's Profile holds their addresses, reached
- * mid-booking; a provider's is a settings screen they visit rarely.
+ * The exact-array assertions are deliberate: removing one entry must not
+ * quietly take its neighbours with it, and a set that silently grows a tab is
+ * as wrong as one that loses the right one.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -95,14 +96,25 @@ describe("a provider", () => {
 });
 
 describe("a consumer", () => {
-  it("keeps all five tabs, Profile included", () => {
-    // Deliberately asymmetric with the provider set: addresses live behind
-    // Profile and are reached mid-booking, so it earns its place here.
+  it("gets four tabs, without Profile", () => {
+    // Same move as the provider set: Profile is reached from the avatar in the
+    // LocationBar now. Leaving the tab in place would put two entry points to
+    // one screen on the same view.
     at("/", "consumer");
 
     render(<BottomNav />);
 
-    expect(labels()).toEqual(["Home", "Bookings", "Cart", "Activity", "Profile"]);
+    expect(labels()).toEqual(["Home", "Bookings", "Cart", "Activity"]);
+  });
+
+  it("keeps Cart, which is not going anywhere", () => {
+    // Guards against the Profile removal being over-applied — Cart sits next
+    // to it and carries the item-count badge.
+    at("/", "consumer");
+
+    render(<BottomNav />);
+
+    expect(screen.getByText("Cart")).toBeInTheDocument();
   });
 
   it("still loses the nav on full-screen routes", () => {

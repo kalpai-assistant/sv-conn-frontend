@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { BackButton } from "@/components/BackButton";
 import { useAuth } from "@/lib/auth-context";
 import {
   AlertCircle,
@@ -115,9 +116,20 @@ function ProfilePage() {
   return (
     <div className="min-h-screen pb-20">
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-card px-4">
-        <h1 className="text-lg font-semibold text-foreground">
-          {isSetupMode ? "Setup Profile" : "Profile"}
-        </h1>
+        <div className="flex min-w-0 items-center gap-3">
+          {/* SVC-273: Profile left the tab bar for the Home avatar, so it needs
+              its own way back — reached from the avatar it is a normal push,
+              unlike a tab.
+
+              Not in setup mode. A new user is sent here by the root guard until
+              they have a name, so an arrow there would offer an escape from
+              something they cannot actually skip: they would land on Home and
+              be redirected straight back. */}
+          {!isSetupMode && <BackButton fallbackTo="/" />}
+          <h1 className="truncate text-lg font-semibold text-foreground">
+            {isSetupMode ? "Setup Profile" : "Profile"}
+          </h1>
+        </div>
         {!isSetupMode && !isEditing && (
           <button
             onClick={() => setIsEditing(true)}

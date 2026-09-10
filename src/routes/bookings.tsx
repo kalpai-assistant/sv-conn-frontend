@@ -7,6 +7,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { BookingCardSkeleton } from "@/components/skeletons/BookingCardSkeleton";
 import { useBookings } from "@/hooks/useApi";
+import { AccountAvatar } from "@/components/AccountAvatar";
+import { useAuth } from "@/lib/auth-context";
 import { CalendarClock, History } from "lucide-react";
 
 export const Route = createFileRoute("/bookings")({
@@ -43,6 +45,8 @@ function statusColor(status: string) {
 function BookingsPage() {
   const [tab, setTab] = useState<"active" | "past">("active");
   const { data: allBookings, isLoading, isError, refetch } = useBookings();
+  // Only for the header avatar's initials.
+  const { user } = useAuth();
 
   const bookings: Booking[] = allBookings || [];
   const active = bookings.filter((b) => activeStatuses.includes(b.status as BookingStatus));
@@ -55,7 +59,14 @@ function BookingsPage() {
     <div className="min-h-screen pb-20">
       <PullToRefreshIndicator pull={pull} refreshing={refreshing} armed={armed} />
       <div className="sticky top-0 z-30 border-b border-border bg-card px-4 pt-4">
-        <h1 className="text-lg font-semibold text-foreground mb-3">My Bookings</h1>
+        {/* SVC-273: Profile moved to the account avatar, so it rides along on
+            every tab header — otherwise reaching it from here means going back
+            to Home first, which the Profile tab never required. On the title
+            row rather than beside the toggle below, which is content. */}
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h1 className="text-lg font-semibold text-foreground">My Bookings</h1>
+          <AccountAvatar to="/profile" name={user?.name} />
+        </div>
         <div className="flex gap-1 bg-secondary rounded-lg p-1">
           {(["active", "past"] as const).map((t) => (
             <button

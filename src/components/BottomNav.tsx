@@ -7,24 +7,19 @@ import { isBottomNavHidden } from "@/lib/nav-visibility";
 // Two tab sets — the app is single-APK, role-gated (SVC-41). Selected in the
 // render based on user.role. Cart is a consumer tab only; providers have no
 // cart.
+//
+// Neither set carries Profile any more (SVC-273). It moved to the account
+// avatar in each role's header — the Blinkit / Zepto pattern, where the bar
+// holds the destinations people move between and the account sits apart in
+// the corner. It was the least-visited entry in both sets while occupying a
+// full slot of the most valuable area on the screen.
 const consumerTabs = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/bookings", icon: CalendarDays, label: "Bookings" },
   { to: "/cart", icon: ShoppingCart, label: "Cart" },
   { to: "/activity", icon: Clock, label: "Activity" },
-  { to: "/profile", icon: User, label: "Profile" },
 ] as const;
 
-// Three, not four: Profile moved to the Home header avatar in SVC-273.
-//
-// It was the least-visited of the four and held a quarter of the most
-// valuable area on the screen — the same reasoning Blinkit and Zepto follow,
-// where the account entry point sits in the top corner and the bar carries
-// only the destinations people move between.
-//
-// The consumer set keeps its Profile tab on purpose: a consumer's Profile
-// holds addresses, which are reached mid-booking, so it is genuinely a
-// frequent destination there.
 const providerTabs = [
   { to: "/provider", icon: Home, label: "Home" },
   { to: "/provider/bookings", icon: CalendarDays, label: "Jobs" },
