@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, ChevronRight, MapPin } from "lucide-react";
-import { BackButton } from "@/components/BackButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBookings } from "@/hooks/useApi";
 import type { Booking, BookingStatus } from "@/lib/mock-data";
@@ -38,13 +37,12 @@ function ProviderBookingsPage() {
   );
 
   return (
-    <div className="min-h-screen p-6">
-      {/* SVC-273 removed the tab bar, which was both the way back from here and
-          the reason for the old `pb-24`. Hence the arrow, and no bottom pad. */}
-      <div className="flex items-center gap-3">
-        <BackButton fallbackTo="/provider" />
-        <h1 className="text-lg font-semibold text-foreground">Your jobs</h1>
-      </div>
+    <div className="min-h-screen p-6 pb-24">
+      {/* No back arrow, deliberately: this is a tab destination. Tab links use
+          `replace` (SVC-230), so there is nothing to pop — an arrow here could
+          only navigate to Home, duplicating the Home tab already visible below
+          while looking like it undoes something. */}
+      <h1 className="text-lg font-semibold text-foreground">Your jobs</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Jobs you’ve accepted and haven’t finished yet.
       </p>
@@ -66,7 +64,8 @@ function ProviderBookingsPage() {
         <div className="mt-16 flex flex-col items-center text-center">
           <CalendarDays className="h-10 w-10 text-muted-foreground/50" />
           <p className="mt-3 text-sm font-medium text-foreground">No jobs right now</p>
-          {/* Said "from the home tab" until SVC-273 removed the tabs. */}
+          {/* "the home tab" until SVC-273 — the tab is still there, but naming
+              the screen rather than the control survives the next nav change. */}
           <p className="mt-1 text-sm text-muted-foreground">
             Go online from Home and accepted jobs will show up here.
           </p>

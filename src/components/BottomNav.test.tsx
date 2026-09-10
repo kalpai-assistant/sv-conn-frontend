@@ -1,11 +1,13 @@
 /**
- * Who sees the bottom nav (SVC-273).
+ * Which tabs each role sees (SVC-273).
  *
- * The provider tab bar was removed so Home could become the single entry
- * point. The load-bearing part is that it is gone *everywhere* for a provider,
- * not just on Home — a stray tab bar on Jobs would offer routes the redesign
- * deliberately took away, and would sit on top of content that no longer
- * reserves space for it.
+ * Profile moved out of the provider bar and onto the Home header avatar. The
+ * bar itself stays — an earlier draft of this ticket removed it entirely, and
+ * these tests exist partly so that reversal cannot happen by accident.
+ *
+ * The load-bearing part is the asymmetry: the provider set loses Profile, the
+ * consumer set keeps it. A consumer's Profile holds their addresses, reached
+ * mid-booking; a provider's is a settings screen they visit rarely.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -17,8 +19,20 @@ vi.mock("@/lib/auth-context", () => ({ useAuth: () => useAuth() }));
 vi.mock("@/lib/cart-context", () => ({ useCart: () => ({ totalQuantity: 0 }) }));
 vi.mock("@tanstack/react-router", () => ({
   useLocation: () => useLocation(),
-  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
-    <a href={to}>{children}</a>
+  // Passes className through: the active-tab assertion below reads it, and a
+  // mock that swallowed it would make that test unfalsifiable.
+  Link: ({
+    children,
+    to,
+    className,
+  }: {
+    children: React.ReactNode;
+    to: string;
+    className?: string;
+  }) => (
+    <a href={to} className={className}>
+      {children}
+    </a>
   ),
 }));
 
@@ -29,32 +43,49 @@ function at(pathname: string, role: "consumer" | "provider" | null) {
   useAuth.mockReturnValue({ user: role ? { role } : null });
 }
 
+/** Tab labels currently rendered, in order. */
+function labels() {
+  return screen.getAllByRole("link").map((a) => a.textContent?.trim());
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
 describe("a provider", () => {
-  it("gets no nav on Home", () => {
+  it("gets three tabs, without Profile", () => {
     at("/provider", "provider");
 
-    const { container } = render(<BottomNav />);
+    render(<BottomNav />);
 
-    expect(container).toBeEmptyDOMElement();
+    expect(labels()).toEqual(["Home", "Jobs", "Earnings"]);
   });
 
-  it("gets no nav on any other provider screen either", () => {
-    // The bar being gone from Home but present on Jobs would be worse than
-    // never removing it: the tabs it offers no longer exist as destinations.
-    for (const path of ["/provider/bookings", "/provider/earnings", "/provider/profile"]) {
+  it("reaches Profile from the header avatar, not the bar", () => {
+    // The whole point of the change. A Profile tab reappearing here would put
+    // the least-visited destination back into a quarter of the most valuable
+    // area on the screen.
+    at("/provider", "provider");
+
+    render(<BottomNav />);
+
+    expect(screen.queryByText("Profile")).not.toBeInTheDocument();
+  });
+
+  it("keeps its tabs on the other provider screens", () => {
+    // An earlier draft removed the bar entirely; this is what that reversal
+    // would look like if it crept back.
+    for (const path of ["/provider/bookings", "/provider/earnings"]) {
       at(path, "provider");
-      const { container } = render(<BottomNav />);
-      expect(container).toBeEmptyDOMElement();
+      const { unmount } = render(<BottomNav />);
+      expect(labels()).toEqual(["Home", "Jobs", "Earnings"]);
+      unmount();
     }
   });
 
   it("never shows consumer tabs, whatever the route", () => {
     // The role guard should keep a provider off consumer routes, but if one
-    // ever slips through, showing them a Cart tab is not the recovery.
+    // slips through, offering them a Cart is not the recovery.
     at("/", "provider");
 
     render(<BottomNav />);
@@ -64,16 +95,14 @@ describe("a provider", () => {
 });
 
 describe("a consumer", () => {
-  it("still gets all five tabs", () => {
-    // The other half of the change: removing the provider set must not touch
-    // the consumer one.
+  it("keeps all five tabs, Profile included", () => {
+    // Deliberately asymmetric with the provider set: addresses live behind
+    // Profile and are reached mid-booking, so it earns its place here.
     at("/", "consumer");
 
     render(<BottomNav />);
 
-    for (const label of ["Home", "Bookings", "Cart", "Activity", "Profile"]) {
-      expect(screen.getByText(label)).toBeInTheDocument();
-    }
+    expect(labels()).toEqual(["Home", "Bookings", "Cart", "Activity", "Profile"]);
   });
 
   it("still loses the nav on full-screen routes", () => {
@@ -82,5 +111,21 @@ describe("a consumer", () => {
     const { container } = render(<BottomNav />);
 
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("which tab is lit", () => {
+  it("keeps Jobs lit on a nested job screen, not Home", () => {
+    // "/provider" is a home root and matches exactly; everything else matches
+    // by prefix. Getting this wrong lights Home while the user is three
+    // screens deep in a job.
+    at("/provider/bookings/abc-123", "provider");
+
+    render(<BottomNav />);
+
+    const jobs = screen.getByText("Jobs").closest("a");
+    const home = screen.getByText("Home").closest("a");
+    expect(jobs?.className).toContain("text-primary");
+    expect(home?.className).not.toContain("text-primary");
   });
 });

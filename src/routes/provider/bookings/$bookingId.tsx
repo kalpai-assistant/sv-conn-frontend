@@ -32,7 +32,7 @@ function ProviderJobPage() {
   const { data: booking, isLoading, isError, error } = useBooking(bookingId);
 
   return (
-    <div className="min-h-screen p-6 pb-10">
+    <div className="min-h-screen p-6 pb-24">
       <Link
         to="/provider/bookings"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"

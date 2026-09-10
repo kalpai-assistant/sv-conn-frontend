@@ -128,7 +128,7 @@ function ProviderLocationPage() {
   };
 
   return (
-    <div className="min-h-screen pb-10">
+    <div className="min-h-screen pb-24">
       <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card px-4">
         <Link
           to="/provider/profile"

@@ -15,11 +15,13 @@ function ProviderProfilePage() {
   const { data: profile } = useProviderProfile();
 
   return (
-    <div className="min-h-screen p-6">
-      {/* SVC-273: the tab bar was the way back until it was removed, so every
-          provider screen below Home needs its own arrow. BackButton follows
-          history and agrees with the hardware button — see SVC-278 for why
-          two back affordances must not disagree. */}
+    <div className="min-h-screen p-6 pb-24">
+      {/* The one provider screen that gains an arrow in SVC-273, because it is
+          the one that stops being a tab. Reached from the Home header avatar,
+          which is a normal push — so unlike Jobs and Earnings there is real
+          history to pop, and BackButton returns the provider to wherever they
+          actually came from. It also agrees with the hardware button, which is
+          the whole point of SVC-278. */}
       <div className="flex items-center gap-3">
         <BackButton fallbackTo="/provider" />
         <h1 className="text-lg font-semibold text-foreground">Provider Profile</h1>

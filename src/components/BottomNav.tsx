@@ -1,26 +1,34 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Home, CalendarDays, Clock, User, ShoppingCart } from "lucide-react";
+import { Home, CalendarDays, Clock, User, IndianRupee, ShoppingCart } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 import { isBottomNavHidden } from "@/lib/nav-visibility";
 
-// Consumer-only, since SVC-273. The provider app used to carry a matching
-// four-tab set (home / jobs / earnings / profile); it was removed because
-// provider Home became the single entry point — jobs and earnings are
-// sections on it, and Profile is reached from the header avatar.
-//
-// Consumers keep tabs: they browse laterally across five destinations with no
-// natural hierarchy between them. A provider's screens are the opposite —
-// Home is the job, and everything else is somewhere you go and come back
-// from. Tabs would be four ways to leave one screen.
-//
-// Cart is a consumer tab only — providers never had one.
+// Two tab sets — the app is single-APK, role-gated (SVC-41). Selected in the
+// render based on user.role. Cart is a consumer tab only; providers have no
+// cart.
 const consumerTabs = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/bookings", icon: CalendarDays, label: "Bookings" },
   { to: "/cart", icon: ShoppingCart, label: "Cart" },
   { to: "/activity", icon: Clock, label: "Activity" },
   { to: "/profile", icon: User, label: "Profile" },
+] as const;
+
+// Three, not four: Profile moved to the Home header avatar in SVC-273.
+//
+// It was the least-visited of the four and held a quarter of the most
+// valuable area on the screen — the same reasoning Blinkit and Zepto follow,
+// where the account entry point sits in the top corner and the bar carries
+// only the destinations people move between.
+//
+// The consumer set keeps its Profile tab on purpose: a consumer's Profile
+// holds addresses, which are reached mid-booking, so it is genuinely a
+// frequent destination there.
+const providerTabs = [
+  { to: "/provider", icon: Home, label: "Home" },
+  { to: "/provider/bookings", icon: CalendarDays, label: "Jobs" },
+  { to: "/provider/earnings", icon: IndianRupee, label: "Earnings" },
 ] as const;
 
 export function BottomNav() {
@@ -36,23 +44,18 @@ export function BottomNav() {
     return null;
   }
 
-  // SVC-273: providers have no bottom nav at all. Checked on the role rather
-  // than the pathname because the role is what decides — a provider is never
-  // meant to see consumer tabs, and the role guard in __root.tsx already keeps
-  // them off consumer routes.
-  if (user?.role === "provider") {
-    return null;
-  }
+  const tabs = user?.role === "provider" ? providerTabs : consumerTabs;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card safe-bottom">
       <div className="mx-auto flex h-16 max-w-md items-center justify-around">
-        {consumerTabs.map(({ to, icon: Icon, label }) => {
-          // Home matches exactly; every other tab matches by prefix, so a
-          // nested path like /bookings/xyz keeps its own tab lit rather than
-          // Home. (This also tested `/provider` until SVC-273 removed the
-          // provider tabs — there is no second root left to special-case.)
-          const active = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
+        {tabs.map(({ to, icon: Icon, label }) => {
+          // "/" and "/provider" are both home-tab roots — match them
+          // exactly so nested paths don't keep the Home tab lit while
+          // the user is on e.g. /provider/bookings/xyz. Non-home tabs
+          // match by prefix.
+          const isHome = to === "/" || to === "/provider";
+          const active = isHome ? location.pathname === to : location.pathname.startsWith(to);
           const cartCount = to === "/cart" ? totalQuantity : 0;
           return (
             <Link
