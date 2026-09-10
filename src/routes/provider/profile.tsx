@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, MapPin, WalletCards } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
 import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationsRow } from "@/components/NotificationsRow";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
@@ -15,7 +16,14 @@ function ProviderProfilePage() {
 
   return (
     <div className="min-h-screen p-6">
-      <h1 className="text-lg font-semibold text-foreground">Provider Profile</h1>
+      {/* SVC-273: the tab bar was the way back until it was removed, so every
+          provider screen below Home needs its own arrow. BackButton follows
+          history and agrees with the hardware button — see SVC-278 for why
+          two back affordances must not disagree. */}
+      <div className="flex items-center gap-3">
+        <BackButton fallbackTo="/provider" />
+        <h1 className="text-lg font-semibold text-foreground">Provider Profile</h1>
+      </div>
 
       {/* Payout method summary → the SVC-148 edit screen. Shows the active method's
           label inline so the common case (checking where the money goes) needs no tap. */}

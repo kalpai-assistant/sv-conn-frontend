@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, ChevronRight, MapPin } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBookings } from "@/hooks/useApi";
 import type { Booking, BookingStatus } from "@/lib/mock-data";
@@ -37,8 +38,13 @@ function ProviderBookingsPage() {
   );
 
   return (
-    <div className="min-h-screen p-6 pb-24">
-      <h1 className="text-lg font-semibold text-foreground">Your jobs</h1>
+    <div className="min-h-screen p-6">
+      {/* SVC-273 removed the tab bar, which was both the way back from here and
+          the reason for the old `pb-24`. Hence the arrow, and no bottom pad. */}
+      <div className="flex items-center gap-3">
+        <BackButton fallbackTo="/provider" />
+        <h1 className="text-lg font-semibold text-foreground">Your jobs</h1>
+      </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Jobs you’ve accepted and haven’t finished yet.
       </p>
@@ -60,8 +66,9 @@ function ProviderBookingsPage() {
         <div className="mt-16 flex flex-col items-center text-center">
           <CalendarDays className="h-10 w-10 text-muted-foreground/50" />
           <p className="mt-3 text-sm font-medium text-foreground">No jobs right now</p>
+          {/* Said "from the home tab" until SVC-273 removed the tabs. */}
           <p className="mt-1 text-sm text-muted-foreground">
-            Go online from the home tab and accepted jobs will show up here.
+            Go online from Home and accepted jobs will show up here.
           </p>
         </div>
       )}
