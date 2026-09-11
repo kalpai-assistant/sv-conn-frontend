@@ -18,10 +18,12 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const requestLocation = vi.fn();
+const enableDeviceLocation = vi.fn();
 const peekLocationPermission = vi.fn();
 
 vi.mock("@/lib/geolocation", () => ({
   requestLocation: (...a: unknown[]) => requestLocation(...a),
+  enableDeviceLocation: (...a: unknown[]) => enableDeviceLocation(...a),
   peekLocationPermission: () => peekLocationPermission(),
 }));
 
@@ -45,6 +47,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   peekLocationPermission.mockResolvedValue("prompt");
   requestLocation.mockResolvedValue({ ok: false, failure: "unavailable", coords: null });
+  enableDeviceLocation.mockResolvedValue({ ok: false, failure: "location-disabled", coords: null });
 });
 
 describe("naming the actual problem", () => {
@@ -83,7 +86,10 @@ describe("naming the actual problem", () => {
 
 describe("the Enable button", () => {
   it("prompts only when tapped", async () => {
-    const p = props();
+    // permission-prompt, not the default device-off: this is about the app
+    // permission dialog, which requestLocation raises. device-off takes the
+    // other branch entirely (see the enable-location test below).
+    const p = props({ reason: "permission-prompt" });
     render(<LocationGate {...p} />);
     await screen.findByRole("button", { name: /enable/i });
 
@@ -103,6 +109,62 @@ describe("the Enable button", () => {
     await vi.waitFor(() => expect(p.onUseCurrent).toHaveBeenCalledWith(18.5204, 73.8567));
   });
 
+  it("offers to turn location on when that is what is off", async () => {
+    // SVC-283. With the OS toggle off, `requestLocation` is useless: the plugin
+    // refuses every one of its calls with LOCATION_DISABLED, which is why
+    // Enable used to dead-end at "couldn't get your location".
+    // `enableDeviceLocation` reaches Play Services' settings check instead and
+    // raises the "Turn on" dialog. Taking the wrong branch here silently
+    // restores the dead end.
+    const p = props({ reason: "device-off" });
+    enableDeviceLocation.mockResolvedValue({
+      ok: true,
+      failure: null,
+      coords: { lat: 18.5204, lng: 73.8567 },
+    });
+    render(<LocationGate {...p} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /enable/i }));
+
+    expect(enableDeviceLocation).toHaveBeenCalled();
+    expect(requestLocation).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(p.onUseCurrent).toHaveBeenCalledWith(18.5204, 73.8567));
+  });
+
+  it("asks again when the GPS has not caught up yet", async () => {
+    // Found on device: "Turn on" flipped the toggle, and the very next read
+    // timed out because the GPS had not acquired — so the gate stayed up over
+    // a phone whose location now worked. Turning location on is not the same
+    // as having a position.
+    const p = props({ reason: "device-off" });
+    enableDeviceLocation.mockResolvedValue({ ok: false, failure: "timeout", coords: null });
+    requestLocation.mockResolvedValue({
+      ok: true,
+      failure: null,
+      coords: { lat: 18.5204, lng: 73.8567 },
+    });
+    render(<LocationGate {...p} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /enable/i }));
+
+    await vi.waitFor(() => expect(p.onUseCurrent).toHaveBeenCalledWith(18.5204, 73.8567));
+  });
+
+  it("stays usable when the user declines turning location on", async () => {
+    // Declining is not a denial of the app's permission, so Enable must remain
+    // tappable — raising the dialog again is exactly what should work.
+    enableDeviceLocation.mockResolvedValue({
+      ok: false,
+      failure: "location-disabled",
+      coords: null,
+    });
+    render(<LocationGate {...props({ reason: "device-off" })} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /enable/i }));
+
+    await vi.waitFor(() => expect(screen.getByRole("button", { name: /enable/i })).toBeEnabled());
+  });
+
   it("is disabled when permission is denied, rather than doing nothing", async () => {
     // Android will not ask twice. An enabled button here is a button that
     // silently fails, and it gets tapped repeatedly.
@@ -114,7 +176,7 @@ describe("the Enable button", () => {
 
   it("explains where to fix a denial rather than looping", async () => {
     requestLocation.mockResolvedValue({ ok: false, failure: "permission-denied", coords: null });
-    render(<LocationGate {...props()} />);
+    render(<LocationGate {...props({ reason: "permission-prompt" })} />);
 
     await userEvent.click(await screen.findByRole("button", { name: /enable/i }));
 
