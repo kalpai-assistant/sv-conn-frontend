@@ -240,8 +240,8 @@ export function NotificationsRow() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep them on</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void turnOff()}>Turn off</AlertDialogAction>
+            <AlertDialogCancel onClick={() => void turnOff()}>Turn off</AlertDialogCancel>
+            <AlertDialogAction>Keep them on</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

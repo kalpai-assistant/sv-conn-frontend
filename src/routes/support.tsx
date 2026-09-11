@@ -64,8 +64,8 @@ function SupportPage() {
       {/* Booking id is the first thing support asks for, so say it here rather
           than in a reply two hours later. */}
       <p className="mt-6 text-xs text-muted-foreground">
-        If it&apos;s about a specific booking, please include the booking ID — you&apos;ll find it
-        on the booking&apos;s tracking screen.
+        If it&apos;s about a specific booking, please include the booking ID, you&apos;ll find it on
+        the booking&apos;s tracking screen.
       </p>
     </div>
   );
