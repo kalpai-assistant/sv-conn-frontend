@@ -45,6 +45,17 @@ export const Route = createFileRoute("/profile")({
   component: ProfilePage,
 });
 
+/**
+ * First letter only.
+ *
+ * The CSS `capitalize` class cannot be used for this string: it capitalises
+ * every word, turning "2 saved · home in use" into "2 Saved · Home In Use".
+ * Only the label is a proper noun here.
+ */
+function capitalise(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
 function ProfilePage() {
   const { user, login, updateUser } = useAuth();
   const {
@@ -241,7 +252,7 @@ function ProfilePage() {
               <MapPin className="h-5 w-5 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">Saved Addresses</p>
-                <p className="truncate text-xs capitalize text-muted-foreground">
+                <p className="truncate text-xs text-muted-foreground">
                   {isAddressesLoading
                     ? "Loading…"
                     : isAddressesError
@@ -249,7 +260,7 @@ function ProfilePage() {
                       : addressCount === 0
                         ? "None yet — add one"
                         : selected
-                          ? `${addressCount} saved · ${selected.label} in use`
+                          ? `${addressCount} saved · ${capitalise(selected.label)} in use`
                           : `${addressCount} saved`}
                 </p>
               </div>
