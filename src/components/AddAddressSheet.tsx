@@ -3,8 +3,10 @@ import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { X, Loader2, Navigation } from "lucide-react";
 import { motion } from "framer-motion";
 import { MapPicker } from "./MapPicker";
+import { isGeocodeFailure, withoutPinCode } from "@/lib/geocode-result";
 import { useAddAddress, useUpdateAddress } from "@/hooks/useApi";
-import { useMapOpeningCentre } from "@/hooks/useMapOpeningCentre";
+import { useMapOpeningCentre, type MapOpeningCentre } from "@/hooks/useMapOpeningCentre";
+import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 
 /** The address being edited, when the sheet is opened from Edit (SVC-277). */
 export interface EditingAddress {
@@ -16,9 +18,20 @@ export interface EditingAddress {
 export function AddAddressSheet({
   onClose,
   editing,
+  initialCentre,
 }: {
   onClose: () => void;
   editing?: EditingAddress;
+  /**
+   * Open the map here rather than resolving a centre (SVC-283).
+   *
+   * Passed by the location gate after "Use my current location" has actually
+   * acquired a fix. That fix is better than anything `useMapOpeningCentre`
+   * could work out — it is a live position the user just asked for, not an
+   * inference from a saved address — and letting the hook run anyway would
+   * race it and could open the map somewhere else entirely.
+   */
+  initialCentre?: [number, number] | null;
 }) {
   // Sheets are mounted only while open, so locking on mount is the same as
   // locking on open. Without this the page scrolls behind the backdrop.
@@ -37,10 +50,18 @@ export function AddAddressSheet({
   );
   const { mutateAsync: addAddress, isPending: isAdding } = useAddAddress();
   const { mutateAsync: updateAddress, isPending: isUpdating } = useUpdateAddress();
+  // A new address becomes the selected one — see handleSave.
+  const { setSelectedId } = useSelectedAddress();
   const isPending = isAdding || isUpdating;
   const [errorMsg, setErrorMsg] = useState("");
   // Where the map should open. Null until resolved — see useMapOpeningCentre.
-  const opening = useMapOpeningCentre();
+  const resolved = useMapOpeningCentre();
+  // A caller-supplied centre wins outright: it is a position the user just
+  // asked for and waited on, so there is nothing to resolve and no honest
+  // reason to show the "this map is a guess" banner over it.
+  const opening: MapOpeningCentre = initialCentre
+    ? { centre: initialCentre, source: "position", fallbackLabel: resolved.fallbackLabel }
+    : resolved;
   const [locating, setLocating] = useState(false);
   // Set once the user asks for their position, so the map recentres on it.
   const [override, setOverride] = useState<[number, number] | null>(null);
@@ -75,12 +96,34 @@ export function AddAddressSheet({
   const handleLocationSelected = (l: number, g: number, addr: string) => {
     setLat(l);
     setLng(g);
-    setAddressLine(addr);
+    // A failed geocode is not an address (SVC-283). MapPicker reports one as
+    // "Unknown Location" or "Could not fetch address", and both are long
+    // enough to satisfy the backend's min_length — so without this they get
+    // saved verbatim and the user ends up with an address book entry called
+    // "Could not fetch address".
+    //
+    // Same class of bug as the coordinate strings this ticket removes: text
+    // that describes our failure, stored as though it described a place.
+    // Blanking it leaves the field empty with its placeholder showing, which
+    // is what the form is for.
+    //
+    // The PIN code goes too, because OSM's is wrong for Kharadi (411001 for
+    // what is really 411014) and no zoom level fixes it — see withoutPinCode.
+    setAddressLine(isGeocodeFailure(addr) ? "" : withoutPinCode(addr));
   };
 
   const handleSave = async () => {
     try {
       setErrorMsg("");
+      // The address line can legitimately be empty now (SVC-283): a failed
+      // geocode no longer pre-fills it with "Could not fetch address", so the
+      // user has to write it. Caught here because the backend's min_length=5
+      // would otherwise answer with a bare 422 that this sheet renders as
+      // "Failed to save address" — true, but not something anyone can act on.
+      if (addressLine.trim().length < 5) {
+        setErrorMsg("Add the building and street so the provider can find you.");
+        return;
+      }
       if (editing) {
         // Coordinates are omitted unless the user actually re-pinned: sending
         // the initial 0,0 would move the address to the Gulf of Guinea. The
@@ -93,7 +136,25 @@ export function AddAddressSheet({
           ...(moved ? { lat, lng } : {}),
         });
       } else {
-        await addAddress({ label: label.toLowerCase(), full_address: addressLine, lat, lng });
+        const created = await addAddress({
+          label: label.toLowerCase(),
+          full_address: addressLine,
+          lat,
+          lng,
+        });
+        // Saving an address is choosing it (SVC-283).
+        //
+        // The sheet used to save and close, leaving the selection pointing
+        // wherever it already pointed — so someone who added an address in
+        // Kharadi went back to a header still reading Karve Nagar, and the
+        // next booking would have gone to the old address. Invisible on the
+        // profile screen, where adding an address is genuinely just adding one;
+        // glaring from the location gate, where the user has just answered
+        // "where are you?" and watched the answer be ignored.
+        //
+        // Selection is stored by id (see useSelectedAddress), which is why
+        // this needs the created row rather than a refetch.
+        if (created?.id) setSelectedId(created.id);
       }
       onClose();
     } catch (err) {
