@@ -15,6 +15,8 @@ import { InstallSheet } from "@/components/InstallSheet";
 import { ApiError } from "@/lib/api";
 import { enablePushNotifications, getPushPermission, type PushPermission } from "@/lib/fcm";
 import { useInstallState } from "@/lib/install";
+import { ProviderHeader } from "@/components/provider/ProviderHeader";
+import { useAuth } from "@/lib/auth-context";
 import { useProviderProfile, useProviderServices, useSetOnlineStatus } from "@/hooks/useApi";
 import type { KycStatus } from "@/hooks/useApi";
 
@@ -65,6 +67,9 @@ function kycRow(status: KycStatus | undefined): Readiness {
 
 function ProviderHomePage() {
   const navigate = useNavigate();
+  // Name lives on the user, not the provider profile — it is PATCHed to
+  // /users/me during onboarding. Only used for the header's initials.
+  const { user } = useAuth();
   const { state: installState, promptInstall } = useInstallState();
   const [showInstall, setShowInstall] = useState(false);
   const [pushPermission, setPushPermission] = useState<PushPermission | null>(null);
@@ -161,16 +166,27 @@ function ProviderHomePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-6">
-        <h1 className="text-lg font-semibold text-foreground">Provider Home</h1>
+      <div className="min-h-screen p-6 pb-24">
+        {/* Header renders here too, so the avatar does not pop in once the
+            profile lands — and Profile stays reachable while it loads, since
+            this is now its only entry point. The photo is simply absent
+            until then; the initials come from the user, which is already
+            restored by this point. */}
+        <ProviderHeader title="Provider Home" name={user?.name} />
         <p className="mt-4 text-sm text-muted-foreground">Loading…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-6">
-      <h1 className="text-lg font-semibold text-foreground">Provider Home</h1>
+    <div className="min-h-screen p-6 pb-24">
+      {/* SVC-273: the avatar here is the only way into Provider Profile now
+          that it has left the tab bar. */}
+      <ProviderHeader
+        title="Provider Home"
+        name={user?.name}
+        photoUrl={profile?.profile_photo_url}
+      />
 
       {/* The toggle. Disabled below "verified" because the broadcast filters on KYC
           too — an enabled switch would promise something the backend won't honour. */}

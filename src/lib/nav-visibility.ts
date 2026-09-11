@@ -36,6 +36,23 @@ export function isBottomNavHidden(pathname: string): boolean {
 }
 
 /**
+ * Is this a provider screen?
+ *
+ * Lives here with the other "what shape is this route" questions rather than
+ * being re-derived at each call site. Used to decide which home a user belongs
+ * to — the two roles have different roots, and sending a provider to "/" means
+ * a visible bounce through the consumer app before the role guard corrects it.
+ *
+ * Deliberately a pathname test and not a role test: the hardware back handler
+ * in `main.mobile.tsx` runs outside React and has no access to auth context.
+ * The pathname is the honest signal there — someone standing on /provider/*
+ * is a provider, because the role guard would have moved them otherwise.
+ */
+export function isProviderRoute(pathname: string): boolean {
+  return pathname === "/provider" || pathname.startsWith("/provider/");
+}
+
+/**
  * Where the floating cart bar shows.
  *
  * It exists to carry the cart signal where the nav's Cart tab cannot. Service

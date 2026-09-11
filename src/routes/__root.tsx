@@ -152,16 +152,27 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // Admin routes (SVC-90 KYC review) require the admin role. Non-admins on
   // /admin/* get bounced home; admins are free to visit any route.
   if (isAdminRoute && role !== "admin") {
-    return <Navigate to="/" />;
+    return <Navigate to="/" replace />;
   }
 
   // Role-based landing (SVC-41). Providers live under /provider/*; consumers
   // live everywhere else. Bouncing here means push-tap navigation from
   // notifications lands cleanly on the right surface even if the URL was
   // constructed for the wrong role.
+  //
+  // Every redirect in this guard is `replace` (SVC-273). These are corrections,
+  // not navigation: the route the user was on was wrong for who they are, so it
+  // must not become somewhere "back" can return to.
+  //
+  // Found on device: without it, a provider launching the app went "/" →
+  // /provider and that left a history entry. `history.length` was 2 on a clean
+  // launch, so back popped the entry, this guard immediately redirected again,
+  // and the provider stayed put — the double-tap-to-exit branch in
+  // main.mobile.tsx was unreachable, and the app could not be exited with the
+  // back button at all.
   if (role === "provider") {
     if (!isProviderRoute) {
-      return <Navigate to="/provider" />;
+      return <Navigate to="/provider" replace />;
     }
     // Force incomplete providers through onboarding — name missing OR KYC
     // still pending (not submitted). Once KYC is submitted/verified/rejected
@@ -179,7 +190,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
       }
       const incomplete = !user?.name || providerProfile?.kyc_status === "pending";
       if (incomplete) {
-        return <Navigate to="/provider/onboarding" />;
+        return <Navigate to="/provider/onboarding" replace />;
       }
 
       // SVC-281: ask about the service area only when something is actually
@@ -219,10 +230,10 @@ function AppGate({ children }: { children: React.ReactNode }) {
     // Consumer path — bounce them out of /provider/*, force through profile
     // setup for fresh registrations (name missing).
     if (isProviderRoute) {
-      return <Navigate to="/" />;
+      return <Navigate to="/" replace />;
     }
     if (user && (isNewUser || !user.name) && !isProfileRoute) {
-      return <Navigate to="/profile" />;
+      return <Navigate to="/profile" replace />;
     }
 
     // SVC-281: ask for a location only when we cannot determine one.

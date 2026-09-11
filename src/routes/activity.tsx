@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useBookings } from "@/hooks/useApi";
+import { AccountAvatar } from "@/components/AccountAvatar";
+import { useAuth } from "@/lib/auth-context";
 import { Activity } from "lucide-react";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
@@ -19,6 +21,8 @@ export const Route = createFileRoute("/activity")({
 
 function ActivityPage() {
   const { data: bookings, isLoading, isError, refetch } = useBookings();
+  // Only for the header avatar's initials.
+  const { user } = useAuth();
 
   const sorted = [...(bookings || [])].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -29,8 +33,14 @@ function ActivityPage() {
   return (
     <div className="min-h-screen pb-20">
       <PullToRefreshIndicator pull={pull} refreshing={refreshing} armed={armed} />
-      <div className="sticky top-0 z-30 flex h-14 items-center border-b border-border bg-card px-4">
+      {/* SVC-273: Profile left the tab bar for the account avatar, which lives
+          in Home's LocationBar. Repeating it here keeps Profile one tap from
+          every tab, as the tab itself was — otherwise reaching it from a tab
+          screen means going back to Home first, which is a regression in
+          reach rather than a relocation. */}
+      <div className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-card px-4">
         <h1 className="text-lg font-semibold text-foreground">Activity</h1>
+        <AccountAvatar to="/profile" name={user?.name} />
       </div>
 
       <div className="px-4 pt-4 flex flex-col gap-3">

@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, ChevronRight, MapPin } from "lucide-react";
+import { AccountAvatar } from "@/components/AccountAvatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/lib/auth-context";
 import { useBookings } from "@/hooks/useApi";
 import type { Booking, BookingStatus } from "@/lib/mock-data";
 
@@ -31,6 +33,8 @@ const statusLabel: Partial<Record<BookingStatus, string>> = {
 // which is where the en-route / OTP / complete transitions actually happen.
 function ProviderBookingsPage() {
   const { data, isLoading, isError, error } = useBookings();
+  // Only for the header avatar’s initials.
+  const { user } = useAuth();
 
   const jobs: Booking[] = (data ?? []).filter((b: Booking) =>
     activeStatuses.includes(b.status as BookingStatus),
@@ -38,7 +42,18 @@ function ProviderBookingsPage() {
 
   return (
     <div className="min-h-screen p-6 pb-24">
-      <h1 className="text-lg font-semibold text-foreground">Your jobs</h1>
+      {/* No back arrow, deliberately: this is a tab destination. Tab links use
+          `replace` (SVC-230), so there is nothing to pop — an arrow here could
+          only navigate to Home, duplicating the Home tab already visible below
+          while looking like it undoes something.
+
+          The avatar is the opposite case: Profile left the tab bar, so without
+          it here Profile would be reachable only from Home — a regression in
+          reach rather than a relocation. */}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold text-foreground">Your jobs</h1>
+        <AccountAvatar to="/provider/profile" name={user?.name} />
+      </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Jobs you’ve accepted and haven’t finished yet.
       </p>
@@ -60,8 +75,10 @@ function ProviderBookingsPage() {
         <div className="mt-16 flex flex-col items-center text-center">
           <CalendarDays className="h-10 w-10 text-muted-foreground/50" />
           <p className="mt-3 text-sm font-medium text-foreground">No jobs right now</p>
+          {/* "the home tab" until SVC-273 — the tab is still there, but naming
+              the screen rather than the control survives the next nav change. */}
           <p className="mt-1 text-sm text-muted-foreground">
-            Go online from the home tab and accepted jobs will show up here.
+            Go online from Home and accepted jobs will show up here.
           </p>
         </div>
       )}

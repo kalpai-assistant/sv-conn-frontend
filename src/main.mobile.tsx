@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { getRouter } from "./router";
 import { initSentry } from "./lib/sentry";
 import { runBackInterceptors } from "./lib/back-interceptor";
+import { isProviderRoute } from "./lib/nav-visibility";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles.css";
 
@@ -69,8 +70,16 @@ async function initNative(router: ReturnType<typeof getRouter>) {
     // Nothing to pop. Anywhere but home, land on home rather than offering to
     // exit from a deep-linked page (/privacy, /tracking/…). `replace` so the
     // dead-end entry doesn't become somewhere back returns to.
-    if (router.state.location.pathname !== "/") {
-      router.navigate({ to: "/", replace: true });
+    //
+    // "Home" is role-dependent (SVC-273). A provider sent to "/" hits the role
+    // guard in __root.tsx and gets redirected to /provider — it arrives, but
+    // via a visible double navigation, and it means back momentarily shows a
+    // consumer screen to a provider. Since the provider app lost its tab bar,
+    // back is now the primary way off Jobs and Profile, so this path runs
+    // often enough to be worth getting right rather than leaning on the guard.
+    const home = isProviderRoute(router.state.location.pathname) ? "/provider" : "/";
+    if (router.state.location.pathname !== home) {
+      router.navigate({ to: home, replace: true });
       return;
     }
 

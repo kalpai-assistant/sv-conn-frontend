@@ -17,6 +17,8 @@ import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/EmptyState";
 import { useCart } from "@/lib/cart-context";
+import { AccountAvatar } from "@/components/AccountAvatar";
+import { useAuth } from "@/lib/auth-context";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import { useBookAndPay } from "@/hooks/useBookAndPay";
 import { AddressPickerSheet } from "@/components/AddressPickerSheet";
@@ -33,9 +35,36 @@ export const Route = createFileRoute("/cart")({
   component: CartPage,
 });
 
+/**
+ * Shared by both branches below — the cart proper and the empty state.
+ *
+ * Extracted rather than written twice: the empty branch used to return a bare
+ * EmptyState with no header at all, which left Profile unreachable from this
+ * tab once the Profile tab was removed (SVC-273). One header means the two
+ * cannot drift apart again.
+ */
+function CartHeader({ name }: { name?: string | null }) {
+  return (
+    <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card px-4">
+      <Link
+        to="/"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary"
+        aria-label="Back"
+      >
+        <ArrowLeft className="h-4 w-4 text-foreground" />
+      </Link>
+      <h1 className="flex-1 text-base font-semibold text-foreground">Cart</h1>
+      {/* Right-aligned by the flex-1 title, which keeps it clear of the arrow. */}
+      <AccountAvatar to="/profile" name={name} />
+    </div>
+  );
+}
+
 function CartPage() {
   const navigate = useNavigate();
   const { items, subtotal, updateQuantity, remove, clear } = useCart();
+  // Only for the header avatar's initials.
+  const { user } = useAuth();
   const { selected: selectedAddress } = useSelectedAddress();
   const { bookAndPay, isBusy } = useBookAndPay();
 
@@ -102,30 +131,27 @@ function CartPage() {
   };
 
   if (items.length === 0) {
+    // Keeps the header rather than early-returning a bare EmptyState. Found on
+    // device: without it an empty cart had no avatar and no back arrow, so
+    // Profile was unreachable from this tab and the only way out was another
+    // tab. `fullScreen` is dropped for the same reason — the empty state now
+    // sits under a header instead of owning the whole viewport.
     return (
-      <EmptyState
-        icon={ShoppingCart}
-        title="Your cart is empty"
-        subtitle="Browse services and add them to get started."
-        action={{ label: "Browse services", to: "/" }}
-        fullScreen
-      />
+      <div className="min-h-screen pb-20">
+        <CartHeader name={user?.name} />
+        <EmptyState
+          icon={ShoppingCart}
+          title="Your cart is empty"
+          subtitle="Browse services and add them to get started."
+          action={{ label: "Browse services", to: "/" }}
+        />
+      </div>
     );
   }
 
   return (
     <div className="min-h-screen pb-48">
-      {/* Header */}
-      <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card px-4">
-        <Link
-          to="/"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary"
-          aria-label="Back"
-        >
-          <ArrowLeft className="h-4 w-4 text-foreground" />
-        </Link>
-        <h1 className="text-base font-semibold text-foreground">Cart</h1>
-      </div>
+      <CartHeader name={user?.name} />
 
       {/* Address selector */}
       <button

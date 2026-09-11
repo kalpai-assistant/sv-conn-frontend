@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, MapPin, WalletCards } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
 import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationsRow } from "@/components/NotificationsRow";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
@@ -14,8 +15,17 @@ function ProviderProfilePage() {
   const { data: profile } = useProviderProfile();
 
   return (
-    <div className="min-h-screen p-6">
-      <h1 className="text-lg font-semibold text-foreground">Provider Profile</h1>
+    <div className="min-h-screen p-6 pb-24">
+      {/* The one provider screen that gains an arrow in SVC-273, because it is
+          the one that stops being a tab. Reached from the Home header avatar,
+          which is a normal push — so unlike Jobs and Earnings there is real
+          history to pop, and BackButton returns the provider to wherever they
+          actually came from. It also agrees with the hardware button, which is
+          the whole point of SVC-278. */}
+      <div className="flex items-center gap-3">
+        <BackButton fallbackTo="/provider" />
+        <h1 className="text-lg font-semibold text-foreground">Provider Profile</h1>
+      </div>
 
       {/* Payout method summary → the SVC-148 edit screen. Shows the active method's
           label inline so the common case (checking where the money goes) needs no tap. */}
