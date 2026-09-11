@@ -40,6 +40,7 @@
 import { useEffect, useState } from "react";
 import { Check, Loader2, MapPin, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { enableDeviceLocation, peekLocationPermission, requestLocation } from "@/lib/geolocation";
 import type { LocationBlockedReason } from "@/hooks/useLocationAvailability";
 
 /** One place the user can pick without granting anything. */
@@ -50,6 +51,23 @@ export interface SavedLocation {
   /** The address line under it, or a radius for a provider's service area. */
   full: string;
 }
+
+/**
+ * The user asked for this and is watching a spinner, so patience is expected —
+ * unlike the launch check, this wait is one they chose.
+ */
+const LOCATE_TIMEOUT_MS = 20_000;
+
+/**
+ * How many times to re-ask after a timeout.
+ *
+ * Only a timeout is retried, and only because a freshly-enabled GPS has not
+ * acquired yet — measured on device, two consecutive reads immediately after
+ * "Turn on" both timed out while the toggle was demonstrably on. The user is
+ * watching a spinner they asked for, so waiting is expected; being told we
+ * could not get their location when it plainly works is not.
+ */
+const LOCATE_RETRIES = 3;
 
 export interface LocationGateProps {
   /** Headline — role- and reason-specific. See `copyFor`. */
@@ -130,46 +148,65 @@ export function LocationGate({
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      try {
-        const status = await navigator.permissions?.query({
-          name: "geolocation" as PermissionName,
-        });
-        if (!cancelled && status) setPermission(status.state);
-      } catch {
-        // Absent or throwing Permissions API — treat as unknown and keep the
-        // button, which is the safe default: it may still work.
-      }
+      // The app's permission, not the WebView's. `navigator.permissions.query`
+      // reported "prompt" on a device where Android had granted location and a
+      // real call succeeded in 81ms — see lib/geolocation.ts.
+      const state = await peekLocationPermission();
+      if (!cancelled) setPermission(state as PermissionState);
     })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const useCurrent = () => {
-    if (!("geolocation" in navigator)) {
-      setError("Location isn't available on this device. Choose where you are instead.");
-      return;
-    }
+  // Not `useCurrent`: the `use` prefix makes eslint read it as a hook, and it
+  // is a plain event handler.
+  const locateMe = async () => {
     setError(null);
     setLocating(true);
-    // A real acquisition, unlike the launch probe: the user asked for this, so
-    // waiting is expected and the spinner below explains the wait. The probe in
-    // useLocationAvailability reads cache only for exactly the opposite reason.
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false);
-        onUseCurrent(pos.coords.latitude, pos.coords.longitude);
-      },
-      (err) => {
-        setLocating(false);
-        setPermission(err.code === 1 ? "denied" : permission);
-        setError(
-          err.code === 1
-            ? "Location is off for this app. Turn it on in settings, or choose where you are below."
-            : "Couldn't get your location. Choose where you are instead.",
-        );
-      },
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
+
+    // Two different asks, and which one is right depends on what is wrong.
+    //
+    // With the OS toggle off (SVC-283), `requestLocation` cannot help: the
+    // plugin refuses every one of its calls with LOCATION_DISABLED before
+    // anything can be offered, which is why Enable used to dead-end at
+    // "couldn't get your location". `enableDeviceLocation` reaches Play
+    // Services' settings check instead and raises the "Turn on" dialog.
+    //
+    // Everywhere else the ordinary request is correct, and it is the call that
+    // raises the app-permission dialog for someone who has never granted it.
+    let result =
+      reason === "device-off"
+        ? await enableDeviceLocation(LOCATE_TIMEOUT_MS)
+        : await requestLocation(LOCATE_TIMEOUT_MS);
+
+    // Turning location on does not mean a position exists yet. Found on
+    // device: "Turn on" flipped the toggle, then the next read timed out
+    // because the GPS had not acquired — and so did the one after it, leaving
+    // the gate up over a phone whose location now worked.
+    //
+    // A timeout is the one failure that is not an answer, so it is retried
+    // until the GPS catches up. Every other outcome is information and is
+    // taken first time.
+    for (let attempt = 0; result.failure === "timeout" && attempt < LOCATE_RETRIES; attempt++) {
+      result = await requestLocation(LOCATE_TIMEOUT_MS);
+    }
+
+    const { ok, failure, coords } = result;
+    setLocating(false);
+
+    if (ok && coords) {
+      onUseCurrent(coords.lat, coords.lng);
+      return;
+    }
+
+    if (failure === "permission-denied") setPermission("denied");
+    setError(
+      failure === "permission-denied"
+        ? "Location is off for this app. Turn it on in settings, or choose where you are below."
+        : failure === "location-disabled"
+          ? "Turn on Location in your phone's settings, or choose where you are below."
+          : "Couldn't get your location. Choose where you are instead.",
     );
   };
 
@@ -210,7 +247,7 @@ export function LocationGate({
                 {denied ? "Turn this on in Settings to use it" : "Most accurate"}
               </p>
             </div>
-            <Button size="sm" disabled={busy || denied} onClick={useCurrent}>
+            <Button size="sm" disabled={busy || denied} onClick={() => void locateMe()}>
               {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enable"}
             </Button>
           </div>

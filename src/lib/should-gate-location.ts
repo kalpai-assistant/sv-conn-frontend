@@ -39,9 +39,17 @@ export interface GateInputs {
 export type GateVerdict = "wait" | "gate" | "pass";
 
 /**
- * `wait` means render a spinner, not the gate. Deciding on a half-resolved
- * answer would flash the gate at users who never needed to see it — which is
- * the exact complaint this change exists to fix, reintroduced as a flicker.
+ * `wait` means "not yet" — hold off on the gate.
+ *
+ * What the caller shows meanwhile depends on which answer is missing. A
+ * fast one (does this user have a saved address?) is worth a spinner. The
+ * location probe is not: it can take seconds, because it is the call that
+ * raises the native permission dialog, so the app renders normally while it
+ * runs and the gate appears only if the answer comes back negative.
+ *
+ * Never render the gate on a half-resolved answer. Doing so flashes it at
+ * users who never needed to see it — the exact complaint this whole change
+ * exists to fix.
  */
 export function shouldGateLocation({
   confirmed,

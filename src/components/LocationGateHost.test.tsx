@@ -7,9 +7,16 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 const addresses = vi.fn();
 const addAddress = vi.fn();
+const requestLocation = vi.fn();
+
+vi.mock("@/lib/geolocation", () => ({
+  requestLocation: (...a: unknown[]) => requestLocation(...a),
+  peekLocationPermission: () => Promise.resolve("prompt"),
+}));
 const setSelectedId = vi.fn();
 
 vi.mock("@/hooks/useSelectedAddress", () => ({
@@ -33,10 +40,7 @@ const AT_KOTHRUD = "Paud Road, Shastrinagar, Kothrud, Pune, 411038";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubGlobal("navigator", {
-    geolocation: { getCurrentPosition: vi.fn() },
-    permissions: { query: vi.fn().mockResolvedValue({ state: "prompt" }) },
-  });
+  requestLocation.mockResolvedValue({ ok: false, failure: "unavailable", coords: null });
 });
 
 describe("the saved list a consumer sees", () => {
@@ -96,5 +100,30 @@ describe("the saved list a consumer sees", () => {
     expect(
       await screen.findByRole("button", { name: /enter location manually/i }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("saving the current location", () => {
+  it("sends a label the backend will accept", async () => {
+    // Found on device: Enable failed with "API error: 422" while manual entry
+    // worked. CreateAddressRequest pins label to ^(home|work|other)$, and this
+    // path sent "Home" — AddAddressSheet lowercases, this did not.
+    //
+    // Asserted on the payload rather than the outcome because a 422 is silent
+    // here: the toast says "couldn't save that location", which reads as a
+    // network problem rather than a malformed request.
+    addresses.mockReturnValue([]);
+    const user = userEvent.setup();
+    requestLocation.mockResolvedValue({
+      ok: true,
+      failure: null,
+      coords: { lat: 18.5204, lng: 73.8567 },
+    });
+
+    render(<ConsumerLocationGate reason="permission-prompt" />);
+    await user.click(await screen.findByRole("button", { name: /enable/i }));
+
+    await vi.waitFor(() => expect(addAddress).toHaveBeenCalled());
+    expect(addAddress.mock.calls[0][0].label).toMatch(/^(home|work|other)$/);
   });
 });
