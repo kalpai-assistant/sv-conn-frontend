@@ -3,9 +3,10 @@ import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { X, Loader2, Navigation } from "lucide-react";
 import { motion } from "framer-motion";
 import { MapPicker } from "./MapPicker";
-import { isGeocodeFailure } from "@/lib/geocode-result";
+import { isGeocodeFailure, withoutPinCode } from "@/lib/geocode-result";
 import { useAddAddress, useUpdateAddress } from "@/hooks/useApi";
 import { useMapOpeningCentre, type MapOpeningCentre } from "@/hooks/useMapOpeningCentre";
+import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 
 /** The address being edited, when the sheet is opened from Edit (SVC-277). */
 export interface EditingAddress {
@@ -49,6 +50,8 @@ export function AddAddressSheet({
   );
   const { mutateAsync: addAddress, isPending: isAdding } = useAddAddress();
   const { mutateAsync: updateAddress, isPending: isUpdating } = useUpdateAddress();
+  // A new address becomes the selected one — see handleSave.
+  const { setSelectedId } = useSelectedAddress();
   const isPending = isAdding || isUpdating;
   const [errorMsg, setErrorMsg] = useState("");
   // Where the map should open. Null until resolved — see useMapOpeningCentre.
@@ -103,7 +106,10 @@ export function AddAddressSheet({
     // that describes our failure, stored as though it described a place.
     // Blanking it leaves the field empty with its placeholder showing, which
     // is what the form is for.
-    setAddressLine(isGeocodeFailure(addr) ? "" : addr);
+    //
+    // The PIN code goes too, because OSM's is wrong for Kharadi (411001 for
+    // what is really 411014) and no zoom level fixes it — see withoutPinCode.
+    setAddressLine(isGeocodeFailure(addr) ? "" : withoutPinCode(addr));
   };
 
   const handleSave = async () => {
@@ -130,7 +136,25 @@ export function AddAddressSheet({
           ...(moved ? { lat, lng } : {}),
         });
       } else {
-        await addAddress({ label: label.toLowerCase(), full_address: addressLine, lat, lng });
+        const created = await addAddress({
+          label: label.toLowerCase(),
+          full_address: addressLine,
+          lat,
+          lng,
+        });
+        // Saving an address is choosing it (SVC-283).
+        //
+        // The sheet used to save and close, leaving the selection pointing
+        // wherever it already pointed — so someone who added an address in
+        // Kharadi went back to a header still reading Karve Nagar, and the
+        // next booking would have gone to the old address. Invisible on the
+        // profile screen, where adding an address is genuinely just adding one;
+        // glaring from the location gate, where the user has just answered
+        // "where are you?" and watched the answer be ignored.
+        //
+        // Selection is stored by id (see useSelectedAddress), which is why
+        // this needs the created row rather than a refetch.
+        if (created?.id) setSelectedId(created.id);
       }
       onClose();
     } catch (err) {

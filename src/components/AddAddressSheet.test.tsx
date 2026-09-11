@@ -26,8 +26,9 @@ vi.mock("@/hooks/useLockBodyScroll", () => ({ useLockBodyScroll: vi.fn() }));
 // SVC-281: the sheet resolves where to open the map, which reads the selected
 // address. Mocked so these tests stay about the sheet rather than dragging in
 // React Query and the address list.
+const setSelectedId = vi.fn();
 vi.mock("@/hooks/useSelectedAddress", () => ({
-  useSelectedAddress: () => ({ selected: undefined }),
+  useSelectedAddress: () => ({ selected: undefined, setSelectedId }),
 }));
 /**
  * A picker that reports whatever the test tells it to.
@@ -237,5 +238,85 @@ describe("opening on a supplied position (SVC-283)", () => {
 
     expect(await screen.findByTestId("map-picker")).toBeInTheDocument();
     expect(screen.queryByText(/this map is a guess/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("a saved address becomes the selected one (SVC-283)", () => {
+  /** Walk the map step through to the form with whatever the picker reported. */
+  const reachForm = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(await screen.findByRole("button", { name: /report pin/i }));
+    await user.click(screen.getByRole("button", { name: /confirm location/i }));
+  };
+
+  it("selects what it just saved", async () => {
+    // Found on device. The sheet saved and closed without touching the
+    // selection, which is stored by id — so after confirming a location in
+    // Kharadi the header still read Karve Nagar, and the next booking would
+    // have gone to the old address.
+    //
+    // Invisible from the profile screen, where adding an address is just
+    // adding one. Glaring from the location gate, where the user has just
+    // answered "where are you?" and watched the answer be ignored.
+    const user = userEvent.setup();
+    addAddress.mockResolvedValue({ id: "new-addr-1" });
+    render(<AddAddressSheet onClose={vi.fn()} />);
+
+    await reachForm(user);
+    await user.click(screen.getByRole("button", { name: /save address/i }));
+
+    await waitFor(() => expect(setSelectedId).toHaveBeenCalledWith("new-addr-1"));
+  });
+
+  it("does not change the selection when editing an existing address", async () => {
+    // Editing corrects a flat number on an address that may not be the
+    // selected one. Silently switching the user's delivery address because
+    // they fixed a typo would be a surprise, and a costly one.
+    const user = userEvent.setup();
+    render(<AddAddressSheet editing={EDITING} onClose={vi.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: /save address/i }));
+
+    await waitFor(() => expect(updateAddress).toHaveBeenCalled());
+    expect(setSelectedId).not.toHaveBeenCalled();
+  });
+
+  it("survives a response with no id rather than throwing", async () => {
+    // The save itself succeeded; only the selection is unavailable. Closing
+    // normally is the right outcome — the address exists either way.
+    const user = userEvent.setup();
+    addAddress.mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    render(<AddAddressSheet onClose={onClose} />);
+
+    await reachForm(user);
+    await user.click(screen.getByRole("button", { name: /save address/i }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(setSelectedId).not.toHaveBeenCalled();
+  });
+});
+
+describe("the PIN code OSM gets wrong (SVC-283)", () => {
+  it("is not saved with the address", async () => {
+    // Nominatim answers 411001 for Kharadi, which is 411014, at every zoom.
+    // A wrong PIN code reaches the provider reading the address on their way
+    // to the job; an absent one costs nothing, since dispatch matches on
+    // coordinates.
+    const user = userEvent.setup();
+    pickerReports.addr =
+      "Lane Number 1, Kharadi, Pune, Pune City Subdistrict, Pune District, Maharashtra, 411001, India";
+    render(<AddAddressSheet onClose={vi.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: /report pin/i }));
+    await user.click(screen.getByRole("button", { name: /confirm location/i }));
+    await user.click(screen.getByRole("button", { name: /save address/i }));
+
+    await waitFor(() => expect(addAddress).toHaveBeenCalled());
+    const saved = addAddress.mock.calls[0][0].full_address;
+    expect(saved).not.toContain("411001");
+    // The parts that are correct all survive.
+    expect(saved).toContain("Lane Number 1");
+    expect(saved).toContain("Kharadi");
+    expect(saved).toContain("India");
   });
 });

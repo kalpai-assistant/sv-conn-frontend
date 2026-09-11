@@ -31,6 +31,21 @@ const STORAGE_KEY = "sc_selected_address_id";
 // until the next render for unrelated reasons.
 const listeners = new Set<() => void>();
 
+/**
+ * The id most recently chosen in this session, if any.
+ *
+ * Exists to tell "this address was deleted" from "this address is too new to
+ * be in the cache yet" — see the cleanup effect below. Module-level rather
+ * than component state because the write and the check happen in different
+ * components: `AddAddressSheet` selects, and the home LocationBar is what
+ * re-renders and evaluates the cleanup.
+ *
+ * Deliberately not persisted. It is only meaningful for as long as a refetch
+ * can still be in flight, and forgetting it on reload is what lets a genuinely
+ * dangling id be cleaned up on the next load.
+ */
+let justWritten: string | null = null;
+
 function subscribe(cb: () => void) {
   listeners.add(cb);
   return () => {
@@ -71,18 +86,36 @@ export function useSelectedAddress(): {
 
   // Clean up an id that no longer resolves. Otherwise the user gets the
   // fallback UI on every load until they manually pick an address.
+  //
+  // `justWritten` is what keeps this from eating a brand-new selection
+  // (SVC-283). Selecting an address the user has only just created means
+  // writing an id that the cached list cannot contain yet: `useAddresses` is
+  // invalidated, not updated, so there is a window where the refetch has not
+  // landed. Without the guard this effect ran against the stale list, decided
+  // the id was dangling, and deleted the selection a moment after it was
+  // made — which is why saving an address in Kharadi left the header on Karve
+  // Nagar. Found on device; the id came back null rather than wrong, which is
+  // the tell.
   useEffect(() => {
-    if (storedId && addresses && !addresses.some((a) => a.id === storedId)) {
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-        listeners.forEach((l) => l());
-      } catch {
-        // No localStorage (private mode, quota exceeded) — nothing to clean.
-      }
+    if (!storedId || !addresses) return;
+    if (addresses.some((a) => a.id === storedId)) return;
+    // Written this session and still not in the list: the refetch is in
+    // flight, not the address deleted. Leave it alone — if it really is gone,
+    // the next load has no memory of the write and cleans it up then.
+    if (storedId === justWritten) return;
+
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      listeners.forEach((l) => l());
+    } catch {
+      // No localStorage (private mode, quota exceeded) — nothing to clean.
     }
   }, [storedId, addresses]);
 
   const setSelectedId = useCallback((id: string) => {
+    // Recorded before the write so the cleanup effect, which runs on the
+    // notification below, already knows this id is new rather than dangling.
+    justWritten = id;
     try {
       localStorage.setItem(STORAGE_KEY, id);
       listeners.forEach((l) => l());
