@@ -29,8 +29,29 @@ vi.mock("@/hooks/useLockBodyScroll", () => ({ useLockBodyScroll: vi.fn() }));
 vi.mock("@/hooks/useSelectedAddress", () => ({
   useSelectedAddress: () => ({ selected: undefined }),
 }));
+/**
+ * A picker that reports whatever the test tells it to.
+ *
+ * The real one mounts Leaflet and reverse-geocodes over the network. What
+ * these tests need is the one thing it hands back — the address string — since
+ * a failed geocode arrives through exactly this channel.
+ */
+const pickerReports = { addr: "Lane Number 7, Karve Nagar, Pune" };
 vi.mock("./MapPicker", () => ({
-  MapPicker: () => <div data-testid="map-picker" />,
+  MapPicker: ({
+    onLocationSelected,
+  }: {
+    onLocationSelected: (lat: number, lng: number, address: string) => void;
+  }) => (
+    <div data-testid="map-picker">
+      <button
+        type="button"
+        onClick={() => onLocationSelected(18.5204, 73.8567, pickerReports.addr)}
+      >
+        report pin
+      </button>
+    </div>
+  ),
 }));
 vi.mock("framer-motion", () => ({
   motion: { div: (props: Record<string, unknown>) => <div {...props} /> },
@@ -44,6 +65,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   addAddress.mockResolvedValue({});
   updateAddress.mockResolvedValue({});
+  pickerReports.addr = "Lane Number 7, Karve Nagar, Pune";
 });
 
 describe("adding (unchanged behaviour)", () => {
@@ -134,5 +156,86 @@ describe("editing", () => {
 
     expect(await screen.findByText(/outside our service area/i)).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("a geocode that failed is not an address (SVC-283)", () => {
+  /** Walk the map step through to the form with whatever the picker reported. */
+  const reachForm = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(await screen.findByRole("button", { name: /report pin/i }));
+    await user.click(screen.getByRole("button", { name: /confirm location/i }));
+  };
+
+  it.each([
+    ["Unknown Location", "the geocoder answered with nothing"],
+    ["Could not fetch address", "the request failed outright"],
+  ])("never pre-fills %s as the address", async (failure) => {
+    // Both are long enough to satisfy the backend's min_length=5, so without
+    // this they save verbatim and the user ends up with an address book entry
+    // named after our failure — the same class of bug as the coordinate
+    // strings this ticket removed.
+    const user = userEvent.setup();
+    pickerReports.addr = failure;
+    render(<AddAddressSheet onClose={vi.fn()} />);
+
+    await reachForm(user);
+
+    expect(screen.getByPlaceholderText(/house no, building, street/i)).toHaveValue("");
+  });
+
+  it("keeps a real address exactly as the picker reported it", async () => {
+    // The other half of the rule: this must not become a filter that eats
+    // legitimate geocodes.
+    const user = userEvent.setup();
+    render(<AddAddressSheet onClose={vi.fn()} />);
+
+    await reachForm(user);
+
+    expect(screen.getByPlaceholderText(/house no, building, street/i)).toHaveValue(
+      "Lane Number 7, Karve Nagar, Pune",
+    );
+  });
+
+  it("asks for the address rather than sending an empty one", async () => {
+    // The backend would answer min_length=5 with a bare 422, which this sheet
+    // renders as "Failed to save address" — true, and useless.
+    const user = userEvent.setup();
+    pickerReports.addr = "Could not fetch address";
+    render(<AddAddressSheet onClose={vi.fn()} />);
+
+    await reachForm(user);
+    await user.click(screen.getByRole("button", { name: /save address/i }));
+
+    expect(await screen.findByText(/add the building and street/i)).toBeInTheDocument();
+    expect(addAddress).not.toHaveBeenCalled();
+  });
+
+  it("saves once the user has written one", async () => {
+    const user = userEvent.setup();
+    pickerReports.addr = "Unknown Location";
+    render(<AddAddressSheet onClose={vi.fn()} />);
+
+    await reachForm(user);
+    await user.type(
+      screen.getByPlaceholderText(/house no, building, street/i),
+      "Flat 302, Amogh Residency",
+    );
+    await user.click(screen.getByRole("button", { name: /save address/i }));
+
+    await waitFor(() => expect(addAddress).toHaveBeenCalled());
+    expect(addAddress.mock.calls[0][0].full_address).toBe("Flat 302, Amogh Residency");
+    // The pin still came through, even though its name did not.
+    expect(addAddress.mock.calls[0][0].lat).toBe(18.5204);
+  });
+});
+
+describe("opening on a supplied position (SVC-283)", () => {
+  it("does not claim to be guessing when handed a real fix", async () => {
+    // The gate passes the position the user just waited for. Showing "this map
+    // is a guess" over it would contradict what we just told them.
+    render(<AddAddressSheet onClose={vi.fn()} initialCentre={[18.5204, 73.8567]} />);
+
+    expect(await screen.findByTestId("map-picker")).toBeInTheDocument();
+    expect(screen.queryByText(/this map is a guess/i)).not.toBeInTheDocument();
   });
 });

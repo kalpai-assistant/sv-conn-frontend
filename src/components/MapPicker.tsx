@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, useMapEvents, useMap } from "react-leaflet";
 import { MapPin, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
+import { GEOCODE_FAILED, GEOCODE_UNKNOWN } from "@/lib/geocode-result";
 
 const DEFAULT_CENTER: [number, number] = [12.9716, 77.5946];
 
@@ -63,12 +64,12 @@ export function MapPicker({
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
       );
       const data = await res.json();
-      const displayAddress = data.display_name || "Unknown Location";
+      const displayAddress = data.display_name || GEOCODE_UNKNOWN;
       setAddress(displayAddress);
       onLocationSelected(lat, lng, displayAddress);
     } catch (err) {
-      setAddress("Could not fetch address");
-      onLocationSelected(lat, lng, "Could not fetch address");
+      setAddress(GEOCODE_FAILED);
+      onLocationSelected(lat, lng, GEOCODE_FAILED);
     } finally {
       setIsFetching(false);
     }

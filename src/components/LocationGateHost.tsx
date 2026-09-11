@@ -14,32 +14,10 @@ import { AddAddressSheet } from "@/components/AddAddressSheet";
 import { markLocationConfirmed } from "@/lib/location-gate";
 import { useLocalityAt } from "@/hooks/useLocalityAt";
 import { localityFrom } from "@/lib/locality";
-import { useAddAddress, useUpdateServiceArea } from "@/hooks/useApi";
+import { dedupeByPlace } from "@/lib/nearby";
+import { useUpdateServiceArea } from "@/hooks/useApi";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import type { LocationBlockedReason } from "@/hooks/useLocationAvailability";
-
-/**
- * One row per distinct place.
- *
- * The address book legitimately holds duplicates — every tap of "Use my
- * current location" saves another "Home" — and on this screen they render as
- * identical rows the user cannot choose between. The first one wins because
- * it is the older record, and therefore the one anything else already
- * selected.
- *
- * Deliberately not deduping by label: two different addresses both called
- * "Home" are two real choices, and hiding one would silently take away the
- * right answer.
- */
-function dedupeByAddress<T extends { full: string }>(items: T[]): T[] {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    const key = item.full.trim().toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
 
 /**
  * Consumer: pick a delivery address, or set a new one.
@@ -50,12 +28,19 @@ function dedupeByAddress<T extends { full: string }>(items: T[]): T[] {
  */
 export function ConsumerLocationGate({ reason }: { reason: LocationBlockedReason | null }) {
   const { addresses, setSelectedId } = useSelectedAddress();
-  const { mutateAsync: addAddress, isPending } = useAddAddress();
   const [manual, setManual] = useState(false);
+  // Set when "Use my current location" has acquired a fix, so the picker opens
+  // on it. Null means the user chose manual entry and we have no position.
+  const [fix, setFix] = useState<[number, number] | null>(null);
 
   if (manual) {
     return (
       <AddAddressSheet
+        // When we have a position, open the map there — this is the whole
+        // point of the confirm step (SVC-283). Without it the sheet would
+        // re-resolve a centre and could land somewhere other than where the
+        // user is standing, having just been told we found them.
+        initialCentre={fix}
         onClose={() => {
           // The sheet closes on save as well as cancel, and it cannot tell us
           // which. Treating either as answered is deliberate: a user who opened
@@ -63,6 +48,7 @@ export function ConsumerLocationGate({ reason }: { reason: LocationBlockedReason
           // because they backed out would make this a dead end.
           markLocationConfirmed();
           setManual(false);
+          setFix(null);
         }}
       />
     );
@@ -77,41 +63,56 @@ export function ConsumerLocationGate({ reason }: { reason: LocationBlockedReason
       // Labelled by locality rather than by label: "Home" is true in every city,
       // so a row saying it confirms nothing. See localityFrom.
       //
-      // Deduped by address, because "Use my current location" writes a new
-      // "Home" every time it is tapped. Found on device: two rows reading
+      // Deduped by *place*, not by text. Found on device: two rows reading
       // "Karve Nagar / Lane Number 7…", identical in every visible respect,
-      // with no way to tell which one you were choosing. They also *were* the
+      // with no way to tell which one you were choosing. They also were the
       // same place — picking either had the same effect — so the second row
       // was pure noise on a screen whose whole job is a quick decision.
-      saved={dedupeByAddress(addresses ?? []).map((a) => ({
+      //
+      // Text alone no longer catches that. It only ever worked because the old
+      // "use my current location" wrote the same synthetic coordinate string
+      // every time; now that these addresses are geocoded, one building can
+      // come back under two different names. See lib/nearby.
+      saved={dedupeByPlace(addresses ?? []).map((a) => ({
         id: a.id,
         label: localityFrom(a.full, a.label),
         full: a.full,
       }))}
-      isSaving={isPending}
       onConfirmSaved={(id) => {
         // Selecting is the answer: it is what every later booking reads.
         setSelectedId(id);
         markLocationConfirmed();
       }}
-      onUseCurrent={async (lat, lng) => {
-        try {
-          await addAddress({
-            // Lowercase, not "Home". The backend pins this to
-            // ^(home|work|other)$ (CreateAddressRequest), so a capital H is a
-            // 422 — found on device, where Enable failed with "API error: 422"
-            // while manual entry worked because AddAddressSheet lowercases.
-            label: "home",
-            full_address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
-            lat,
-            lng,
-          });
-          markLocationConfirmed();
-        } catch (e) {
-          toast.error(e instanceof Error ? e.message : "Couldn't save that location.");
-        }
+      // A position is not an address (SVC-283).
+      //
+      // This used to write one immediately, synthesising `full_address` from
+      // the coordinates to satisfy the backend's required field — which is how
+      // users ended up with saved addresses called "18.52040, 73.85670". The
+      // string was not a display bug; it was what we persisted, and
+      // `localityFrom` had nothing to name a row with.
+      //
+      // Measured on device against Blinkit, Zepto, Urban Company and Pronto:
+      // none of them writes an address at this moment. They take the fix, show
+      // it, and store something only once the user confirms — Blinkit's
+      // "Confirm location / Move the pin to adjust your location" being the
+      // clearest form. Zepto does not even keep it as an address; it is a
+      // session location, and its saved list stays untouched.
+      //
+      // So this hands the fix to the picker the app already has, which
+      // reverse-geocodes it, shows it on a map, and lets the user correct it
+      // before anything is saved. A failed geocode needs no placeholder text:
+      // the map still opens on the right spot and the address line is simply
+      // empty for them to fill in.
+      onUseCurrent={(lat, lng) => {
+        setFix([lat, lng]);
+        setManual(true);
       }}
-      onEnterManually={() => setManual(true)}
+      onEnterManually={() => {
+        // No position — the picker resolves its own centre, and says so when
+        // it is guessing.
+        setFix(null);
+        setManual(true);
+      }}
     />
   );
 }
