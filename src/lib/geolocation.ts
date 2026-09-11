@@ -61,13 +61,26 @@ export interface LocationResult {
   coords: { lat: number; lng: number } | null;
 }
 
+// Plugin error codes, from GeolocationErrors.kt. Matched as substrings because
+// the plugin prefixes them (`OS-PLUG-GLOC-0007`) and has changed that prefix
+// between majors before.
+
 /**
- * Plugin error codes we care about, from GeolocationErrors.kt. Matched as
- * substrings because the plugin prefixes them (`OS-PLUG-GLOC-0007`) and has
- * changed that prefix between majors before.
+ * Location services are off. GLOC-0009 belongs here rather than with the
+ * denials: declining "Turn on Location" leaves the toggle exactly as it was,
+ * so the state — and the remedy — is unchanged.
  */
-const DISABLED_CODES = ["GLOC-0007", "GLOC-0017"];
-const DENIED_CODES = ["GLOC-0003", "GLOC-0009"];
+const DISABLED_CODES = ["GLOC-0007", "GLOC-0017", "GLOC-0009"];
+/**
+ * LOCATION_PERMISSIONS_DENIED only.
+ *
+ * GLOC-0009 (LOCATION_ENABLE_REQUEST_DENIED) deliberately lives with the
+ * disabled codes below instead: the user declined *turning location on*, not
+ * the app's permission. Calling that "permission denied" would name the wrong
+ * remedy and, worse, disable the Enable button — when tapping it again is
+ * exactly what should work, since the dialog can be raised as often as we like.
+ */
+const DENIED_CODES = ["GLOC-0003"];
 /** GET_LOCATION_TIMEOUT — "Could not obtain location in time." */
 const TIMEOUT_CODES = ["GLOC-0010"];
 
@@ -126,6 +139,95 @@ export async function requestLocation(timeoutMs: number): Promise<LocationResult
     };
   } catch (err) {
     return { ok: false, failure: classify(err), coords: null };
+  }
+}
+
+/**
+ * Offer to turn device location on, without leaving the app (SVC-283).
+ *
+ * ## Why this goes through `watchPosition`
+ *
+ * When the OS location toggle is off, `getCurrentPosition`, `checkPermissions`
+ * and `requestPermissions` all refuse immediately — the plugin guards them with
+ * `checkLocationState`, which sends `LOCATION_DISABLED` and stops. That is why
+ * Enable could only ever show a message telling the user to visit Settings.
+ *
+ * `watchPosition` carries no such guard. Its path reaches
+ * `checkLocationPreconditions`, which runs Play Services' location-settings
+ * check and raises the resolution dialog — Google's "For a better experience,
+ * your device will need to use Location Accuracy", with a **Turn on** button
+ * that flips the toggle in place. It is the same dialog Zepto and Urban
+ * Company show, and the plugin already registers its result handler in
+ * `load()`.
+ *
+ * Verified on device (Samsung, Android 14, location off, permission granted):
+ * the dialog appeared, "Turn on" moved `location_mode` 0 → 3 and the watch
+ * returned a position immediately; "No, thanks" produced
+ * `LOCATION_ENABLE_REQUEST_DENIED` and left the toggle alone.
+ *
+ * ## The watch must always be cleared
+ *
+ * A watch is a stream, not a one-shot. On success it keeps running — and keeps
+ * the GPS awake — until `clearWatch`, so every exit path here clears it. The
+ * denial path cleans itself up inside the plugin (clearing it afterwards
+ * reports "WatchId not found"), which is why the clear is best-effort rather
+ * than asserted.
+ */
+export async function enableDeviceLocation(timeoutMs: number): Promise<LocationResult> {
+  const { Geolocation } = await import("@capacitor/geolocation");
+
+  let watchId: string | null = null;
+  let settled = false;
+
+  try {
+    return await new Promise<LocationResult>((resolve) => {
+      const finish = (result: LocationResult) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(result);
+      };
+
+      // The dialog waits on a human, so this bound is the user's patience
+      // rather than the platform's. Without it a dismissed-but-unanswered
+      // dialog would leave the caller spinning forever.
+      const timer = setTimeout(
+        () => finish({ ok: false, failure: "timeout", coords: null }),
+        timeoutMs,
+      );
+
+      Geolocation.watchPosition(
+        { enableHighAccuracy: false, timeout: timeoutMs },
+        (position, err) => {
+          if (err) {
+            finish({ ok: false, failure: classify(err), coords: null });
+            return;
+          }
+          if (position) {
+            finish({
+              ok: true,
+              failure: null,
+              coords: { lat: position.coords.latitude, lng: position.coords.longitude },
+            });
+          }
+        },
+      )
+        // The callback can fire before this resolves — that is the ordering the
+        // plugin actually uses — so the id is only recorded here and the
+        // clearing is left to the `finally` below, which runs after the promise
+        // has settled either way. An extra clear here looked prudent and was
+        // dead code: a mutation removing it changed nothing.
+        .then((id) => {
+          watchId = id;
+        })
+        .catch((err: unknown) => finish({ ok: false, failure: classify(err), coords: null }));
+    });
+  } finally {
+    if (watchId) {
+      // Best-effort: the plugin drops the watch itself when the enable request
+      // is denied, so this throws "WatchId not found" on that path.
+      await Geolocation.clearWatch({ id: watchId }).catch(() => {});
+    }
   }
 }
 
