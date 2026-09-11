@@ -43,8 +43,8 @@ function AboutPage() {
       <div className="mt-4 rounded-xl border border-border p-4">
         <p className="text-sm font-medium text-foreground">EazyServ</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Home services at your doorstep — cleaning, plumbing, electrical, salon and more, from
-          KYC-verified professionals.
+          Home services on demand, from KYC-verified pros. Cleaning, plumbing, electrical, salon and
+          more.
         </p>
         <p className="mt-3 text-xs text-muted-foreground">Version {APP_VERSION}</p>
       </div>
