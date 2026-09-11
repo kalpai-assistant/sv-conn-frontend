@@ -2,11 +2,15 @@
  * Home's promo banner strip.
  *
  * Content is hardcoded for beta. Once the backend ships a /promos endpoint
- * we'll swap the constant for a query — until then, hardcoding matches how
- * the current app treats the referral programme (an intent to have, not a
- * shipped feature). Every banner CTA has to lead somewhere real, so the
- * available promos are limited to two: the first-booking coupon (FIRST20)
- * and the referral link, both of which the app can honour today.
+ * we'll swap the constant for a query — until then, hardcoding lets us
+ * show only offers the app can actually honour. Right now that's the
+ * first-booking coupon (FIRST20, seeded 2026-09-10 with 20% off / ₹200
+ * cap / min ₹499 / 90-day window).
+ *
+ * The "Refer & earn" banner used to live here too but was removed
+ * (SVC-280) once we noticed the referral programme was never actually
+ * built — the CTA led to /profile and did nothing. Re-add when the
+ * feature ships.
  *
  * Horizontal snap scroll, one banner per screen — using CSS scroll-snap so
  * the sequencing feels intentional on iOS without any JS.
@@ -33,14 +37,6 @@ const BANNERS: PromoBanner[] = [
     ctaLabel: "Browse services",
     ctaTo: "/",
     gradient: "from-primary to-primary/70",
-  },
-  {
-    id: "refer",
-    headline: "Refer & earn ₹100",
-    body: "Give ₹100, get ₹100. Both get a coupon when they book.",
-    ctaLabel: "Get your code",
-    ctaTo: "/profile",
-    gradient: "from-chart-2 to-success",
   },
 ];
 
