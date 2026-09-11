@@ -40,7 +40,17 @@ export type LocationFailure =
   | "permission-denied"
   /** Asked for and not granted yet, or dismissed. Asking again is allowed. */
   | "permission-prompt"
-  /** Something else — no Play Services, no providers, a timeout. */
+  /**
+   * No answer in time — nothing was refused and nothing is switched off, the
+   * GPS was simply still warming up.
+   *
+   * Its own case because it is not evidence of anything. Straight after a cold
+   * start the same device answered in 130ms and, on the next launch, not
+   * within ten seconds; treating that as "cannot locate" gated a user whose
+   * location worked. Callers retry rather than conclude.
+   */
+  | "timeout"
+  /** Something else — no Play Services, no providers at all. */
   | "unavailable";
 
 export interface LocationResult {
@@ -58,6 +68,8 @@ export interface LocationResult {
  */
 const DISABLED_CODES = ["GLOC-0007", "GLOC-0017"];
 const DENIED_CODES = ["GLOC-0003", "GLOC-0009"];
+/** GET_LOCATION_TIMEOUT — "Could not obtain location in time." */
+const TIMEOUT_CODES = ["GLOC-0010"];
 
 function classify(err: unknown): LocationFailure {
   const code = String((err as { code?: string })?.code ?? "");
@@ -66,10 +78,12 @@ function classify(err: unknown): LocationFailure {
 
   if (DISABLED_CODES.some((c) => haystack.includes(c))) return "location-disabled";
   if (DENIED_CODES.some((c) => haystack.includes(c))) return "permission-denied";
+  if (TIMEOUT_CODES.some((c) => haystack.includes(c))) return "timeout";
 
-  // Web fallback: PositionError.code 1 is PERMISSION_DENIED. The browser has
-  // no notion of a device-wide toggle, so everything else is "unavailable".
+  // Web fallback: PositionError codes — 1 is PERMISSION_DENIED, 3 is TIMEOUT.
+  // The browser has no notion of a device-wide toggle.
   if ((err as { code?: number })?.code === 1) return "permission-denied";
+  if ((err as { code?: number })?.code === 3) return "timeout";
 
   return "unavailable";
 }

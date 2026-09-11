@@ -80,11 +80,24 @@ function blockedBy(reason: LocationBlockedReason): LocationAvailability {
   return { isResolving: false, blocked: true, reason };
 }
 
+/**
+ * How many times a timeout is retried before it counts as an answer.
+ *
+ * Only timeouts: a refusal or a disabled toggle is a real answer and is taken
+ * first time. A timeout is not evidence of anything — the GPS was still coming
+ * up — and the cost of asking again is nothing, since the app is rendered and
+ * nobody is waiting on this.
+ */
+const TIMEOUT_RETRIES = 2;
+
 /** Plugin failure → the reason the gate's copy is written against. */
 const REASON_FOR: Record<LocationFailure, LocationBlockedReason> = {
   "location-disabled": "device-off",
   "permission-denied": "permission-denied",
   "permission-prompt": "permission-prompt",
+  // Out of patience, not out of permission. "Where are you?" is the honest
+  // headline: we do not know why, so we do not name a fix.
+  timeout: "unknown",
   unavailable: "unknown",
 };
 
@@ -106,13 +119,23 @@ export function useLocationAvailability(enabled = true): LocationAvailability {
     };
 
     void (async () => {
-      // One question, asked through the plugin — the only thing that can
-      // answer it truthfully on Android, and the call that raises the native
-      // permission dialog when there is one to raise.
-      const { ok, failure } = await requestLocation(PROBE_TIMEOUT_MS);
+      // Asked through the plugin — the only thing that can answer truthfully
+      // on Android, and the call that raises the native permission dialog when
+      // there is one to raise.
+      //
+      // A timeout is retried rather than believed. Straight after a cold start
+      // the same device answered in 130ms on one launch and not within ten
+      // seconds on the next, with location switched on throughout; concluding
+      // "cannot locate" from that gated a working user. Every other failure is
+      // a real answer and is taken first time.
+      let result = await requestLocation(PROBE_TIMEOUT_MS);
+      for (let retry = 0; result.failure === "timeout" && retry < TIMEOUT_RETRIES; retry++) {
+        if (cancelled) return;
+        result = await requestLocation(PROBE_TIMEOUT_MS);
+      }
       if (cancelled) return;
 
-      settle(ok || !failure ? AVAILABLE : blockedBy(REASON_FOR[failure]));
+      settle(result.ok || !result.failure ? AVAILABLE : blockedBy(REASON_FOR[result.failure]));
     })();
 
     return () => {

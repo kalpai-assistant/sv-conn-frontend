@@ -55,6 +55,47 @@ describe("naming what is actually wrong", () => {
   });
 });
 
+describe("a timeout is not an answer", () => {
+  it("retries, and does not gate a user who answers late", async () => {
+    // Found on device with the plugin in place: the same phone, location
+    // switched on throughout, answered in 130ms on one cold launch and not
+    // within ten seconds on the next — the GPS was still coming up. Treating
+    // that first timeout as "cannot locate" gated a working user, which is the
+    // same bug this hook has now had four times in four different disguises.
+    requestLocation
+      .mockResolvedValueOnce({ ok: false, failure: "timeout", coords: null })
+      .mockResolvedValueOnce({ ok: true, failure: null, coords: { lat: 18.5, lng: 73.8 } });
+
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+    expect(result.current.blocked).toBe(false);
+    expect(requestLocation).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives up eventually rather than asking forever", async () => {
+    requestLocation.mockResolvedValue({ ok: false, failure: "timeout", coords: null });
+
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.blocked).toBe(true));
+    // "Where are you?" — out of patience, not out of permission, so the copy
+    // must not name a fix we have no evidence for.
+    expect(result.current.reason).toBe("unknown");
+  });
+
+  it("does not retry a real answer", async () => {
+    // A refusal or a disabled toggle is information. Asking again would only
+    // delay the gate the user needs.
+    requestLocation.mockResolvedValue({ ok: false, failure: "location-disabled", coords: null });
+
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.blocked).toBe(true));
+    expect(requestLocation).toHaveBeenCalledOnce();
+  });
+});
+
 describe("the request itself", () => {
   it("is patient enough for a cold GPS and a human", async () => {
     // Measured on device before the plugin, location on throughout:
