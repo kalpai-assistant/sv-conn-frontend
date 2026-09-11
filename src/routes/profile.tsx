@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { LogoutButton } from "@/components/LogoutButton";
 import { toast } from "sonner";
-import { useAddresses, useDeleteAddress } from "@/hooks/useApi";
+import { useAddresses } from "@/hooks/useApi";
+import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import { apiFetch } from "@/lib/api";
 import type { components } from "@/types/api";
 import { useNavigate } from "@tanstack/react-router";
@@ -50,8 +51,11 @@ function ProfilePage() {
     data: savedAddresses,
     isLoading: isAddressesLoading,
     isError: isAddressesError,
-    refetch: refetchAddresses,
   } = useAddresses();
+  // Which address is actually in use. Read from the same hook the picker
+  // writes to, so this row and the Home location bar cannot disagree.
+  const { selected } = useSelectedAddress();
+  const addressCount = savedAddresses?.length ?? 0;
   const navigate = useNavigate();
 
   // Enforce setup mode if user name is not set. `!!` coerces the `user && ...`
@@ -64,11 +68,7 @@ function ProfilePage() {
   const [editEmail, setEditEmail] = useState(user?.email || "");
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [showAddAddress, setShowAddAddress] = useState(false);
   // SVC-277: both of these controls rendered and did nothing.
-  const [editingAddress, setEditingAddress] = useState<EditingAddress | null>(null);
-  const [deletingAddress, setDeletingAddress] = useState<{ id: string; full: string } | null>(null);
-  const deleteAddress = useDeleteAddress();
 
   // Sync state if user arrives late
   useEffect(() => {
@@ -221,73 +221,40 @@ function ProfilePage() {
 
       {!isSetupMode && (
         <>
-          {/* Addresses */}
+          {/* Saved addresses (SVC-287).
+
+              The list used to be inline here, with Edit and Delete as icon
+              buttons inside every row. That shape produced two of Rohan's
+              findings: the label rendered raw (`home`, not `Home`), and a row
+              crowded with two destructive-adjacent controls could never itself
+              become tappable.
+
+              It is a screen of its own now. This row carries the count and
+              which address is in use, so the common question is answered
+              without a tap — and it is the one place on Profile that reports
+              the active address, which is what the ticket asked for. */}
           <div className="px-4 pt-4">
-            <h3 className="text-sm font-semibold text-foreground mb-2">My Addresses</h3>
-            <div className="flex flex-col gap-2">
-              {isAddressesLoading ? (
-                <div className="flex justify-center p-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : isAddressesError ? (
-                // API blip must not leave users staring at an infinite spinner
-                // OR let them tap "Add" against a state we couldn't load —
-                // they'd end up with a duplicate or a "not found" further in.
-                <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 text-center">
-                  <AlertCircle className="h-5 w-5 text-destructive" />
-                  <p className="text-xs text-muted-foreground">Couldn't load addresses.</p>
-                  <button
-                    onClick={() => refetchAddresses()}
-                    className="text-xs font-medium text-primary hover:underline"
-                  >
-                    Try again
-                  </button>
-                </div>
-              ) : (
-                (savedAddresses || []).map((addr) => (
-                  <div
-                    key={addr.id}
-                    className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
-                  >
-                    <MapPin className="h-4 w-4 text-primary shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">{addr.label}</p>
-                      <p className="text-xs text-muted-foreground truncate">{addr.full}</p>
-                    </div>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() =>
-                          setEditingAddress({
-                            id: addr.id,
-                            label: addr.label,
-                            full: addr.full,
-                          })
-                        }
-                        aria-label={`Edit ${addr.label} address`}
-                        className="p-1.5 rounded-lg hover:bg-secondary"
-                      >
-                        <Edit className="h-3.5 w-3.5 text-muted-foreground" />
-                      </button>
-                      {/* Confirmed, not immediate: removing a saved address is
-                          not something to do on one stray tap next to Edit. */}
-                      <button
-                        onClick={() => setDeletingAddress({ id: addr.id, full: addr.full })}
-                        aria-label={`Delete ${addr.label} address`}
-                        className="p-1.5 rounded-lg hover:bg-secondary"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-              <button
-                onClick={() => setShowAddAddress(true)}
-                className="flex items-center gap-2 rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground mt-2 transition-colors hover:bg-secondary"
-              >
-                <MapPin className="h-4 w-4" /> Add New Address
-              </button>
-            </div>
+            <Link
+              to="/addresses"
+              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:bg-secondary/50"
+            >
+              <MapPin className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">Saved Addresses</p>
+                <p className="truncate text-xs capitalize text-muted-foreground">
+                  {isAddressesLoading
+                    ? "Loading…"
+                    : isAddressesError
+                      ? "Couldn't load addresses"
+                      : addressCount === 0
+                        ? "None yet — add one"
+                        : selected
+                          ? `${addressCount} saved · ${selected.label} in use`
+                          : `${addressCount} saved`}
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </Link>
           </div>
 
           {/* Menu Items */}
@@ -336,44 +303,6 @@ function ProfilePage() {
           </p>
         </>
       )}
-
-      {showAddAddress && <AddAddressSheet onClose={() => setShowAddAddress(false)} />}
-      {editingAddress && (
-        <AddAddressSheet editing={editingAddress} onClose={() => setEditingAddress(null)} />
-      )}
-
-      <AlertDialog
-        open={deletingAddress !== null}
-        onOpenChange={(open) => !open && setDeletingAddress(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this address?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deletingAddress?.full} will be removed from your saved addresses. Bookings that
-              already used it are not affected.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep it</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                const target = deletingAddress;
-                setDeletingAddress(null);
-                if (!target) return;
-                deleteAddress.mutate(target.id, {
-                  onError: (err) =>
-                    toast.error(
-                      err instanceof Error ? err.message : "Couldn't delete that address.",
-                    ),
-                });
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
