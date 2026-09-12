@@ -6,11 +6,9 @@
  * with a WebP asset in ``public/images/subcategories/`` are listed here;
  * everything else falls back to its Lucide icon via ``category-icons.ts``.
  *
- * The set is intentionally partial today (6 of 17). It fills in as
- * more illustrations get generated + optimised. Each entry has to
- * match the DB slug exactly — mismatch renders the icon fallback,
- * loud in dev via the missing-key case in ``subcategoryImage``, silent
- * in prod.
+ * 16 of 17 sub-cats illustrated today — cctv-light-event is the sole
+ * hold-out and still renders its Lucide icon fallback. Add it here the
+ * moment the asset lands.
  *
  * Assets are 512×512 WebP at q=85 — same pipeline as the L1 tiles,
  * see PR #135's commit message for the optimisation ritual.
@@ -21,10 +19,21 @@ const BASE = "/images/subcategories";
 export const SUBCATEGORY_IMAGES: Record<string, string> = {
   ac: `${BASE}/ac.webp`,
   appliances: `${BASE}/appliances.webp`,
+  carpenter: `${BASE}/carpenter.webp`,
+  cleaning: `${BASE}/cleaning.webp`,
+  electrician: `${BASE}/electrician.webp`,
+  furniture: `${BASE}/furniture.webp`,
+  massage: `${BASE}/massage.webp`,
+  "nail-art": `${BASE}/nail-art.webp`,
+  painting: `${BASE}/painting.webp`,
   "pest-control": `${BASE}/pest-control.webp`,
+  plumber: `${BASE}/plumber.webp`,
   "ro-purifier": `${BASE}/ro-purifier.webp`,
+  "salon-men": `${BASE}/salon-men.webp`,
+  "salon-women": `${BASE}/salon-women.webp`,
   "toilet-cleaning-commercial": `${BASE}/toilet-cleaning-commercial.webp`,
   "vehicle-wash-cleaning": `${BASE}/vehicle-wash-cleaning.webp`,
+  // cctv-light-event: no illustration yet — falls back to Lucide icon.
 };
 
 /**
