@@ -6,9 +6,7 @@
  * with a WebP asset in ``public/images/subcategories/`` are listed here;
  * everything else falls back to its Lucide icon via ``category-icons.ts``.
  *
- * 16 of 17 sub-cats illustrated today — cctv-light-event is the sole
- * hold-out and still renders its Lucide icon fallback. Add it here the
- * moment the asset lands.
+ * Full set — all 17 sub-cats illustrated.
  *
  * Assets are 512×512 WebP at q=85 — same pipeline as the L1 tiles,
  * see PR #135's commit message for the optimisation ritual.
@@ -20,6 +18,7 @@ export const SUBCATEGORY_IMAGES: Record<string, string> = {
   ac: `${BASE}/ac.webp`,
   appliances: `${BASE}/appliances.webp`,
   carpenter: `${BASE}/carpenter.webp`,
+  "cctv-light-event": `${BASE}/cctv-light-event.webp`,
   cleaning: `${BASE}/cleaning.webp`,
   electrician: `${BASE}/electrician.webp`,
   furniture: `${BASE}/furniture.webp`,
@@ -33,7 +32,6 @@ export const SUBCATEGORY_IMAGES: Record<string, string> = {
   "salon-women": `${BASE}/salon-women.webp`,
   "toilet-cleaning-commercial": `${BASE}/toilet-cleaning-commercial.webp`,
   "vehicle-wash-cleaning": `${BASE}/vehicle-wash-cleaning.webp`,
-  // cctv-light-event: no illustration yet — falls back to Lucide icon.
 };
 
 /**
