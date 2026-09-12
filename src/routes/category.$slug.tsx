@@ -7,6 +7,7 @@ import { useCategories, useServices } from "@/hooks/useApi";
 import { ServiceCard } from "@/components/ServiceCard";
 import type { Category } from "@/lib/mock-data";
 import { categoryIcon, categoryColor } from "@/lib/category-icons";
+import { subcategoryImage } from "@/lib/subcategory-images";
 
 export const Route = createFileRoute("/category/$slug")({
   component: CategoryPage,
@@ -128,6 +129,7 @@ function SubCategoryPicker({ subCategories }: { subCategories: readonly Category
   return (
     <div className="grid grid-cols-3 gap-3 px-4 pt-4">
       {subCategories.map((sub) => {
+        const image = subcategoryImage(sub.slug);
         const SubIcon = categoryIcon(sub.slug);
         const tint = categoryColor(sub.sortOrder);
         return (
@@ -135,17 +137,44 @@ function SubCategoryPicker({ subCategories }: { subCategories: readonly Category
             key={sub.id}
             to="/category/$slug"
             params={{ slug: sub.slug }}
-            className="flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card p-3 transition-colors"
+            className="relative aspect-square overflow-hidden rounded-2xl border border-border"
           >
-            <div
-              className="flex h-12 w-12 items-center justify-center rounded-xl"
-              style={{ backgroundColor: tint + "18" }}
-            >
-              <SubIcon className="h-5 w-5" style={{ color: tint }} />
-            </div>
-            <span className="text-center text-[11px] font-medium leading-tight text-foreground">
-              {sub.name}
-            </span>
+            {image ? (
+              <img
+                src={image}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              // Fallback when an illustration hasn't been generated for
+              // this sub-cat yet. Icon-in-tile matches the pre-image
+              // visual so an in-progress set still reads as belonging to
+              // the same picker rather than a broken row.
+              <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-card p-3">
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-xl"
+                  style={{ backgroundColor: tint + "18" }}
+                >
+                  <SubIcon className="h-5 w-5" style={{ color: tint }} />
+                </div>
+                <span className="text-center text-[11px] font-medium leading-tight text-foreground">
+                  {sub.name}
+                </span>
+              </div>
+            )}
+            {image && (
+              // Only add the dark bottom gradient + white overlay text when
+              // we actually have an image behind it. Icon-in-tile fallback
+              // above renders its own label in foreground colour.
+              <>
+                <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                <span className="absolute inset-x-2 bottom-2 text-center text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                  {sub.name}
+                </span>
+              </>
+            )}
           </Link>
         );
       })}

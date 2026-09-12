@@ -42,22 +42,21 @@ interface Banner {
   activeUntil: string;
 }
 
-// Empty until the Ganesh Chaturthi asset is generated and dropped into
-// ``public/images/banners/``. Add the entry below, uncomment it, ship —
-// the slot activates when the first banner's window contains today.
-//
-// Example (paste when ready):
-//   {
-//     id: "ganesh-chaturthi-2026",
-//     image: "/images/banners/ganesh-chaturthi-2026.webp",
-//     title: "Happy Ganesh Chaturthi",
-//     subtitle: "Book with FIRST20 for 20% off your first service",
-//     ctaLabel: "Explore services",
-//     ctaTo: "/",
-//     activeFrom: "2026-09-06",
-//     activeUntil: "2026-09-18",
-//   },
-const BANNERS: Banner[] = [];
+const BANNERS: Banner[] = [
+  {
+    id: "ganesh-chaturthi-2026",
+    image: "/images/banners/ganesh-chaturthi-2026.webp",
+    title: "Happy Ganesh Chaturthi",
+    subtitle: "Use FIRST20 for 20% off your first booking",
+    ctaLabel: "Explore services",
+    ctaTo: "/",
+    // Ganesh Chaturthi 2026 runs Sep 6-17. Buffer to the 18th so the
+    // banner is up through Anant Chaturdashi evening and quietly retires
+    // the next morning without needing a code change.
+    activeFrom: "2026-09-06",
+    activeUntil: "2026-09-18",
+  },
+];
 
 function pickActiveBanner(now: Date, banners: readonly Banner[]): Banner | null {
   // ISO date compare — strings sort lexicographically the same way dates
