@@ -10,6 +10,11 @@ export interface Category {
    *  colour palette: the API exposes no colour per category, and this is the
    *  only stable per-category number it does return. */
   sortOrder: number;
+  /** SVC-286: NULL ⇒ Level-1 (home tile). Non-NULL ⇒ Level-2 (rendered
+   *  inside a category page as a sub-category tile). CategoryGrid filters to
+   *  L1 for the home view; the category page renders sub-category tiles
+   *  when the fetched category has children, or services when it doesn't. */
+  parentId: string | null;
 }
 
 export interface ServiceProvider {
@@ -148,14 +153,14 @@ export interface Booking {
 // `import type`. Kept as a shape reference alongside the interfaces above,
 // with slugs matching the live catalogue so it doesn't drift into fiction.
 export const categories: Category[] = [
-  { id: "1", name: "Cleaning", slug: "cleaning", sortOrder: 0 },
-  { id: "2", name: "Pest Control", slug: "pest-control", sortOrder: 1 },
-  { id: "3", name: "AC", slug: "ac", sortOrder: 2 },
-  { id: "4", name: "Appliances", slug: "appliances", sortOrder: 3 },
-  { id: "5", name: "Electrician", slug: "electrician", sortOrder: 4 },
-  { id: "6", name: "Plumber", slug: "plumber", sortOrder: 5 },
-  { id: "7", name: "Carpenter", slug: "carpenter", sortOrder: 6 },
-  { id: "8", name: "Painting", slug: "painting", sortOrder: 7 },
+  { id: "1", name: "Cleaning", slug: "cleaning", sortOrder: 0, parentId: null },
+  { id: "2", name: "Pest Control", slug: "pest-control", sortOrder: 1, parentId: null },
+  { id: "3", name: "AC", slug: "ac", sortOrder: 2, parentId: null },
+  { id: "4", name: "Appliances", slug: "appliances", sortOrder: 3, parentId: null },
+  { id: "5", name: "Electrician", slug: "electrician", sortOrder: 4, parentId: null },
+  { id: "6", name: "Plumber", slug: "plumber", sortOrder: 5, parentId: null },
+  { id: "7", name: "Carpenter", slug: "carpenter", sortOrder: 6, parentId: null },
+  { id: "8", name: "Painting", slug: "painting", sortOrder: 7, parentId: null },
 ];
 
 const providers: ServiceProvider[] = [

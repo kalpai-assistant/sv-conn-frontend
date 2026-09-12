@@ -45,9 +45,14 @@ export function CategoryGrid() {
     return null;
   }
 
+  // SVC-286: Home shows Level-1 tiles only (parentId === null). The full
+  // /categories response now includes both L1 tiles and their L2 sub-
+  // categories; L2 rows render inside a category page, not here.
+  const level1 = categories.filter((c) => c.parentId === null);
+
   return (
     <div className="grid grid-cols-3 gap-3 px-4">
-      {categories.map((cat) => {
+      {level1.map((cat) => {
         // SVC-286: illustrated tile preferred over Lucide icon when we have
         // artwork for this slug (currently the 7 Level-1 slugs from the
         // restructure). Every other slug falls back to the icon path — the

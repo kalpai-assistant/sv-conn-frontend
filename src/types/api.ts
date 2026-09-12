@@ -4,4548 +4,4550 @@
  */
 
 export interface paths {
-  "/api/v1/auth/send-otp": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/auth/send-otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send Otp */
+        post: operations["send_otp_api_v1_auth_send_otp_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Send Otp */
-    post: operations["send_otp_api_v1_auth_send_otp_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/auth/verify-otp": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/auth/verify-otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Otp */
+        post: operations["verify_otp_api_v1_auth_verify_otp_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Verify Otp */
-    post: operations["verify_otp_api_v1_auth_verify_otp_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/auth/refresh": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh Token */
+        post: operations["refresh_token_api_v1_auth_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Refresh Token */
-    post: operations["refresh_token_api_v1_auth_refresh_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/auth/logout": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description SVC-241: revoke a refresh token so /auth/refresh with it returns 401.
+         *
+         *     Silently succeeds on any token — even malformed / already-expired — so
+         *     the client can call this once, drop its stored tokens, and never care
+         *     whether the server had anything to blacklist.
+         */
+        post: operations["logout_api_v1_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Logout
-     * @description SVC-241: revoke a refresh token so /auth/refresh with it returns 401.
-     *
-     *     Silently succeeds on any token — even malformed / already-expired — so
-     *     the client can call this once, drop its stored tokens, and never care
-     *     whether the server had anything to blacklist.
-     */
-    post: operations["logout_api_v1_auth_logout_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/users/me": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Me */
+        get: operations["get_me_api_v1_users_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Me */
+        patch: operations["update_me_api_v1_users_me_patch"];
+        trace?: never;
     };
-    /** Get Me */
-    get: operations["get_me_api_v1_users_me_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Update Me */
-    patch: operations["update_me_api_v1_users_me_patch"];
-    trace?: never;
-  };
-  "/api/v1/users/me/fcm-token": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/users/me/fcm-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Fcm Token
+         * @description Register the caller's FCM token, or clear it by sending `null` on sign-out.
+         *
+         *     The field is required, so an empty body is rejected — clearing must be explicit.
+         */
+        patch: operations["update_fcm_token_api_v1_users_me_fcm_token_patch"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /**
-     * Update Fcm Token
-     * @description Register the caller's FCM token, or clear it by sending `null` on sign-out.
-     *
-     *     The field is required, so an empty body is rejected — clearing must be explicit.
-     */
-    patch: operations["update_fcm_token_api_v1_users_me_fcm_token_patch"];
-    trace?: never;
-  };
-  "/api/v1/users/me/push-capability": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/users/me/push-capability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report Push Capability
+         * @description Record what the caller's device can do about push (SVC-255). Logs only.
+         *
+         *     SVC-255 is about providers who never receive notifications, and nobody can
+         *     currently say how many that is. Sentry captures registration *failures*, but
+         *     with no denominator — and no existing request carries the platform, so there
+         *     is nothing to mine retroactively. The version check looks like it would help
+         *     and does not: it reads a static `latest.json` and picks the platform branch
+         *     on the client, so the server never sees which one.
+         *
+         *     Deliberately stores nothing. One structured line, counted in CloudWatch
+         *     Insights. The question is "should we invest in the iOS path at all", which
+         *     needs answering once — a column on `users` would answer a different
+         *     question ("which providers should we chase") and is only worth adding if
+         *     the distribution says the problem is real.
+         *
+         *     Fire-and-forget from the client's side: a failure here must never affect
+         *     whether push itself registers.
+         */
+        post: operations["report_push_capability_api_v1_users_me_push_capability_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Report Push Capability
-     * @description Record what the caller's device can do about push (SVC-255). Logs only.
-     *
-     *     SVC-255 is about providers who never receive notifications, and nobody can
-     *     currently say how many that is. Sentry captures registration *failures*, but
-     *     with no denominator — and no existing request carries the platform, so there
-     *     is nothing to mine retroactively. The version check looks like it would help
-     *     and does not: it reads a static `latest.json` and picks the platform branch
-     *     on the client, so the server never sees which one.
-     *
-     *     Deliberately stores nothing. One structured line, counted in CloudWatch
-     *     Insights. The question is "should we invest in the iOS path at all", which
-     *     needs answering once — a column on `users` would answer a different
-     *     question ("which providers should we chase") and is only worth adding if
-     *     the distribution says the problem is real.
-     *
-     *     Fire-and-forget from the client's side: a failure here must never affect
-     *     whether push itself registers.
-     */
-    post: operations["report_push_capability_api_v1_users_me_push_capability_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/users/me/addresses": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/users/me/addresses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Addresses */
+        get: operations["list_addresses_api_v1_users_me_addresses_get"];
+        put?: never;
+        /** Add Address */
+        post: operations["add_address_api_v1_users_me_addresses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Addresses */
-    get: operations["list_addresses_api_v1_users_me_addresses_get"];
-    put?: never;
-    /** Add Address */
-    post: operations["add_address_api_v1_users_me_addresses_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/users/me/addresses/{address_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/users/me/addresses/{address_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Address
+         * @description Remove a saved address (SVC-277: now a soft delete).
+         *
+         *     The row is hidden, not deleted — `bookings.consumer_address_id` is an
+         *     unqualified FK, so removing an address any booking has ever used raises.
+         */
+        delete: operations["delete_address_api_v1_users_me_addresses__address_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Address
+         * @description Edit a saved address (SVC-277).
+         *
+         *     Copy-on-write: the old row is soft-deleted and a new one returned. Bookings
+         *     that already point at the old address keep recording where the job actually
+         *     happened, and a provider en route to it is not silently redirected.
+         */
+        patch: operations["update_address_api_v1_users_me_addresses__address_id__patch"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /**
-     * Delete Address
-     * @description Remove a saved address (SVC-277: now a soft delete).
-     *
-     *     The row is hidden, not deleted — `bookings.consumer_address_id` is an
-     *     unqualified FK, so removing an address any booking has ever used raises.
-     */
-    delete: operations["delete_address_api_v1_users_me_addresses__address_id__delete"];
-    options?: never;
-    head?: never;
-    /**
-     * Update Address
-     * @description Edit a saved address (SVC-277).
-     *
-     *     Copy-on-write: the old row is soft-deleted and a new one returned. Bookings
-     *     that already point at the old address keep recording where the job actually
-     *     happened, and a provider en route to it is not silently redirected.
-     */
-    patch: operations["update_address_api_v1_users_me_addresses__address_id__patch"];
-    trace?: never;
-  };
-  "/api/v1/providers/me": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/providers/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Provider Profile */
+        get: operations["get_provider_profile_api_v1_providers_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Provider Profile */
+        patch: operations["update_provider_profile_api_v1_providers_me_patch"];
+        trace?: never;
     };
-    /** Get Provider Profile */
-    get: operations["get_provider_profile_api_v1_providers_me_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Update Provider Profile */
-    patch: operations["update_provider_profile_api_v1_providers_me_patch"];
-    trace?: never;
-  };
-  "/api/v1/providers/me/photo": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/providers/me/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Profile Photo
+         * @description Upload/replace the provider's profile photo. Returns the updated profile.
+         */
+        post: operations["upload_profile_photo_api_v1_providers_me_photo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Upload Profile Photo
-     * @description Upload/replace the provider's profile photo. Returns the updated profile.
-     */
-    post: operations["upload_profile_photo_api_v1_providers_me_photo_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/providers/me/payout-method": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/providers/me/payout-method": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Payout Method
+         * @description Erase all stored payout destinations.
+         *
+         *     Deliberate, explicit action — saving a new method never removes the old one, so
+         *     this is the only path that deletes payout details. Clears both methods, not just
+         *     the active one: "remove my payout details" should leave the platform holding
+         *     nothing. Afterwards ``payout_set`` is false and the provider cannot be paid until
+         *     they add a method again.
+         */
+        delete: operations["remove_payout_method_api_v1_providers_me_payout_method_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Set Active Payout Method
+         * @description Switch payouts to a method already on file, without re-entering it.
+         *
+         *     A provider who has both a UPI handle and a bank account stored can flip which
+         *     one gets paid. Returns 400 if nothing is stored for the requested method.
+         */
+        patch: operations["set_active_payout_method_api_v1_providers_me_payout_method_patch"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /**
-     * Remove Payout Method
-     * @description Erase all stored payout destinations.
-     *
-     *     Deliberate, explicit action — saving a new method never removes the old one, so
-     *     this is the only path that deletes payout details. Clears both methods, not just
-     *     the active one: "remove my payout details" should leave the platform holding
-     *     nothing. Afterwards ``payout_set`` is false and the provider cannot be paid until
-     *     they add a method again.
-     */
-    delete: operations["remove_payout_method_api_v1_providers_me_payout_method_delete"];
-    options?: never;
-    head?: never;
-    /**
-     * Set Active Payout Method
-     * @description Switch payouts to a method already on file, without re-entering it.
-     *
-     *     A provider who has both a UPI handle and a bank account stored can flip which
-     *     one gets paid. Returns 400 if nothing is stored for the requested method.
-     */
-    patch: operations["set_active_payout_method_api_v1_providers_me_payout_method_patch"];
-    trace?: never;
-  };
-  "/api/v1/providers/me/status": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/providers/me/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set Online Status */
+        patch: operations["set_online_status_api_v1_providers_me_status_patch"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Set Online Status */
-    patch: operations["set_online_status_api_v1_providers_me_status_patch"];
-    trace?: never;
-  };
-  "/api/v1/providers/nearby": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/providers/nearby": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Find Nearby Providers */
+        get: operations["find_nearby_providers_api_v1_providers_nearby_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Find Nearby Providers */
-    get: operations["find_nearby_providers_api_v1_providers_nearby_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/providers/me/services": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/providers/me/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Services
+         * @description List the services the current provider is subscribed to.
+         */
+        get: operations["list_my_services_api_v1_providers_me_services_get"];
+        put?: never;
+        /** Subscribe To Service */
+        post: operations["subscribe_to_service_api_v1_providers_me_services_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * List My Services
-     * @description List the services the current provider is subscribed to.
-     */
-    get: operations["list_my_services_api_v1_providers_me_services_get"];
-    put?: never;
-    /** Subscribe To Service */
-    post: operations["subscribe_to_service_api_v1_providers_me_services_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/providers/me/offers": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/providers/me/offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Offers
+         * @description Open job offers for the current provider (SVC-254).
+         *
+         *     The fallback delivery path. Until this existed, an FCM push was the only way
+         *     an offer reached anyone — so a stale token, a denied notification permission
+         *     or an iOS Safari tab meant the provider was silently deaf to paid work.
+         *
+         *     The provider app polls this while online. Each entry is the same
+         *     ``BookingOfferResponse`` the push route's card fetches, so a polled offer and
+         *     a pushed one are indistinguishable to the UI. Soonest-expiring first.
+         *
+         *     Also tops up: a provider who came online after a booking was dispatched has
+         *     no offer row for it, and its push has already been sent. This is the only
+         *     place they can be added, so the read writes the missing rows.
+         */
+        get: operations["list_my_offers_api_v1_providers_me_offers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * List My Offers
-     * @description Open job offers for the current provider (SVC-254).
-     *
-     *     The fallback delivery path. Until this existed, an FCM push was the only way
-     *     an offer reached anyone — so a stale token, a denied notification permission
-     *     or an iOS Safari tab meant the provider was silently deaf to paid work.
-     *
-     *     The provider app polls this while online. Each entry is the same
-     *     ``BookingOfferResponse`` the push route's card fetches, so a polled offer and
-     *     a pushed one are indistinguishable to the UI. Soonest-expiring first.
-     *
-     *     Also tops up: a provider who came online after a booking was dispatched has
-     *     no offer row for it, and its push has already been sent. This is the only
-     *     place they can be added, so the read writes the missing rows.
-     */
-    get: operations["list_my_offers_api_v1_providers_me_offers_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/providers/me/earnings": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/providers/me/earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Earnings
+         * @description Provider earnings summary + per-booking breakdown for the chosen window.
+         *
+         *     Window is the IST calendar boundary (today = since 00:00 IST, week = since
+         *     Monday 00:00 IST, month = since the 1st 00:00 IST). Refunded payments are
+         *     excluded. Used by the provider Earnings dashboard (SC-27).
+         */
+        get: operations["get_my_earnings_api_v1_providers_me_earnings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get My Earnings
-     * @description Provider earnings summary + per-booking breakdown for the chosen window.
-     *
-     *     Window is the IST calendar boundary (today = since 00:00 IST, week = since
-     *     Monday 00:00 IST, month = since the 1st 00:00 IST). Refunded payments are
-     *     excluded. Used by the provider Earnings dashboard (SC-27).
-     */
-    get: operations["get_my_earnings_api_v1_providers_me_earnings_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/providers/me/services/{service_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/providers/me/services/{service_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unsubscribe From Service */
+        delete: operations["unsubscribe_from_service_api_v1_providers_me_services__service_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /** Unsubscribe From Service */
-    delete: operations["unsubscribe_from_service_api_v1_providers_me_services__service_id__delete"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/providers/me/kyc": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/providers/me/kyc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Kyc
+         * @description Upload KYC documents. Sets the profile's kyc_status to SUBMITTED.
+         */
+        post: operations["submit_kyc_api_v1_providers_me_kyc_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Submit Kyc
-     * @description Upload KYC documents. Sets the profile's kyc_status to SUBMITTED.
-     */
-    post: operations["submit_kyc_api_v1_providers_me_kyc_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/categories": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Categories */
+        get: operations["list_categories_api_v1_categories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Categories */
-    get: operations["list_categories_api_v1_categories_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/services": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Services
+         * @description List global catalog services, optionally filtered by category.
+         */
+        get: operations["list_services_api_v1_services_get"];
+        put?: never;
+        /**
+         * Create Service
+         * @description Admin-only: add a service to the global catalog.
+         */
+        post: operations["create_service_api_v1_services_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * List Services
-     * @description List global catalog services, optionally filtered by category.
-     */
-    get: operations["list_services_api_v1_services_get"];
-    put?: never;
-    /**
-     * Create Service
-     * @description Admin-only: add a service to the global catalog.
-     */
-    post: operations["create_service_api_v1_services_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/services/{service_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/services/{service_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Service
+         * @description Admin-only: soft-delete a catalog service.
+         */
+        delete: operations["delete_service_api_v1_services__service_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Service
+         * @description Admin-only: update a catalog service.
+         */
+        patch: operations["update_service_api_v1_services__service_id__patch"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /**
-     * Delete Service
-     * @description Admin-only: soft-delete a catalog service.
-     */
-    delete: operations["delete_service_api_v1_services__service_id__delete"];
-    options?: never;
-    head?: never;
-    /**
-     * Update Service
-     * @description Admin-only: update a catalog service.
-     */
-    patch: operations["update_service_api_v1_services__service_id__patch"];
-    trace?: never;
-  };
-  "/api/v1/bookings/": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/bookings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Bookings */
+        get: operations["list_bookings_api_v1_bookings__get"];
+        put?: never;
+        /** Create Booking */
+        post: operations["create_booking_api_v1_bookings__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Bookings */
-    get: operations["list_bookings_api_v1_bookings__get"];
-    put?: never;
-    /** Create Booking */
-    post: operations["create_booking_api_v1_bookings__post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/bookings/{booking_id}/accept": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/bookings/{booking_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Accept Booking
+         * @description Claim a broadcast booking. First provider to accept wins.
+         *
+         *     Idempotent: a provider re-accepting a booking they already hold gets 200 and
+         *     the booking, with no second notification to the consumer. That case is a
+         *     retry after a lost response, not a new acceptance — notifying again would
+         *     tell the consumer twice, and returning an error would tell the *winning*
+         *     provider they lost (SVC-154).
+         */
+        patch: operations["accept_booking_api_v1_bookings__booking_id__accept_patch"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /**
-     * Accept Booking
-     * @description Claim a broadcast booking. First provider to accept wins.
-     *
-     *     Idempotent: a provider re-accepting a booking they already hold gets 200 and
-     *     the booking, with no second notification to the consumer. That case is a
-     *     retry after a lost response, not a new acceptance — notifying again would
-     *     tell the consumer twice, and returning an error would tell the *winning*
-     *     provider they lost (SVC-154).
-     */
-    patch: operations["accept_booking_api_v1_bookings__booking_id__accept_patch"];
-    trace?: never;
-  };
-  "/api/v1/bookings/{booking_id}/decline": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/bookings/{booking_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Decline Booking
+         * @description Turn down a job offer (SVC-254). Backs the card's "Not now".
+         *
+         *     Without this the poll would re-serve a dismissed offer every fifteen seconds
+         *     until the window closed — worse than never showing it. Declining only
+         *     silences it for this provider; the booking stays open for everyone else.
+         *
+         *     Idempotent, and quiet about it: declining an offer already answered returns
+         *     204 rather than an error. A double tap is the common cause, and the
+         *     provider's intent is satisfied either way. 403 when they were never offered
+         *     the booking — the same answer ``/offer`` gives a non-recipient, so decline
+         *     can't be used to probe which bookings exist.
+         */
+        patch: operations["decline_booking_api_v1_bookings__booking_id__decline_patch"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /**
-     * Decline Booking
-     * @description Turn down a job offer (SVC-254). Backs the card's "Not now".
-     *
-     *     Without this the poll would re-serve a dismissed offer every fifteen seconds
-     *     until the window closed — worse than never showing it. Declining only
-     *     silences it for this provider; the booking stays open for everyone else.
-     *
-     *     Idempotent, and quiet about it: declining an offer already answered returns
-     *     204 rather than an error. A double tap is the common cause, and the
-     *     provider's intent is satisfied either way. 403 when they were never offered
-     *     the booking — the same answer ``/offer`` gives a non-recipient, so decline
-     *     can't be used to probe which bookings exist.
-     */
-    patch: operations["decline_booking_api_v1_bookings__booking_id__decline_patch"];
-    trace?: never;
-  };
-  "/api/v1/bookings/{booking_id}/en-route": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/bookings/{booking_id}/en-route": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Mark En Route */
+        patch: operations["mark_en_route_api_v1_bookings__booking_id__en_route_patch"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Mark En Route */
-    patch: operations["mark_en_route_api_v1_bookings__booking_id__en_route_patch"];
-    trace?: never;
-  };
-  "/api/v1/bookings/{booking_id}/start": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/bookings/{booking_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Start Booking
+         * @description Provider verifies doorstep OTP to start the service.
+         */
+        patch: operations["start_booking_api_v1_bookings__booking_id__start_patch"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /**
-     * Start Booking
-     * @description Provider verifies doorstep OTP to start the service.
-     */
-    patch: operations["start_booking_api_v1_bookings__booking_id__start_patch"];
-    trace?: never;
-  };
-  "/api/v1/bookings/{booking_id}/complete": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/bookings/{booking_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Complete Booking */
+        patch: operations["complete_booking_api_v1_bookings__booking_id__complete_patch"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Complete Booking */
-    patch: operations["complete_booking_api_v1_bookings__booking_id__complete_patch"];
-    trace?: never;
-  };
-  "/api/v1/bookings/{booking_id}/cancel": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/bookings/{booking_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Cancel Booking */
+        patch: operations["cancel_booking_api_v1_bookings__booking_id__cancel_patch"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Cancel Booking */
-    patch: operations["cancel_booking_api_v1_bookings__booking_id__cancel_patch"];
-    trace?: never;
-  };
-  "/api/v1/bookings/{booking_id}/tip": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/bookings/{booking_id}/tip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tip Booking
+         * @description Consumer adds (or updates) a gratuity on a completed booking.
+         *
+         *     100% of the tip flows to the provider — added on top of provider_payout
+         *     at payout time. A subsequent call with a different amount replaces
+         *     rather than accumulates; ``amount=0`` removes the tip. Bounds live in
+         *     the request schema; state + access checks live in the service layer.
+         */
+        post: operations["tip_booking_api_v1_bookings__booking_id__tip_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Tip Booking
-     * @description Consumer adds (or updates) a gratuity on a completed booking.
-     *
-     *     100% of the tip flows to the provider — added on top of provider_payout
-     *     at payout time. A subsequent call with a different amount replaces
-     *     rather than accumulates; ``amount=0`` removes the tip. Bounds live in
-     *     the request schema; state + access checks live in the service layer.
-     */
-    post: operations["tip_booking_api_v1_bookings__booking_id__tip_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/bookings/{booking_id}/offer": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/bookings/{booking_id}/offer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Offer
+         * @description What a provider may see about a broadcast job before accepting it (SVC-153).
+         *
+         *     Backs the Incoming Request Card: the ``new_request`` push carries only a booking
+         *     id, and ``GET /{booking_id}`` refuses a provider who has not been assigned yet.
+         *
+         *     403 when the caller was not offered this booking, 410 once it is no longer
+         *     open. Both come from the service so they carry the standard error shape — the
+         *     card keys off the status code, not the message. Role is not gated here: the
+         *     eligibility check subsumes it, since only a matching provider can pass it.
+         */
+        get: operations["get_booking_offer_api_v1_bookings__booking_id__offer_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Booking Offer
-     * @description What a provider may see about a broadcast job before accepting it (SVC-153).
-     *
-     *     Backs the Incoming Request Card: the ``new_request`` push carries only a booking
-     *     id, and ``GET /{booking_id}`` refuses a provider who has not been assigned yet.
-     *
-     *     403 when the caller was not offered this booking, 410 once it is no longer
-     *     open. Both come from the service so they carry the standard error shape — the
-     *     card keys off the status code, not the message. Role is not gated here: the
-     *     eligibility check subsumes it, since only a matching provider can pass it.
-     */
-    get: operations["get_booking_offer_api_v1_bookings__booking_id__offer_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/bookings/{booking_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/bookings/{booking_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking
+         * @description Fetch a single booking by ID. Only consumer or assigned provider may access.
+         *
+         *     Both parties get the same schema, so the response is built per-caller rather
+         *     than split by ``response_model``: the assigned provider sees the booking
+         *     without ``doorstep_otp`` (SVC-169).
+         */
+        get: operations["get_booking_api_v1_bookings__booking_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Booking
-     * @description Fetch a single booking by ID. Only consumer or assigned provider may access.
-     *
-     *     Both parties get the same schema, so the response is built per-caller rather
-     *     than split by ``response_model``: the assigned provider sees the booking
-     *     without ``doorstep_otp`` (SVC-169).
-     */
-    get: operations["get_booking_api_v1_bookings__booking_id__get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/payments/orders": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/payments/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Payment Order */
+        post: operations["create_payment_order_api_v1_payments_orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Create Payment Order */
-    post: operations["create_payment_order_api_v1_payments_orders_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/payments/verify": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/payments/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Payment */
+        post: operations["verify_payment_api_v1_payments_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Verify Payment */
-    post: operations["verify_payment_api_v1_payments_verify_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/payments/webhook": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/payments/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Razorpay Webhook
+         * @description Razorpay Payments webhook — verified against RAZORPAY_WEBHOOK_SECRET.
+         */
+        post: operations["razorpay_webhook_api_v1_payments_webhook_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Razorpay Webhook
-     * @description Razorpay Payments webhook — verified against RAZORPAY_WEBHOOK_SECRET.
-     */
-    post: operations["razorpay_webhook_api_v1_payments_webhook_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/payments/payout-webhook": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/payments/payout-webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Razorpayx Payout Webhook
+         * @description RazorpayX (payouts) webhook — verified against RAZORPAYX_WEBHOOK_SECRET.
+         *
+         *     RazorpayX is a separate Razorpay product with its own webhook secret, so its
+         *     payout.processed / payout.failed / payout.reversed events must arrive on a
+         *     dedicated endpoint rather than the Payments webhook (different secret).
+         *
+         *     The provider's push is dispatched as a background task so it runs only after
+         *     ``get_db`` commits. If this delivery rolls back, RazorpayX retries it and the
+         *     retry settles the same bookings — pushing inline would notify the provider once
+         *     per attempt.
+         */
+        post: operations["razorpayx_payout_webhook_api_v1_payments_payout_webhook_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Razorpayx Payout Webhook
-     * @description RazorpayX (payouts) webhook — verified against RAZORPAYX_WEBHOOK_SECRET.
-     *
-     *     RazorpayX is a separate Razorpay product with its own webhook secret, so its
-     *     payout.processed / payout.failed / payout.reversed events must arrive on a
-     *     dedicated endpoint rather than the Payments webhook (different secret).
-     *
-     *     The provider's push is dispatched as a background task so it runs only after
-     *     ``get_db`` commits. If this delivery rolls back, RazorpayX retries it and the
-     *     retry settles the same bookings — pushing inline would notify the provider once
-     *     per attempt.
-     */
-    post: operations["razorpayx_payout_webhook_api_v1_payments_payout_webhook_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/reviews/": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/reviews/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Review */
+        post: operations["create_review_api_v1_reviews__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Create Review */
-    post: operations["create_review_api_v1_reviews__post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/reviews/provider/{provider_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/reviews/provider/{provider_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Provider Reviews */
+        get: operations["list_provider_reviews_api_v1_reviews_provider__provider_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Provider Reviews */
-    get: operations["list_provider_reviews_api_v1_reviews_provider__provider_id__get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/coupons/available": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/coupons/available": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Available Coupons
+         * @description Coupons the current user can apply to a new booking today.
+         *
+         *     The list matches what ``POST /coupons/validate`` will accept — the
+         *     filter set is shared through ``CouponService`` so a coupon shown here
+         *     is never refused there.
+         */
+        get: operations["list_available_coupons_api_v1_coupons_available_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * List Available Coupons
-     * @description Coupons the current user can apply to a new booking today.
-     *
-     *     The list matches what ``POST /coupons/validate`` will accept — the
-     *     filter set is shared through ``CouponService`` so a coupon shown here
-     *     is never refused there.
-     */
-    get: operations["list_available_coupons_api_v1_coupons_available_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/coupons/validate": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/coupons/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate Coupon
+         * @description Price a coupon against a cart amount.
+         *
+         *     The cart hasn't been persisted as a Booking yet — the app calls this
+         *     while the user is on the Cart screen so the bill preview updates
+         *     live. On success we return the computed discount; a subsequent
+         *     ``POST /bookings`` with ``coupon_code`` recomputes on the server side
+         *     and applies the *authoritative* number, so a client that hoards a
+         *     stale discount can't over-apply.
+         */
+        post: operations["validate_coupon_api_v1_coupons_validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Validate Coupon
-     * @description Price a coupon against a cart amount.
-     *
-     *     The cart hasn't been persisted as a Booking yet — the app calls this
-     *     while the user is on the Cart screen so the bill preview updates
-     *     live. On success we return the computed discount; a subsequent
-     *     ``POST /bookings`` with ``coupon_code`` recomputes on the server side
-     *     and applies the *authoritative* number, so a client that hoards a
-     *     stale discount can't over-apply.
-     */
-    post: operations["validate_coupon_api_v1_coupons_validate_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/admin/users": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Users */
+        get: operations["list_users_api_v1_admin_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Users */
-    get: operations["list_users_api_v1_admin_users_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/admin/users/{user_id}/deactivate": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/users/{user_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Deactivate User */
+        patch: operations["deactivate_user_api_v1_admin_users__user_id__deactivate_patch"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Deactivate User */
-    patch: operations["deactivate_user_api_v1_admin_users__user_id__deactivate_patch"];
-    trace?: never;
-  };
-  "/api/v1/admin/providers/kyc/pending": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/providers/kyc/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pending Kyc
+         * @description List providers whose KYC is awaiting admin review.
+         */
+        get: operations["list_pending_kyc_api_v1_admin_providers_kyc_pending_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * List Pending Kyc
-     * @description List providers whose KYC is awaiting admin review.
-     */
-    get: operations["list_pending_kyc_api_v1_admin_providers_kyc_pending_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/admin/providers/{user_id}/kyc": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/providers/{user_id}/kyc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Provider Kyc Review
+         * @description Full KYC review payload for an admin: profile metadata + presigned URLs for
+         *     the uploaded docs (1h TTL). Powers the admin KYC review page (SVC-90).
+         */
+        get: operations["get_provider_kyc_review_api_v1_admin_providers__user_id__kyc_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Provider Kyc Review
-     * @description Full KYC review payload for an admin: profile metadata + presigned URLs for
-     *     the uploaded docs (1h TTL). Powers the admin KYC review page (SVC-90).
-     */
-    get: operations["get_provider_kyc_review_api_v1_admin_providers__user_id__kyc_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/admin/providers/{user_id}/kyc/verify": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/providers/{user_id}/kyc/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Provider Kyc */
+        post: operations["verify_provider_kyc_api_v1_admin_providers__user_id__kyc_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Verify Provider Kyc */
-    post: operations["verify_provider_kyc_api_v1_admin_providers__user_id__kyc_verify_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/admin/providers/{user_id}/kyc/reject": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/providers/{user_id}/kyc/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Provider Kyc */
+        post: operations["reject_provider_kyc_api_v1_admin_providers__user_id__kyc_reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Reject Provider Kyc */
-    post: operations["reject_provider_kyc_api_v1_admin_providers__user_id__kyc_reject_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/admin/bookings": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List All Bookings */
+        get: operations["list_all_bookings_api_v1_admin_bookings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List All Bookings */
-    get: operations["list_all_bookings_api_v1_admin_bookings_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/admin/bookings/{booking_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/bookings/{booking_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Any Booking
+         * @description Fetch any one booking by id, whoever it belongs to.
+         *
+         *     Distinct from ``GET /bookings/{id}``, which admits only that booking's own
+         *     consumer or assigned provider — an admin is neither, so the user-facing route
+         *     refuses them and there was previously no way for support to look at a single
+         *     booking at all.
+         *
+         *     This one carries the consumer's address, which the bulk listing above
+         *     deliberately does not (SVC-170). That is the whole distinction: one booking
+         *     asked for by id is a support question about a specific job, where a page of
+         *     every booking on the platform is a standing export of home addresses. It
+         *     still withholds the doorstep PIN — see ``BookingResponse.for_admin``.
+         */
+        get: operations["get_any_booking_api_v1_admin_bookings__booking_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Any Booking
-     * @description Fetch any one booking by id, whoever it belongs to.
-     *
-     *     Distinct from ``GET /bookings/{id}``, which admits only that booking's own
-     *     consumer or assigned provider — an admin is neither, so the user-facing route
-     *     refuses them and there was previously no way for support to look at a single
-     *     booking at all.
-     *
-     *     This one carries the consumer's address, which the bulk listing above
-     *     deliberately does not (SVC-170). That is the whole distinction: one booking
-     *     asked for by id is a support question about a specific job, where a page of
-     *     every booking on the platform is a standing export of home addresses. It
-     *     still withholds the doorstep PIN — see ``BookingResponse.for_admin``.
-     */
-    get: operations["get_any_booking_api_v1_admin_bookings__booking_id__get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/admin/providers/pending-settlements": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/providers/pending-settlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pending Settlements
+         * @description Providers awaiting settlement, with the amount and booking count owed.
+         *
+         *     The discovery half of the payout flow: ``POST /providers/{user_id}/payout`` can
+         *     only be triggered for a provider the admin already knows, so this answers "who
+         *     do we owe, and how much" for the admin payouts screen. Read-only, so it takes
+         *     the role guard rather than injecting the admin (nothing to audit).
+         */
+        get: operations["list_pending_settlements_api_v1_admin_providers_pending_settlements_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * List Pending Settlements
-     * @description Providers awaiting settlement, with the amount and booking count owed.
-     *
-     *     The discovery half of the payout flow: ``POST /providers/{user_id}/payout`` can
-     *     only be triggered for a provider the admin already knows, so this answers "who
-     *     do we owe, and how much" for the admin payouts screen. Read-only, so it takes
-     *     the role guard rather than injecting the admin (nothing to audit).
-     */
-    get: operations["list_pending_settlements_api_v1_admin_providers_pending_settlements_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/admin/providers/{user_id}/payout": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/providers/{user_id}/payout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pay Out Provider
+         * @description Enqueue a RazorpayX payout for a provider's completed-but-unsettled bookings.
+         *
+         *     Returns 202 with a summary of what will be paid and the Celery task id. The
+         *     payout itself runs asynchronously (SVC-188 / G30): before this, the endpoint
+         *     awaited a 30-90s RazorpayX HTTP call while holding a DB connection and a
+         *     ``SELECT … FOR UPDATE`` lock on the provider's pending bookings, which
+         *     puts pool pressure on the same workers serving consumer traffic during a
+         *     RazorpayX slowdown.
+         *
+         *     The upfront reads compute the batch total + booking count without a row
+         *     lock, so the admin gets an accurate estimate immediately. The task then
+         *     runs the full flow (record audit → lock rows → RazorpayX → resolve audit
+         *     → update bookings → drain pushes) — every guarantee from the synchronous
+         *     path is preserved because the task calls the same
+         *     ``PayoutService.create_provider_payout``.
+         *
+         *     Every attempt is still recorded in ``payout_audits`` before the RazorpayX
+         *     call fires; the admin payouts screen surfaces the outcome from there, and
+         *     ``reconcile_payouts`` (nightly) resolves any breadcrumb whose task
+         *     process died mid-flight.
+         */
+        post: operations["pay_out_provider_api_v1_admin_providers__user_id__payout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Pay Out Provider
-     * @description Enqueue a RazorpayX payout for a provider's completed-but-unsettled bookings.
-     *
-     *     Returns 202 with a summary of what will be paid and the Celery task id. The
-     *     payout itself runs asynchronously (SVC-188 / G30): before this, the endpoint
-     *     awaited a 30-90s RazorpayX HTTP call while holding a DB connection and a
-     *     ``SELECT … FOR UPDATE`` lock on the provider's pending bookings, which
-     *     puts pool pressure on the same workers serving consumer traffic during a
-     *     RazorpayX slowdown.
-     *
-     *     The upfront reads compute the batch total + booking count without a row
-     *     lock, so the admin gets an accurate estimate immediately. The task then
-     *     runs the full flow (record audit → lock rows → RazorpayX → resolve audit
-     *     → update bookings → drain pushes) — every guarantee from the synchronous
-     *     path is preserved because the task calls the same
-     *     ``PayoutService.create_provider_payout``.
-     *
-     *     Every attempt is still recorded in ``payout_audits`` before the RazorpayX
-     *     call fires; the admin payouts screen surfaces the outcome from there, and
-     *     ``reconcile_payouts`` (nightly) resolves any breadcrumb whose task
-     *     process died mid-flight.
-     */
-    post: operations["pay_out_provider_api_v1_admin_providers__user_id__payout_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/admin/providers/{user_id}/payout/requeue-failed": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/providers/{user_id}/payout/requeue-failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Requeue Failed Settlements
+         * @description Reset a provider's FAILED settlements to PENDING so they can be paid again.
+         *
+         *     Manual recovery for payouts that failed (bad bank details, KYC hold, ...): once
+         *     the cause is fixed, an admin re-queues the failed settlements, which then become
+         *     eligible for the next payout run. The triggering admin is recorded in the audit
+         *     trail.
+         */
+        post: operations["requeue_failed_settlements_api_v1_admin_providers__user_id__payout_requeue_failed_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Requeue Failed Settlements
-     * @description Reset a provider's FAILED settlements to PENDING so they can be paid again.
-     *
-     *     Manual recovery for payouts that failed (bad bank details, KYC hold, ...): once
-     *     the cause is fixed, an admin re-queues the failed settlements, which then become
-     *     eligible for the next payout run. The triggering admin is recorded in the audit
-     *     trail.
-     */
-    post: operations["requeue_failed_settlements_api_v1_admin_providers__user_id__payout_requeue_failed_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/admin/providers/{user_id}/payout/requeue-reversed": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/providers/{user_id}/payout/requeue-reversed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Requeue Reversed Settlements
+         * @description Reset a provider's REVERSED settlements to PENDING so they can be paid again.
+         *
+         *     A reversal means the payout reached the provider and was then clawed back —
+         *     often a KYC/compliance signal, not a simple retry. Only use this once you've
+         *     confirmed the provider is genuinely still owed and the underlying cause is
+         *     fixed; otherwise the re-payment will likely bounce again. Admin-only and
+         *     recorded in the audit trail.
+         */
+        post: operations["requeue_reversed_settlements_api_v1_admin_providers__user_id__payout_requeue_reversed_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Requeue Reversed Settlements
-     * @description Reset a provider's REVERSED settlements to PENDING so they can be paid again.
-     *
-     *     A reversal means the payout reached the provider and was then clawed back —
-     *     often a KYC/compliance signal, not a simple retry. Only use this once you've
-     *     confirmed the provider is genuinely still owed and the underlying cause is
-     *     fixed; otherwise the re-payment will likely bounce again. Admin-only and
-     *     recorded in the audit trail.
-     */
-    post: operations["requeue_reversed_settlements_api_v1_admin_providers__user_id__payout_requeue_reversed_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/admin/app-versions/{platform}/release": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/admin/app-versions/{platform}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish App Release
+         * @description One-shot publish: bump `app_versions.{platform}` + (optionally) push
+         *     a "New version available" notification to every consumer with an
+         *     FCM token.
+         *
+         *     The two-step manual ritual — SQL update + separate broadcast call —
+         *     is easy to get wrong (bump the version without notifying, or notify
+         *     without bumping and users tap through to nothing new). This endpoint
+         *     does both atomically: the DB write happens first (so the poll-on-
+         *     foreground path immediately reflects the new version even if the
+         *     broadcast fails to enqueue), then the Celery task is fired.
+         *
+         *     Not the same as ``release-apk.yml`` — that builds and uploads the
+         *     APK. This endpoint tells the running fleet about it after the APK
+         *     is in place. The current publish ritual is:
+         *       1. `gh workflow run release-apk.yml -f version=X.Y.Z`
+         *       2. `POST /admin/app-versions/android/release {"version": "X.Y.Z"}`
+         */
+        post: operations["publish_app_release_api_v1_admin_app_versions__platform__release_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Publish App Release
-     * @description One-shot publish: bump `app_versions.{platform}` + (optionally) push
-     *     a "New version available" notification to every consumer with an
-     *     FCM token.
-     *
-     *     The two-step manual ritual — SQL update + separate broadcast call —
-     *     is easy to get wrong (bump the version without notifying, or notify
-     *     without bumping and users tap through to nothing new). This endpoint
-     *     does both atomically: the DB write happens first (so the poll-on-
-     *     foreground path immediately reflects the new version even if the
-     *     broadcast fails to enqueue), then the Celery task is fired.
-     *
-     *     Not the same as ``release-apk.yml`` — that builds and uploads the
-     *     APK. This endpoint tells the running fleet about it after the APK
-     *     is in place. The current publish ritual is:
-     *       1. `gh workflow run release-apk.yml -f version=X.Y.Z`
-     *       2. `POST /admin/app-versions/android/release {"version": "X.Y.Z"}`
-     */
-    post: operations["publish_app_release_api_v1_admin_app_versions__platform__release_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/downloads/sms-link": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/downloads/sms-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Download Link Sms
+         * @description SMS the download page URL to the phone number the visitor entered.
+         *
+         *     Public. Rate-limited by IP (3/hour). No user record created — this is
+         *     the pre-signup surface.
+         *
+         *     Returns 501 when the feature flag is off, which is the default during
+         *     beta until the MSG91 template is approved.
+         */
+        post: operations["send_download_link_sms_api_v1_downloads_sms_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Send Download Link Sms
-     * @description SMS the download page URL to the phone number the visitor entered.
-     *
-     *     Public. Rate-limited by IP (3/hour). No user record created — this is
-     *     the pre-signup surface.
-     *
-     *     Returns 501 when the feature flag is off, which is the default during
-     *     beta until the MSG91 template is approved.
-     */
-    post: operations["send_download_link_sms_api_v1_downloads_sms_link_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/downloads/latest.json": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/v1/downloads/latest.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Latest Version
+         * @description Return the latest + minimum-supported version for each platform.
+         *
+         *     Hit on every app cold start + foreground event. Cached at the CDN edge
+         *     for 5 minutes so a burst of foregrounds after a network blip doesn't
+         *     hammer the DB. Long enough to spare load; short enough that flipping
+         *     ``min_supported_version`` during an incident propagates in minutes,
+         *     not hours.
+         *
+         *     503 rather than an empty response if seed rows are missing — that's a
+         *     deployment bug (missing migration), and returning defaults would
+         *     silently mask it.
+         */
+        get: operations["get_latest_version_api_v1_downloads_latest_json_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Latest Version
-     * @description Return the latest + minimum-supported version for each platform.
-     *
-     *     Hit on every app cold start + foreground event. Cached at the CDN edge
-     *     for 5 minutes so a burst of foregrounds after a network blip doesn't
-     *     hammer the DB. Long enough to spare load; short enough that flipping
-     *     ``min_supported_version`` during an incident propagates in minutes,
-     *     not hours.
-     *
-     *     503 rather than an empty response if seed rows are missing — that's a
-     *     deployment bug (missing migration), and returning defaults would
-     *     silently mask it.
-     */
-    get: operations["get_latest_version_api_v1_downloads_latest_json_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/health": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Liveness
+         * @description Liveness probe — the process is running.
+         *
+         *     Never touches the DB / Redis. Used by container orchestrators to decide
+         *     when to restart; a failed DB should NOT trigger a restart (that just
+         *     thrashes the pod without fixing anything).
+         */
+        get: operations["liveness_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Liveness
-     * @description Liveness probe — the process is running.
-     *
-     *     Never touches the DB / Redis. Used by container orchestrators to decide
-     *     when to restart; a failed DB should NOT trigger a restart (that just
-     *     thrashes the pod without fixing anything).
-     */
-    get: operations["liveness_health_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/healthz": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/healthz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Readiness
+         * @description Readiness probe — the process can actually serve requests.
+         *
+         *     Pings each dependency with a short timeout, returns a per-dependency
+         *     result. If ANY dependency fails, response is HTTP 503 (Service
+         *     Unavailable) — so load balancers can drain traffic from this pod without
+         *     also killing it.
+         */
+        get: operations["readiness_healthz_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Readiness
-     * @description Readiness probe — the process can actually serve requests.
-     *
-     *     Pings each dependency with a short timeout, returns a per-dependency
-     *     result. If ANY dependency fails, response is HTTP 503 (Service
-     *     Unavailable) — so load balancers can drain traffic from this pod without
-     *     also killing it.
-     */
-    get: operations["readiness_healthz_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /** AddressResponse */
-    AddressResponse: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /** Label */
-      label: string;
-      /** Full Address */
-      full_address: string;
-      /** Is Default */
-      is_default: boolean;
-      /** Lat */
-      lat?: number | null;
-      /** Lng */
-      lng?: number | null;
+    schemas: {
+        /** AddressResponse */
+        AddressResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Full Address */
+            full_address: string;
+            /** Is Default */
+            is_default: boolean;
+            /** Lat */
+            lat?: number | null;
+            /** Lng */
+            lng?: number | null;
+        };
+        /** Body_submit_kyc_api_v1_providers_me_kyc_post */
+        Body_submit_kyc_api_v1_providers_me_kyc_post: {
+            /**
+             * Aadhaar Front
+             * Format: binary
+             * @description Aadhaar front image
+             */
+            aadhaar_front: string;
+            /**
+             * Aadhaar Back
+             * Format: binary
+             * @description Aadhaar back image
+             */
+            aadhaar_back: string;
+            /**
+             * Selfie
+             * Format: binary
+             * @description Live selfie
+             */
+            selfie: string;
+        };
+        /** Body_upload_profile_photo_api_v1_providers_me_photo_post */
+        Body_upload_profile_photo_api_v1_providers_me_photo_post: {
+            /**
+             * Photo
+             * Format: binary
+             * @description Provider profile photo
+             */
+            photo: string;
+        };
+        /**
+         * BookingAddress
+         * @description Where the job is, as the booking's two parties see it (SVC-170).
+         *
+         *     Its own schema rather than a reuse of ``AddressResponse``, which backs the
+         *     consumer's own address book: that one carries ``is_default``, a detail of how
+         *     the consumer manages their saved addresses and nothing a provider standing
+         *     outside the building has any use for. Same principle that gave
+         *     ``BookingOfferResponse`` its own shape (SVC-153) — serve each audience the
+         *     fields its screen actually renders.
+         *
+         *     ``lat``/``lng`` are the point of this being a nested object rather than a bare
+         *     ``full_address`` string. The job to be done is *navigate there*: with
+         *     coordinates the app can hand off to the device maps app, without them the
+         *     provider retypes a free-text Indian address into Google Maps and trusts its
+         *     geocoder — the failure mode this ticket exists to remove. ``get_offer``
+         *     already reads the same geography to derive ``distance_km``.
+         *
+         *     Both are optional because ``location`` is nullable: ``CreateAddressRequest``
+         *     accepts an address with no coordinates, and older rows have none. Clients must
+         *     treat text as the source of truth and coordinates as the enhancement, never
+         *     the reverse.
+         */
+        BookingAddress: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Full Address */
+            full_address: string;
+            /** Lat */
+            lat: number | null;
+            /** Lng */
+            lng: number | null;
+        };
+        /**
+         * BookingItemResponse
+         * @description One line on a booking response.
+         *
+         *     ``service_name`` is denormalised into the response so the mobile app
+         *     doesn't have to cross-reference against /services for every booking it
+         *     displays — the list route already returns dozens of items and doing that
+         *     lookup client-side is exactly the sort of N+1 pattern the frontend keeps
+         *     hitting. Read from the loaded ``BookingItem.service`` relationship, which
+         *     must be eager-loaded (see ``BookingItem.service`` — ``raise_on_sql``).
+         */
+        BookingItemResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** Service Name */
+            service_name: string;
+            /** Service Variant Id */
+            service_variant_id?: string | null;
+            /** Variant Label */
+            variant_label?: string | null;
+            /** Quantity */
+            quantity: number;
+            /** Unit Price */
+            unit_price: number;
+            /** Total Price */
+            total_price: number;
+        };
+        /** BookingListResponse */
+        BookingListResponse: {
+            /** Bookings */
+            bookings: components["schemas"]["BookingResponse"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+        };
+        /**
+         * BookingOfferResponse
+         * @description What a broadcast recipient may see about a job they have not yet accepted.
+         *
+         *     Deliberately its own schema rather than a reuse of ``BookingResponse`` (SVC-153).
+         *     This is served to *every* nearby provider, none of whom is assigned yet, so it
+         *     carries only what the Incoming Request Card renders — and notably not
+         *     ``doorstep_otp``, which gates the en_route → in_progress transition and must
+         *     reach the provider from the consumer at the door, not from this API.
+         *
+         *     ``service_amount`` is returned as a plain number; the app formats the ₹ string.
+         *     Rupee formatting is not done server-side here — see the ticket's money note.
+         *
+         *     ``expires_at`` and ``seconds_remaining`` both describe the same instant and are
+         *     both returned on purpose (SVC-166). The card's countdown must use
+         *     ``seconds_remaining``: it is computed server-side, so a device with a wrong
+         *     clock still counts down correctly, and clock skew is unbounded on a 120-second
+         *     window. ``expires_at`` is the absolute form, for anything needing a real
+         *     instant rather than a duration.
+         *
+         *     Neither field carries a default — a defaulted field falls out of OpenAPI
+         *     ``required`` and the generated client types it optional, which invites a
+         *     ``?? 120`` fallback and reintroduces the bug this exists to fix.
+         */
+        BookingOfferResponse: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /** Service Name */
+            service_name: string;
+            /** Service Amount */
+            service_amount: number;
+            /** Full Address */
+            full_address: string;
+            /** Distance Km */
+            distance_km: number;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Seconds Remaining */
+            seconds_remaining: number;
+        };
+        /** BookingResponse */
+        BookingResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Consumer Id
+             * Format: uuid
+             */
+            consumer_id: string;
+            /** Provider Id */
+            provider_id: string | null;
+            /** Items */
+            items: components["schemas"]["BookingItemResponse"][];
+            /** Status */
+            status: string;
+            /** Service Amount */
+            service_amount: number;
+            /** Platform Commission */
+            platform_commission: number;
+            /** Provider Payout */
+            provider_payout: number;
+            /** Discount Amount */
+            discount_amount: number;
+            /** Tip Amount */
+            tip_amount: number;
+            /** Payment Method */
+            payment_method: string | null;
+            /** Payment Status */
+            payment_status: string;
+            /** Doorstep Otp */
+            doorstep_otp?: string | null;
+            address: components["schemas"]["BookingAddress"] | null;
+            /** Status History */
+            status_history: components["schemas"]["BookingStatusLogResponse"][];
+            /**
+             * Is Disputed
+             * @default false
+             */
+            is_disputed: boolean;
+            /** Scheduled At */
+            scheduled_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * BookingStatusLogResponse
+         * @description One state transition on a booking, as the tracking timeline sees it.
+         *
+         *     A deliberately narrow projection of ``booking_status_logs``, which is an
+         *     internal audit trail and not a consumer-facing record (SVC-248). Two
+         *     columns are withheld on purpose:
+         *
+         *     ``changed_by`` is a user id — usually the assigned provider's, sometimes an
+         *     admin's. Who moved a booking is an operational fact; handing it to the
+         *     consumer's app turns an audit row into a disclosure about another person.
+         *
+         *     ``metadata_`` is free-form JSONB written by whatever called
+         *     ``_log_transition``. Nobody has audited what is already in those rows
+         *     across the project's history, and a field whose contents are unknown
+         *     cannot be knowingly published. If some part of it is worth showing, it
+         *     should be promoted to a named column first.
+         *
+         *     ``from_status`` is left out for a plainer reason: on an ordered list the
+         *     previous state is always the ``to_status`` of the entry before it.
+         */
+        BookingStatusLogResponse: {
+            /** To Status */
+            to_status: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CancelBookingRequest */
+        CancelBookingRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** CategoryResponse */
+        CategoryResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Icon Url */
+            icon_url: string | null;
+            /** Description */
+            description: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Parent Id */
+            parent_id: string | null;
+        };
+        /**
+         * CouponResponse
+         * @description One coupon in a user's available list.
+         *
+         *     ``discount_type`` lets the UI render the correct microcopy
+         *     ("20% off" vs "₹100 off") without needing to know the value's units
+         *     from context. ``expires_at`` is what the card renders — the internal
+         *     ``valid_from`` is not exposed, a coupon that hasn't started yet simply
+         *     doesn't appear in the list.
+         */
+        CouponResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Code */
+            code: string;
+            /** Discount Type */
+            discount_type: string;
+            /** Discount Value */
+            discount_value: number;
+            /** Max Discount */
+            max_discount: number | null;
+            /** Min Order Amount */
+            min_order_amount: number | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /**
+         * CouponValidateRequest
+         * @description User taps [Apply] on a coupon; the app asks the backend to price it.
+         */
+        CouponValidateRequest: {
+            /** Code */
+            code: string;
+            /** Cart Amount */
+            cart_amount: number;
+        };
+        /** CouponValidateResponse */
+        CouponValidateResponse: {
+            /** Code */
+            code: string;
+            /** Discount Type */
+            discount_type: string;
+            /** Discount Amount */
+            discount_amount: number;
+        };
+        /** CreateAddressRequest */
+        CreateAddressRequest: {
+            /**
+             * Label
+             * @default home
+             */
+            label: string;
+            /** Full Address */
+            full_address: string;
+            /** Lat */
+            lat?: number | null;
+            /** Lng */
+            lng?: number | null;
+            /**
+             * Is Default
+             * @default false
+             */
+            is_default: boolean;
+        };
+        /**
+         * CreateBookingItemRequest
+         * @description One line item on a booking-creation request.
+         */
+        CreateBookingItemRequest: {
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** Service Variant Id */
+            service_variant_id?: string | null;
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+        };
+        /**
+         * CreateBookingRequest
+         * @description Create a booking as either a multi-item cart (``items``) or a single
+         *     service (``service_id``).
+         *
+         *     ``service_id`` is the legacy single-service shape retained for the mobile
+         *     app while the cart UI is rolling out (PR 2c). It is normalised to a
+         *     1-item ``items`` list inside the validator so the service layer sees one
+         *     shape. Once the cart UI has shipped everywhere the ``service_id`` field
+         *     can be removed and callers forced onto ``items``.
+         */
+        CreateBookingRequest: {
+            /** Items */
+            items?: components["schemas"]["CreateBookingItemRequest"][] | null;
+            /** Service Id */
+            service_id?: string | null;
+            /**
+             * Address Id
+             * Format: uuid
+             */
+            address_id: string;
+            /** Scheduled At */
+            scheduled_at?: string | null;
+            /**
+             * Payment Method
+             * @default online
+             */
+            payment_method: string;
+            /** Coupon Code */
+            coupon_code?: string | null;
+        };
+        /** CreatePaymentOrderRequest */
+        CreatePaymentOrderRequest: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+        };
+        /** CreateReviewRequest */
+        CreateReviewRequest: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /** Rating */
+            rating: number;
+            /** Comment */
+            comment?: string | null;
+        };
+        /** CreateServiceRequest */
+        CreateServiceRequest: {
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** Base Price */
+            base_price: number;
+            /**
+             * Duration Minutes
+             * @default 60
+             */
+            duration_minutes: number;
+        };
+        /** EarningsBookingItem */
+        EarningsBookingItem: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /** Service Name */
+            service_name: string;
+            /**
+             * Completed At
+             * Format: date-time
+             */
+            completed_at: string;
+            /** Payout Amount */
+            payout_amount: number;
+            /**
+             * Tip Amount
+             * @default 0
+             */
+            tip_amount: number;
+        };
+        /** EarningsResponse */
+        EarningsResponse: {
+            /** Range */
+            range: string;
+            /** Total Payout */
+            total_payout: number;
+            /** Completed Count */
+            completed_count: number;
+            /** Bookings */
+            bookings: components["schemas"]["EarningsBookingItem"][];
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * KYCDocsResponse
+         * @description Admin-only: full KYC payload including presigned doc URLs for review.
+         */
+        KYCDocsResponse: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string | null;
+            /** Phone */
+            phone: string;
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Kyc Submitted At */
+            kyc_submitted_at: string | null;
+            /** Kyc Reviewed At */
+            kyc_reviewed_at: string | null;
+            /** Kyc Rejection Reason */
+            kyc_rejection_reason: string | null;
+            /** Aadhaar Url */
+            aadhaar_url: string | null;
+            /** Selfie Url */
+            selfie_url: string | null;
+        };
+        /** KYCRejectionRequest */
+        KYCRejectionRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** KYCReviewResponse */
+        KYCReviewResponse: {
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Kyc Reviewed At */
+            kyc_reviewed_at: string | null;
+            /** Kyc Rejection Reason */
+            kyc_rejection_reason: string | null;
+        };
+        /**
+         * KYCStatus
+         * @enum {string}
+         */
+        KYCStatus: "pending" | "submitted" | "verified" | "rejected";
+        /** KYCSubmissionResponse */
+        KYCSubmissionResponse: {
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Kyc Submitted At */
+            kyc_submitted_at: string | null;
+        };
+        /**
+         * LatestVersionResponse
+         * @description The whole payload returned by GET /downloads/latest.json.
+         *
+         *     Shape is stable — the frontend hook branches on the presence of each
+         *     platform key. Adding a new platform (post-beta iOS native) means
+         *     adding a new required key here + a matching row in ``app_versions``.
+         */
+        LatestVersionResponse: {
+            android: components["schemas"]["PlatformVersion"];
+            pwa: components["schemas"]["PlatformVersion"];
+        };
+        /**
+         * LogoutRequest
+         * @description SVC-241: refresh token to blacklist. The access token is short-lived
+         *     and expires on its own; the refresh token is the durable credential a
+         *     thief could otherwise use to mint fresh access tokens for 30 days.
+         */
+        LogoutRequest: {
+            /** Refresh Token */
+            refresh_token: string;
+        };
+        /**
+         * NearbyProviderResponse
+         * @description Slim response for the 'nearby providers' discovery endpoint.
+         */
+        NearbyProviderResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Avg Rating */
+            avg_rating: number;
+            /** Total Completed Jobs */
+            total_completed_jobs: number;
+            /** Is Online */
+            is_online: boolean;
+            /** Distance Km */
+            distance_km?: number | null;
+        };
+        /** PaymentOrderResponse */
+        PaymentOrderResponse: {
+            /** Razorpay Order Id */
+            razorpay_order_id: string;
+            /** Amount */
+            amount: number;
+            /**
+             * Currency
+             * @default INR
+             */
+            currency: string;
+            /** Razorpay Key Id */
+            razorpay_key_id: string;
+        };
+        /**
+         * PayoutMethod
+         * @description Which stored destination a provider's payouts actually go to.
+         *
+         *     A provider may keep both a UPI handle and a bank account on file (SVC-148:
+         *     switching does not erase the old one). This is the single source of truth for
+         *     which one the money is sent to — the payout must never infer it from which
+         *     columns happen to be populated.
+         * @enum {string}
+         */
+        PayoutMethod: "upi" | "bank";
+        /**
+         * PayoutMethodSelect
+         * @description Switch payouts to a method the provider already has stored (SVC-148).
+         */
+        PayoutMethodSelect: {
+            method: components["schemas"]["PayoutMethod"];
+        };
+        /**
+         * PendingSettlementProvider
+         * @description One provider with money owed, as shown in the admin payouts list.
+         */
+        PendingSettlementProvider: {
+            /**
+             * Provider Id
+             * Format: uuid
+             */
+            provider_id: string;
+            /** Name */
+            name: string | null;
+            /** Phone */
+            phone: string;
+            /** Pending Booking Count */
+            pending_booking_count: number;
+            /** Pending Payout Paise */
+            pending_payout_paise: number;
+            /** Payout Set */
+            payout_set: boolean;
+            /** Is Active */
+            is_active: boolean;
+            /** Kyc Status */
+            kyc_status: string;
+        };
+        /**
+         * PendingSettlementsResponse
+         * @description Capped list of providers awaiting settlement.
+         *
+         *     Not paginated by design (SVC-144): the admin panel shows one screen of who is
+         *     owed. ``total`` is the true number of providers with pending settlements, so the
+         *     UI can say "showing 200 of 247" when ``truncated`` is set.
+         */
+        PendingSettlementsResponse: {
+            /** Providers */
+            providers: components["schemas"]["PendingSettlementProvider"][];
+            /** Total */
+            total: number;
+            /** Truncated */
+            truncated: boolean;
+        };
+        /**
+         * PlatformVersion
+         * @description Version metadata for one platform (android / pwa).
+         *
+         *     ``version`` and ``min_supported_version`` are SemVer strings. Clients
+         *     compare using SemVer semantics — a lex compare would treat 1.10 < 1.2.
+         */
+        PlatformVersion: {
+            /** Version */
+            version: string;
+            /** Min Supported Version */
+            min_supported_version: string;
+            /** Url */
+            url: string | null;
+            /** Release Notes */
+            release_notes: string | null;
+            /**
+             * Released At
+             * Format: date-time
+             */
+            released_at: string;
+        };
+        /**
+         * ProviderProfileUpdate
+         * @description Fields a provider can update on their own profile.
+         */
+        ProviderProfileUpdate: {
+            /** Aadhaar */
+            aadhaar?: string | null;
+            /** Pan */
+            pan?: string | null;
+            /** Upi Id */
+            upi_id?: string | null;
+            /** Bank Account */
+            bank_account?: string | null;
+            /** Service Area Lat */
+            service_area_lat?: number | null;
+            /** Service Area Lng */
+            service_area_lng?: number | null;
+            /** Service Area Radius Km */
+            service_area_radius_km?: number | null;
+            /** Payout Vpa */
+            payout_vpa?: string | null;
+            /** Payout Account Number */
+            payout_account_number?: string | null;
+            /** Payout Ifsc */
+            payout_ifsc?: string | null;
+            /** Languages */
+            languages?: string[] | null;
+        };
+        /** ProviderResponse */
+        ProviderResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Profile Photo Url */
+            profile_photo_url: string | null;
+            /**
+             * Languages
+             * @default []
+             */
+            languages: string[];
+            /** Avg Rating */
+            avg_rating: number;
+            /** Total Completed Jobs */
+            total_completed_jobs: number;
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Is Online */
+            is_online: boolean;
+            /** Service Area Radius Km */
+            service_area_radius_km: number;
+            /** Service Area Lat */
+            service_area_lat?: number | null;
+            /** Service Area Lng */
+            service_area_lng?: number | null;
+            /**
+             * Payout Set
+             * @default false
+             */
+            payout_set: boolean;
+            payout_method?: components["schemas"]["PayoutMethod"] | null;
+            /** Payout Display */
+            payout_display?: string | null;
+            /** Payout Methods Stored */
+            payout_methods_stored: components["schemas"]["PayoutMethod"][];
+        };
+        /** ProviderServiceSubscribeRequest */
+        ProviderServiceSubscribeRequest: {
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+        };
+        /** ProviderServiceSubscriptionResponse */
+        ProviderServiceSubscriptionResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Provider Id
+             * Format: uuid
+             */
+            provider_id: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+        };
+        /** ProviderStatusUpdate */
+        ProviderStatusUpdate: {
+            /** Is Online */
+            is_online: boolean;
+        };
+        /**
+         * PublishReleaseRequest
+         * @description Bump the current version + optionally push a nudge to every device.
+         *
+         *     ``version`` is the customer-facing SemVer of the new build. The
+         *     matching APK must already be at ``app_versions.url`` (usually
+         *     ``s3://eazyserv-downloads/apk/latest.apk``, since ``release-apk.yml``
+         *     always overwrites that key). If they don't match, users will nudge
+         *     themselves onto a version we haven't shipped yet.
+         *
+         *     ``min_supported_version``, when passed, atomically hard-blocks anyone
+         *     below it — the SVC-162 emergency lever. Leave it unset to keep the
+         *     current threshold.
+         *
+         *     ``notify`` = true enqueues the FCM broadcast (``broadcast_update_available``).
+         *     Set to false when releasing a build we don't want to interrupt users
+         *     over (e.g. a silent metrics fix — the poll on next foreground will
+         *     still surface the nudge).
+         */
+        PublishReleaseRequest: {
+            /** Version */
+            version: string;
+            /** Min Supported Version */
+            min_supported_version?: string | null;
+            /** Release Notes */
+            release_notes?: string | null;
+            /**
+             * Url
+             * @description New APK URL. Usually stays the same because release-apk.yml overwrites apk/latest.apk in place.
+             */
+            url?: string | null;
+            /**
+             * Notify
+             * @description Fire the FCM broadcast so users learn about the update without opening the app.
+             * @default true
+             */
+            notify: boolean;
+        };
+        /** PublishReleaseResponse */
+        PublishReleaseResponse: {
+            /** Platform */
+            platform: string;
+            /** Version */
+            version: string;
+            /** Min Supported Version */
+            min_supported_version: string;
+            /** Notified */
+            notified: boolean;
+            /**
+             * Task Id
+             * @description Celery task id for the FCM broadcast (only when notify=true).
+             */
+            task_id?: string | null;
+        };
+        /**
+         * PushCapabilityReport
+         * @description What the client can tell us about its ability to receive push (SVC-255).
+         *
+         *     Sent on every registration attempt, successful or not. That "or not" is the
+         *     whole point: Sentry already records failures, but with no denominator —
+         *     "12 failures this week" is unreadable without knowing whether that is 12 out
+         *     of 12 or 12 out of 400. Reporting every attempt supplies the denominator.
+         *
+         *     Nothing here is stored. The handler logs one line and returns; the question
+         *     it answers ("how many providers can actually receive push, and on what?") is
+         *     a one-off scoping question, not a per-user fact worth a column.
+         */
+        PushCapabilityReport: {
+            /**
+             * Platform
+             * @enum {string}
+             */
+            platform: "android" | "ios" | "desktop";
+            /** Is Native */
+            is_native: boolean;
+            /**
+             * Ios Standalone
+             * @default false
+             */
+            ios_standalone: boolean;
+            /**
+             * Is Chrome Ios
+             * @default false
+             */
+            is_chrome_ios: boolean;
+            /**
+             * Push Permission
+             * @enum {string}
+             */
+            push_permission: "granted" | "denied" | "prompt" | "unsupported";
+            /** Token Obtained */
+            token_obtained: boolean;
+            /**
+             * Interactive
+             * @default false
+             */
+            interactive: boolean;
+        };
+        /** RefreshTokenRequest */
+        RefreshTokenRequest: {
+            /** Refresh Token */
+            refresh_token: string;
+        };
+        /** ReviewListResponse */
+        ReviewListResponse: {
+            /** Reviews */
+            reviews: components["schemas"]["ReviewResponse"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+            /** Avg Rating */
+            avg_rating: number;
+        };
+        /** ReviewResponse */
+        ReviewResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /**
+             * Reviewer Id
+             * Format: uuid
+             */
+            reviewer_id: string;
+            /**
+             * Reviewee Id
+             * Format: uuid
+             */
+            reviewee_id: string;
+            /** Rating */
+            rating: number;
+            /** Comment */
+            comment: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** SendOTPRequest */
+        SendOTPRequest: {
+            /**
+             * Phone
+             * @description Indian phone number with +91 prefix
+             */
+            phone: string;
+        };
+        /** ServiceResponse */
+        ServiceResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Base Price */
+            base_price: number;
+            /** Duration Minutes */
+            duration_minutes: number;
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Variants
+             * @default []
+             */
+            variants: components["schemas"]["ServiceVariantResponse"][];
+        };
+        /**
+         * ServiceVariantResponse
+         * @description One priced option under a service.
+         *
+         *     ``base_price`` is what the customer sees before GST; ``gst_percent`` is 0
+         *     for the launch summary rows and 18 for the vertical sheets. Frontend
+         *     computes the customer total as ``base_price * (1 + gst_percent/100)``
+         *     when rendering the checkout.
+         *
+         *     ``provider_payout`` + ``platform_commission`` are stored, not derived,
+         *     because the split ratio isn't a global constant — the launch summary
+         *     rows are 70/30 and the vertical sheets are 65/35. The booking service
+         *     snapshots these fields into ``booking_items`` at booking time.
+         */
+        ServiceVariantResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Subcategory */
+            subcategory: string | null;
+            /** Base Price */
+            base_price: number;
+            /** Provider Payout */
+            provider_payout: number;
+            /** Platform Commission */
+            platform_commission: number;
+            /** Gst Percent */
+            gst_percent: number;
+            /** Duration Minutes */
+            duration_minutes: number | null;
+            /** Materials Note */
+            materials_note: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Is Active */
+            is_active: boolean;
+        };
+        /** SmsLinkRequest */
+        SmsLinkRequest: {
+            /**
+             * Phone
+             * @description E.164 Indian mobile number
+             */
+            phone: string;
+        };
+        /** StartBookingRequest */
+        StartBookingRequest: {
+            /** Otp */
+            otp: string;
+        };
+        /**
+         * TipBookingRequest
+         * @description Consumer adds (or updates) a gratuity on a completed booking.
+         *
+         *     Zero is a valid amount — the client uses this to *remove* a tip the
+         *     consumer changed their mind about before payout has flowed. Bounded
+         *     at ₹10,000 so a fat-finger doesn't move real money by accident;
+         *     higher values need to route through support.
+         */
+        TipBookingRequest: {
+            /** Amount */
+            amount: number;
+        };
+        /** TokenResponse */
+        TokenResponse: {
+            /** Access Token */
+            access_token: string;
+            /** Refresh Token */
+            refresh_token: string;
+            /**
+             * Token Type
+             * @default bearer
+             */
+            token_type: string;
+            /** User Id */
+            user_id: string;
+            /** Role */
+            role: string;
+            /** Is New User */
+            is_new_user: boolean;
+        };
+        /**
+         * UpdateAddressRequest
+         * @description Edit a saved address (SVC-277). Every field optional — this is a PATCH.
+         *
+         *     Served by a copy-on-write update: the old row is soft-deleted and a new one
+         *     created, so bookings that already point at the old address keep recording
+         *     where the job actually happened. See `UserService.update_address`.
+         */
+        UpdateAddressRequest: {
+            /** Label */
+            label?: string | null;
+            /** Full Address */
+            full_address?: string | null;
+            /** Lat */
+            lat?: number | null;
+            /** Lng */
+            lng?: number | null;
+            /** Is Default */
+            is_default?: boolean | null;
+        };
+        /**
+         * UpdateFCMTokenRequest
+         * @description Register or clear the caller's FCM token.
+         *
+         *     `fcm_token` is nullable but *required* — `null` clears the stored token
+         *     (sign-out), while an omitted field is a 422. Without that distinction an
+         *     empty body would silently wipe push for the user.
+         */
+        UpdateFCMTokenRequest: {
+            /** Fcm Token */
+            fcm_token: string | null;
+        };
+        /** UpdateProfileRequest */
+        UpdateProfileRequest: {
+            /** Name */
+            name?: string | null;
+            /** Email */
+            email?: string | null;
+        };
+        /** UpdateServiceRequest */
+        UpdateServiceRequest: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Base Price */
+            base_price?: number | null;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /** Is Active */
+            is_active?: boolean | null;
+        };
+        /** UserResponse */
+        UserResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Phone */
+            phone: string;
+            /** Name */
+            name: string | null;
+            /** Email */
+            email: string | null;
+            role: components["schemas"]["UserRole"];
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * UserRole
+         * @enum {string}
+         */
+        UserRole: "consumer" | "provider" | "admin";
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
+        /** VerifyOTPRequest */
+        VerifyOTPRequest: {
+            /** Phone */
+            phone: string;
+            /** Otp */
+            otp: string;
+            /**
+             * Role
+             * @default consumer
+             */
+            role: string;
+        };
+        /** VerifyPaymentRequest */
+        VerifyPaymentRequest: {
+            /** Razorpay Order Id */
+            razorpay_order_id: string;
+            /** Razorpay Payment Id */
+            razorpay_payment_id: string;
+            /** Razorpay Signature */
+            razorpay_signature: string;
+        };
     };
-    /** Body_submit_kyc_api_v1_providers_me_kyc_post */
-    Body_submit_kyc_api_v1_providers_me_kyc_post: {
-      /**
-       * Aadhaar Front
-       * Format: binary
-       * @description Aadhaar front image
-       */
-      aadhaar_front: string;
-      /**
-       * Aadhaar Back
-       * Format: binary
-       * @description Aadhaar back image
-       */
-      aadhaar_back: string;
-      /**
-       * Selfie
-       * Format: binary
-       * @description Live selfie
-       */
-      selfie: string;
-    };
-    /** Body_upload_profile_photo_api_v1_providers_me_photo_post */
-    Body_upload_profile_photo_api_v1_providers_me_photo_post: {
-      /**
-       * Photo
-       * Format: binary
-       * @description Provider profile photo
-       */
-      photo: string;
-    };
-    /**
-     * BookingAddress
-     * @description Where the job is, as the booking's two parties see it (SVC-170).
-     *
-     *     Its own schema rather than a reuse of ``AddressResponse``, which backs the
-     *     consumer's own address book: that one carries ``is_default``, a detail of how
-     *     the consumer manages their saved addresses and nothing a provider standing
-     *     outside the building has any use for. Same principle that gave
-     *     ``BookingOfferResponse`` its own shape (SVC-153) — serve each audience the
-     *     fields its screen actually renders.
-     *
-     *     ``lat``/``lng`` are the point of this being a nested object rather than a bare
-     *     ``full_address`` string. The job to be done is *navigate there*: with
-     *     coordinates the app can hand off to the device maps app, without them the
-     *     provider retypes a free-text Indian address into Google Maps and trusts its
-     *     geocoder — the failure mode this ticket exists to remove. ``get_offer``
-     *     already reads the same geography to derive ``distance_km``.
-     *
-     *     Both are optional because ``location`` is nullable: ``CreateAddressRequest``
-     *     accepts an address with no coordinates, and older rows have none. Clients must
-     *     treat text as the source of truth and coordinates as the enhancement, never
-     *     the reverse.
-     */
-    BookingAddress: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /** Label */
-      label: string;
-      /** Full Address */
-      full_address: string;
-      /** Lat */
-      lat: number | null;
-      /** Lng */
-      lng: number | null;
-    };
-    /**
-     * BookingItemResponse
-     * @description One line on a booking response.
-     *
-     *     ``service_name`` is denormalised into the response so the mobile app
-     *     doesn't have to cross-reference against /services for every booking it
-     *     displays — the list route already returns dozens of items and doing that
-     *     lookup client-side is exactly the sort of N+1 pattern the frontend keeps
-     *     hitting. Read from the loaded ``BookingItem.service`` relationship, which
-     *     must be eager-loaded (see ``BookingItem.service`` — ``raise_on_sql``).
-     */
-    BookingItemResponse: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /**
-       * Service Id
-       * Format: uuid
-       */
-      service_id: string;
-      /** Service Name */
-      service_name: string;
-      /** Service Variant Id */
-      service_variant_id?: string | null;
-      /** Variant Label */
-      variant_label?: string | null;
-      /** Quantity */
-      quantity: number;
-      /** Unit Price */
-      unit_price: number;
-      /** Total Price */
-      total_price: number;
-    };
-    /** BookingListResponse */
-    BookingListResponse: {
-      /** Bookings */
-      bookings: components["schemas"]["BookingResponse"][];
-      /** Total */
-      total: number;
-      /** Page */
-      page: number;
-      /** Per Page */
-      per_page: number;
-    };
-    /**
-     * BookingOfferResponse
-     * @description What a broadcast recipient may see about a job they have not yet accepted.
-     *
-     *     Deliberately its own schema rather than a reuse of ``BookingResponse`` (SVC-153).
-     *     This is served to *every* nearby provider, none of whom is assigned yet, so it
-     *     carries only what the Incoming Request Card renders — and notably not
-     *     ``doorstep_otp``, which gates the en_route → in_progress transition and must
-     *     reach the provider from the consumer at the door, not from this API.
-     *
-     *     ``service_amount`` is returned as a plain number; the app formats the ₹ string.
-     *     Rupee formatting is not done server-side here — see the ticket's money note.
-     *
-     *     ``expires_at`` and ``seconds_remaining`` both describe the same instant and are
-     *     both returned on purpose (SVC-166). The card's countdown must use
-     *     ``seconds_remaining``: it is computed server-side, so a device with a wrong
-     *     clock still counts down correctly, and clock skew is unbounded on a 120-second
-     *     window. ``expires_at`` is the absolute form, for anything needing a real
-     *     instant rather than a duration.
-     *
-     *     Neither field carries a default — a defaulted field falls out of OpenAPI
-     *     ``required`` and the generated client types it optional, which invites a
-     *     ``?? 120`` fallback and reintroduces the bug this exists to fix.
-     */
-    BookingOfferResponse: {
-      /**
-       * Booking Id
-       * Format: uuid
-       */
-      booking_id: string;
-      /** Service Name */
-      service_name: string;
-      /** Service Amount */
-      service_amount: number;
-      /** Full Address */
-      full_address: string;
-      /** Distance Km */
-      distance_km: number;
-      /**
-       * Expires At
-       * Format: date-time
-       */
-      expires_at: string;
-      /** Seconds Remaining */
-      seconds_remaining: number;
-    };
-    /** BookingResponse */
-    BookingResponse: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /**
-       * Consumer Id
-       * Format: uuid
-       */
-      consumer_id: string;
-      /** Provider Id */
-      provider_id: string | null;
-      /** Items */
-      items: components["schemas"]["BookingItemResponse"][];
-      /** Status */
-      status: string;
-      /** Service Amount */
-      service_amount: number;
-      /** Platform Commission */
-      platform_commission: number;
-      /** Provider Payout */
-      provider_payout: number;
-      /** Discount Amount */
-      discount_amount: number;
-      /** Tip Amount */
-      tip_amount: number;
-      /** Payment Method */
-      payment_method: string | null;
-      /** Payment Status */
-      payment_status: string;
-      /** Doorstep Otp */
-      doorstep_otp?: string | null;
-      address: components["schemas"]["BookingAddress"] | null;
-      /** Status History */
-      status_history: components["schemas"]["BookingStatusLogResponse"][];
-      /**
-       * Is Disputed
-       * @default false
-       */
-      is_disputed: boolean;
-      /** Scheduled At */
-      scheduled_at: string | null;
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-    };
-    /**
-     * BookingStatusLogResponse
-     * @description One state transition on a booking, as the tracking timeline sees it.
-     *
-     *     A deliberately narrow projection of ``booking_status_logs``, which is an
-     *     internal audit trail and not a consumer-facing record (SVC-248). Two
-     *     columns are withheld on purpose:
-     *
-     *     ``changed_by`` is a user id — usually the assigned provider's, sometimes an
-     *     admin's. Who moved a booking is an operational fact; handing it to the
-     *     consumer's app turns an audit row into a disclosure about another person.
-     *
-     *     ``metadata_`` is free-form JSONB written by whatever called
-     *     ``_log_transition``. Nobody has audited what is already in those rows
-     *     across the project's history, and a field whose contents are unknown
-     *     cannot be knowingly published. If some part of it is worth showing, it
-     *     should be promoted to a named column first.
-     *
-     *     ``from_status`` is left out for a plainer reason: on an ordered list the
-     *     previous state is always the ``to_status`` of the entry before it.
-     */
-    BookingStatusLogResponse: {
-      /** To Status */
-      to_status: string;
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-    };
-    /** CancelBookingRequest */
-    CancelBookingRequest: {
-      /** Reason */
-      reason: string;
-    };
-    /** CategoryResponse */
-    CategoryResponse: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /** Name */
-      name: string;
-      /** Slug */
-      slug: string;
-      /** Icon Url */
-      icon_url: string | null;
-      /** Description */
-      description: string | null;
-      /** Sort Order */
-      sort_order: number;
-    };
-    /**
-     * CouponResponse
-     * @description One coupon in a user's available list.
-     *
-     *     ``discount_type`` lets the UI render the correct microcopy
-     *     ("20% off" vs "₹100 off") without needing to know the value's units
-     *     from context. ``expires_at`` is what the card renders — the internal
-     *     ``valid_from`` is not exposed, a coupon that hasn't started yet simply
-     *     doesn't appear in the list.
-     */
-    CouponResponse: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /** Code */
-      code: string;
-      /** Discount Type */
-      discount_type: string;
-      /** Discount Value */
-      discount_value: number;
-      /** Max Discount */
-      max_discount: number | null;
-      /** Min Order Amount */
-      min_order_amount: number | null;
-      /**
-       * Expires At
-       * Format: date-time
-       */
-      expires_at: string;
-    };
-    /**
-     * CouponValidateRequest
-     * @description User taps [Apply] on a coupon; the app asks the backend to price it.
-     */
-    CouponValidateRequest: {
-      /** Code */
-      code: string;
-      /** Cart Amount */
-      cart_amount: number;
-    };
-    /** CouponValidateResponse */
-    CouponValidateResponse: {
-      /** Code */
-      code: string;
-      /** Discount Type */
-      discount_type: string;
-      /** Discount Amount */
-      discount_amount: number;
-    };
-    /** CreateAddressRequest */
-    CreateAddressRequest: {
-      /**
-       * Label
-       * @default home
-       */
-      label: string;
-      /** Full Address */
-      full_address: string;
-      /** Lat */
-      lat?: number | null;
-      /** Lng */
-      lng?: number | null;
-      /**
-       * Is Default
-       * @default false
-       */
-      is_default: boolean;
-    };
-    /**
-     * CreateBookingItemRequest
-     * @description One line item on a booking-creation request.
-     */
-    CreateBookingItemRequest: {
-      /**
-       * Service Id
-       * Format: uuid
-       */
-      service_id: string;
-      /** Service Variant Id */
-      service_variant_id?: string | null;
-      /**
-       * Quantity
-       * @default 1
-       */
-      quantity: number;
-    };
-    /**
-     * CreateBookingRequest
-     * @description Create a booking as either a multi-item cart (``items``) or a single
-     *     service (``service_id``).
-     *
-     *     ``service_id`` is the legacy single-service shape retained for the mobile
-     *     app while the cart UI is rolling out (PR 2c). It is normalised to a
-     *     1-item ``items`` list inside the validator so the service layer sees one
-     *     shape. Once the cart UI has shipped everywhere the ``service_id`` field
-     *     can be removed and callers forced onto ``items``.
-     */
-    CreateBookingRequest: {
-      /** Items */
-      items?: components["schemas"]["CreateBookingItemRequest"][] | null;
-      /** Service Id */
-      service_id?: string | null;
-      /**
-       * Address Id
-       * Format: uuid
-       */
-      address_id: string;
-      /** Scheduled At */
-      scheduled_at?: string | null;
-      /**
-       * Payment Method
-       * @default online
-       */
-      payment_method: string;
-      /** Coupon Code */
-      coupon_code?: string | null;
-    };
-    /** CreatePaymentOrderRequest */
-    CreatePaymentOrderRequest: {
-      /**
-       * Booking Id
-       * Format: uuid
-       */
-      booking_id: string;
-    };
-    /** CreateReviewRequest */
-    CreateReviewRequest: {
-      /**
-       * Booking Id
-       * Format: uuid
-       */
-      booking_id: string;
-      /** Rating */
-      rating: number;
-      /** Comment */
-      comment?: string | null;
-    };
-    /** CreateServiceRequest */
-    CreateServiceRequest: {
-      /**
-       * Category Id
-       * Format: uuid
-       */
-      category_id: string;
-      /** Name */
-      name: string;
-      /** Description */
-      description?: string | null;
-      /** Base Price */
-      base_price: number;
-      /**
-       * Duration Minutes
-       * @default 60
-       */
-      duration_minutes: number;
-    };
-    /** EarningsBookingItem */
-    EarningsBookingItem: {
-      /**
-       * Booking Id
-       * Format: uuid
-       */
-      booking_id: string;
-      /** Service Name */
-      service_name: string;
-      /**
-       * Completed At
-       * Format: date-time
-       */
-      completed_at: string;
-      /** Payout Amount */
-      payout_amount: number;
-      /**
-       * Tip Amount
-       * @default 0
-       */
-      tip_amount: number;
-    };
-    /** EarningsResponse */
-    EarningsResponse: {
-      /** Range */
-      range: string;
-      /** Total Payout */
-      total_payout: number;
-      /** Completed Count */
-      completed_count: number;
-      /** Bookings */
-      bookings: components["schemas"]["EarningsBookingItem"][];
-    };
-    /** HTTPValidationError */
-    HTTPValidationError: {
-      /** Detail */
-      detail?: components["schemas"]["ValidationError"][];
-    };
-    /**
-     * KYCDocsResponse
-     * @description Admin-only: full KYC payload including presigned doc URLs for review.
-     */
-    KYCDocsResponse: {
-      /**
-       * User Id
-       * Format: uuid
-       */
-      user_id: string;
-      /** Name */
-      name: string | null;
-      /** Phone */
-      phone: string;
-      kyc_status: components["schemas"]["KYCStatus"];
-      /** Kyc Submitted At */
-      kyc_submitted_at: string | null;
-      /** Kyc Reviewed At */
-      kyc_reviewed_at: string | null;
-      /** Kyc Rejection Reason */
-      kyc_rejection_reason: string | null;
-      /** Aadhaar Url */
-      aadhaar_url: string | null;
-      /** Selfie Url */
-      selfie_url: string | null;
-    };
-    /** KYCRejectionRequest */
-    KYCRejectionRequest: {
-      /** Reason */
-      reason: string;
-    };
-    /** KYCReviewResponse */
-    KYCReviewResponse: {
-      kyc_status: components["schemas"]["KYCStatus"];
-      /** Kyc Reviewed At */
-      kyc_reviewed_at: string | null;
-      /** Kyc Rejection Reason */
-      kyc_rejection_reason: string | null;
-    };
-    /**
-     * KYCStatus
-     * @enum {string}
-     */
-    KYCStatus: "pending" | "submitted" | "verified" | "rejected";
-    /** KYCSubmissionResponse */
-    KYCSubmissionResponse: {
-      kyc_status: components["schemas"]["KYCStatus"];
-      /** Kyc Submitted At */
-      kyc_submitted_at: string | null;
-    };
-    /**
-     * LatestVersionResponse
-     * @description The whole payload returned by GET /downloads/latest.json.
-     *
-     *     Shape is stable — the frontend hook branches on the presence of each
-     *     platform key. Adding a new platform (post-beta iOS native) means
-     *     adding a new required key here + a matching row in ``app_versions``.
-     */
-    LatestVersionResponse: {
-      android: components["schemas"]["PlatformVersion"];
-      pwa: components["schemas"]["PlatformVersion"];
-    };
-    /**
-     * LogoutRequest
-     * @description SVC-241: refresh token to blacklist. The access token is short-lived
-     *     and expires on its own; the refresh token is the durable credential a
-     *     thief could otherwise use to mint fresh access tokens for 30 days.
-     */
-    LogoutRequest: {
-      /** Refresh Token */
-      refresh_token: string;
-    };
-    /**
-     * NearbyProviderResponse
-     * @description Slim response for the 'nearby providers' discovery endpoint.
-     */
-    NearbyProviderResponse: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /**
-       * User Id
-       * Format: uuid
-       */
-      user_id: string;
-      /** Avg Rating */
-      avg_rating: number;
-      /** Total Completed Jobs */
-      total_completed_jobs: number;
-      /** Is Online */
-      is_online: boolean;
-      /** Distance Km */
-      distance_km?: number | null;
-    };
-    /** PaymentOrderResponse */
-    PaymentOrderResponse: {
-      /** Razorpay Order Id */
-      razorpay_order_id: string;
-      /** Amount */
-      amount: number;
-      /**
-       * Currency
-       * @default INR
-       */
-      currency: string;
-      /** Razorpay Key Id */
-      razorpay_key_id: string;
-    };
-    /**
-     * PayoutMethod
-     * @description Which stored destination a provider's payouts actually go to.
-     *
-     *     A provider may keep both a UPI handle and a bank account on file (SVC-148:
-     *     switching does not erase the old one). This is the single source of truth for
-     *     which one the money is sent to — the payout must never infer it from which
-     *     columns happen to be populated.
-     * @enum {string}
-     */
-    PayoutMethod: "upi" | "bank";
-    /**
-     * PayoutMethodSelect
-     * @description Switch payouts to a method the provider already has stored (SVC-148).
-     */
-    PayoutMethodSelect: {
-      method: components["schemas"]["PayoutMethod"];
-    };
-    /**
-     * PendingSettlementProvider
-     * @description One provider with money owed, as shown in the admin payouts list.
-     */
-    PendingSettlementProvider: {
-      /**
-       * Provider Id
-       * Format: uuid
-       */
-      provider_id: string;
-      /** Name */
-      name: string | null;
-      /** Phone */
-      phone: string;
-      /** Pending Booking Count */
-      pending_booking_count: number;
-      /** Pending Payout Paise */
-      pending_payout_paise: number;
-      /** Payout Set */
-      payout_set: boolean;
-      /** Is Active */
-      is_active: boolean;
-      /** Kyc Status */
-      kyc_status: string;
-    };
-    /**
-     * PendingSettlementsResponse
-     * @description Capped list of providers awaiting settlement.
-     *
-     *     Not paginated by design (SVC-144): the admin panel shows one screen of who is
-     *     owed. ``total`` is the true number of providers with pending settlements, so the
-     *     UI can say "showing 200 of 247" when ``truncated`` is set.
-     */
-    PendingSettlementsResponse: {
-      /** Providers */
-      providers: components["schemas"]["PendingSettlementProvider"][];
-      /** Total */
-      total: number;
-      /** Truncated */
-      truncated: boolean;
-    };
-    /**
-     * PlatformVersion
-     * @description Version metadata for one platform (android / pwa).
-     *
-     *     ``version`` and ``min_supported_version`` are SemVer strings. Clients
-     *     compare using SemVer semantics — a lex compare would treat 1.10 < 1.2.
-     */
-    PlatformVersion: {
-      /** Version */
-      version: string;
-      /** Min Supported Version */
-      min_supported_version: string;
-      /** Url */
-      url: string | null;
-      /** Release Notes */
-      release_notes: string | null;
-      /**
-       * Released At
-       * Format: date-time
-       */
-      released_at: string;
-    };
-    /**
-     * ProviderProfileUpdate
-     * @description Fields a provider can update on their own profile.
-     */
-    ProviderProfileUpdate: {
-      /** Aadhaar */
-      aadhaar?: string | null;
-      /** Pan */
-      pan?: string | null;
-      /** Upi Id */
-      upi_id?: string | null;
-      /** Bank Account */
-      bank_account?: string | null;
-      /** Service Area Lat */
-      service_area_lat?: number | null;
-      /** Service Area Lng */
-      service_area_lng?: number | null;
-      /** Service Area Radius Km */
-      service_area_radius_km?: number | null;
-      /** Payout Vpa */
-      payout_vpa?: string | null;
-      /** Payout Account Number */
-      payout_account_number?: string | null;
-      /** Payout Ifsc */
-      payout_ifsc?: string | null;
-      /** Languages */
-      languages?: string[] | null;
-    };
-    /** ProviderResponse */
-    ProviderResponse: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /**
-       * User Id
-       * Format: uuid
-       */
-      user_id: string;
-      /** Profile Photo Url */
-      profile_photo_url: string | null;
-      /**
-       * Languages
-       * @default []
-       */
-      languages: string[];
-      /** Avg Rating */
-      avg_rating: number;
-      /** Total Completed Jobs */
-      total_completed_jobs: number;
-      kyc_status: components["schemas"]["KYCStatus"];
-      /** Is Online */
-      is_online: boolean;
-      /** Service Area Radius Km */
-      service_area_radius_km: number;
-      /** Service Area Lat */
-      service_area_lat?: number | null;
-      /** Service Area Lng */
-      service_area_lng?: number | null;
-      /**
-       * Payout Set
-       * @default false
-       */
-      payout_set: boolean;
-      payout_method?: components["schemas"]["PayoutMethod"] | null;
-      /** Payout Display */
-      payout_display?: string | null;
-      /** Payout Methods Stored */
-      payout_methods_stored: components["schemas"]["PayoutMethod"][];
-    };
-    /** ProviderServiceSubscribeRequest */
-    ProviderServiceSubscribeRequest: {
-      /**
-       * Service Id
-       * Format: uuid
-       */
-      service_id: string;
-    };
-    /** ProviderServiceSubscriptionResponse */
-    ProviderServiceSubscriptionResponse: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /**
-       * Provider Id
-       * Format: uuid
-       */
-      provider_id: string;
-      /**
-       * Service Id
-       * Format: uuid
-       */
-      service_id: string;
-    };
-    /** ProviderStatusUpdate */
-    ProviderStatusUpdate: {
-      /** Is Online */
-      is_online: boolean;
-    };
-    /**
-     * PublishReleaseRequest
-     * @description Bump the current version + optionally push a nudge to every device.
-     *
-     *     ``version`` is the customer-facing SemVer of the new build. The
-     *     matching APK must already be at ``app_versions.url`` (usually
-     *     ``s3://eazyserv-downloads/apk/latest.apk``, since ``release-apk.yml``
-     *     always overwrites that key). If they don't match, users will nudge
-     *     themselves onto a version we haven't shipped yet.
-     *
-     *     ``min_supported_version``, when passed, atomically hard-blocks anyone
-     *     below it — the SVC-162 emergency lever. Leave it unset to keep the
-     *     current threshold.
-     *
-     *     ``notify`` = true enqueues the FCM broadcast (``broadcast_update_available``).
-     *     Set to false when releasing a build we don't want to interrupt users
-     *     over (e.g. a silent metrics fix — the poll on next foreground will
-     *     still surface the nudge).
-     */
-    PublishReleaseRequest: {
-      /** Version */
-      version: string;
-      /** Min Supported Version */
-      min_supported_version?: string | null;
-      /** Release Notes */
-      release_notes?: string | null;
-      /**
-       * Url
-       * @description New APK URL. Usually stays the same because release-apk.yml overwrites apk/latest.apk in place.
-       */
-      url?: string | null;
-      /**
-       * Notify
-       * @description Fire the FCM broadcast so users learn about the update without opening the app.
-       * @default true
-       */
-      notify: boolean;
-    };
-    /** PublishReleaseResponse */
-    PublishReleaseResponse: {
-      /** Platform */
-      platform: string;
-      /** Version */
-      version: string;
-      /** Min Supported Version */
-      min_supported_version: string;
-      /** Notified */
-      notified: boolean;
-      /**
-       * Task Id
-       * @description Celery task id for the FCM broadcast (only when notify=true).
-       */
-      task_id?: string | null;
-    };
-    /**
-     * PushCapabilityReport
-     * @description What the client can tell us about its ability to receive push (SVC-255).
-     *
-     *     Sent on every registration attempt, successful or not. That "or not" is the
-     *     whole point: Sentry already records failures, but with no denominator —
-     *     "12 failures this week" is unreadable without knowing whether that is 12 out
-     *     of 12 or 12 out of 400. Reporting every attempt supplies the denominator.
-     *
-     *     Nothing here is stored. The handler logs one line and returns; the question
-     *     it answers ("how many providers can actually receive push, and on what?") is
-     *     a one-off scoping question, not a per-user fact worth a column.
-     */
-    PushCapabilityReport: {
-      /**
-       * Platform
-       * @enum {string}
-       */
-      platform: "android" | "ios" | "desktop";
-      /** Is Native */
-      is_native: boolean;
-      /**
-       * Ios Standalone
-       * @default false
-       */
-      ios_standalone: boolean;
-      /**
-       * Is Chrome Ios
-       * @default false
-       */
-      is_chrome_ios: boolean;
-      /**
-       * Push Permission
-       * @enum {string}
-       */
-      push_permission: "granted" | "denied" | "prompt" | "unsupported";
-      /** Token Obtained */
-      token_obtained: boolean;
-      /**
-       * Interactive
-       * @default false
-       */
-      interactive: boolean;
-    };
-    /** RefreshTokenRequest */
-    RefreshTokenRequest: {
-      /** Refresh Token */
-      refresh_token: string;
-    };
-    /** ReviewListResponse */
-    ReviewListResponse: {
-      /** Reviews */
-      reviews: components["schemas"]["ReviewResponse"][];
-      /** Total */
-      total: number;
-      /** Page */
-      page: number;
-      /** Per Page */
-      per_page: number;
-      /** Avg Rating */
-      avg_rating: number;
-    };
-    /** ReviewResponse */
-    ReviewResponse: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /**
-       * Booking Id
-       * Format: uuid
-       */
-      booking_id: string;
-      /**
-       * Reviewer Id
-       * Format: uuid
-       */
-      reviewer_id: string;
-      /**
-       * Reviewee Id
-       * Format: uuid
-       */
-      reviewee_id: string;
-      /** Rating */
-      rating: number;
-      /** Comment */
-      comment: string | null;
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-    };
-    /** SendOTPRequest */
-    SendOTPRequest: {
-      /**
-       * Phone
-       * @description Indian phone number with +91 prefix
-       */
-      phone: string;
-    };
-    /** ServiceResponse */
-    ServiceResponse: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /**
-       * Category Id
-       * Format: uuid
-       */
-      category_id: string;
-      /** Name */
-      name: string;
-      /** Description */
-      description: string | null;
-      /** Base Price */
-      base_price: number;
-      /** Duration Minutes */
-      duration_minutes: number;
-      /** Is Active */
-      is_active: boolean;
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-      /**
-       * Variants
-       * @default []
-       */
-      variants: components["schemas"]["ServiceVariantResponse"][];
-    };
-    /**
-     * ServiceVariantResponse
-     * @description One priced option under a service.
-     *
-     *     ``base_price`` is what the customer sees before GST; ``gst_percent`` is 0
-     *     for the launch summary rows and 18 for the vertical sheets. Frontend
-     *     computes the customer total as ``base_price * (1 + gst_percent/100)``
-     *     when rendering the checkout.
-     *
-     *     ``provider_payout`` + ``platform_commission`` are stored, not derived,
-     *     because the split ratio isn't a global constant — the launch summary
-     *     rows are 70/30 and the vertical sheets are 65/35. The booking service
-     *     snapshots these fields into ``booking_items`` at booking time.
-     */
-    ServiceVariantResponse: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /** Label */
-      label: string;
-      /** Subcategory */
-      subcategory: string | null;
-      /** Base Price */
-      base_price: number;
-      /** Provider Payout */
-      provider_payout: number;
-      /** Platform Commission */
-      platform_commission: number;
-      /** Gst Percent */
-      gst_percent: number;
-      /** Duration Minutes */
-      duration_minutes: number | null;
-      /** Materials Note */
-      materials_note: string | null;
-      /** Sort Order */
-      sort_order: number;
-      /** Is Active */
-      is_active: boolean;
-    };
-    /** SmsLinkRequest */
-    SmsLinkRequest: {
-      /**
-       * Phone
-       * @description E.164 Indian mobile number
-       */
-      phone: string;
-    };
-    /** StartBookingRequest */
-    StartBookingRequest: {
-      /** Otp */
-      otp: string;
-    };
-    /**
-     * TipBookingRequest
-     * @description Consumer adds (or updates) a gratuity on a completed booking.
-     *
-     *     Zero is a valid amount — the client uses this to *remove* a tip the
-     *     consumer changed their mind about before payout has flowed. Bounded
-     *     at ₹10,000 so a fat-finger doesn't move real money by accident;
-     *     higher values need to route through support.
-     */
-    TipBookingRequest: {
-      /** Amount */
-      amount: number;
-    };
-    /** TokenResponse */
-    TokenResponse: {
-      /** Access Token */
-      access_token: string;
-      /** Refresh Token */
-      refresh_token: string;
-      /**
-       * Token Type
-       * @default bearer
-       */
-      token_type: string;
-      /** User Id */
-      user_id: string;
-      /** Role */
-      role: string;
-      /** Is New User */
-      is_new_user: boolean;
-    };
-    /**
-     * UpdateAddressRequest
-     * @description Edit a saved address (SVC-277). Every field optional — this is a PATCH.
-     *
-     *     Served by a copy-on-write update: the old row is soft-deleted and a new one
-     *     created, so bookings that already point at the old address keep recording
-     *     where the job actually happened. See `UserService.update_address`.
-     */
-    UpdateAddressRequest: {
-      /** Label */
-      label?: string | null;
-      /** Full Address */
-      full_address?: string | null;
-      /** Lat */
-      lat?: number | null;
-      /** Lng */
-      lng?: number | null;
-      /** Is Default */
-      is_default?: boolean | null;
-    };
-    /**
-     * UpdateFCMTokenRequest
-     * @description Register or clear the caller's FCM token.
-     *
-     *     `fcm_token` is nullable but *required* — `null` clears the stored token
-     *     (sign-out), while an omitted field is a 422. Without that distinction an
-     *     empty body would silently wipe push for the user.
-     */
-    UpdateFCMTokenRequest: {
-      /** Fcm Token */
-      fcm_token: string | null;
-    };
-    /** UpdateProfileRequest */
-    UpdateProfileRequest: {
-      /** Name */
-      name?: string | null;
-      /** Email */
-      email?: string | null;
-    };
-    /** UpdateServiceRequest */
-    UpdateServiceRequest: {
-      /** Name */
-      name?: string | null;
-      /** Description */
-      description?: string | null;
-      /** Base Price */
-      base_price?: number | null;
-      /** Duration Minutes */
-      duration_minutes?: number | null;
-      /** Is Active */
-      is_active?: boolean | null;
-    };
-    /** UserResponse */
-    UserResponse: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /** Phone */
-      phone: string;
-      /** Name */
-      name: string | null;
-      /** Email */
-      email: string | null;
-      role: components["schemas"]["UserRole"];
-      /** Is Active */
-      is_active: boolean;
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-      /**
-       * Updated At
-       * Format: date-time
-       */
-      updated_at: string;
-    };
-    /**
-     * UserRole
-     * @enum {string}
-     */
-    UserRole: "consumer" | "provider" | "admin";
-    /** ValidationError */
-    ValidationError: {
-      /** Location */
-      loc: (string | number)[];
-      /** Message */
-      msg: string;
-      /** Error Type */
-      type: string;
-    };
-    /** VerifyOTPRequest */
-    VerifyOTPRequest: {
-      /** Phone */
-      phone: string;
-      /** Otp */
-      otp: string;
-      /**
-       * Role
-       * @default consumer
-       */
-      role: string;
-    };
-    /** VerifyPaymentRequest */
-    VerifyPaymentRequest: {
-      /** Razorpay Order Id */
-      razorpay_order_id: string;
-      /** Razorpay Payment Id */
-      razorpay_payment_id: string;
-      /** Razorpay Signature */
-      razorpay_signature: string;
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  send_otp_api_v1_auth_send_otp_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SendOTPRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": unknown;
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  verify_otp_api_v1_auth_verify_otp_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["VerifyOTPRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TokenResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  refresh_token_api_v1_auth_refresh_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["RefreshTokenRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TokenResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  logout_api_v1_auth_logout_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["LogoutRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_me_api_v1_users_me_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["UserResponse"];
-        };
-      };
-    };
-  };
-  update_me_api_v1_users_me_patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["UpdateProfileRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["UserResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  update_fcm_token_api_v1_users_me_fcm_token_patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["UpdateFCMTokenRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  report_push_capability_api_v1_users_me_push_capability_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["PushCapabilityReport"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_addresses_api_v1_users_me_addresses_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AddressResponse"][];
-        };
-      };
-    };
-  };
-  add_address_api_v1_users_me_addresses_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateAddressRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AddressResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  delete_address_api_v1_users_me_addresses__address_id__delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        address_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  update_address_api_v1_users_me_addresses__address_id__patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        address_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["UpdateAddressRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AddressResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_provider_profile_api_v1_providers_me_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProviderResponse"];
-        };
-      };
-    };
-  };
-  update_provider_profile_api_v1_providers_me_patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ProviderProfileUpdate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProviderResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  upload_profile_photo_api_v1_providers_me_photo_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "multipart/form-data": components["schemas"]["Body_upload_profile_photo_api_v1_providers_me_photo_post"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProviderResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  remove_payout_method_api_v1_providers_me_payout_method_delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProviderResponse"];
-        };
-      };
-    };
-  };
-  set_active_payout_method_api_v1_providers_me_payout_method_patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["PayoutMethodSelect"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProviderResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  set_online_status_api_v1_providers_me_status_patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ProviderStatusUpdate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProviderResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  find_nearby_providers_api_v1_providers_nearby_get: {
-    parameters: {
-      query: {
-        /** @description Consumer latitude */
-        lat: number;
-        /** @description Consumer longitude */
-        lng: number;
-        radius_km?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["NearbyProviderResponse"][];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_my_services_api_v1_providers_me_services_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProviderServiceSubscriptionResponse"][];
-        };
-      };
-    };
-  };
-  subscribe_to_service_api_v1_providers_me_services_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ProviderServiceSubscribeRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProviderServiceSubscriptionResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_my_offers_api_v1_providers_me_offers_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BookingOfferResponse"][];
-        };
-      };
-    };
-  };
-  get_my_earnings_api_v1_providers_me_earnings_get: {
-    parameters: {
-      query?: {
-        range?: "today" | "week" | "month";
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EarningsResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  unsubscribe_from_service_api_v1_providers_me_services__service_id__delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        service_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  submit_kyc_api_v1_providers_me_kyc_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "multipart/form-data": components["schemas"]["Body_submit_kyc_api_v1_providers_me_kyc_post"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["KYCSubmissionResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_categories_api_v1_categories_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["CategoryResponse"][];
-        };
-      };
-    };
-  };
-  list_services_api_v1_services_get: {
-    parameters: {
-      query?: {
-        category_id?: string | null;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ServiceResponse"][];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_service_api_v1_services_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateServiceRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ServiceResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  delete_service_api_v1_services__service_id__delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        service_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  update_service_api_v1_services__service_id__patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        service_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["UpdateServiceRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ServiceResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_bookings_api_v1_bookings__get: {
-    parameters: {
-      query?: {
-        status?: string | null;
-        page?: number;
-        per_page?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BookingListResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_booking_api_v1_bookings__post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "Idempotency-Key"?: string | null;
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateBookingRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BookingResponse"];
-        };
-      };
-      /** @description A request with this Idempotency-Key is already in progress. Retry after a short backoff. */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Idempotency-Key was reused with a different request body. Generate a new key for each distinct request. */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  accept_booking_api_v1_bookings__booking_id__accept_patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        booking_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BookingResponse"];
-        };
-      };
-      /** @description You were not offered this booking. Not visible to a well-behaved client — the app never sends /accept for a booking it hasn't been notified about. */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description No such booking */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description The offer is over — claimed by another provider, cancelled, or expired. Dismiss the card. */
-      410: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  decline_booking_api_v1_bookings__booking_id__decline_patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        booking_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description You were not offered this booking */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  mark_en_route_api_v1_bookings__booking_id__en_route_patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        booking_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BookingResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  start_booking_api_v1_bookings__booking_id__start_patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        booking_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["StartBookingRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BookingResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  complete_booking_api_v1_bookings__booking_id__complete_patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        booking_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BookingResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  cancel_booking_api_v1_bookings__booking_id__cancel_patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        booking_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CancelBookingRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BookingResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  tip_booking_api_v1_bookings__booking_id__tip_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        booking_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["TipBookingRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BookingResponse"];
-        };
-      };
-      /** @description Only the booking's own consumer can add a tip */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description No such booking */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Booking is not in a state where a tip is accepted (only after COMPLETED, and not after refund). */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_booking_offer_api_v1_bookings__booking_id__offer_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        booking_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BookingOfferResponse"];
-        };
-      };
-      /** @description You were not offered this booking */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description No such booking */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description The offer is over — claimed by another provider, cancelled, or expired. Dismiss the card. */
-      410: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_booking_api_v1_bookings__booking_id__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        booking_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BookingResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_payment_order_api_v1_payments_orders_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "Idempotency-Key"?: string | null;
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreatePaymentOrderRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["PaymentOrderResponse"];
-        };
-      };
-      /** @description You do not have access to this booking. */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description A request with this Idempotency-Key is already in progress. Retry after a short backoff. */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Idempotency-Key was reused with a different request body. Generate a new key for each distinct request. */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  verify_payment_api_v1_payments_verify_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["VerifyPaymentRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": unknown;
-        };
-      };
-      /** @description You do not have access to this booking. */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  razorpay_webhook_api_v1_payments_webhook_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": unknown;
-        };
-      };
-    };
-  };
-  razorpayx_payout_webhook_api_v1_payments_payout_webhook_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": unknown;
-        };
-      };
-    };
-  };
-  create_review_api_v1_reviews__post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateReviewRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ReviewResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_provider_reviews_api_v1_reviews_provider__provider_id__get: {
-    parameters: {
-      query?: {
-        page?: number;
-        per_page?: number;
-      };
-      header?: never;
-      path: {
-        provider_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ReviewListResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_available_coupons_api_v1_coupons_available_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["CouponResponse"][];
-        };
-      };
-    };
-  };
-  validate_coupon_api_v1_coupons_validate_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CouponValidateRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["CouponValidateResponse"];
-        };
-      };
-      /** @description Coupon is not applicable to this cart */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_users_api_v1_admin_users_get: {
-    parameters: {
-      query?: {
-        page?: number;
-        per_page?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["UserResponse"][];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  deactivate_user_api_v1_admin_users__user_id__deactivate_patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        user_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_pending_kyc_api_v1_admin_providers_kyc_pending_get: {
-    parameters: {
-      query?: {
-        page?: number;
-        per_page?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["UserResponse"][];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_provider_kyc_review_api_v1_admin_providers__user_id__kyc_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        user_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["KYCDocsResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  verify_provider_kyc_api_v1_admin_providers__user_id__kyc_verify_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        user_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["KYCReviewResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  reject_provider_kyc_api_v1_admin_providers__user_id__kyc_reject_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        user_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["KYCRejectionRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["KYCReviewResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_all_bookings_api_v1_admin_bookings_get: {
-    parameters: {
-      query?: {
-        status?: string | null;
-        /** @description Filter to bookings with (or without) a charged-back payment */
-        disputed?: boolean | null;
-        page?: number;
-        per_page?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BookingListResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_any_booking_api_v1_admin_bookings__booking_id__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        booking_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BookingResponse"];
-        };
-      };
-      /** @description No such booking */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_pending_settlements_api_v1_admin_providers_pending_settlements_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["PendingSettlementsResponse"];
-        };
-      };
-    };
-  };
-  pay_out_provider_api_v1_admin_providers__user_id__payout_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        user_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      202: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": unknown;
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  requeue_failed_settlements_api_v1_admin_providers__user_id__payout_requeue_failed_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        user_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": unknown;
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  requeue_reversed_settlements_api_v1_admin_providers__user_id__payout_requeue_reversed_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        user_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": unknown;
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  publish_app_release_api_v1_admin_app_versions__platform__release_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-internal-release-token"?: string | null;
-      };
-      path: {
-        platform: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["PublishReleaseRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["PublishReleaseResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  send_download_link_sms_api_v1_downloads_sms_link_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SmsLinkRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-      /** @description SMS delivery not yet enabled — use the QR code. */
-      501: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  get_latest_version_api_v1_downloads_latest_json_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["LatestVersionResponse"];
-        };
-      };
-      /** @description Version data not seeded — Alembic migration missing? */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  liveness_health_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": unknown;
-        };
-      };
-    };
-  };
-  readiness_healthz_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": unknown;
-        };
-      };
-    };
-  };
+    send_otp_api_v1_auth_send_otp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendOTPRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_otp_api_v1_auth_verify_otp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyOTPRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_token_api_v1_auth_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_api_v1_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogoutRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_me_api_v1_users_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+        };
+    };
+    update_me_api_v1_users_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_fcm_token_api_v1_users_me_fcm_token_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFCMTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_push_capability_api_v1_users_me_push_capability_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushCapabilityReport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_addresses_api_v1_users_me_addresses_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddressResponse"][];
+                };
+            };
+        };
+    };
+    add_address_api_v1_users_me_addresses_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAddressRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddressResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_address_api_v1_users_me_addresses__address_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                address_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_address_api_v1_users_me_addresses__address_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                address_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAddressRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddressResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_provider_profile_api_v1_providers_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderResponse"];
+                };
+            };
+        };
+    };
+    update_provider_profile_api_v1_providers_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_profile_photo_api_v1_providers_me_photo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_profile_photo_api_v1_providers_me_photo_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_payout_method_api_v1_providers_me_payout_method_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderResponse"];
+                };
+            };
+        };
+    };
+    set_active_payout_method_api_v1_providers_me_payout_method_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayoutMethodSelect"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_online_status_api_v1_providers_me_status_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderStatusUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    find_nearby_providers_api_v1_providers_nearby_get: {
+        parameters: {
+            query: {
+                /** @description Consumer latitude */
+                lat: number;
+                /** @description Consumer longitude */
+                lng: number;
+                radius_km?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NearbyProviderResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_services_api_v1_providers_me_services_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderServiceSubscriptionResponse"][];
+                };
+            };
+        };
+    };
+    subscribe_to_service_api_v1_providers_me_services_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderServiceSubscribeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderServiceSubscriptionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_offers_api_v1_providers_me_offers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingOfferResponse"][];
+                };
+            };
+        };
+    };
+    get_my_earnings_api_v1_providers_me_earnings_get: {
+        parameters: {
+            query?: {
+                range?: "today" | "week" | "month";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EarningsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unsubscribe_from_service_api_v1_providers_me_services__service_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_kyc_api_v1_providers_me_kyc_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_submit_kyc_api_v1_providers_me_kyc_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KYCSubmissionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_categories_api_v1_categories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryResponse"][];
+                };
+            };
+        };
+    };
+    list_services_api_v1_services_get: {
+        parameters: {
+            query?: {
+                category_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_service_api_v1_services_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateServiceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_service_api_v1_services__service_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_service_api_v1_services__service_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateServiceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_bookings_api_v1_bookings__get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_booking_api_v1_bookings__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBookingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description A request with this Idempotency-Key is already in progress. Retry after a short backoff. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency-Key was reused with a different request body. Generate a new key for each distinct request. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    accept_booking_api_v1_bookings__booking_id__accept_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description You were not offered this booking. Not visible to a well-behaved client — the app never sends /accept for a booking it hasn't been notified about. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The offer is over — claimed by another provider, cancelled, or expired. Dismiss the card. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_booking_api_v1_bookings__booking_id__decline_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You were not offered this booking */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_en_route_api_v1_bookings__booking_id__en_route_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_booking_api_v1_bookings__booking_id__start_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartBookingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_booking_api_v1_bookings__booking_id__complete_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_booking_api_v1_bookings__booking_id__cancel_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelBookingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tip_booking_api_v1_bookings__booking_id__tip_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TipBookingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description Only the booking's own consumer can add a tip */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Booking is not in a state where a tip is accepted (only after COMPLETED, and not after refund). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_booking_offer_api_v1_bookings__booking_id__offer_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingOfferResponse"];
+                };
+            };
+            /** @description You were not offered this booking */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The offer is over — claimed by another provider, cancelled, or expired. Dismiss the card. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_booking_api_v1_bookings__booking_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_payment_order_api_v1_payments_orders_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePaymentOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentOrderResponse"];
+                };
+            };
+            /** @description You do not have access to this booking. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A request with this Idempotency-Key is already in progress. Retry after a short backoff. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency-Key was reused with a different request body. Generate a new key for each distinct request. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    verify_payment_api_v1_payments_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description You do not have access to this booking. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    razorpay_webhook_api_v1_payments_webhook_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    razorpayx_payout_webhook_api_v1_payments_payout_webhook_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    create_review_api_v1_reviews__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_provider_reviews_api_v1_reviews_provider__provider_id__get: {
+        parameters: {
+            query?: {
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_available_coupons_api_v1_coupons_available_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouponResponse"][];
+                };
+            };
+        };
+    };
+    validate_coupon_api_v1_coupons_validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CouponValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouponValidateResponse"];
+                };
+            };
+            /** @description Coupon is not applicable to this cart */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_users_api_v1_admin_users_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_user_api_v1_admin_users__user_id__deactivate_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pending_kyc_api_v1_admin_providers_kyc_pending_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_provider_kyc_review_api_v1_admin_providers__user_id__kyc_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KYCDocsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_provider_kyc_api_v1_admin_providers__user_id__kyc_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KYCReviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_provider_kyc_api_v1_admin_providers__user_id__kyc_reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KYCRejectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KYCReviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_all_bookings_api_v1_admin_bookings_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                /** @description Filter to bookings with (or without) a charged-back payment */
+                disputed?: boolean | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_any_booking_api_v1_admin_bookings__booking_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pending_settlements_api_v1_admin_providers_pending_settlements_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingSettlementsResponse"];
+                };
+            };
+        };
+    };
+    pay_out_provider_api_v1_admin_providers__user_id__payout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    requeue_failed_settlements_api_v1_admin_providers__user_id__payout_requeue_failed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    requeue_reversed_settlements_api_v1_admin_providers__user_id__payout_requeue_reversed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_app_release_api_v1_admin_app_versions__platform__release_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-internal-release-token"?: string | null;
+            };
+            path: {
+                platform: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishReleaseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishReleaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_download_link_sms_api_v1_downloads_sms_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SmsLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SMS delivery not yet enabled — use the QR code. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_latest_version_api_v1_downloads_latest_json_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LatestVersionResponse"];
+                };
+            };
+            /** @description Version data not seeded — Alembic migration missing? */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    liveness_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    readiness_healthz_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
 }

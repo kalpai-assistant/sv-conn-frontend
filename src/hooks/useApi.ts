@@ -103,6 +103,9 @@ const mapCategory = (cat: API_CategoryResponse): UI_Category => ({
   name: cat.name,
   slug: cat.slug,
   sortOrder: cat.sort_order,
+  // SVC-286: null on top-level tiles (Home renders these), UUID on
+  // sub-categories (rendered inside a category page).
+  parentId: cat.parent_id,
 });
 
 // `cats` is structural on purpose — this only needs id + name to resolve a
