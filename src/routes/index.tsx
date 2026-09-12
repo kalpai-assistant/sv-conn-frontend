@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LocationBar } from "@/components/home/LocationBar";
 import { SearchBar } from "@/components/home/SearchBar";
-import { CategoryGrid } from "@/components/home/CategoryGrid";
+import { HeroBanner } from "@/components/home/HeroBanner";
+import { CategoryRail } from "@/components/home/CategoryRail";
 import { PromoCarousel } from "@/components/home/PromoCarousel";
 import { BookAgainRow } from "@/components/home/BookAgainRow";
 import { PopularSection } from "@/components/home/PopularSection";
@@ -22,16 +23,25 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
-  // No category state here any more: a tile is a link to that category's own
-  // page. Home is a launchpad, not a filtered view of itself.
+  // Section order (SVC-286 v2): festival-first, then the category picker,
+  // then evergreen promos + returning-user shortcuts.
+  //
+  // HeroBanner is the top slot for festival / campaign artwork. Renders
+  // nothing when no active-window banner is configured, so this slot has
+  // zero cost outside of festival weeks.
+  //
+  // No category state at this level: a tile is a link to that category's
+  // own page. Home is a launchpad, not a filtered view of itself.
   return (
     <div className="min-h-screen pb-20">
       <LocationBar />
       <SearchBar />
 
+      <HeroBanner />
+
       <section className="pb-4">
         <h2 className="px-4 pb-3 text-base font-semibold text-foreground">Categories</h2>
-        <CategoryGrid />
+        <CategoryRail />
       </section>
 
       <PromoCarousel />
