@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as ActivityRouteImport } from './routes/activity'
+import { Route as AddressesRouteImport } from './routes/addresses'
 import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as DownloadRouteImport } from './routes/download'
@@ -47,6 +48,11 @@ const AboutRoute = AboutRouteImport.update({
 const ActivityRoute = ActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AddressesRoute = AddressesRouteImport.update({
+  id: '/addresses',
+  path: '/addresses',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BookingsRoute = BookingsRouteImport.update({
@@ -160,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/activity': typeof ActivityRoute
+  '/addresses': typeof AddressesRoute
   '/bookings': typeof BookingsRoute
   '/cart': typeof CartRoute
   '/download': typeof DownloadRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/activity': typeof ActivityRoute
+  '/addresses': typeof AddressesRoute
   '/bookings': typeof BookingsRoute
   '/cart': typeof CartRoute
   '/download': typeof DownloadRoute
@@ -213,6 +221,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/activity': typeof ActivityRoute
+  '/addresses': typeof AddressesRoute
   '/bookings': typeof BookingsRoute
   '/cart': typeof CartRoute
   '/download': typeof DownloadRoute
@@ -241,6 +250,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/activity'
+    | '/addresses'
     | '/bookings'
     | '/cart'
     | '/download'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/activity'
+    | '/addresses'
     | '/bookings'
     | '/cart'
     | '/download'
@@ -293,6 +304,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/activity'
+    | '/addresses'
     | '/bookings'
     | '/cart'
     | '/download'
@@ -320,6 +332,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   ActivityRoute: typeof ActivityRoute
+  AddressesRoute: typeof AddressesRoute
   BookingsRoute: typeof BookingsRoute
   CartRoute: typeof CartRoute
   DownloadRoute: typeof DownloadRoute
@@ -364,6 +377,13 @@ declare module '@tanstack/react-router' {
       path: '/activity'
       fullPath: '/activity'
       preLoaderRoute: typeof ActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/addresses': {
+      id: '/addresses'
+      path: '/addresses'
+      fullPath: '/addresses'
+      preLoaderRoute: typeof AddressesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bookings': {
@@ -520,6 +540,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   ActivityRoute: ActivityRoute,
+  AddressesRoute: AddressesRoute,
   BookingsRoute: BookingsRoute,
   CartRoute: CartRoute,
   DownloadRoute: DownloadRoute,
