@@ -114,7 +114,7 @@ describe("the saved list a consumer sees", () => {
     render(<ConsumerLocationGate reason="permission-denied" />);
 
     expect(
-      await screen.findByRole("button", { name: /enter location manually/i }),
+      await screen.findByRole("button", { name: /enter address manually/i }),
     ).toBeInTheDocument();
   });
 });
@@ -172,7 +172,7 @@ describe("what happens when a position is found", () => {
     const user = userEvent.setup();
 
     render(<ConsumerLocationGate reason="permission-denied" />);
-    await user.click(await screen.findByRole("button", { name: /enter location manually/i }));
+    await user.click(await screen.findByRole("button", { name: /enter address manually/i }));
 
     await vi.waitFor(() => expect(sheetProps).toHaveBeenCalled());
     expect(sheetProps.mock.calls.at(-1)?.[0].initialCentre).toBeNull();

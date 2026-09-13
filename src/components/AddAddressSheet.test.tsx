@@ -320,3 +320,31 @@ describe("the PIN code OSM gets wrong (SVC-283)", () => {
     expect(saved).toContain("India");
   });
 });
+
+describe("only one way to ask the device where you are (SVC-287)", () => {
+  it("offers no locate button of its own", async () => {
+    // Three existed in one flow: the gate's Enable, one in this sheet's
+    // fallback banner, and MapPicker's own. So a user who tapped "we can't
+    // find you → enter it manually" was asked the same failed question twice
+    // more.
+    //
+    // MapPicker's is the one that stays — it sits where the pin it moves is.
+    // This asserts the sheet adds none, which is what makes "enter address
+    // manually" mean something other than "here is another map".
+    render(<AddAddressSheet onClose={vi.fn()} />);
+
+    await screen.findByTestId("map-picker");
+    expect(screen.queryByRole("button", { name: /use my current location/i })).toBeNull();
+    expect(screen.queryByText(/locating/i)).toBeNull();
+  });
+
+  it("still names a guessed map, which is a different job", async () => {
+    // The banner is the SVC-281 fix and stays: a wrong-city map used to be
+    // silent, and a user who does not know the pin is 840km out has no reason
+    // to move it. Removing the duplicate button must not take the warning
+    // with it.
+    render(<AddAddressSheet onClose={vi.fn()} />);
+
+    expect(await screen.findByText(/this map is a guess/i)).toBeInTheDocument();
+  });
+});
