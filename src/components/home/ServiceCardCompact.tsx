@@ -5,14 +5,24 @@
  * vertical list is the right shape (the category page). This one trades the
  * description for a smaller footprint so several fit on screen at once.
  *
+ * SVC-290: card tap opens the service bottom sheet on top of Home rather
+ * than navigating away. The compact QuickAdd pill floats over the top-right
+ * of the image so users can add straight from the rail (Blinkit / Zomato
+ * pattern) without opening the sheet.
+ *
+ * Rendered as a `<div>` with a role + onClick rather than a `<button>` so
+ * the nested QuickAdd stepper (its own set of buttons) does not violate
+ * the "no interactive descendants of a button" rule the HTML spec sets.
+ *
  * Carries no rating. The catalogue has no rating data, and inventing one is
  * exactly what the social-proof rule in docs/WIREFRAMES.md forbids — the
  * category name is real, so that is what the subtitle shows.
  */
-import { Link } from "@tanstack/react-router";
 import { Clock } from "lucide-react";
 import { categoryIcon, categoryColor } from "@/lib/category-icons";
 import type { Service } from "@/lib/mock-data";
+import { useServiceSheet } from "@/lib/service-sheet-context";
+import { QuickAddButton } from "@/components/service/QuickAddButton";
 
 interface ServiceCardCompactProps {
   service: Service;
@@ -27,20 +37,32 @@ export function ServiceCardCompact({
   categorySlug,
   categorySortOrder,
 }: ServiceCardCompactProps) {
+  const { openService } = useServiceSheet();
+
   // Stands in for the photography this card is designed around (a separate
   // ticket). Tinting it by category at least makes adjacent cards on the rail
   // distinguishable at a glance instead of a row of identical grey blocks.
   const Icon = categorySlug ? categoryIcon(categorySlug) : undefined;
   const tint = categoryColor(categorySortOrder ?? 0);
 
+  const handleOpen = () => openService(service.id);
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleOpen();
+    }
+  };
+
   return (
-    <Link
-      to="/service/$serviceId"
-      params={{ serviceId: service.id }}
-      className="flex w-40 flex-shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border bg-card"
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleOpen}
+      onKeyDown={handleKeyDown}
+      className="flex w-40 shrink-0 cursor-pointer snap-start flex-col overflow-hidden rounded-xl border border-border bg-card"
     >
       <div
-        className="flex h-24 w-full items-center justify-center"
+        className="relative flex h-24 w-full items-center justify-center"
         style={{ backgroundColor: tint + "18" }}
       >
         {Icon ? (
@@ -50,6 +72,12 @@ export function ServiceCardCompact({
             {service.name.charAt(0)}
           </span>
         )}
+        {/* Quick-add pill anchored to the top-right of the image area, the
+            same slot Blinkit and Zomato use for their inline ADD. Compact
+            variant so it does not crowd the ~90px tile. */}
+        <div className="absolute right-2 top-2">
+          <QuickAddButton service={service} compact />
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-1 p-3">
@@ -72,6 +100,6 @@ export function ServiceCardCompact({
           </span>
         </p>
       </div>
-    </Link>
+    </div>
   );
 }
