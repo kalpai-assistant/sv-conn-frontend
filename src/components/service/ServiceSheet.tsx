@@ -36,6 +36,7 @@ import type { UI_RelatedServiceEntry } from "@/hooks/useApi";
 import { useCart } from "@/lib/cart-context";
 import type { Service } from "@/lib/mock-data";
 import { VariantPicker } from "@/components/service/VariantPicker";
+import { ServiceBanner } from "@/components/service/ServiceBanner";
 import { ErrorState } from "@/components/ErrorState";
 import { ServiceCard } from "@/components/ServiceCard";
 import { ServiceCardCompact } from "@/components/home/ServiceCardCompact";
@@ -192,7 +193,13 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
           <>
             {/* Scrollable body — leaves room for the sticky CTA below. */}
             <div ref={bodyRef} className="flex-1 overflow-y-auto pb-4">
-              <div className="px-4 pt-2">
+              {/* SVC-293 banner slot. Full-bleed, no horizontal padding —
+                  the sheet's rounded corners at the top already crop it
+                  cleanly. Falls through a 5-state chain (video → image →
+                  sub-cat tile → L1 tile → colour block) so partial
+                  coverage renders intentionally. */}
+              <ServiceBanner service={service} categories={categories} />
+              <div className="px-4 pt-4">
                 <div className="rounded-xl border border-border bg-card p-4">
                   <h3 className="text-lg font-semibold text-foreground">{service.name}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">

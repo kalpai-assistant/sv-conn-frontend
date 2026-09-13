@@ -111,8 +111,17 @@ const mapCategory = (cat: API_CategoryResponse): UI_Category => ({
 // `cats` is structural on purpose — this only needs id + name to resolve a
 // display label, and typing it that way lets the mapped UI categories be
 // passed straight in. See `useServices`.
+//
+// Widened API shape: `banner_image_url` and `banner_video_url` (SVC-293) may
+// not be in the generated OpenAPI types yet — the spec regenerates per-deploy
+// on the backend side and the frontend snapshot lags by one PR.
+type API_ServiceWithBanner = API_ServiceResponse & {
+  banner_image_url?: string | null;
+  banner_video_url?: string | null;
+};
+
 const mapService = (
-  srv: API_ServiceResponse,
+  srv: API_ServiceWithBanner,
   cats: readonly { id: string; name: string }[],
 ): UI_Service => {
   const cat = cats.find((c) => c.id === srv.category_id);
@@ -151,6 +160,10 @@ const mapService = (
     duration: `${srv.duration_minutes} mins`,
     variants,
     provider: undefined, // Services are global, no specific provider
+    // SVC-293: pass through even for the list route so a rail can decide
+    // "video vs image vs fallback" from the already-cached catalogue.
+    bannerImageUrl: srv.banner_image_url ?? null,
+    bannerVideoUrl: srv.banner_video_url ?? null,
   };
 };
 
