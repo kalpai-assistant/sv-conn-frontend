@@ -69,6 +69,11 @@ export interface Service {
   variants: ServiceVariant[];
   provider?: ServiceProvider;
   image?: string;
+  /** SVC-293: curated banner media. Both null by default — the service
+   *  sheet's banner slot falls through to sub-category → L1 → colour block
+   *  when they are, so partial coverage renders intentionally. */
+  bannerImageUrl?: string | null;
+  bannerVideoUrl?: string | null;
 }
 
 export interface Address {
