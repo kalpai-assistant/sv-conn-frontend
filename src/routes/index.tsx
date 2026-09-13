@@ -40,7 +40,7 @@ function HomePage() {
       <HeroBanner />
 
       <section className="pb-4">
-        <h2 className="px-4 pb-3 text-base font-semibold text-foreground">Categories</h2>
+        <h2 className="px-4 pb-3 text-base font-semibold text-foreground">Services</h2>
         <CategoryRail />
       </section>
 

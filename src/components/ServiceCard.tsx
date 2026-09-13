@@ -1,10 +1,14 @@
 import { Clock } from "lucide-react";
 import type { Service } from "@/lib/mock-data";
-import { Link } from "@tanstack/react-router";
+import { useServiceSheet } from "@/lib/service-sheet-context";
 
 /**
  * A service as a full-width row, for vertical lists (the category page).
  * `home/ServiceCardCompact` is the fixed-width variant for horizontal rails.
+ *
+ * SVC-290: a tap opens the service bottom sheet on top of the current page
+ * rather than navigating to a detail page. Add-to-cart moved to a button
+ * inside the sheet — a card tap no longer commits anything.
  *
  * Deliberately carries no rating. It previously rendered a hardcoded "4.8 ★"
  * and "Qualified Professionals" on every service regardless of what it was —
@@ -14,13 +18,15 @@ import { Link } from "@tanstack/react-router";
  * the row shows what is true — category, duration, starting price.
  */
 export function ServiceCard({ service }: { service: Service }) {
+  const { openService } = useServiceSheet();
+
   return (
-    <Link
-      to="/service/$serviceId"
-      params={{ serviceId: service.id }}
-      className="flex gap-3 rounded-xl bg-card p-3 shadow-sm border border-border/50 transition-shadow hover:shadow-md"
+    <button
+      type="button"
+      onClick={() => openService(service.id)}
+      className="flex w-full gap-3 rounded-xl bg-card p-3 text-left shadow-sm border border-border/50 transition-shadow hover:shadow-md"
     >
-      <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl bg-accent text-xl font-bold text-accent-foreground">
+      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-accent text-xl font-bold text-accent-foreground">
         {service.name.charAt(0)}
       </div>
       <div className="flex flex-1 flex-col justify-center min-w-0">
@@ -38,6 +44,6 @@ export function ServiceCard({ service }: { service: Service }) {
           ₹{service.price.toLocaleString("en-IN")}
         </span>
       </div>
-    </Link>
+    </button>
   );
 }
