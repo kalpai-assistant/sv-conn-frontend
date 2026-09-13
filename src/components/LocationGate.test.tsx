@@ -230,7 +230,7 @@ describe("the exit that needs no permission", () => {
     const p = props({ saved: [] });
     render(<LocationGate {...p} />);
 
-    await userEvent.click(await screen.findByRole("button", { name: /enter location manually/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /enter address manually/i }));
 
     expect(p.onEnterManually).toHaveBeenCalledOnce();
   });
@@ -242,7 +242,7 @@ describe("the exit that needs no permission", () => {
     const p = props({ reason: "permission-denied", saved: [] });
     render(<LocationGate {...p} />);
 
-    const manual = await screen.findByRole("button", { name: /enter location manually/i });
+    const manual = await screen.findByRole("button", { name: /enter address manually/i });
     expect(manual).toBeEnabled();
 
     await userEvent.click(manual);
