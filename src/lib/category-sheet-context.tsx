@@ -1,17 +1,15 @@
 /**
- * SVC-290: tapping an L1 tile on Home opens a services bottom sheet.
+ * SVC-290: tapping an L1 tile on Home opens a sub-categories picker sheet.
  *
- * The sheet is a lightweight L1 → services picker — it lists every service
- * under the tapped L1, grouped by sub-category. Tapping a service inside the
- * sheet still navigates to `/service/$serviceId`, the existing full page,
- * which stays the home for banner media (SVC-293) and related-services
- * sections (SVC-292).
+ * The sheet shows the L1's sub-categories (L2s) as an illustrated grid.
+ * Tapping a sub-category navigates to that L2's own `/category/{slug}`
+ * services listing page (the existing screen, unchanged).
  *
  * The sheet lives at the root so `CategoryRail` and the `/category/$slug`
- * deep-link stub can both call `openCategory(id)` without prop drilling.
+ * L1-deep-link stub can both call `openCategory(id)` without prop drilling.
  */
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { CategoryServicesSheet } from "@/components/home/CategoryServicesSheet";
+import { CategorySubcategoriesSheet } from "@/components/home/CategorySubcategoriesSheet";
 
 interface CategorySheetContextValue {
   openCategoryId: string | null;
@@ -41,7 +39,7 @@ export function CategorySheetProvider({ children }: { children: React.ReactNode 
     <CategorySheetContext.Provider value={value}>
       {children}
       {openCategoryId && (
-        <CategoryServicesSheet categoryId={openCategoryId} onClose={closeCategory} />
+        <CategorySubcategoriesSheet categoryId={openCategoryId} onClose={closeCategory} />
       )}
     </CategorySheetContext.Provider>
   );

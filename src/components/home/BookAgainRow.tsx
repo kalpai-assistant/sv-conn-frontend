@@ -10,14 +10,15 @@
  * home visit would be a confusing negative-space signal.
  */
 import { useMemo } from "react";
-import { Link } from "@tanstack/react-router";
 import { Repeat } from "lucide-react";
 import { useBookings } from "@/hooks/useApi";
+import { useServiceSheet } from "@/lib/service-sheet-context";
 
 const MAX_CARDS = 8;
 
 export function BookAgainRow() {
   const { data: bookings } = useBookings();
+  const { openService } = useServiceSheet();
 
   // Reduce to unique services from completed bookings, preserving order so
   // the most recently completed sits first. Using a Map keyed by service.id
@@ -43,18 +44,18 @@ export function BookAgainRow() {
       </h2>
       <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pl-4 scrollbar-none">
         {services.map((s) => (
-          <Link
+          <button
             key={s.id}
-            to="/service/$serviceId"
-            params={{ serviceId: s.id }}
-            className="flex w-40 shrink-0 snap-start flex-col justify-between rounded-2xl border border-border bg-card p-3"
+            type="button"
+            onClick={() => openService(s.id)}
+            className="flex w-40 shrink-0 snap-start flex-col justify-between rounded-2xl border border-border bg-card p-3 text-left"
           >
             <div>
               <p className="line-clamp-2 text-sm font-semibold text-foreground">{s.name}</p>
               {s.duration && <p className="mt-1 text-[11px] text-muted-foreground">{s.duration}</p>}
             </div>
             <p className="mt-3 text-sm font-bold text-primary">₹{s.price}</p>
-          </Link>
+          </button>
         ))}
         <div className="w-4 shrink-0" aria-hidden />
       </div>

@@ -73,9 +73,10 @@ export default tseslint.config(
             // auth-context.tsx pattern). Same reasoning: the provider file
             // is edit-once and the co-location keeps the API together.
             "useCart",
-            // CategorySheet hook is co-located with CategorySheetProvider
-            // (SVC-290) — same co-location pattern, edit-once file.
+            // CategorySheet + ServiceSheet hooks are co-located with their
+            // providers (SVC-290) — same co-location pattern, edit-once files.
             "useCategorySheet",
+            "useServiceSheet",
           ],
         },
       ],
