@@ -15,10 +15,10 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
+import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { ArrowLeft, Search, X, Clock, TrendingUp, Loader2 } from "lucide-react";
 import { useServices } from "@/hooks/useApi";
-import { useServiceSheet } from "@/lib/service-sheet-context";
 
 const RECENT_KEY = "sc_recent_searches";
 const RECENT_MAX = 5;
@@ -59,7 +59,6 @@ export function SearchSheet({ onClose }: SearchSheetProps) {
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState<string[]>(() => getRecent());
   const { data: services, isLoading } = useServices();
-  const { openService } = useServiceSheet();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Autofocus after the enter animation finishes — focusing during the
@@ -88,16 +87,11 @@ export function SearchSheet({ onClose }: SearchSheetProps) {
     setRecent(getRecent());
   };
 
-  const handleResultTap = (serviceId: string) => {
+  const handleResultTap = () => {
     // Persist the query only when the user actually engages with a result —
     // typing something and abandoning it shouldn't pollute their recents.
     pushRecent(query);
     setRecent(getRecent());
-    // Close the search sheet first (SVC-290): the service sheet slides up
-    // over Home, not over search, so search has to lift before the service
-    // sheet lands.
-    onClose();
-    openService(serviceId);
   };
 
   return (
@@ -145,6 +139,7 @@ export function SearchSheet({ onClose }: SearchSheetProps) {
             isLoading={isLoading}
             query={query}
             onResultTap={handleResultTap}
+            onClose={onClose}
           />
         ) : (
           <SuggestionsList
@@ -228,6 +223,7 @@ function ResultsList({
   isLoading,
   query,
   onResultTap,
+  onClose,
 }: {
   results: Array<{
     id: string;
@@ -238,7 +234,8 @@ function ResultsList({
   }>;
   isLoading: boolean;
   query: string;
-  onResultTap: (serviceId: string) => void;
+  onResultTap: () => void;
+  onClose: () => void;
 }) {
   if (isLoading) {
     return (
@@ -258,10 +255,14 @@ function ResultsList({
     <ul className="flex flex-col divide-y divide-border px-4">
       {results.map((s) => (
         <li key={s.id}>
-          <button
-            type="button"
-            onClick={() => onResultTap(s.id)}
-            className="flex w-full items-start gap-3 py-3 text-left"
+          <Link
+            to="/service/$serviceId"
+            params={{ serviceId: s.id }}
+            onClick={() => {
+              onResultTap();
+              onClose();
+            }}
+            className="flex items-start gap-3 py-3"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent">
               <Search className="h-4 w-4 text-primary" />
@@ -271,7 +272,7 @@ function ResultsList({
               <p className="truncate text-xs text-muted-foreground">{s.description}</p>
             </div>
             <span className="shrink-0 text-sm font-semibold text-primary">₹{s.price}</span>
-          </button>
+          </Link>
         </li>
       ))}
     </ul>

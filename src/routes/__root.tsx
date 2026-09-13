@@ -2,7 +2,7 @@ import { Outlet, Link, createRootRoute, useRouterState, Navigate } from "@tansta
 import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { CartProvider } from "@/lib/cart-context";
-import { ServiceSheetProvider } from "@/lib/service-sheet-context";
+import { CategorySheetProvider } from "@/lib/category-sheet-context";
 import { useNotificationRouter } from "@/lib/notifications";
 import { useFcmRegistration } from "@/lib/fcm";
 import { useAddresses, useProviderProfile } from "@/hooks/useApi";
@@ -306,12 +306,11 @@ function RootComponent() {
               version gate so a version-blocked user's cart still
               survives an update. */}
           <CartProvider>
-            {/* ServiceSheetProvider (SVC-290) hosts the bottom sheet that
-                replaces the /service/$serviceId page. Inside CartProvider
-                because the sheet's Add-to-cart CTA reads the same cart;
-                above SplashGate so opening a sheet through a deep-link
-                redirect is safe even while the splash is still lifting. */}
-            <ServiceSheetProvider>
+            {/* CategorySheetProvider (SVC-290) hosts the L1 → services picker
+                sheet. Above SplashGate so a `/category/{L1-slug}` deep-link
+                redirect can safely open the sheet even before the splash
+                lifts. */}
+            <CategorySheetProvider>
               {/* SplashGate is the outermost UI concern: the animated
                   launch splash covers everything for ~2s on cold app
                   open, then swaps in the app shell. Sits inside all the
@@ -335,7 +334,7 @@ function RootComponent() {
                   <Toaster />
                 </AppVersionGate>
               </SplashGate>
-            </ServiceSheetProvider>
+            </CategorySheetProvider>
           </CartProvider>
         </AuthProvider>
       </QueryClientProvider>
