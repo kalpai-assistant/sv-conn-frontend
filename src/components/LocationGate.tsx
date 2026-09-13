@@ -287,9 +287,17 @@ export function LocationGate({
         {/* Always offered, never hidden: the only path that needs no permission
             and no network, and therefore the reason a blocking screen is safe.
             Renders even with an empty saved list — a denied user with no saved
-            location would otherwise have no way into the app at all. */}
+            location would otherwise have no way into the app at all.
+
+            "Enter address manually", not "Enter location manually" (SVC-287).
+            The old wording promised typing and delivered a map — and a map is
+            the one thing this button exists to be an alternative to. Someone
+            who has just been told we cannot find them, and who taps the escape
+            from that, should not land on another way of asking the device
+            where they are. "Address" also says what they will be asked for:
+            a place they can name, not a pin they have to recognise. */}
         <Button variant="ghost" className="w-full" disabled={isSaving} onClick={onEnterManually}>
-          {saved.length > 0 ? "Somewhere else" : "Enter location manually"}
+          {saved.length > 0 ? "Somewhere else" : "Enter address manually"}
         </Button>
       </div>
     </div>

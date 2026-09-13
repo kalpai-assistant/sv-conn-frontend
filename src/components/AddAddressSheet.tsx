@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
-import { X, Loader2, Navigation } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { MapPicker } from "./MapPicker";
 import { isGeocodeFailure, withoutPinCode } from "@/lib/geocode-result";
@@ -62,37 +62,6 @@ export function AddAddressSheet({
   const opening: MapOpeningCentre = initialCentre
     ? { centre: initialCentre, source: "position", fallbackLabel: resolved.fallbackLabel }
     : resolved;
-  const [locating, setLocating] = useState(false);
-  // Set once the user asks for their position, so the map recentres on it.
-  const [override, setOverride] = useState<[number, number] | null>(null);
-
-  /** Ask for the current position — an explicit user action, so prompting here
-   *  is exactly right. `useMapOpeningCentre` deliberately never does this. */
-  const locateMe = () => {
-    if (!("geolocation" in navigator)) {
-      setErrorMsg("Location isn't available on this device.");
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false);
-        setOverride([pos.coords.latitude, pos.coords.longitude]);
-      },
-      (err) => {
-        setLocating(false);
-        // Code 1 is a denial, and on Android that is one-shot — say where to
-        // fix it rather than inviting a retry that resolves instantly.
-        setErrorMsg(
-          err.code === 1
-            ? "Location permission is off. Turn it on in your device settings, or drag the pin."
-            : "Couldn't get your location. Drag the pin instead.",
-        );
-      },
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
-    );
-  };
-
   const handleLocationSelected = (l: number, g: number, addr: string) => {
     setLat(l);
     setLng(g);
@@ -195,29 +164,27 @@ export function AddAddressSheet({
                 {/* AC2: a wrong-city map used to be silent. If we are guessing,
                     name the guess so the user knows to move it rather than
                     trusting a pin 840km from home. */}
+                {/* The banner stays; the button that used to sit under it does
+                    not (SVC-287).
+
+                    Naming the guess is the SVC-281 fix and still earns its
+                    place — a wrong-city map used to be silent, and a user who
+                    does not know the pin is 840km out has no reason to move
+                    it. What went is the second "Use my current location"
+                    button, which duplicated the locate control already inside
+                    the map a few pixels below it.
+
+                    Three of them existed in one flow: the gate's Enable, this,
+                    and the map's own. A user who arrived here by tapping "we
+                    cannot find you → enter it manually" was then offered the
+                    same failed question twice more. The map's own button is
+                    the one that stays: it sits where the pin it moves is. */}
                 {opening.source === "fallback" && (
                   <div className="border-b border-border bg-secondary px-4 py-3">
                     <p className="text-xs text-muted-foreground">
-                      We don&apos;t know where you are yet, so this map is a guess.
+                      We don&apos;t know where you are yet, so this map is a guess. Drag the pin to
+                      your address, or tap the locate button.
                     </p>
-                    {/* A button, not a sentence pointing at the small icon
-                        inside the map. The provider Location screen has had one
-                        since SVC-279; the consumer sheet only had the icon, so
-                        the fix for a wrong-city map was hidden in the corner of
-                        the wrong-city map. */}
-                    <button
-                      type="button"
-                      onClick={locateMe}
-                      disabled={locating}
-                      className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-2.5 text-sm font-medium text-foreground disabled:opacity-50"
-                    >
-                      {locating ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Navigation className="h-4 w-4 text-primary" />
-                      )}
-                      {locating ? "Locating…" : "Use my current location"}
-                    </button>
                   </div>
                 )}
                 <MapPicker
@@ -226,8 +193,14 @@ export function AddAddressSheet({
                   // coordinates remounts it instead — which is what makes "use
                   // my current location" actually jump the pin rather than
                   // silently fetching a position and doing nothing with it.
-                  key={(override ?? opening.centre)?.join(",")}
-                  initialCenter={override ?? opening.centre}
+                  // Keyed on the opening centre alone now (SVC-287). The
+                  // sheet used to hold an `override` purely to remount this
+                  // map when its own locate button fetched a position — that
+                  // button is gone, and MapPicker's own control recentres
+                  // itself via handleCenterChanged, so there is nothing left
+                  // for an override to do.
+                  key={opening.centre?.join(",")}
+                  initialCenter={opening.centre}
                   onLocationSelected={handleLocationSelected}
                 />
               </>
