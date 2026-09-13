@@ -5,17 +5,14 @@
  * vertical list is the right shape (the category page). This one trades the
  * description for a smaller footprint so several fit on screen at once.
  *
- * SVC-290: a tap opens the service bottom sheet on top of Home rather than
- * navigating away — see `ServiceSheet`.
- *
  * Carries no rating. The catalogue has no rating data, and inventing one is
  * exactly what the social-proof rule in docs/WIREFRAMES.md forbids — the
  * category name is real, so that is what the subtitle shows.
  */
+import { Link } from "@tanstack/react-router";
 import { Clock } from "lucide-react";
 import { categoryIcon, categoryColor } from "@/lib/category-icons";
 import type { Service } from "@/lib/mock-data";
-import { useServiceSheet } from "@/lib/service-sheet-context";
 
 interface ServiceCardCompactProps {
   service: Service;
@@ -30,8 +27,6 @@ export function ServiceCardCompact({
   categorySlug,
   categorySortOrder,
 }: ServiceCardCompactProps) {
-  const { openService } = useServiceSheet();
-
   // Stands in for the photography this card is designed around (a separate
   // ticket). Tinting it by category at least makes adjacent cards on the rail
   // distinguishable at a glance instead of a row of identical grey blocks.
@@ -39,10 +34,10 @@ export function ServiceCardCompact({
   const tint = categoryColor(categorySortOrder ?? 0);
 
   return (
-    <button
-      type="button"
-      onClick={() => openService(service.id)}
-      className="flex w-40 shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border bg-card text-left"
+    <Link
+      to="/service/$serviceId"
+      params={{ serviceId: service.id }}
+      className="flex w-40 flex-shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border bg-card"
     >
       <div
         className="flex h-24 w-full items-center justify-center"
@@ -77,6 +72,6 @@ export function ServiceCardCompact({
           </span>
         </p>
       </div>
-    </button>
+    </Link>
   );
 }

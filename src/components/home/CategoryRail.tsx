@@ -16,14 +16,15 @@
  * SVC-286: filters ``useCategories`` to ``parentId === null`` — Home only
  * shows top-level tiles; sub-categories render inside a category page.
  */
-import { Link } from "@tanstack/react-router";
 import { useCategories } from "@/hooks/useApi";
 import { ErrorState } from "@/components/ErrorState";
 import { categoryIcon, categoryColor } from "@/lib/category-icons";
 import { categoryImage } from "@/lib/category-images";
+import { useCategorySheet } from "@/lib/category-sheet-context";
 
 export function CategoryRail() {
   const { data: categories, isLoading, isError, refetch } = useCategories();
+  const { openCategory } = useCategorySheet();
 
   if (isLoading) {
     return (
@@ -65,10 +66,10 @@ export function CategoryRail() {
         const Icon = categoryIcon(cat.slug);
         const tint = categoryColor(cat.sortOrder);
         return (
-          <Link
+          <button
             key={cat.id}
-            to="/category/$slug"
-            params={{ slug: cat.slug }}
+            type="button"
+            onClick={() => openCategory(cat.id)}
             // 38% viewport width so ~2.5-3 tiles are visible at once — the
             // half-tile peek is the visual cue that more exists to the right,
             // without needing an indicator row underneath.
@@ -111,7 +112,7 @@ export function CategoryRail() {
             <span className="absolute inset-x-2 bottom-2 text-center text-sm font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
               {cat.name}
             </span>
-          </Link>
+          </button>
         );
       })}
       {/* Right-side gutter so the last tile's edge shadow isn't clipped and

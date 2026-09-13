@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { ArrowLeft, Loader2, PackageOpen } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -7,34 +8,30 @@ import { useCategories, useServices } from "@/hooks/useApi";
 import { ServiceCard } from "@/components/ServiceCard";
 import type { Category } from "@/lib/mock-data";
 import { categoryIcon, categoryColor } from "@/lib/category-icons";
-import { subcategoryImage } from "@/lib/subcategory-images";
+import { useCategorySheet } from "@/lib/category-sheet-context";
 
 export const Route = createFileRoute("/category/$slug")({
   component: CategoryPage,
 });
 
 /**
- * A category's own screen (SVC-286).
+ * A category's own screen (SVC-286, revised by SVC-290).
  *
- * Two modes, decided at render time from the category's own children in the
- * `useCategories` list:
+ * Two modes now, chosen by whether the slug resolves to an L1 with children
+ * or anything else:
  *
- *   1. **Level-1 with sub-categories** — the seven illustrated Home tiles.
- *      Renders a 3-column grid of sub-category tiles. Tapping a tile
- *      navigates to that sub-category's own `/category/$slug`, which lands
- *      in mode 2.
+ *   1. **L1 with children** — SVC-290 turned the sub-category picker into a
+ *      bottom sheet on Home. A cold `/category/{L1-slug}` deep-link should
+ *      show the same thing a Home L1 tile tap shows, so this branch redirects
+ *      to Home and opens the sheet for that L1. Shared links keep working
+ *      end-to-end without duplicating the sheet UI here.
  *
- *   2. **Level-2, or Level-1 with no children (`miscellaneous`)** — renders
- *      the services under this category, unchanged from the pre-SVC-286
- *      behaviour. Existing bookings, provider subscriptions and service ids
- *      all keep working here because `services.category_id` still points at
- *      what are now L2 rows (unchanged ids from the flat-catalogue era).
+ *   2. **L2, or L1 with no children (miscellaneous)** — renders the services
+ *      under this category, unchanged from the pre-SVC-286 behaviour.
+ *      Existing bookings, provider subscriptions and service ids all keep
+ *      working here.
  *
- * Routed on slug rather than the category id: ids are UUIDs, so
- * `/category/plumber` is a link someone can read and share and
- * `/category/7f38…` is not. The slug is resolved against the already-cached
- * `useCategories` list, the same way `service.$serviceId` resolves out of the
- * services list, so arriving here from Home costs no extra request.
+ * Routed on slug rather than id so `/category/plumber` reads and shares.
  */
 function CategoryPage() {
   const { slug } = Route.useParams();
@@ -45,6 +42,22 @@ function CategoryPage() {
     refetch: refetchCategories,
   } = useCategories();
   const category = categories?.find((c) => c.slug === slug);
+  const isL1WithChildren = !!(
+    category &&
+    category.parentId === null &&
+    (categories ?? []).some((c) => c.parentId === category.id)
+  );
+
+  const { openCategory } = useCategorySheet();
+  const navigate = useNavigate();
+
+  // L1 deep-link: open the sheet on Home and replace the URL so back does
+  // not bounce between this stub and the home the sheet already covers.
+  useEffect(() => {
+    if (!category || !isL1WithChildren) return;
+    openCategory(category.id);
+    void navigate({ to: "/", replace: true });
+  }, [category, isL1WithChildren, openCategory, navigate]);
 
   if (categoriesLoading) {
     return (
@@ -80,7 +93,12 @@ function CategoryPage() {
     );
   }
 
-  const children = (categories ?? []).filter((c) => c.parentId === category.id);
+  // Redirect branch renders nothing while the effect runs; users see the
+  // sheet slide up on Home a beat later.
+  if (isL1WithChildren) {
+    return null;
+  }
+
   const Icon = categoryIcon(category.slug);
   const tint = categoryColor(category.sortOrder);
 
@@ -105,88 +123,16 @@ function CategoryPage() {
         <h1 className="truncate text-base font-semibold text-foreground">{category.name}</h1>
       </div>
 
-      {children.length > 0 ? (
-        // Mode 1: sub-category picker. Extracted into a sibling component so
-        // hooks are declared unconditionally — the services query below is
-        // only mounted in Mode 2 and wouldn't fire here anyway.
-        <SubCategoryPicker subCategories={children} />
-      ) : (
-        // Mode 2: the pre-SVC-286 services list. Kept as its own component
-        // for the same hook-mount reason.
-        <ServicesUnderCategory category={category} />
-      )}
+      <ServicesUnderCategory category={category} />
     </div>
   );
 }
 
 /**
- * Mode 1 body — grid of sub-category tiles rendered like Home's
- * CategoryGrid so the L1 → L2 transition feels continuous. Uses the Lucide
- * icon path (no illustrations for sub-categories — those exist only for
- * the seven L1 tiles per `category-images.ts`).
- */
-function SubCategoryPicker({ subCategories }: { subCategories: readonly Category[] }) {
-  return (
-    <div className="grid grid-cols-3 gap-3 px-4 pt-4">
-      {subCategories.map((sub) => {
-        const image = subcategoryImage(sub.slug);
-        const SubIcon = categoryIcon(sub.slug);
-        const tint = categoryColor(sub.sortOrder);
-        return (
-          <Link
-            key={sub.id}
-            to="/category/$slug"
-            params={{ slug: sub.slug }}
-            className="relative aspect-square overflow-hidden rounded-2xl border border-border"
-          >
-            {image ? (
-              <img
-                src={image}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
-            ) : (
-              // Fallback when an illustration hasn't been generated for
-              // this sub-cat yet. Icon-in-tile matches the pre-image
-              // visual so an in-progress set still reads as belonging to
-              // the same picker rather than a broken row.
-              <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-card p-3">
-                <div
-                  className="flex h-12 w-12 items-center justify-center rounded-xl"
-                  style={{ backgroundColor: tint + "18" }}
-                >
-                  <SubIcon className="h-5 w-5" style={{ color: tint }} />
-                </div>
-                <span className="text-center text-[11px] font-medium leading-tight text-foreground">
-                  {sub.name}
-                </span>
-              </div>
-            )}
-            {image && (
-              // Only add the dark bottom gradient + white overlay text when
-              // we actually have an image behind it. Icon-in-tile fallback
-              // above renders its own label in foreground colour.
-              <>
-                <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-                <span className="absolute inset-x-2 bottom-2 text-center text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                  {sub.name}
-                </span>
-              </>
-            )}
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
-
-/**
- * Mode 2 body — services under a category, unchanged from the pre-SVC-286
- * shape. Runs its own `useServices(categoryId)` because a hook mounted at
- * the parent level would either fire on Mode 1 pages (wasted query, wrong
- * data on screen for a beat) or need conditional-hook gymnastics.
+ * The pre-SVC-286 services list — kept for L2 slugs and the miscellaneous
+ * L1 (no children). Runs its own `useServices(categoryId)` because a hook
+ * mounted at the parent level would fire on the L1-redirect branch and
+ * waste a query.
  */
 function ServicesUnderCategory({ category }: { category: Category }) {
   const { data: services, isLoading, isError, refetch } = useServices(category.id);
