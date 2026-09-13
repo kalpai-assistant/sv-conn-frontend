@@ -2,6 +2,7 @@ import { Outlet, Link, createRootRoute, useRouterState, Navigate } from "@tansta
 import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { CartProvider } from "@/lib/cart-context";
+import { ServiceSheetProvider } from "@/lib/service-sheet-context";
 import { useNotificationRouter } from "@/lib/notifications";
 import { useFcmRegistration } from "@/lib/fcm";
 import { useAddresses, useProviderProfile } from "@/hooks/useApi";
@@ -305,29 +306,36 @@ function RootComponent() {
               version gate so a version-blocked user's cart still
               survives an update. */}
           <CartProvider>
-            {/* SplashGate is the outermost UI concern: the animated
-                launch splash covers everything for ~2s on cold app
-                open, then swaps in the app shell. Sits inside all the
-                providers so the app underneath is fully hydrated by
-                the time the splash lifts. */}
-            <SplashGate>
-              {/* SVC-162: version-check nudge/block overlays. Wraps
-                  the whole tree so the block state can cover
-                  everything below it. */}
-              <AppVersionGate>
-                <AppGate>
-                  <Outlet />
-                  <BottomNav />
-                  <CartFab />
-                </AppGate>
-                {/* SVC-69: full-screen overlay for an incoming
-                    broadcast job. Sits outside AppGate so it can
-                    cover the whole shell; renders nothing unless a
-                    booking id is supplied. */}
-                <IncomingRequestHost />
-                <Toaster />
-              </AppVersionGate>
-            </SplashGate>
+            {/* ServiceSheetProvider (SVC-290) hosts the bottom sheet that
+                replaces the /service/$serviceId page. Inside CartProvider
+                because the sheet's Add-to-cart CTA reads the same cart;
+                above SplashGate so opening a sheet through a deep-link
+                redirect is safe even while the splash is still lifting. */}
+            <ServiceSheetProvider>
+              {/* SplashGate is the outermost UI concern: the animated
+                  launch splash covers everything for ~2s on cold app
+                  open, then swaps in the app shell. Sits inside all the
+                  providers so the app underneath is fully hydrated by
+                  the time the splash lifts. */}
+              <SplashGate>
+                {/* SVC-162: version-check nudge/block overlays. Wraps
+                    the whole tree so the block state can cover
+                    everything below it. */}
+                <AppVersionGate>
+                  <AppGate>
+                    <Outlet />
+                    <BottomNav />
+                    <CartFab />
+                  </AppGate>
+                  {/* SVC-69: full-screen overlay for an incoming
+                      broadcast job. Sits outside AppGate so it can
+                      cover the whole shell; renders nothing unless a
+                      booking id is supplied. */}
+                  <IncomingRequestHost />
+                  <Toaster />
+                </AppVersionGate>
+              </SplashGate>
+            </ServiceSheetProvider>
           </CartProvider>
         </AuthProvider>
       </QueryClientProvider>
