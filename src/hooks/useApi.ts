@@ -335,6 +335,79 @@ export const useServices = (categoryId?: string) => {
   return mergeDependentQuery(servicesQuery, categoriesQuery);
 };
 
+// ---------------------------------------------------------------------------
+// SVC-291 / SVC-292: related-services surfaces on the service sheet
+// ---------------------------------------------------------------------------
+
+/** One entry as the sheet's related rails render it — a lightweight subset of
+ *  the full `Service` shape carrying only what a rail card needs. */
+export interface UI_RelatedServiceEntry {
+  id: string;
+  name: string;
+  price: number;
+  sortOrder: number;
+}
+
+/** The three related surfaces `GET /services/{id}` returns. Section names
+ *  match the API's `relationship_type` enum values so the mapping is 1:1
+ *  and neither side has to re-shape. */
+export interface UI_RelatedServicesBucket {
+  hook: UI_RelatedServiceEntry[];
+  upsell: UI_RelatedServiceEntry[];
+  related: UI_RelatedServiceEntry[];
+}
+
+// API shape isn't in the generated OpenAPI types yet (spec regenerates
+// per-deploy on the backend side; frontend snapshot lags by one PR). Widening
+// type kept local so this file compiles without a hand-edit to src/types/api.ts.
+interface API_RelatedEntry {
+  id: string;
+  name: string;
+  base_price: number;
+  sort_order: number;
+}
+interface API_ServiceDetail extends API_ServiceResponse {
+  related?: {
+    hook?: API_RelatedEntry[];
+    upsell?: API_RelatedEntry[];
+    related?: API_RelatedEntry[];
+  };
+}
+
+const mapRelatedEntry = (e: API_RelatedEntry): UI_RelatedServiceEntry => ({
+  id: e.id,
+  name: e.name,
+  price: e.base_price,
+  sortOrder: e.sort_order,
+});
+
+/** Fetch the related-services bucket for a service (SVC-292).
+ *
+ * Kept separate from `useServices` on purpose: the list route is the app's
+ * biggest single request (home page + every category page), and folding the
+ * per-service related payload into it would multiply its cost for a payload
+ * no rail on those pages renders. Sheet-detail pays for sheet-detail.
+ *
+ * Base service data still comes from the cached `useServices` list — the
+ * sheet paints its header and CTA from cache instantly, and this query fills
+ * the three rails in when the response lands.
+ */
+export const useServiceRelated = (serviceId: string | undefined) => {
+  return useQuery({
+    enabled: !!serviceId,
+    queryKey: ["service", serviceId, "related"],
+    queryFn: async (): Promise<UI_RelatedServicesBucket> => {
+      const data = await apiFetch<API_ServiceDetail>(`/services/${serviceId}`);
+      const bucket = data.related ?? {};
+      return {
+        hook: (bucket.hook ?? []).map(mapRelatedEntry),
+        upsell: (bucket.upsell ?? []).map(mapRelatedEntry),
+        related: (bucket.related ?? []).map(mapRelatedEntry),
+      };
+    },
+  });
+};
+
 // `enabled` so the root gate can ask "does this user have any address?"
 // without a provider or a logged-out visitor firing the call. Defaults true —
 // every existing caller already knows it wants addresses.
