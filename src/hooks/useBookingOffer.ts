@@ -62,7 +62,7 @@ export type DismissReason =
   | "accepted" // this provider won the job
   | "taken" // someone else won it, or it was cancelled/expired server-side
   | "expired" // the local countdown reached zero
-  | "ignored" // the provider tapped Ignore — local only, no API call
+  | "ignored" // the provider tapped Ignore — the host decides when to record it
   | "unavailable"; // 403/404 on load — the card should never have opened
 
 /**
