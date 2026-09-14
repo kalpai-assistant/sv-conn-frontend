@@ -11,6 +11,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { LocationGate } from "@/components/LocationGate";
 import { AddAddressSheet } from "@/components/AddAddressSheet";
+import { SavedAddressesSheet } from "@/components/SavedAddressesSheet";
 import { markLocationConfirmed } from "@/lib/location-gate";
 import { useLocalityAt } from "@/hooks/useLocalityAt";
 import { localityFrom } from "@/lib/locality";
@@ -27,11 +28,31 @@ import type { LocationBlockedReason } from "@/hooks/useLocationAvailability";
  * costs a request.
  */
 export function ConsumerLocationGate({ reason }: { reason: LocationBlockedReason | null }) {
-  const { addresses, setSelectedId } = useSelectedAddress();
+  const { addresses, selected, setSelectedId } = useSelectedAddress();
   const [manual, setManual] = useState(false);
+  // The full address list, over the gate rather than instead of it (SVC-287).
+  // A route would mean navigating away from the screen whose whole job is to
+  // block the app; a sheet layers on top and dismisses back to it.
+  const [seeAll, setSeeAll] = useState(false);
   // Set when "Use my current location" has acquired a fix, so the picker opens
   // on it. Null means the user chose manual entry and we have no position.
   const [fix, setFix] = useState<[number, number] | null>(null);
+
+  // Over the gate, not instead of it. Rendered before `manual` so the two
+  // never stack.
+  if (seeAll) {
+    return (
+      <SavedAddressesSheet
+        onClose={() => setSeeAll(false)}
+        onPick={(id) => {
+          // Same answer the gate's own list gives: select, and we are done.
+          setSelectedId(id);
+          markLocationConfirmed();
+          setSeeAll(false);
+        }}
+      />
+    );
+  }
 
   if (manual) {
     return (
@@ -77,6 +98,12 @@ export function ConsumerLocationGate({ reason }: { reason: LocationBlockedReason
         id: a.id,
         label: localityFrom(a.full, a.label),
         full: a.full,
+        // The address *type*, kept alongside the locality that replaced it in
+        // `label`. Without it the gate could not tell a home from a workplace
+        // and drew a pin for both, while the Addresses screen drew a house —
+        // one address, two icons (SVC-287).
+        kind: a.label,
+        isSelected: selected?.id === a.id,
       }))}
       onConfirmSaved={(id) => {
         // Selecting is the answer: it is what every later booking reads.
@@ -113,6 +140,7 @@ export function ConsumerLocationGate({ reason }: { reason: LocationBlockedReason
         setFix(null);
         setManual(true);
       }}
+      onSeeAll={() => setSeeAll(true)}
     />
   );
 }

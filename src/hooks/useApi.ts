@@ -440,6 +440,15 @@ export const useAddresses = (enabled = true) => {
         // pin", which callers must not read as 0,0.
         lat: a.lat ?? null,
         lng: a.lng ?? null,
+        // SVC-287. Carried through so Edit can prefill from the columns rather
+        // than parse the composed string — which is how a street ends up
+        // stored as somebody's flat number.
+        house_floor: a.house_floor ?? null,
+        building: a.building ?? null,
+        landmark_area: a.landmark_area ?? null,
+        pincode: a.pincode ?? null,
+        contact_name: a.contact_name ?? null,
+        contact_phone: a.contact_phone ?? null,
       }));
     },
   });

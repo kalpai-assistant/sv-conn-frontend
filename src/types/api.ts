@@ -471,7 +471,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Service
+         * @description One service + variants + the three related-services buckets (SVC-291).
+         *
+         *     Distinct from the list route because the related payload is only worth
+         *     the extra joins on a detail page — a home-page listing that renders
+         *     just name / price / duration does not need the rails, and joining for
+         *     them there would multiply the query cost of the app's biggest single
+         *     request.
+         */
+        get: operations["get_service_api_v1_services__service_id__get"];
         put?: never;
         post?: never;
         /**
@@ -1311,6 +1321,18 @@ export interface components {
             lat?: number | null;
             /** Lng */
             lng?: number | null;
+            /** House Floor */
+            house_floor?: string | null;
+            /** Building */
+            building?: string | null;
+            /** Landmark Area */
+            landmark_area?: string | null;
+            /** Pincode */
+            pincode?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** Contact Phone */
+            contact_phone?: string | null;
         };
         /** Body_submit_kyc_api_v1_providers_me_kyc_post */
         Body_submit_kyc_api_v1_providers_me_kyc_post: {
@@ -1646,6 +1668,18 @@ export interface components {
              * @default false
              */
             is_default: boolean;
+            /** House Floor */
+            house_floor?: string | null;
+            /** Building */
+            building?: string | null;
+            /** Landmark Area */
+            landmark_area?: string | null;
+            /** Pincode */
+            pincode?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** Contact Phone */
+            contact_phone?: string | null;
         };
         /**
          * CreateBookingItemRequest
@@ -2169,6 +2203,54 @@ export interface components {
             /** Refresh Token */
             refresh_token: string;
         };
+        /**
+         * RelatedServiceEntry
+         * @description One entry in a related-services rail on the service detail page (SVC-292).
+         *
+         *     Denormalises name + base_price so the frontend renders the three rails
+         *     in the same round trip that fetches the service itself — no per-row
+         *     lookups from the client. ``sort_order`` is preserved so the frontend
+         *     respects the seed's / admin's ordering.
+         */
+        RelatedServiceEntry: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Base Price */
+            base_price: number;
+            /** Sort Order */
+            sort_order: number;
+        };
+        /**
+         * RelatedServicesBucket
+         * @description The three related-services surfaces the redesigned service page renders.
+         *
+         *     Names track the three ``relationship_type`` enum values so the mapping
+         *     from row to render surface is 1:1 — no server-side re-shaping. An empty
+         *     list is a legitimate answer (a service with no seeded hooks, for example)
+         *     and the frontend renders nothing for that surface.
+         */
+        RelatedServicesBucket: {
+            /**
+             * Hook
+             * @default []
+             */
+            hook: components["schemas"]["RelatedServiceEntry"][];
+            /**
+             * Upsell
+             * @default []
+             */
+            upsell: components["schemas"]["RelatedServiceEntry"][];
+            /**
+             * Related
+             * @default []
+             */
+            related: components["schemas"]["RelatedServiceEntry"][];
+        };
         /** ReviewListResponse */
         ReviewListResponse: {
             /** Reviews */
@@ -2221,6 +2303,56 @@ export interface components {
              * @description Indian phone number with +91 prefix
              */
             phone: string;
+        };
+        /**
+         * ServiceDetailResponse
+         * @description ``GET /services/{id}`` response — the ServiceResponse shape plus the
+         *     three related-services buckets from SVC-291.
+         *
+         *     Kept as a subclass so the plain-list ``GET /services`` endpoint stays
+         *     lean (no related payload per row across dozens of catalogue entries)
+         *     and the per-service fetch pays exactly one extra roundtrip's worth of
+         *     joins to surface the rails.
+         */
+        ServiceDetailResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Base Price */
+            base_price: number;
+            /** Duration Minutes */
+            duration_minutes: number;
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Variants
+             * @default []
+             */
+            variants: components["schemas"]["ServiceVariantResponse"][];
+            /**
+             * @default {
+             *       "hook": [],
+             *       "upsell": [],
+             *       "related": []
+             *     }
+             */
+            related: components["schemas"]["RelatedServicesBucket"];
         };
         /** ServiceResponse */
         ServiceResponse: {
@@ -2359,6 +2491,18 @@ export interface components {
             lng?: number | null;
             /** Is Default */
             is_default?: boolean | null;
+            /** House Floor */
+            house_floor?: string | null;
+            /** Building */
+            building?: string | null;
+            /** Landmark Area */
+            landmark_area?: string | null;
+            /** Pincode */
+            pincode?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** Contact Phone */
+            contact_phone?: string | null;
         };
         /**
          * UpdateFCMTokenRequest
@@ -3269,6 +3413,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServiceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_service_api_v1_services__service_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceDetailResponse"];
                 };
             };
             /** @description Validation Error */

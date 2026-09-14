@@ -1,18 +1,107 @@
 import { useState } from "react";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, MapPin, Home, Building2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { MapPicker } from "./MapPicker";
 import { isGeocodeFailure, withoutPinCode } from "@/lib/geocode-result";
 import { useAddAddress, useUpdateAddress } from "@/hooks/useApi";
 import { useMapOpeningCentre, type MapOpeningCentre } from "@/hooks/useMapOpeningCentre";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
+import { useAuth } from "@/lib/auth-context";
 
 /** The address being edited, when the sheet is opened from Edit (SVC-277). */
 export interface EditingAddress {
   id: string;
   label: string;
   full: string;
+  // SVC-287: prefilled from the stored columns, never parsed out of `full`.
+  //
+  // Null on every address saved before those columns existed, and the form
+  // renders that as an empty box — which is honest. Splitting `full` on commas
+  // to fill them would read "Lane Number 1, Kharadi, Pune…" and put a *street*
+  // in the flat-number field; the user taps Save, and a provider is then sent
+  // to a door number that nobody ever wrote down.
+  house_floor?: string | null;
+  building?: string | null;
+  landmark_area?: string | null;
+  pincode?: string | null;
+  contact_name?: string | null;
+  contact_phone?: string | null;
+}
+
+/**
+ * The ten digits of an Indian mobile number, for a field that shows `+91`
+ * beside it.
+ *
+ * Stored and sent as `+91XXXXXXXXXX` to match `users.phone`, so a provider's
+ * tap-to-call link does not care whether the number came from the account or
+ * from an address's contact person. Only the display half is local.
+ */
+/**
+ * The three address types, with the glyph each is recognised by.
+ *
+ * Matches the icons the saved lists draw for the same types, so a home address
+ * is a house wherever it appears — the inconsistency SVC-287 found was two
+ * screens disagreeing about exactly this.
+ */
+const LABEL_OPTIONS = [
+  { name: "Home", icon: Home },
+  { name: "Work", icon: Building2 },
+  { name: "Other", icon: MapPin },
+] as const;
+
+function localPhone(e164: string | null | undefined): string {
+  if (!e164) return "";
+  return e164.replace(/^\+91/, "");
+}
+
+/**
+ * One labelled box.
+ *
+ * The label sits inside as a placeholder while the box is empty and rises to
+ * the border once it has a value — so a filled form still says what each line
+ * is, which a placeholder-only field loses the moment it is typed into. That
+ * matters most on the two optional fields, where "Amogh Residency Lane No 7"
+ * on its own does not tell you whether it was meant as the building or the
+ * landmark.
+ */
+function FormField({
+  label,
+  value,
+  onChange,
+  required = false,
+  optional = false,
+  inputMode,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+  optional?: boolean;
+  inputMode?: "text" | "numeric";
+}) {
+  const filled = value.length > 0;
+  return (
+    <div className="relative">
+      {filled && (
+        <span className="absolute -top-2 left-3 bg-card px-1 text-[10px] text-muted-foreground">
+          {label}
+          {required && <span className="text-destructive"> *</span>}
+        </span>
+      )}
+      <input
+        type="text"
+        inputMode={inputMode}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={label}
+        placeholder={
+          filled ? undefined : `${label}${optional ? " (Optional)" : required ? " *" : ""}`
+        }
+        className="w-full rounded-xl border border-border bg-transparent px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+      />
+    </div>
+  );
 }
 
 export function AddAddressSheet({
@@ -44,9 +133,35 @@ export function AddAddressSheet({
   const [step, setStep] = useState<"map" | "form">(editing ? "form" : "map");
   const [lat, setLat] = useState(0);
   const [lng, setLng] = useState(0);
+  // What the geocoder called this point — the locality shown above the form,
+  // and the tail the backend appends when it composes the stored line.
   const [addressLine, setAddressLine] = useState(editing?.full ?? "");
   const [label, setLabel] = useState(
     editing ? editing.label.charAt(0).toUpperCase() + editing.label.slice(1) : "Home",
+  );
+
+  // SVC-287: the parts a map cannot know.
+  //
+  // Prefilled from the stored columns when editing, empty when they are null —
+  // which is every address saved before those columns existed. An empty box is
+  // the honest rendering of a null column; the alternative is splitting the
+  // composed line on commas, which would offer "Lane Number 1" as a flat
+  // number and get it saved as one.
+  const [houseFloor, setHouseFloor] = useState(editing?.house_floor ?? "");
+  const [building, setBuilding] = useState(editing?.building ?? "");
+  const [landmarkArea, setLandmarkArea] = useState(editing?.landmark_area ?? "");
+  const [pincode, setPincode] = useState(editing?.pincode ?? "");
+
+  // Who meets the provider. Seeded from the account on a new address, because
+  // the common case is the person booking — one less thing to type, and the
+  // field arrives populated rather than blank. Editable for the cases where it
+  // is a parent, a tenant, a flatmate.
+  const { user } = useAuth();
+  const [contactName, setContactName] = useState(
+    editing ? (editing.contact_name ?? "") : (user?.name ?? ""),
+  );
+  const [contactPhone, setContactPhone] = useState(
+    editing ? localPhone(editing.contact_phone) : localPhone(user?.phone),
   );
   const { mutateAsync: addAddress, isPending: isAdding } = useAddAddress();
   const { mutateAsync: updateAddress, isPending: isUpdating } = useUpdateAddress();
@@ -81,16 +196,54 @@ export function AddAddressSheet({
     setAddressLine(isGeocodeFailure(addr) ? "" : withoutPinCode(addr));
   };
 
+  /**
+   * The structured fields as the API takes them.
+   *
+   * An untouched box sends `undefined`, not `""`. On a PATCH those are
+   * different things: `undefined` means "this edit did not mention the
+   * landmark", while an empty string would ask the backend to clear one the
+   * user never looked at.
+   */
+  const structuredFields = () => ({
+    house_floor: houseFloor.trim() || undefined,
+    building: building.trim() || undefined,
+    landmark_area: landmarkArea.trim() || undefined,
+    pincode: pincode.trim() || undefined,
+    contact_name: contactName.trim() || undefined,
+    // Sent in the stored form; the field only ever shows the local ten digits.
+    contact_phone: contactPhone.trim() ? `+91${contactPhone.trim()}` : undefined,
+  });
+
   const handleSave = async () => {
     try {
       setErrorMsg("");
-      // The address line can legitimately be empty now (SVC-283): a failed
-      // geocode no longer pre-fills it with "Could not fetch address", so the
-      // user has to write it. Caught here because the backend's min_length=5
-      // would otherwise answer with a bare 422 that this sheet renders as
-      // "Failed to save address" — true, but not something anyone can act on.
+      // House & Floor is the one field a provider cannot do without, so a new
+      // address must carry it.
+      //
+      // An *edit* must not (SVC-287). Every address saved before these columns
+      // existed has none, and demanding one to change a label would turn an
+      // unrelated edit into an upgrade prompt. The backend agrees: the PATCH
+      // schema leaves it optional.
+      if (!editing && !houseFloor.trim()) {
+        setErrorMsg("Add your flat or house number so the provider can find your door.");
+        return;
+      }
+      // A PIN code is optional, but a half-typed one is worse than none — it
+      // reaches the provider looking authoritative. The backend pattern would
+      // reject it as a bare 422; this says which field and why.
+      if (pincode.trim() && !/^\d{6}$/.test(pincode.trim())) {
+        setErrorMsg("A PIN code is six digits.");
+        return;
+      }
+      if (contactPhone.trim() && !/^\d{10}$/.test(contactPhone.trim())) {
+        setErrorMsg("A mobile number is ten digits, after +91.");
+        return;
+      }
+      // The locality still has to exist: it is the tail the backend appends,
+      // and without it a composed address names a flat and no city. Empty only
+      // when the geocode failed, which SVC-283 leaves for the user to fill.
       if (addressLine.trim().length < 5) {
-        setErrorMsg("Add the building and street so the provider can find you.");
+        setErrorMsg("Add the area or locality so the provider knows where to go.");
         return;
       }
       if (editing) {
@@ -103,6 +256,7 @@ export function AddAddressSheet({
           label: label.toLowerCase(),
           full_address: addressLine,
           ...(moved ? { lat, lng } : {}),
+          ...structuredFields(),
         });
       } else {
         const created = await addAddress({
@@ -110,6 +264,7 @@ export function AddAddressSheet({
           full_address: addressLine,
           lat,
           lng,
+          ...structuredFields(),
         });
         // Saving an address is choosing it (SVC-283).
         //
@@ -222,33 +377,112 @@ export function AddAddressSheet({
               </div>
             )}
 
+            {/* Where the pin is, restated above the boxes (SVC-287).
+                
+                The map is gone from this step, so without this the user is
+                typing a flat number with no reminder of which building it
+                belongs to. `Change` goes back rather than opening a second
+                map — the pin already exists, this is a correction. */}
+            <div className="flex items-start gap-3 rounded-xl border border-border bg-secondary/40 p-3">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+                {addressLine || "Location not set"}
+              </p>
+              {!editing && (
+                <button
+                  type="button"
+                  onClick={() => setStep("map")}
+                  className="shrink-0 rounded-lg border border-primary px-3 py-1 text-xs font-medium text-primary"
+                >
+                  Change
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-foreground">Add address</p>
+
+              {/* The one field a provider cannot do without, so it is first and
+                  it is the only required one. Empty on an address saved before
+                  these columns existed — see EditingAddress for why it is not
+                  parsed out of the stored line. */}
+              <FormField
+                label="House No. & Floor"
+                required
+                value={houseFloor}
+                onChange={setHouseFloor}
+              />
+              <FormField
+                label="Building & Block No."
+                optional
+                value={building}
+                onChange={setBuilding}
+              />
+              <FormField
+                label="Landmark & Area Name"
+                optional
+                value={landmarkArea}
+                onChange={setLandmarkArea}
+              />
+              {/* Ours, not a pattern borrowed from anywhere: the geocoder's PIN
+                  code is wrong here (411001 for Kharadi, which is 411014 —
+                  SVC-284), so the only trustworthy source is the person who
+                  lives there. Optional, because a wrong one is worse than none
+                  and nobody should be blocked on recalling it. */}
+              <FormField
+                label="PIN code"
+                optional
+                value={pincode}
+                onChange={(v) => setPincode(v.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+              />
+            </div>
+
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Label</label>
+              <p className="text-sm font-semibold text-foreground">Add address label</p>
+              {/* Iconed, because these three are scanned rather than read: a
+                  house, a building and a pin are recognised before the word
+                  underneath them is. */}
               <div className="flex gap-2">
-                {["Home", "Work", "Other"].map((l) => (
+                {LABEL_OPTIONS.map(({ name, icon: Icon }) => (
                   <button
-                    key={l}
-                    onClick={() => setLabel(l)}
-                    className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                      label === l
+                    key={name}
+                    onClick={() => setLabel(name)}
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-medium transition-colors ${
+                      label === name
                         ? "border-primary bg-primary/10 text-primary"
                         : "border-border text-muted-foreground"
                     }`}
                   >
-                    {l}
+                    <Icon className="h-4 w-4" />
+                    {name}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Complete Address</label>
-              <textarea
-                value={addressLine}
-                onChange={(e) => setAddressLine(e.target.value)}
-                className="w-full rounded-xl border border-border bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary min-h-[100px]"
-                placeholder="House No, Building, Street..."
-              />
+            {/* "Contact person", not "receiver" — we send a plumber to a flat,
+                not a parcel. Optional throughout: whether a customer names
+                someone is their business, and left blank the provider falls
+                back to the person who booked, exactly as before. */}
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-foreground">
+                Contact person <span className="font-normal text-muted-foreground">(Optional)</span>
+              </p>
+              <FormField label="Name" value={contactName} onChange={setContactName} />
+              <div className="flex items-stretch gap-2">
+                <div className="flex items-center rounded-xl border border-border px-3 text-sm text-muted-foreground">
+                  +91
+                </div>
+                <div className="min-w-0 flex-1">
+                  <FormField
+                    label="Mobile number"
+                    value={contactPhone}
+                    onChange={(v) => setContactPhone(v.replace(/\D/g, "").slice(0, 10))}
+                    inputMode="numeric"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="mt-auto pt-4">
