@@ -26,7 +26,7 @@
  */
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Home, MapPin, MoreVertical, Plus, X } from "lucide-react";
+import { ArrowLeft, Home, MapPin, MoreVertical, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { InUseBadge } from "@/components/InUseBadge";
@@ -48,10 +48,26 @@ import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 export function SavedAddressesSheet({
   onClose,
   onPick,
+  dismissible = true,
 }: {
   onClose: () => void;
   /** Chose an address. The gate treats this as its answer and closes. */
   onPick: (id: string) => void;
+  /**
+   * Whether leaving without choosing is allowed (SVC-287).
+   *
+   * True from the Home bar and the Cart: a location is already set, the screen
+   * underneath is usable, and backing out changes nothing. False over the
+   * location gate, where there is nowhere to go back *to* — the gate is the
+   * thing blocking the app, and a control offering escape from it would be
+   * lying.
+   *
+   * Measured on Zepto, which does exactly this: its "Select Location" screen
+   * carries a back arrow when opened from home and none when opened from its
+   * own gate. The arrow is not decoration; it appears when there is somewhere
+   * safe to return to.
+   */
+  dismissible?: boolean;
 }) {
   useLockBodyScroll(true);
 
@@ -86,7 +102,9 @@ export function SavedAddressesSheet({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose}
+        // Tapping away is the same escape the header control is: offered only
+        // when there is somewhere to escape to.
+        onClick={dismissible ? onClose : undefined}
         className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
       />
       <motion.div
@@ -98,11 +116,20 @@ export function SavedAddressesSheet({
         aria-label="Saved addresses"
         className="safe-bottom fixed bottom-0 left-0 right-0 z-50 mx-auto flex max-h-[80vh] max-w-md flex-col rounded-t-3xl border-t border-border bg-card shadow-2xl"
       >
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
-          <h2 className="text-base font-semibold text-foreground">Saved addresses</h2>
-          <button onClick={onClose} aria-label="Close saved addresses" className="rounded-full p-2">
-            <X className="h-5 w-5 text-muted-foreground" />
-          </button>
+        <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4">
+          {dismissible && (
+            <button
+              onClick={onClose}
+              aria-label="Back"
+              className="-ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-secondary"
+            >
+              <ArrowLeft className="h-5 w-5 text-foreground" />
+            </button>
+          )}
+          {/* "Select location", not "Saved addresses": the sheet exists to make
+              a choice, and the saved list is only one of the ways to make it.
+              The list gets its own heading below. */}
+          <h2 className="text-base font-semibold text-foreground">Select location</h2>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
@@ -113,6 +140,8 @@ export function SavedAddressesSheet({
             <Plus className="h-5 w-5 text-primary" />
             <span className="text-sm font-semibold text-primary">Add new address</span>
           </button>
+
+          <h3 className="mb-2 text-sm font-semibold text-foreground">Saved addresses</h3>
 
           {rows.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">

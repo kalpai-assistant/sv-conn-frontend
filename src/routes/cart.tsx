@@ -21,7 +21,7 @@ import { AccountAvatar } from "@/components/AccountAvatar";
 import { useAuth } from "@/lib/auth-context";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import { useBookAndPay } from "@/hooks/useBookAndPay";
-import { AddressPickerSheet } from "@/components/AddressPickerSheet";
+import { SavedAddressesSheet } from "@/components/SavedAddressesSheet";
 import { SlotPickerSheet } from "@/components/cart/SlotPickerSheet";
 import { CouponsSheet } from "@/components/cart/CouponsSheet";
 
@@ -65,7 +65,7 @@ function CartPage() {
   const { items, subtotal, updateQuantity, remove, clear } = useCart();
   // Only for the header avatar's initials.
   const { user } = useAuth();
-  const { selected: selectedAddress } = useSelectedAddress();
+  const { selected: selectedAddress, setSelectedId } = useSelectedAddress();
   const { bookAndPay, isBusy } = useBookAndPay();
 
   // Slot state — null = "Now (instant)", non-null = scheduled datetime.
@@ -371,7 +371,15 @@ function CartPage() {
 
       {/* Sheets */}
       <AnimatePresence>
-        {addressPickerOpen && <AddressPickerSheet onClose={() => setAddressPickerOpen(false)} />}
+        {addressPickerOpen && (
+          <SavedAddressesSheet
+            onClose={() => setAddressPickerOpen(false)}
+            onPick={(id) => {
+              setSelectedId(id);
+              setAddressPickerOpen(false);
+            }}
+          />
+        )}
         {slotPickerOpen && (
           <SlotPickerSheet
             onClose={() => setSlotPickerOpen(false)}

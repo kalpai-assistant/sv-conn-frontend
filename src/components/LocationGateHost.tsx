@@ -43,6 +43,9 @@ export function ConsumerLocationGate({ reason }: { reason: LocationBlockedReason
   if (seeAll) {
     return (
       <SavedAddressesSheet
+        // No way out but choosing: the gate underneath is what blocks the app,
+        // so a back arrow here would offer an escape that does not exist.
+        dismissible={false}
         onClose={() => setSeeAll(false)}
         onPick={(id) => {
           // Same answer the gate's own list gives: select, and we are done.
