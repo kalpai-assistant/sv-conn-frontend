@@ -13,4 +13,4 @@
  *
  * When we ship a new build, bump this + `versionName` + the DB row.
  */
-export const APP_VERSION = "1.0.9-beta";
+export const APP_VERSION = "1.0.10-beta";
