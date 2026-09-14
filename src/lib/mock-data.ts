@@ -86,6 +86,16 @@ export interface Address {
   // truth and coordinates as an enhancement.
   lat?: number | null;
   lng?: number | null;
+  // SVC-287: the parts a map cannot supply, read back so the edit form can
+  // prefill them. All optional and null on every address saved before those
+  // columns existed — an empty box is the honest rendering of a null column,
+  // and the composed `full` above is what those rows still display.
+  house_floor?: string | null;
+  building?: string | null;
+  landmark_area?: string | null;
+  pincode?: string | null;
+  contact_name?: string | null;
+  contact_phone?: string | null;
 }
 
 export interface Review {
