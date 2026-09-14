@@ -21,8 +21,9 @@
  * question whose answer is a guaranteed empty list — the server enforces the
  * same rule regardless.
  */
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouterState } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 import { IncomingRequestCard } from "@/components/provider/IncomingRequestCard";
 import { useAuth } from "@/lib/auth-context";
@@ -30,6 +31,7 @@ import {
   dismissIncomingRequest,
   getIncomingRequestId,
   getIncomingRequestIdServer,
+  showIncomingRequest,
   subscribeIncomingRequest,
 } from "@/lib/incoming-request";
 import { useDeclineOffer, useProviderOffers, type DismissReason } from "@/hooks/useBookingOffer";
@@ -37,6 +39,25 @@ import { useProviderProfile } from "@/hooks/useApi";
 
 /** The search param the merged `routeForPayload()` navigates to. */
 const SEARCH_PARAM = "incomingBookingId";
+
+/**
+ * How long Ignore stays undoable (SVC-295).
+ *
+ * Longer than sonner's 4s default, deliberately. The thing being recovered is
+ * a *lost job*: the provider has to notice the card vanished, read the toast,
+ * and reach for Undo, having just fumbled a tap on a countdown screen. Four
+ * seconds is thin for that sequence.
+ *
+ * Seven costs under 6% of the 120s offer window before the refusal is
+ * recorded, and a late decline is harmless — the offer stays open server-side
+ * and `handledIds` already stops the card reappearing meanwhile. A provider
+ * who ignores and does *not* undo waits this long before the next queued offer
+ * surfaces, which hides inside the 15s poll interval that already exists.
+ *
+ * The asymmetry is the argument: too short and the bug survives for the slower
+ * half of mis-taps; too long and a decline row lands a few seconds late.
+ */
+const UNDO_WINDOW_MS = 7_000;
 
 export function IncomingRequestHost() {
   const { isAuthenticated, user } = useAuth();
@@ -98,6 +119,48 @@ export function IncomingRequestHost() {
 
   const { mutate: declineOffer } = useDeclineOffer();
 
+  /**
+   * Declines waiting out their undo window, keyed by booking id (SVC-295).
+   *
+   * A Map rather than a single timer because two cards can be ignored inside
+   * one window — the queue drains as fast as the provider dismisses — and a
+   * second mis-tap must not cancel the first one's pending decline.
+   *
+   * A ref rather than state: nothing renders from this, and re-rendering on
+   * every schedule would be noise.
+   */
+  const pendingDeclines = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  /** Send the decline now and forget the timer. Safe to call twice. */
+  const flushDecline = useCallback(
+    (id: string) => {
+      const timer = pendingDeclines.current.get(id);
+      if (timer === undefined) return;
+      clearTimeout(timer);
+      pendingDeclines.current.delete(id);
+      declineOffer(id);
+    },
+    [declineOffer],
+  );
+
+  // Never strand a withheld decline. If this unmounts with timers pending —
+  // logout, or the provider navigating away — the refusal would simply be
+  // lost, and the offer would come back on the next poll as though nothing
+  // had been tapped. Flush rather than drop.
+  //
+  // Reads the ref at cleanup time on purpose: the Map is mutated in place and
+  // this is the live one, not a snapshot from mount.
+  useEffect(() => {
+    const timers = pendingDeclines.current;
+    return () => {
+      for (const [id, timer] of timers) {
+        clearTimeout(timer);
+        declineOffer(id);
+      }
+      timers.clear();
+    };
+  }, [declineOffer]);
+
   const handleDismiss = useCallback(
     (reason: DismissReason) => {
       setDismissedSearchId(searchId);
@@ -107,10 +170,51 @@ export function IncomingRequestHost() {
         // Ignore used to be local-only, which was harmless when a push was the
         // only way in — the card simply never came back. Under polling it would
         // return every 15 seconds until the offer expired, so the refusal has to
-        // be recorded server-side. Fire-and-forget: the local `handledIds` entry
-        // already stops it reopening, so a failed decline costs a reappearance
-        // after a restart, not a broken card.
-        if (reason === "ignored") declineOffer(bookingId);
+        // be recorded server-side.
+        //
+        // But it is recorded *after* an undo window, not immediately (SVC-295).
+        // `decline_offer` is write-once — it returns early once `response` is
+        // set — and `list_open_offers` skips any answered row for good. No
+        // endpoint clears the field. So an Undo that fired the decline and then
+        // reopened the card would appear to work and quietly strand the job:
+        // still acceptable by id, gone from the poll forever. Withholding the
+        // call is the only reversible form. Nothing to retract if nothing was
+        // sent.
+        if (reason === "ignored") {
+          const id = bookingId;
+          pendingDeclines.current.set(
+            id,
+            setTimeout(() => {
+              pendingDeclines.current.delete(id);
+              declineOffer(id);
+            }, UNDO_WINDOW_MS),
+          );
+          toast("Job ignored", {
+            duration: UNDO_WINDOW_MS,
+            action: {
+              label: "Undo",
+              onClick: () => {
+                const timer = pendingDeclines.current.get(id);
+                if (timer !== undefined) clearTimeout(timer);
+                pendingDeclines.current.delete(id);
+                // Order matters: clear the local suppression *before* asking
+                // for the card, so the poll cannot re-supply this id in the
+                // same render and race the imperative store.
+                setHandledIds((previous) => {
+                  const next = new Set(previous);
+                  next.delete(id);
+                  return next;
+                });
+                // Outranks both the suppressed search param and the poll, so
+                // one call reopens the card whichever path delivered it.
+                showIncomingRequest(id);
+              },
+            },
+            // Swiped away, or closed early: the provider has seen it and not
+            // undone it, which is the same answer as letting it run out.
+            onDismiss: () => flushDecline(id),
+          });
+        }
       }
       if (reason === "unavailable") {
         // A real error: the card was opened for a booking this provider was
@@ -119,7 +223,7 @@ export function IncomingRequestHost() {
         console.error(`Incoming request could not be opened (403/404).`);
       }
     },
-    [searchId, bookingId, declineOffer],
+    [searchId, bookingId, declineOffer, flushDecline],
   );
 
   if (!isAuthenticated || !bookingId) return null;

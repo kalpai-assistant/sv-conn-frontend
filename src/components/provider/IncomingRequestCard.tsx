@@ -180,21 +180,36 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
             </p>
           )}
 
-          <div className="flex gap-3 pt-1">
-            {/* Local-only. There is no decline/ignore endpoint on the backend
-                  (verified across every router on main): this tells the server
-                  nothing, does not remove this provider from the broadcast, and
-                  does not affect any other provider. */}
+          {/* Accept above, Ignore below — not side by side (SVC-295).
+
+              These used to be two equal-width buttons in one row, with Ignore
+              immediately left of Accept. Reported as "tapping outside Accept
+              rejects the job"; what actually happens is a thumb aimed at
+              Accept landing a few millimetres left, on a screen with a
+              countdown the provider is hurrying to answer. One tap, no
+              confirmation, job gone.
+
+              Stacking removes the horizontal adjacency that is the whole
+              failure geometry, and the ghost variant matches how this app
+              already renders a secondary action under a primary one
+              (LocationGate, PayoutStep). Ignore stays full-width and a real
+              button rather than a text link: this makes it harder to hit by
+              *accident*, not harder to hit on purpose. */}
+          <div className="flex flex-col gap-2 pt-1">
+            <Button className="w-full" onClick={handleAccept} disabled={acceptDisabled}>
+              {acceptOffer.isPending ? "Accepting…" : hasExpired ? "Expired" : "Accept"}
+            </Button>
+            {/* Records a refusal server-side — but not immediately. The host
+                holds the decline for a few seconds behind an Undo, because
+                `decline_offer` is write-once and nothing can clear it. See
+                IncomingRequestHost. */}
             <Button
-              variant="outline"
-              className="flex-1"
+              variant="ghost"
+              className="w-full"
               onClick={() => onDismiss("ignored")}
               disabled={acceptOffer.isPending}
             >
               Ignore
-            </Button>
-            <Button className="flex-1" onClick={handleAccept} disabled={acceptDisabled}>
-              {acceptOffer.isPending ? "Accepting…" : hasExpired ? "Expired" : "Accept"}
             </Button>
           </div>
         </div>
