@@ -15,9 +15,9 @@
  * ## Manage, not pick
  *
  * Deliberately: this screen edits and deletes, it does not change which
- * address a booking uses. Choosing happens in `AddressPickerSheet`, opened
- * from the Home location bar and from the Cart, at the moment the choice
- * matters — and that sheet already marks the active one.
+ * address a booking uses. Choosing happens in `SavedAddressesSheet`, opened
+ * from the Home location bar, the Cart and the location gate, at the moment
+ * the choice matters — and that sheet marks the active one too.
  *
  * Two screens that both appear to select would be worse than one that clearly
  * does: a user who "selected" here and then saw a different address at

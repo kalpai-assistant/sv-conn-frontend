@@ -32,12 +32,12 @@
 import { useState } from "react";
 import { MapPin, ChevronDown } from "lucide-react";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
-import { AddressPickerSheet } from "@/components/AddressPickerSheet";
+import { SavedAddressesSheet } from "@/components/SavedAddressesSheet";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { useAuth } from "@/lib/auth-context";
 
 export function LocationBar() {
-  const { selected } = useSelectedAddress();
+  const { selected, setSelectedId } = useSelectedAddress();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
 
@@ -76,7 +76,15 @@ export function LocationBar() {
         <AccountAvatar to="/profile" name={user?.name} />
       </div>
 
-      {open && <AddressPickerSheet onClose={() => setOpen(false)} />}
+      {open && (
+        <SavedAddressesSheet
+          onClose={() => setOpen(false)}
+          onPick={(id) => {
+            setSelectedId(id);
+            setOpen(false);
+          }}
+        />
+      )}
     </>
   );
 }
