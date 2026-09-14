@@ -218,10 +218,14 @@ describe("saved locations", () => {
 
 describe("the exit that needs no permission", () => {
   it("is offered when there are saved locations", async () => {
+    // Same name whether or not anything is saved (SVC-287). It used to read
+    // "Somewhere else" here — which described where the user was going rather
+    // than what they would do, and was the branch anyone with a saved address
+    // actually saw, so the earlier rename shipped to nobody.
     const p = props({ saved: [HOME] });
     render(<LocationGate {...p} />);
 
-    await userEvent.click(await screen.findByRole("button", { name: /somewhere else/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /enter address manually/i }));
 
     expect(p.onEnterManually).toHaveBeenCalledOnce();
   });
@@ -247,5 +251,58 @@ describe("the exit that needs no permission", () => {
 
     await userEvent.click(manual);
     expect(p.onEnterManually).toHaveBeenCalledOnce();
+  });
+});
+
+describe("the saved list (SVC-287)", () => {
+  it("marks only the address in use", async () => {
+    // It used to draw a check on every row, which tells the user nothing: if
+    // all three are ticked, none of them is the answer to "which one is on".
+    render(
+      <LocationGate
+        {...props({
+          saved: [
+            { ...HOME, isSelected: true },
+            { ...WORK, isSelected: false },
+          ],
+        })}
+      />,
+    );
+
+    expect(await screen.findAllByText(/in use/i)).toHaveLength(1);
+  });
+
+  it("does not trail rows with a check or a chevron", async () => {
+    // A chevron promises a screen that never opens — tapping a row selects and
+    // dismisses. A permanent check reads as "already done". The badge above
+    // says which is active; the row itself stays the tap target.
+    render(<LocationGate {...props({ saved: [HOME] })} />);
+
+    const row = await screen.findByText("Karve Nagar");
+    expect(row.closest("button")?.querySelector("svg")).toBeTruthy(); // the leading icon
+    expect(screen.queryByText(/in use/i)).toBeNull(); // nothing selected here
+  });
+
+  it("names the section by what it is for", async () => {
+    render(<LocationGate {...props({ saved: [HOME] })} />);
+
+    expect(await screen.findByText(/select from saved locations/i)).toBeInTheDocument();
+  });
+
+  it("offers See all only when the caller has a list to open", async () => {
+    // The provider gate has a single service area, not a list, so it passes no
+    // handler and the control does not render.
+    const p = props({ saved: [HOME], onSeeAll: vi.fn() });
+    render(<LocationGate {...p} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /see all/i }));
+    expect(p.onSeeAll).toHaveBeenCalledOnce();
+  });
+
+  it("hides See all when there is nowhere to send them", async () => {
+    render(<LocationGate {...props({ saved: [HOME] })} />);
+
+    await screen.findByText("Karve Nagar");
+    expect(screen.queryByRole("button", { name: /see all/i })).toBeNull();
   });
 });

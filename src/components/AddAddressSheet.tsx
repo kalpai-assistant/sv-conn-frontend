@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
-import { X, Loader2, MapPin } from "lucide-react";
+import { X, Loader2, MapPin, Home, Building2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { MapPicker } from "./MapPicker";
 import { isGeocodeFailure, withoutPinCode } from "@/lib/geocode-result";
@@ -37,6 +37,19 @@ export interface EditingAddress {
  * tap-to-call link does not care whether the number came from the account or
  * from an address's contact person. Only the display half is local.
  */
+/**
+ * The three address types, with the glyph each is recognised by.
+ *
+ * Matches the icons the saved lists draw for the same types, so a home address
+ * is a house wherever it appears — the inconsistency SVC-287 found was two
+ * screens disagreeing about exactly this.
+ */
+const LABEL_OPTIONS = [
+  { name: "Home", icon: Home },
+  { name: "Work", icon: Building2 },
+  { name: "Other", icon: MapPin },
+] as const;
+
 function localPhone(e164: string | null | undefined): string {
   if (!e164) return "";
   return e164.replace(/^\+91/, "");
@@ -427,18 +440,22 @@ export function AddAddressSheet({
 
             <div className="space-y-2">
               <p className="text-sm font-semibold text-foreground">Add address label</p>
+              {/* Iconed, because these three are scanned rather than read: a
+                  house, a building and a pin are recognised before the word
+                  underneath them is. */}
               <div className="flex gap-2">
-                {["Home", "Work", "Other"].map((l) => (
+                {LABEL_OPTIONS.map(({ name, icon: Icon }) => (
                   <button
-                    key={l}
-                    onClick={() => setLabel(l)}
-                    className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
-                      label === l
+                    key={name}
+                    onClick={() => setLabel(name)}
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-medium transition-colors ${
+                      label === name
                         ? "border-primary bg-primary/10 text-primary"
                         : "border-border text-muted-foreground"
                     }`}
                   >
-                    {l}
+                    <Icon className="h-4 w-4" />
+                    {name}
                   </button>
                 ))}
               </div>

@@ -26,7 +26,7 @@
  */
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Check, Home, MapPin, MoreVertical, Plus } from "lucide-react";
+import { ArrowLeft, Home, MapPin, MoreVertical, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { AddAddressSheet, type EditingAddress } from "@/components/AddAddressSheet";
 import { AddressActionsSheet, type AddressActionsTarget } from "@/components/AddressActionsSheet";
@@ -40,6 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { InUseBadge } from "@/components/InUseBadge";
 import { useDeleteAddress } from "@/hooks/useApi";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 
@@ -127,12 +128,7 @@ export function AddressesPage() {
                         {/* Shown, not set. Which address is in use is decided
                             in the picker; repeating it here means the two
                             screens cannot tell the user different things. */}
-                        {isSelected && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-primary">
-                            <Check className="h-3 w-3" />
-                            In use
-                          </span>
-                        )}
+                        {isSelected && <InUseBadge />}
                       </div>
                       <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                         {addr.full}

@@ -38,8 +38,9 @@
  * permanently. Any change that can hide it is the bug.
  */
 import { useEffect, useState } from "react";
-import { Check, Loader2, MapPin, Navigation } from "lucide-react";
+import { Check, Home, Loader2, MapPin, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InUseBadge } from "@/components/InUseBadge";
 import { enableDeviceLocation, peekLocationPermission, requestLocation } from "@/lib/geolocation";
 import type { LocationBlockedReason } from "@/hooks/useLocationAvailability";
 
@@ -50,6 +51,20 @@ export interface SavedLocation {
   label: string;
   /** The address line under it, or a radius for a provider's service area. */
   full: string;
+  /**
+   * home | work | other — the address *type*, which `label` is not.
+   *
+   * `label` has been overwritten with the locality by the time it reaches
+   * here, so the row could not tell a home from a workplace and drew a pin for
+   * both. The Addresses screen drew a house. Same address, two icons, and the
+   * user notices even when they cannot say what changed.
+   *
+   * Optional because the provider gate's single service-area row has no type —
+   * it is a point on a map, not somewhere anyone lives.
+   */
+  kind?: string | null;
+  /** True for the address a booking would use right now. Shown, never set here. */
+  isSelected?: boolean;
 }
 
 /**
@@ -84,6 +99,15 @@ export interface LocationGateProps {
   onUseCurrent: (lat: number, lng: number) => void;
   /** Open the manual picker. Always available — this is the no-permission path. */
   onEnterManually: () => void;
+  /**
+   * Open the full address list, if the caller has one to open.
+   *
+   * Omitted by the provider gate, which has a single service area rather than
+   * a list. The consumer gate opens a *sheet* rather than navigating: this
+   * screen exists to block the app, and sending someone to a route from it
+   * would mean leaving the thing that is meant to be blocking them.
+   */
+  onSeeAll?: () => void;
   /** True while a choice is being saved, so the screen can show progress. */
   isSaving?: boolean;
 }
@@ -134,6 +158,7 @@ export function LocationGate({
   onConfirmSaved,
   onUseCurrent,
   onEnterManually,
+  onSeeAll,
   isSaving = false,
 }: LocationGateProps) {
   const [locating, setLocating] = useState(false);
@@ -255,13 +280,34 @@ export function LocationGate({
 
         {saved.length > 0 && (
           <div className="rounded-xl border border-border bg-card p-2">
-            <p className="px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground">
-              Saved locations
-            </p>
+            <div className="flex items-center justify-between px-2 py-1">
+              {/* "Select from saved locations", not "Saved locations": on a
+                  screen the user cannot get past, a heading that names the
+                  action is worth more than one that names the contents. */}
+              <p className="text-xs font-medium text-muted-foreground">
+                Select from saved locations
+              </p>
+              {onSeeAll && (
+                <button
+                  type="button"
+                  onClick={onSeeAll}
+                  className="text-xs font-semibold text-primary"
+                >
+                  See all
+                </button>
+              )}
+            </div>
             {/* One tap and through — the common case is "location is off and I
                 am at home", and this needs no permission and no map. The label
                 is the locality on purpose: "Home" is true in every city, so a
-                row saying it confirms nothing. See localityFrom. */}
+                row saying it confirms nothing. See localityFrom.
+                
+                Nothing trails the row any more. It used to carry a check on
+                *every* row, which says nothing when they all have one, and the
+                obvious alternatives both mislead: a chevron promises a screen
+                that never opens, and a check on one row reads as "already
+                done". The badge below marks the active address instead, and
+                the whole row stays the tap target. */}
             {saved.map((place) => (
               <button
                 key={place.id}
@@ -269,15 +315,25 @@ export function LocationGate({
                 onClick={() => onConfirmSaved(place.id)}
                 className="flex w-full items-start gap-3 rounded-lg p-3 text-left transition-colors hover:bg-secondary disabled:opacity-50"
               >
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                {/* Same rule as the Addresses screen. It drew a house for a
+                    home address while this drew a pin for everything, so one
+                    address had two icons depending on where you saw it. */}
+                {place.kind === "home" ? (
+                  <Home className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium capitalize text-foreground">{place.label}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium capitalize text-foreground">{place.label}</p>
+                    {place.isSelected && <InUseBadge />}
+                  </div>
                   <p className="truncate text-xs text-muted-foreground">{place.full}</p>
                 </div>
-                {isSaving ? (
+                {/* Transient, so it promises nothing — unlike the check that
+                    used to sit here permanently. */}
+                {isSaving && (
                   <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
-                ) : (
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                 )}
               </button>
             ))}
@@ -297,7 +353,11 @@ export function LocationGate({
             where they are. "Address" also says what they will be asked for:
             a place they can name, not a pin they have to recognise. */}
         <Button variant="ghost" className="w-full" disabled={isSaving} onClick={onEnterManually}>
-          {saved.length > 0 ? "Somewhere else" : "Enter address manually"}
+          {/* One name in both branches (SVC-287). "Somewhere else" described
+              where the user was going rather than what they would do, and it
+              was the branch anyone with a saved address actually saw — so the
+              rename shipped to nobody. */}
+          Enter address manually
         </Button>
       </div>
     </div>
