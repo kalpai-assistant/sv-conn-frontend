@@ -21,6 +21,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RefundRouteImport } from './routes/refund'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
 import { Route as AdminKycRouteImport } from './routes/admin.kyc'
 import { Route as AdminPayoutsRouteImport } from './routes/admin.payouts'
 import { Route as CategorySlugRouteImport } from './routes/category.$slug'
@@ -93,6 +94,11 @@ const SupportRoute = SupportRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminBookingsRoute = AdminBookingsRouteImport.update({
+  id: '/admin/bookings',
+  path: '/admin/bookings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminKycRoute = AdminKycRouteImport.update({
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/refund': typeof RefundRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
   '/admin/kyc': typeof AdminKycRoute
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
@@ -202,6 +209,7 @@ export interface FileRoutesByTo {
   '/refund': typeof RefundRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
   '/admin/kyc': typeof AdminKycRoute
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
@@ -230,6 +238,7 @@ export interface FileRoutesById {
   '/refund': typeof RefundRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
   '/admin/kyc': typeof AdminKycRoute
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
@@ -259,6 +268,7 @@ export interface FileRouteTypes {
     | '/refund'
     | '/support'
     | '/terms'
+    | '/admin/bookings'
     | '/admin/kyc'
     | '/admin/payouts'
     | '/category/$slug'
@@ -286,6 +296,7 @@ export interface FileRouteTypes {
     | '/refund'
     | '/support'
     | '/terms'
+    | '/admin/bookings'
     | '/admin/kyc'
     | '/admin/payouts'
     | '/category/$slug'
@@ -313,6 +324,7 @@ export interface FileRouteTypes {
     | '/refund'
     | '/support'
     | '/terms'
+    | '/admin/bookings'
     | '/admin/kyc'
     | '/admin/payouts'
     | '/category/$slug'
@@ -341,6 +353,7 @@ export interface RootRouteChildren {
   RefundRoute: typeof RefundRoute
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
+  AdminBookingsRoute: typeof AdminBookingsRoute
   AdminKycRoute: typeof AdminKycRoute
   AdminPayoutsRoute: typeof AdminPayoutsRoute
   CategorySlugRoute: typeof CategorySlugRoute
@@ -440,6 +453,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/bookings': {
+      id: '/admin/bookings'
+      path: '/admin/bookings'
+      fullPath: '/admin/bookings'
+      preLoaderRoute: typeof AdminBookingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/kyc': {
@@ -549,6 +569,7 @@ const rootRouteChildren: RootRouteChildren = {
   RefundRoute: RefundRoute,
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
+  AdminBookingsRoute: AdminBookingsRoute,
   AdminKycRoute: AdminKycRoute,
   AdminPayoutsRoute: AdminPayoutsRoute,
   CategorySlugRoute: CategorySlugRoute,
