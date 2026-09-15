@@ -67,13 +67,20 @@ function BookingsPage() {
           <h1 className="text-lg font-semibold text-foreground">My Bookings</h1>
           <AccountAvatar to="/profile" name={user?.name} />
         </div>
+        {/* The selected tab is filled with the brand blue rather than a white
+            card on grey: the old treatment distinguished the two only by a
+            shadow, which on a phone in daylight is close to no signal at all.
+            Matches the provider list, which uses the same control. */}
         <div className="flex gap-1 bg-secondary rounded-lg p-1">
           {(["active", "past"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
+              aria-pressed={tab === t}
               className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
-                tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+                tab === t
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {t === "active" ? "Active" : "Past"}

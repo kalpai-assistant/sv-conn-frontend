@@ -513,19 +513,62 @@ export const useDeleteAddress = () => {
   });
 };
 
+/**
+ * The most rows `GET /bookings/` will return in one response.
+ *
+ * The server caps `per_page` at 50 and defaults to 20 — and this hook used to
+ * send neither, so every caller silently took the first 20 of everything and
+ * filtered that page client-side. Invisible while accounts hold a handful of
+ * bookings, wrong as soon as one does not: a provider with 25 jobs in flight
+ * would have their finished work sitting on page 2, which nothing requests
+ * (SVC-296).
+ *
+ * Asking for the maximum does not make this paginated — it raises the ceiling
+ * and, with `useBookingsTotal` below, makes the truncation *visible* instead of
+ * silent. Real paging belongs to whichever screen first has an account big
+ * enough to need it, and should be built against that screen rather than
+ * guessed at here.
+ */
+const BOOKINGS_PER_PAGE = 50;
+
+/**
+ * How many bookings the server holds for this caller, against how many we
+ * fetched (SVC-296).
+ *
+ * Kept outside the query's `data` on purpose: `data` is an array and four
+ * screens already treat it as one, so widening it to `{bookings, total}` would
+ * rewrite three unrelated files to serve this one. The count rides alongside
+ * in module state, written by the queryFn and read by whoever asks.
+ */
+const bookingsTotals = new Map<string, number>();
+
 export const useBookings = (status?: string) => {
   const { data: services } = useServices(); // leverage cached services
 
   return useQuery({
     queryKey: ["bookings", status],
     queryFn: async () => {
-      const query = status ? `?status=${status}` : "";
-      const data = await apiFetch<Schema<"BookingListResponse">>(`/bookings/${query}`);
+      const params = new URLSearchParams({ per_page: String(BOOKINGS_PER_PAGE) });
+      if (status) params.set("status", status);
+      const data = await apiFetch<Schema<"BookingListResponse">>(`/bookings/?${params}`);
+      bookingsTotals.set(status ?? "", data.total ?? 0);
       return (data.bookings ?? []).map((b) => mapBooking(b, services));
     },
     // Bookings must load even when the services catalog is empty/slow, so this query
     // is not gated on `services`; service names fall back to a placeholder above (SVC-75).
   });
+};
+
+/**
+ * The server's total for the last `useBookings(status)` response, and whether
+ * it exceeded what we asked for.
+ *
+ * A screen showing 50 of 80 rows should say so rather than present a truncated
+ * list as if it were complete.
+ */
+export const useBookingsTotal = (status?: string) => {
+  const total = bookingsTotals.get(status ?? "") ?? 0;
+  return { total, truncated: total > BOOKINGS_PER_PAGE };
 };
 
 export const useReviews = (providerId?: string) => {
