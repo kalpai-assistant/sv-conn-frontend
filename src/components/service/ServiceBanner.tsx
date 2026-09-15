@@ -19,8 +19,16 @@
  * state: a 404 on an uploaded MP4 doesn't leave the user staring at a
  * broken player, it drops one rung to the image or sub-cat tile.
  *
- * Full-width 2:1 aspect ratio per the ticket. The sheet is `max-w-md`
- * (448px), so a banner is ~448×224 at max.
+ * Full-width 40:17 aspect ratio (~2.35:1). The ticket called for 2:1
+ * originally, but Grok's realistic-style video output carries a
+ * bottom-right watermark that a straight 2:1 crop didn't fully clear.
+ * Shrinking the container from the bottom (2:1 → 2:0.85 ≡ 40:17) plus
+ * anchoring the video to the container's top edge (`object-top`) pushes
+ * all cropping onto the bottom of the source — ~23% of video height is
+ * shaved off the bottom, which reliably clips the watermark without
+ * touching any of the useful subject matter above.
+ *
+ * The sheet is `max-w-md` (448px), so a banner is ~448×190 at max.
  */
 import { useEffect, useState } from "react";
 import type { Category, Service } from "@/lib/mock-data";
@@ -69,7 +77,7 @@ export function ServiceBanner({ service, categories }: ServiceBannerProps) {
   const showColour = !showVideo && !showImage && !showSubCat && !showL1;
 
   return (
-    <div className="relative w-full overflow-hidden bg-muted" style={{ aspectRatio: "2 / 1" }}>
+    <div className="relative w-full overflow-hidden bg-muted" style={{ aspectRatio: "40 / 17" }}>
       {showVideo && (
         <video
           key={service.bannerVideoUrl}
@@ -86,7 +94,7 @@ export function ServiceBanner({ service, categories }: ServiceBannerProps) {
           autoPlay
           preload="metadata"
           onError={() => setVideoError(true)}
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover object-top"
         />
       )}
 
