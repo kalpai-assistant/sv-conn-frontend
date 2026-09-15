@@ -813,6 +813,102 @@ export const useRejectKYC = () => {
 };
 
 // ---------------------------------------------------------------------------
+// Admin: bookings surface + force-cancel (SVC-299)
+//
+// These types aren't in the frozen `svc_connect.json` yet — same pattern as
+// the KYC + payouts blocks below. `consumer_phone` and `provider_name` are
+// admin-only widenings of BookingResponse (backend defaults them to None on
+// every other route); typed inline so the frontend doesn't have to
+// regenerate the whole OpenAPI snapshot for a two-field addition.
+// ---------------------------------------------------------------------------
+
+/** All possible booking statuses on the API. Widen if the enum grows. */
+export type BookingStatusFilter =
+  "all" | "requested" | "accepted" | "en_route" | "in_progress" | "completed" | "cancelled";
+
+/** Admin bookings row: the base response plus the two admin-only party
+ *  fields the SVC-299 backend hydrates for `/admin/bookings*`. */
+export type API_AdminBookingResponse = API_BookingResponse & {
+  consumer_phone?: string | null;
+  provider_name?: string | null;
+};
+
+export interface API_AdminBookingListResponse {
+  bookings: API_AdminBookingResponse[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export interface AdminBookingsFilters {
+  status: BookingStatusFilter;
+  disputed: boolean;
+  // Server pagination — 50 per page matches the backend default (SVC-299).
+  page: number;
+  perPage: number;
+}
+
+/**
+ * Admin bookings list. Backend paginates at 50 per page by default; this hook
+ * is stable across filter changes so react-query caches each combination.
+ *
+ * ``consumer_phone`` and ``provider_name`` are populated on the response
+ * (SVC-299) so the table doesn't have to fetch a User per row.
+ */
+export const useAdminBookings = ({ status, disputed, page, perPage }: AdminBookingsFilters) => {
+  const params = new URLSearchParams();
+  if (status !== "all") params.set("status", status);
+  if (disputed) params.set("disputed", "true");
+  params.set("page", String(page));
+  params.set("per_page", String(perPage));
+  const qs = params.toString();
+
+  return useQuery({
+    queryKey: ["admin", "bookings", "list", status, disputed, page, perPage],
+    queryFn: () => apiFetch<API_AdminBookingListResponse>(`/admin/bookings?${qs}`),
+  });
+};
+
+/**
+ * Single admin booking (GET /admin/bookings/{id}) — powers the side sheet.
+ *
+ * ``staleTime: 0`` because the same booking is re-fetched immediately after
+ * force-cancel (mutation `onSuccess` invalidates this key), and holding a
+ * cached copy longer would flash the pre-cancel status.
+ */
+export const useAdminBooking = (bookingId: string | null) => {
+  return useQuery({
+    queryKey: ["admin", "bookings", "detail", bookingId],
+    queryFn: () => apiFetch<API_AdminBookingResponse>(`/admin/bookings/${bookingId}`),
+    enabled: !!bookingId,
+    staleTime: 0,
+  });
+};
+
+/**
+ * POST /admin/bookings/{id}/cancel — force-cancel on the customer's behalf.
+ *
+ * Both the list (any page/filter combination) and the affected detail key are
+ * invalidated on success so the row's status flips without a refresh. Backend
+ * refuses with 409 on already-terminal bookings; caller surfaces the error
+ * message as toast (or inline in the confirm dialog).
+ */
+export const useForceCancelBooking = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ bookingId, reason }: { bookingId: string; reason: string }) =>
+      apiFetch<API_AdminBookingResponse>(`/admin/bookings/${bookingId}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      }),
+    onSuccess: (_res, { bookingId }) => {
+      qc.invalidateQueries({ queryKey: ["admin", "bookings", "list"] });
+      qc.invalidateQueries({ queryKey: ["admin", "bookings", "detail", bookingId] });
+    },
+  });
+};
+
+// ---------------------------------------------------------------------------
 // Admin: provider payouts (SVC-144 / PAY-13)
 //
 // Same story as KYC — not in the OpenAPI spec yet. Hand-written interfaces
