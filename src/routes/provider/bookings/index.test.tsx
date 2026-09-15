@@ -147,6 +147,38 @@ describe("when a job ended", () => {
   });
 });
 
+describe("which tab is selected", () => {
+  it("fills the selected tab with the brand colour, not just a shadow", async () => {
+    // The previous treatment separated selected from unselected by a shadow
+    // alone, which on a phone in daylight is close to no signal at all.
+    render(<Page />);
+    const active = screen.getByRole("button", { name: /^active$/i });
+    const past = screen.getByRole("button", { name: /^past$/i });
+
+    expect(active.className).toContain("bg-primary");
+    expect(past.className).not.toContain("bg-primary");
+
+    await openPast();
+
+    expect(screen.getByRole("button", { name: /^past$/i }).className).toContain("bg-primary");
+    expect(screen.getByRole("button", { name: /^active$/i }).className).not.toContain("bg-primary");
+  });
+
+  it("says which tab is selected for assistive tech too", () => {
+    // Colour is the only other cue, so it cannot be the only cue.
+    render(<Page />);
+
+    expect(screen.getByRole("button", { name: /^active$/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /^past$/i })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+});
+
 describe("empty states", () => {
   it("says something different for each tab", async () => {
     bookings.mockReturnValue([]);

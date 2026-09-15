@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, ChevronRight, History, MapPin } from "lucide-react";
 import { AccountAvatar } from "@/components/AccountAvatar";
+import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { useBookings, useBookingsTotal } from "@/hooks/useApi";
@@ -101,14 +102,21 @@ function ProviderBookingsPage() {
       </div>
 
       {/* Same control as the consumer list, so the gesture means the same thing
-          on both sides of the app. */}
+          on both sides of the app.
+
+          The selected tab is filled with the brand blue rather than a white
+          card on grey: the old treatment distinguished the two only by a
+          shadow, which on a phone in daylight is close to no signal at all. */}
       <div className="mt-4 flex gap-1 rounded-lg bg-secondary p-1">
         {(["active", "past"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
+            aria-pressed={tab === t}
             className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
-              tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+              tab === t
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {t}
@@ -135,24 +143,26 @@ function ProviderBookingsPage() {
         </p>
       )}
 
+      {/* The shared EmptyState rather than a hand-rolled one, so this matches
+          the consumer's empty bookings screen by construction — circled icon in
+          the brand blue, not a bare grey glyph. The two had drifted: same
+          situation, two different treatments.
+
+          No CTA here, unlike the consumer's "Browse services": a provider with
+          no jobs needs to go online from Home, which is one tap away in the nav
+          below, and the subtitle already says so. */}
       {!isLoading && !isError && jobs.length === 0 && (
-        <div className="mt-16 flex flex-col items-center text-center">
-          {tab === "active" ? (
-            <CalendarDays className="h-10 w-10 text-muted-foreground/50" />
-          ) : (
-            <History className="h-10 w-10 text-muted-foreground/50" />
-          )}
-          <p className="mt-3 text-sm font-medium text-foreground">
-            {tab === "active" ? "No jobs right now" : "No past jobs yet"}
-          </p>
-          {/* "the home tab" until SVC-273 — the tab is still there, but naming
-              the screen rather than the control survives the next nav change. */}
-          <p className="mt-1 text-sm text-muted-foreground">
-            {tab === "active"
+        <EmptyState
+          icon={tab === "active" ? CalendarDays : History}
+          title={tab === "active" ? "No jobs right now" : "No past jobs yet"}
+          // "the home tab" until SVC-273 — the tab is still there, but naming
+          // the screen rather than the control survives the next nav change.
+          subtitle={
+            tab === "active"
               ? "Go online from Home and accepted jobs will show up here."
-              : "Jobs you finish will be listed here."}
-          </p>
-        </div>
+              : "Jobs you finish will be listed here."
+          }
+        />
       )}
 
       <div className="mt-6 flex flex-col gap-3">
