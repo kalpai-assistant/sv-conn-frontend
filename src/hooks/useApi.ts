@@ -733,12 +733,24 @@ export const useVerifyPayment = () => {
 // with `Schema<...>` and delete the interfaces.
 // ---------------------------------------------------------------------------
 
-export interface API_PendingKYCUser {
+export interface API_KYCQueueRow {
   id: string;
   name: string | null;
   phone: string;
   email: string | null;
+  // Provider-profile timestamps surfaced for the review queue (SVC-298).
+  // `kyc_submitted_at` powers the "3 days ago" age on the Pending tab;
+  // `kyc_reviewed_at` + `kyc_rejection_reason` back the Rejected tab.
+  kyc_submitted_at: string | null;
+  kyc_reviewed_at: string | null;
+  kyc_rejection_reason: string | null;
 }
+
+// Alias kept so any older external caller still resolves; the pending list
+// and the rejected list are two flavours of the same shape.
+export type API_PendingKYCUser = API_KYCQueueRow;
+
+export type KYCQueueStatus = "submitted" | "rejected";
 
 export interface API_KYCDocsResponse {
   user_id: string;
@@ -753,12 +765,15 @@ export interface API_KYCDocsResponse {
   selfie_url: string | null;
 }
 
-export const usePendingKYC = () => {
+export const useKYCQueue = (status: KYCQueueStatus = "submitted") => {
   return useQuery({
-    queryKey: ["admin", "kyc", "pending"],
-    queryFn: () => apiFetch<API_PendingKYCUser[]>("/admin/providers/kyc/pending"),
+    queryKey: ["admin", "kyc", "queue", status],
+    queryFn: () => apiFetch<API_KYCQueueRow[]>(`/admin/providers/kyc/pending?status=${status}`),
   });
 };
+
+// Retained for backwards compat with the old call site; prefer `useKYCQueue`.
+export const usePendingKYC = () => useKYCQueue("submitted");
 
 export const useKYCReview = (userId: string | null) => {
   return useQuery({
