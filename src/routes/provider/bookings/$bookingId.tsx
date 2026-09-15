@@ -10,12 +10,11 @@ import { JobAddress } from "@/components/provider/JobAddress";
 import { ApiError } from "@/lib/api";
 import { useBooking, useMarkEnRoute, useStartBooking, useCompleteBooking } from "@/hooks/useApi";
 import type { Booking } from "@/lib/mock-data";
+import { formatRupees } from "@/lib/currency";
 
 export const Route = createFileRoute("/provider/bookings/$bookingId")({
   component: ProviderJobPage,
 });
-
-const money = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
 // The wording the ticket asks for, verbatim (SVC-71). It is the only message a
 // provider should ever see for a wrong PIN — anything vaguer and they retype the
@@ -73,7 +72,7 @@ function JobBody({ booking }: { booking: Booking }) {
     <>
       <h1 className="mt-3 text-lg font-semibold text-foreground">{booking.service.name}</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        {money(booking.totalAmount)} ·{" "}
+        {formatRupees(booking.totalAmount)} ·{" "}
         {booking.paymentMethod === "cash" ? "Cash on completion" : "Paid online"}
       </p>
 
@@ -267,13 +266,13 @@ function EarningsBreakdown({ booking }: { booking: Booking }) {
       <div className="mt-4 rounded-xl border border-border bg-card p-4">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Service amount</span>
-          <span className="text-foreground">{money(booking.totalAmount)}</span>
+          <span className="text-foreground">{formatRupees(booking.totalAmount)}</span>
         </div>
 
         {booking.platformCommission !== undefined && (
           <div className="mt-2 flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Platform fee</span>
-            <span className="text-foreground">−{money(booking.platformCommission)}</span>
+            <span className="text-foreground">−{formatRupees(booking.platformCommission)}</span>
           </div>
         )}
 
@@ -281,7 +280,7 @@ function EarningsBreakdown({ booking }: { booking: Booking }) {
           <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
             <span className="text-sm font-medium text-foreground">Your earnings</span>
             <span className="text-base font-semibold text-foreground">
-              {money(booking.providerPayout)}
+              {formatRupees(booking.providerPayout)}
             </span>
           </div>
         )}

@@ -17,6 +17,7 @@ import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
 import { showsCartFab } from "@/lib/nav-visibility";
 import { PAGE_CTA_HEIGHT_VAR } from "@/hooks/usePageCtaHeight";
+import { formatRupees } from "@/lib/currency";
 
 export function CartFab() {
   const { totalQuantity, subtotal } = useCart();
@@ -58,7 +59,7 @@ export function CartFab() {
                   {totalQuantity} {totalQuantity === 1 ? "item" : "items"}
                 </p>
                 <p className="text-xs text-primary-foreground/85 leading-tight">
-                  ₹{subtotal.toLocaleString("en-IN")}
+                  {formatRupees(subtotal)}
                 </p>
               </div>
             </div>

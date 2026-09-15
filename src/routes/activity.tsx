@@ -8,6 +8,7 @@ import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { BookingCardSkeleton } from "@/components/skeletons/BookingCardSkeleton";
+import { formatRupees } from "@/lib/currency";
 
 export const Route = createFileRoute("/activity")({
   head: () => ({
@@ -77,7 +78,7 @@ function ActivityPage() {
                     day: "numeric",
                     month: "short",
                   })}{" "}
-                  · ₹{b.totalAmount}
+                  · {formatRupees(b.totalAmount)}
                 </p>
               </div>
               <span className="text-xs text-muted-foreground capitalize">

@@ -13,6 +13,7 @@ import { useMemo } from "react";
 import { Repeat } from "lucide-react";
 import { useBookings } from "@/hooks/useApi";
 import { useServiceSheet } from "@/lib/service-sheet-context";
+import { formatRupees } from "@/lib/currency";
 
 const MAX_CARDS = 8;
 
@@ -54,7 +55,7 @@ export function BookAgainRow() {
               <p className="line-clamp-2 text-sm font-semibold text-foreground">{s.name}</p>
               {s.duration && <p className="mt-1 text-[11px] text-muted-foreground">{s.duration}</p>}
             </div>
-            <p className="mt-3 text-sm font-bold text-primary">₹{s.price}</p>
+            <p className="mt-3 text-sm font-bold text-primary">{formatRupees(s.price)}</p>
           </button>
         ))}
         <div className="w-4 shrink-0" aria-hidden />

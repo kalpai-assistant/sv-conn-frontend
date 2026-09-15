@@ -2,6 +2,7 @@ import { Clock } from "lucide-react";
 import type { Service } from "@/lib/mock-data";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { QuickAddButton } from "@/components/service/QuickAddButton";
+import { formatRupees } from "@/lib/currency";
 
 /**
  * A service as a full-width row, for vertical lists (the L2 category page).
@@ -58,9 +59,7 @@ export function ServiceCard({ service }: { service: Service }) {
         <div className="flex flex-col items-end">
           {/* "from" because `price` is the cheapest variant, not a fixed charge. */}
           <span className="text-[10px] text-muted-foreground">from</span>
-          <span className="text-sm font-bold text-primary">
-            ₹{service.price.toLocaleString("en-IN")}
-          </span>
+          <span className="text-sm font-bold text-primary">{formatRupees(service.price)}</span>
         </div>
         <QuickAddButton service={service} />
       </div>

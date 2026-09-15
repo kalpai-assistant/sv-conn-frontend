@@ -23,6 +23,7 @@ import { categoryIcon, categoryColor } from "@/lib/category-icons";
 import type { Service } from "@/lib/mock-data";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { QuickAddButton } from "@/components/service/QuickAddButton";
+import { formatRupees } from "@/lib/currency";
 
 interface ServiceCardCompactProps {
   service: Service;
@@ -95,9 +96,7 @@ export function ServiceCardCompact({
             charge — the user picks the real one on the detail screen. */}
         <p className="text-xs text-muted-foreground">
           starting at{" "}
-          <span className="text-sm font-bold text-primary">
-            ₹{service.price.toLocaleString("en-IN")}
-          </span>
+          <span className="text-sm font-bold text-primary">{formatRupees(service.price)}</span>
         </p>
       </div>
     </div>

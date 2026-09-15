@@ -19,6 +19,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Search, X, Clock, TrendingUp, Loader2 } from "lucide-react";
 import { useServices } from "@/hooks/useApi";
 import { useServiceSheet } from "@/lib/service-sheet-context";
+import { formatRupees } from "@/lib/currency";
 
 const RECENT_KEY = "sc_recent_searches";
 const RECENT_MAX = 5;
@@ -270,7 +271,9 @@ function ResultsList({
               <p className="text-sm font-semibold text-foreground">{s.name}</p>
               <p className="truncate text-xs text-muted-foreground">{s.description}</p>
             </div>
-            <span className="shrink-0 text-sm font-semibold text-primary">₹{s.price}</span>
+            <span className="shrink-0 text-sm font-semibold text-primary">
+              {formatRupees(s.price)}
+            </span>
           </button>
         </li>
       ))}

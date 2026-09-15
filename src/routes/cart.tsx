@@ -24,6 +24,7 @@ import { useBookAndPay } from "@/hooks/useBookAndPay";
 import { SavedAddressesSheet } from "@/components/SavedAddressesSheet";
 import { SlotPickerSheet } from "@/components/cart/SlotPickerSheet";
 import { CouponsSheet } from "@/components/cart/CouponsSheet";
+import { formatRupees } from "@/lib/currency";
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
@@ -210,7 +211,7 @@ function CartPage() {
                     <p className="text-xs text-muted-foreground">{item.duration}</p>
                   )}
                   <p className="mt-1 text-sm font-bold text-primary">
-                    ₹{(item.unitPrice * item.quantity).toLocaleString("en-IN")}
+                    {formatRupees(item.unitPrice * item.quantity)}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
@@ -260,9 +261,7 @@ function CartPage() {
                 <p className="text-sm font-semibold text-foreground uppercase">
                   {coupon.code} applied
                 </p>
-                <p className="text-xs text-success">
-                  You save ₹{coupon.discount.toLocaleString("en-IN")}
-                </p>
+                <p className="text-xs text-success">You save {formatRupees(coupon.discount)}</p>
               </>
             ) : (
               <>
@@ -308,19 +307,17 @@ function CartPage() {
           <p className="pb-2 text-sm font-semibold text-foreground">Bill</p>
           <div className="flex justify-between py-1 text-sm">
             <span className="text-muted-foreground">Subtotal</span>
-            <span className="font-medium text-foreground">₹{subtotal.toLocaleString("en-IN")}</span>
+            <span className="font-medium text-foreground">{formatRupees(subtotal)}</span>
           </div>
           {bill.discount > 0 && (
             <div className="flex justify-between py-1 text-sm">
               <span className="text-success">Discount ({coupon?.code})</span>
-              <span className="font-medium text-success">
-                −₹{bill.discount.toLocaleString("en-IN")}
-              </span>
+              <span className="font-medium text-success">−{formatRupees(bill.discount)}</span>
             </div>
           )}
           <div className="mt-2 flex justify-between border-t border-border pt-2 text-base">
             <span className="font-semibold text-foreground">Total</span>
-            <span className="font-bold text-primary">₹{bill.total.toLocaleString("en-IN")}</span>
+            <span className="font-bold text-primary">{formatRupees(bill.total)}</span>
           </div>
         </div>
       </section>
@@ -364,7 +361,7 @@ function CartPage() {
           {isBusy ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            `Book${paymentMethod === "online" ? " & Pay" : ""} — ₹${bill.total.toLocaleString("en-IN")}`
+            `Book${paymentMethod === "online" ? " & Pay" : ""} — ${formatRupees(bill.total)}`
           )}
         </button>
       </div>

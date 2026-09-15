@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { formatRupees } from "@/lib/currency";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowLeft, Check, Loader2, Lock, Search, X } from "lucide-react";
 import { ApiError } from "@/lib/api";
@@ -304,7 +305,9 @@ export function ServicesPicker({
                             {/* Earnings, not the customer price. 0 means the
                                 catalogue has priced no variant yet, and "from
                                 ₹0" would be a worse answer than none. */}
-                            {service.payout > 0 ? `from ₹${service.payout}` : "Payout not set"}
+                            {service.payout > 0
+                              ? `from ${formatRupees(service.payout)}`
+                              : "Payout not set"}
                           </span>
                         </span>
                       </button>

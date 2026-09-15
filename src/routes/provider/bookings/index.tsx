@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { useBookings, useBookingsTotal } from "@/hooks/useApi";
 import type { Booking, BookingStatus } from "@/lib/mock-data";
+import { formatRupees } from "@/lib/currency";
 
 export const Route = createFileRoute("/provider/bookings/")({
   component: ProviderBookingsPage,
@@ -199,7 +200,7 @@ function ProviderBookingsPage() {
                     show payout for the same reason: split across the two, the
                     figure would appear to drop the moment a job finished. */}
                 <span className="text-xs font-medium text-foreground">
-                  You earn ₹{job.providerPayout}
+                  You earn {formatRupees(job.providerPayout)}
                 </span>
                 {tab === "past" && (
                   <span className="text-xs text-muted-foreground">{endedAt(job)}</span>

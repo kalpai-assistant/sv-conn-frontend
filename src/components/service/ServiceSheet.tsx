@@ -40,6 +40,7 @@ import { ServiceBanner } from "@/components/service/ServiceBanner";
 import { ErrorState } from "@/components/ErrorState";
 import { ServiceCard } from "@/components/ServiceCard";
 import { ServiceCardCompact } from "@/components/home/ServiceCardCompact";
+import { formatRupees } from "@/lib/currency";
 
 interface ServiceSheetProps {
   serviceId: string;
@@ -214,7 +215,7 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
                       {variants.length > 1 && (
                         <span className="mr-1 text-xs font-medium text-muted-foreground">from</span>
                       )}
-                      ₹{service.price.toLocaleString("en-IN")}
+                      {formatRupees(service.price)}
                     </span>
                   </div>
                 </div>
@@ -298,8 +299,7 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
                   {/* "Update" not "Add" when the service is already in the cart
                       under another variant — tapping replaces the choice, it
                       does not add a second line. */}
-                  {inCartAsOtherVariant ? "Update to" : "Add to cart —"} ₹
-                  {ctaPrice.toLocaleString("en-IN")}
+                  {inCartAsOtherVariant ? "Update to" : "Add to cart —"} {formatRupees(ctaPrice)}
                 </button>
               )}
             </div>
