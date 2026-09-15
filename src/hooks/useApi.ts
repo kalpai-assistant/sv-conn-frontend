@@ -965,6 +965,66 @@ export const usePendingSettlements = () => {
   });
 };
 
+// SVC-300: per-provider payout history. Mirrors the payout_audits row shape —
+// no re-invented enum — so the admin sees exactly what landed in the ledger.
+export interface API_ProviderPayoutHistoryEntry {
+  audit_id: string;
+  /** RazorpayX `pout_XXXXX` id. Null when the attempt failed before RazorpayX
+   *  returned one (see payout_audit resolve path, outcome=="unknown"). */
+  payout_id: string | null;
+  /** Batch key (also sent to RazorpayX as `reference_id`). Lets an admin
+   *  cross-reference the RazorpayX dashboard during an incident. */
+  reference_id: string | null;
+  amount_paise: number;
+  booking_count: number;
+  /** Free-form payout_audits.outcome — one of attempting / unknown / initiated
+   *  / processing / processed / completed / failed / rejected / reversed /
+   *  requeued. String rather than a literal so the UI can add cases without a
+   *  backend enum roundtrip. */
+  outcome: string;
+  /** "admin" | "reconciliation" — a reconciliation row is a repair by the
+   *  nightly job, not an admin-triggered payout. Read to caption the row. */
+  source: string;
+  /** Null on reconciliation rows (payout_audits.admin_user_id is nullable). */
+  admin_user_id: string | null;
+  admin_name: string | null;
+  error: string | null;
+  /** ISO8601. Server uses UTC. */
+  created_at: string;
+}
+
+export interface API_ProviderPayoutHistoryResponse {
+  entries: API_ProviderPayoutHistoryEntry[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+// Payout outcomes that mean "we haven't confirmed the money settled" — reads
+// the raw payout_audits.outcome column, so keep in sync with the backend
+// resolve/reconcile paths. Terminal states (processed, completed, failed,
+// rejected, reversed, requeued) are excluded so a finished payout doesn't
+// keep the trigger button disabled forever.
+export const PAYOUT_IN_FLIGHT_OUTCOMES = new Set([
+  "attempting",
+  "unknown",
+  "initiated",
+  "queued",
+  "processing",
+]);
+
+// Only fetched when the admin actually expands a provider row (`enabled` flag).
+// Cached per provider so re-expanding after a collapse is instant; a fresh
+// trigger invalidates via useTriggerPayout below.
+export const useProviderPayoutHistory = (providerId: string, enabled: boolean) => {
+  return useQuery({
+    queryKey: ["admin", "providers", providerId, "payouts"],
+    queryFn: () =>
+      apiFetch<API_ProviderPayoutHistoryResponse>(`/admin/providers/${providerId}/payouts`),
+    enabled: enabled && Boolean(providerId),
+  });
+};
+
 // Settles every pending booking for one provider. A 402 (no payout details on
 // file, or nothing pending) surfaces as an ApiError for the caller to render.
 export const useTriggerPayout = () => {
@@ -984,6 +1044,10 @@ export const useTriggerPayout = () => {
           : old,
       );
       qc.invalidateQueries({ queryKey: ["admin", "settlements"] });
+      // SVC-300: an inline expansion of this provider's row is now stale —
+      // the just-fired payout will show up as an `attempting`/`initiated`
+      // row and drives the 60s in-flight guard.
+      qc.invalidateQueries({ queryKey: ["admin", "providers", providerId, "payouts"] });
     },
   });
 };
