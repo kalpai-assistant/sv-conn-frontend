@@ -17,6 +17,7 @@ import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { motion } from "framer-motion";
 import { X, Ticket, Loader2 } from "lucide-react";
 import { useAvailableCoupons, useValidateCoupon } from "@/hooks/useCoupons";
+import { formatRupees } from "@/lib/currency";
 
 interface CouponsSheetProps {
   cartSubtotal: number;
@@ -175,8 +176,8 @@ export function CouponsSheet({
                         <p className="text-xs text-muted-foreground">
                           {c.discount_type === "percent"
                             ? `${c.discount_value}% off`
-                            : `₹${c.discount_value} off`}
-                          {c.min_order_amount ? ` · min ₹${c.min_order_amount}` : ""}
+                            : `${formatRupees(c.discount_value)} off`}
+                          {c.min_order_amount ? ` · min ${formatRupees(c.min_order_amount)}` : ""}
                         </p>
                       </div>
                       <span className="shrink-0 text-xs font-medium text-primary">

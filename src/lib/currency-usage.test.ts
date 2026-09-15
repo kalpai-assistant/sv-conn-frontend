@@ -48,7 +48,17 @@ function code(source: string): string {
     .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, "");
 }
 
-/** A rupee symbol immediately followed by an interpolation — `₹{x}` or `₹${x}`. */
+/**
+ * A rupee symbol followed by an interpolation — `₹{x}`, `₹${x}`, or the two
+ * split across lines by the formatter, which is how ServiceSheet spelled it:
+ *
+ *     {label} ₹
+ *     {ctaPrice.toLocaleString("en-IN")}
+ *
+ * Whitespace-tolerant on purpose. A pattern anchored to `₹{` would have missed
+ * that site entirely and let a hardcoded symbol survive beside a formatter call
+ * — the exact double-₹ this is meant to prevent.
+ */
 const INTERPOLATED_RUPEE = /₹\s*\$?\{/;
 
 describe("every rendered amount goes through the formatter", () => {

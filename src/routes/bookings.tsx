@@ -10,6 +10,7 @@ import { useBookings } from "@/hooks/useApi";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { useAuth } from "@/lib/auth-context";
 import { CalendarClock, History } from "lucide-react";
+import { formatRupees } from "@/lib/currency";
 
 export const Route = createFileRoute("/bookings")({
   head: () => ({
@@ -146,7 +147,7 @@ function BookingsPage() {
                     year: "numeric",
                   })}
                 </span>
-                <span className="font-semibold text-foreground">₹{b.totalAmount}</span>
+                <span className="font-semibold text-foreground">{formatRupees(b.totalAmount)}</span>
               </div>
             </Link>
           ))

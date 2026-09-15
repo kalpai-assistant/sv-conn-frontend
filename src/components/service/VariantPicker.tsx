@@ -18,6 +18,7 @@
  * variants are all ungrouped renders one flat list with no heading.
  */
 import type { ServiceVariant } from "@/lib/mock-data";
+import { formatRupees } from "@/lib/currency";
 
 interface VariantPickerProps {
   variants: ServiceVariant[];
@@ -101,7 +102,7 @@ export function VariantPicker({ variants, selectedId, onSelect }: VariantPickerP
                     </span>
 
                     <span className="shrink-0 text-sm font-semibold text-foreground">
-                      ₹{variant.price.toLocaleString("en-IN")}
+                      {formatRupees(variant.price)}
                     </span>
                   </label>
                 );

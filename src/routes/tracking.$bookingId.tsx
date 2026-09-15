@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { formatRupees } from "@/lib/currency";
 import { ArrowLeft, Phone, Loader2, Search, CheckCircle2, XCircle } from "lucide-react";
 import { StatusStepper } from "@/components/StatusStepper";
 import { ErrorState } from "@/components/ErrorState";
@@ -369,30 +370,26 @@ function TrackingPage() {
           <div className="flex justify-between text-sm mt-2">
             <span className="text-muted-foreground">Subtotal</span>
             <span className="font-medium text-foreground">
-              ₹{booking.serviceAmount.toLocaleString("en-IN")}
+              {formatRupees(booking.serviceAmount)}
             </span>
           </div>
           {booking.discountAmount > 0 && (
             <div className="flex justify-between text-sm mt-1">
               <span className="text-success">Discount</span>
               <span className="font-medium text-success">
-                −₹{booking.discountAmount.toLocaleString("en-IN")}
+                −{formatRupees(booking.discountAmount)}
               </span>
             </div>
           )}
           {booking.tipAmount > 0 && (
             <div className="flex justify-between text-sm mt-1">
               <span className="text-muted-foreground">Tip</span>
-              <span className="font-medium text-foreground">
-                ₹{booking.tipAmount.toLocaleString("en-IN")}
-              </span>
+              <span className="font-medium text-foreground">{formatRupees(booking.tipAmount)}</span>
             </div>
           )}
           <div className="flex justify-between text-sm mt-2 mb-2 pt-2 border-t border-border">
             <span className="text-muted-foreground">Total</span>
-            <span className="font-bold text-primary">
-              ₹{booking.totalAmount.toLocaleString("en-IN")}
-            </span>
+            <span className="font-bold text-primary">{formatRupees(booking.totalAmount)}</span>
           </div>
 
           {booking.paymentMethod === "online" &&
@@ -413,7 +410,7 @@ function TrackingPage() {
               >
                 {paymentOrderMutation.isPending
                   ? "Loading..."
-                  : `Pay Now — ₹${booking.totalAmount}`}
+                  : `Pay Now — ${formatRupees(booking.totalAmount)}`}
               </button>
             )}
 

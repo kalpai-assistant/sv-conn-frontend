@@ -19,6 +19,7 @@ import { useState } from "react";
 import { Heart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSetTip } from "@/hooks/useSetTip";
+import { formatRupees } from "@/lib/currency";
 
 interface TipSectionProps {
   bookingId: string;
@@ -85,7 +86,7 @@ export function TipSection({ bookingId, currentTip }: TipSectionProps) {
         {CHIP_AMOUNTS.map((n) => (
           <ChipButton
             key={n}
-            label={`₹${n}`}
+            label={formatRupees(n)}
             selected={currentTip === n && !showCustom}
             disabled={setTip.isPending}
             onClick={() => submit(n)}
@@ -131,7 +132,7 @@ export function TipSection({ bookingId, currentTip }: TipSectionProps) {
           refresh (or an update from another surface) reflects here. */}
       {currentTip > 0 && (
         <p className="mt-3 text-center text-xs text-success">
-          Thank you! Tipped ₹{currentTip.toLocaleString("en-IN")}
+          Thank you! Tipped {formatRupees(currentTip)}
         </p>
       )}
     </section>
