@@ -73,8 +73,14 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      # v3 is pinned to an old cmdline-tools that still asks for the `tools`
+      # package, which Google has since removed from the SDK repository —
+      # sdkmanager then exits 1 with "Failed to find package 'tools'" and the
+      # release never reaches the build. Nothing in this repo changed; the same
+      # workflow succeeded a day earlier. v4 defaults to cmdline-tools 20.0 and
+      # drops the obsolete request.
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install npm dependencies
         run: npm ci
