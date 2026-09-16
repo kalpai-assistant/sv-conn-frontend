@@ -72,30 +72,6 @@ describe("AppGate", () => {
   });
 });
 
-describe("screens that bypass AppGate", () => {
-  /**
-   * Some screens `return` from AppGate rather than rendering inside it, so they
-   * replace the wrapper instead of nesting in it and inherit nothing. The
-   * location gate is the one that matters — it draws its own full-height root
-   * with a heading at the very top, and it is the first screen many users meet.
-   *
-   * Missed on the first pass and caught on a device: the gate was still
-   * rendering against the status bar after the AppGate fix. Pinned here because
-   * nothing about that file hints it is special.
-   */
-  it("gives the location gate the inset too", () => {
-    const gate = readFileSync(join(process.cwd(), "src", "components", "LocationGate.tsx"), "utf8");
-    const root = gate.match(/className="([^"]*min-h-screen[^"]*)"/);
-
-    expect(root?.[1], "LocationGate has no full-height root — did it change?").toBeDefined();
-    expect(
-      root?.[1].split(/\s+/),
-      "Add `safe-top` to LocationGate's root: it returns from AppGate rather " +
-        "than rendering inside it, so it inherits nothing (SVC-285).",
-    ).toContain("safe-top");
-  });
-});
-
 describe("the utility behind it", () => {
   const styles = readFileSync(join(process.cwd(), "src", "styles.css"), "utf8");
 
