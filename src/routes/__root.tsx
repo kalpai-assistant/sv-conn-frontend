@@ -134,9 +134,23 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // AppGate hook does.
   useSentryNavigationBreadcrumbs();
 
+  // Every branch below carries `safe-top` (SVC-285), and a new one must too.
+  //
+  // It keeps content out of the iOS status bar and paints the strip brand
+  // blue — see the utility in styles.css for why only the iOS PWA needs it and
+  // why it is inert everywhere else. Applied here rather than on each screen's
+  // header because routes then *inherit* it: the nine sticky headers and the
+  // four provider screens that have no header at all are all covered, and a
+  // screen added later cannot forget a class it never opts into. Forgetting it
+  // is exactly how this bug happened.
+  //
+  // All five branches need it, including the ones that look like they would
+  // not: `isRestoring` renders a bare splash and the unauthenticated branch
+  // renders the login flow, both full-height, both against the status bar.
+
   // Public routes render regardless of auth state.
   if (isPublicRoute) {
-    return <div className="min-h-screen bg-background">{children}</div>;
+    return <div className="safe-top min-h-screen bg-background">{children}</div>;
   }
 
   // Cold-start session restore — hold the shell blank while AuthProvider
@@ -145,12 +159,12 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // landing on home, which reads as "did I get logged out?". Blank splash
   // is honest — we don't yet know what to render.
   if (isRestoring) {
-    return <div className="mx-auto max-w-md min-h-screen bg-background" />;
+    return <div className="safe-top mx-auto max-w-md min-h-screen bg-background" />;
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="mx-auto max-w-md min-h-screen bg-background relative">
+      <div className="safe-top mx-auto max-w-md min-h-screen bg-background relative">
         <AuthFlow onComplete={() => {}} />
       </div>
     );
@@ -285,9 +299,11 @@ function AppGate({ children }: { children: React.ReactNode }) {
 
   // Admin pages render full-width; consumer/provider keep the max-w-md mobile shell.
   if (isAdminRoute) {
-    return <div className="min-h-screen bg-background">{children}</div>;
+    return <div className="safe-top min-h-screen bg-background">{children}</div>;
   }
-  return <div className="mx-auto max-w-md min-h-screen bg-background pb-20">{children}</div>;
+  return (
+    <div className="safe-top mx-auto max-w-md min-h-screen bg-background pb-20">{children}</div>
+  );
 }
 
 function RootComponent() {

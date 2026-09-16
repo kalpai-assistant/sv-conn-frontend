@@ -128,4 +128,65 @@
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+  /**
+   * Keep content out of the status bar, and paint the strip it vacates
+   * (SVC-285).
+   *
+   * Only the iOS PWA needs this. `apple-mobile-web-app-status-bar-style:
+   * black-translucent` asks iOS to hand the app the whole screen including the
+   * status bar area, and `viewport-fit=cover` makes the inset readable — but
+   * nothing ever used it, so headers rendered *under* the clock and the Dynamic
+   * Island. Reported as insufficient padding on Provider Home; it was neither
+   * about padding nor about the provider app, and it hit the consumer side just
+   * as hard.
+   *
+   * The background matters as much as the padding. `black-translucent` means
+   * transparent, not colourless: the strip shows whatever is painted beneath
+   * it, which was the near-white page. Painting it `--color-primary` gives the
+   * iOS PWA the same brand blue the Android app, Android Chrome, the Android
+   * PWA and iOS Safari all already show — so the one surface without a status
+   * bar colour gains one, rather than the four others being changed.
+   *
+   * Inert everywhere else, by construction. `env(safe-area-inset-top)` is 0
+   * unless the OS has handed the app that region: the Android app sets
+   * `overlaysWebView: false` so the native layer reserves it, and every browser
+   * puts its own chrome there. Both the padding and the strip below are sized
+   * from that same inset, so both collapse to nothing and no other platform
+   * renders differently.
+   */
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /**
+   * Paint *only* the strip, not the element.
+   *
+   * `background-color` here was a plain bug, caught on device: these wrappers
+   * are `min-h-screen`, so a background colour paints the whole page rather
+   * than the padding, and the entire app came up brand blue on Android. Padding
+   * height and background extent are unrelated — a zero-height inset does not
+   * make a background zero-height.
+   *
+   * A fixed strip instead, sized to the inset itself: zero-height and
+   * therefore invisible wherever the OS reserves the status bar (Android, every
+   * browser), and brand blue behind it on the iOS PWA, which is the only place
+   * the app is handed that region. The element's own `bg-background` is left
+   * alone.
+   *
+   * Fixed rather than absolute so it stays put while the page scrolls under
+   * the translucent bar, and `pointer-events: none` so it never eats a tap
+   * meant for the header beneath it.
+   */
+  .safe-top::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top, 0px);
+    background-color: var(--color-primary);
+    pointer-events: none;
+    z-index: 50;
+  }
 }
