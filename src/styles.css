@@ -128,4 +128,34 @@
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+  /**
+   * Keep content out of the status bar, and paint the strip it vacates
+   * (SVC-285).
+   *
+   * Only the iOS PWA needs this. `apple-mobile-web-app-status-bar-style:
+   * black-translucent` asks iOS to hand the app the whole screen including the
+   * status bar area, and `viewport-fit=cover` makes the inset readable — but
+   * nothing ever used it, so headers rendered *under* the clock and the Dynamic
+   * Island. Reported as insufficient padding on Provider Home; it was neither
+   * about padding nor about the provider app, and it hit the consumer side just
+   * as hard.
+   *
+   * The background matters as much as the padding. `black-translucent` means
+   * transparent, not colourless: the strip shows whatever is painted beneath
+   * it, which was the near-white page. Painting it `--color-primary` gives the
+   * iOS PWA the same brand blue the Android app, Android Chrome, the Android
+   * PWA and iOS Safari all already show — so the one surface without a status
+   * bar colour gains one, rather than the four others being changed.
+   *
+   * Inert everywhere else, by construction. `env(safe-area-inset-top)` is 0
+   * unless the OS has handed the app that region: the Android app sets
+   * `overlaysWebView: false` so the native layer reserves it, and every browser
+   * puts its own chrome there. Zero padding means the painted strip has zero
+   * height, so no other platform renders differently.
+   */
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+    background-color: var(--color-primary);
+  }
 }
