@@ -1,5 +1,5 @@
 /**
- * The locate-me button on the map picker (SVC-281).
+ * The locate-me button on the map picker (SVC-281, SVC-284).
  *
  * This component is mocked out by every other test in the suite, which is how
  * it shipped a `alert()` — on Android a **native modal that blocks the entire
@@ -8,7 +8,9 @@
  *
  * The tests below cover the button's three failure paths rather than the map
  * itself. Leaflet is stubbed because jsdom has no layout for it to measure, and
- * the map is not what broke.
+ * the map is not what broke. Google Maps + PlacesSearchBar are stubbed too:
+ * both would try to load the real SDK against a live key, which these tests
+ * are not the place for (see google-maps.ts + PlacesSearchBar's own coverage).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -32,6 +34,24 @@ vi.mock("react-leaflet", () => ({
   }),
 }));
 
+// SVC-284: no live SDK load in tests. `reverseGeocode` returns a placeholder
+// so the "Locating…" spinner resolves. Hoisted so the factory sees the same
+// `vi.fn()` as the tests do — vi.mock lifts to the top of the file, ahead of
+// any plain top-level const.
+const { reverseGeocode } = vi.hoisted(() => ({
+  reverseGeocode: vi.fn().mockResolvedValue({ formattedAddress: "", components: [] }),
+}));
+vi.mock("@/lib/google-maps", () => ({
+  reverseGeocode,
+}));
+
+// SVC-284: the search bar is its own unit, tested separately. Rendered here
+// as an empty passthrough — the locate-me tests below only care that the map
+// area renders and the button responds.
+vi.mock("@/components/PlacesSearchBar", () => ({
+  PlacesSearchBar: () => null,
+}));
+
 const getCurrentPosition = vi.fn();
 
 import { MapPicker } from "@/components/MapPicker";
@@ -42,8 +62,8 @@ const TIMED_OUT = { code: 3, PERMISSION_DENIED: 1 };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  reverseGeocode.mockResolvedValue({ formattedAddress: "", components: [] });
   vi.stubGlobal("navigator", { geolocation: { getCurrentPosition } });
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ json: async () => ({ display_name: "" }) }));
   // If this is ever called the test must fail loudly: a native dialog freezes
   // the whole WebView, which is the bug this file exists for.
   vi.stubGlobal(

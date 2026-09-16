@@ -1,5 +1,5 @@
 /**
- * The recognisable place-name inside a full address (SVC-281).
+ * The recognisable place-name inside a full address (SVC-281, SVC-284).
  *
  * The location gate's rows have to name *where* each saved place is, and the
  * address label does not: "Home" is a category. Someone who moved from Pune to
@@ -10,82 +10,32 @@
  * A locality does the job: a row reading "Karve Nagar" is visibly wrong in
  * Mumbai, where "Home" is not.
  *
- * Nominatim returns a comma-separated string ordered narrowest-first, e.g.
- *   "Lane Number 7, Mavale vasti, Karve Nagar, Anandnagar, Pune City
- *    Subdistrict, Pune District, Maharashtra, 411051, India"
+ * ## Two shapes, one goal
  *
- * The third part is usually the neighbourhood — specific enough to be wrong in
- * another city, familiar enough to be recognised. Falling back through the
- * available parts keeps something meaningful for shorter addresses, and the
- * label is the last resort rather than the default.
+ * A fresh reverse geocode returns structured `address_components`, and the
+ * right choice is there under a known type — `sublocality_level_1` for Indian
+ * addresses. `localityFromComponents` reads it directly. Under Nominatim the
+ * equivalent was `address.suburb`; under Google Maps (SVC-284) it is a typed
+ * component, but the idea is the same: stop guessing at the flattened line.
+ *
+ * A saved address, though, is only a composed string — the structured columns
+ * behind it were added by SVC-287, and everything written before that has
+ * none. `localityFrom` stays for those rows, because the string is all we
+ * have and Karve Nagar still works. It does still overshoot for Kharadi-shaped
+ * strings (see the test), but a fresh geocode never routes through it any
+ * more; it exists only for the legacy stored rows.
  */
-
-/**
- * Nominatim's structured address, the fields we care about (SVC-284).
- *
- * Every field is optional because which ones come back depends on what OSM
- * holds for that point — the omission of `neighbourhood` for Kharadi is exactly
- * what broke the string parse below.
- */
-export interface AddressParts {
-  road?: string;
-  neighbourhood?: string;
-  suburb?: string;
-  village?: string;
-  town?: string;
-  city_district?: string;
-  city?: string;
-}
-
-/**
- * Name the place from Nominatim's structured fields rather than by counting
- * commas (SVC-284).
- *
- * The string parse below takes a fixed index, which assumes every address has
- * the same number of street-level parts before the neighbourhood. Measured on
- * two real Pune addresses, it does not:
- *
- *   Lane Number 7, Mavale vasti, Karve Nagar, …   index 2 → "Karve Nagar"  ✓
- *   Lane Number 1, Kharadi, Pune, …               index 2 → "Pune"         ✗
- *
- * Kharadi has no `neighbourhood`, so everything shifts left and the index
- * overshoots into the city. A row reading "Pune" is as useless as one reading
- * "Home" when both saved addresses are in Pune — the failure this whole module
- * exists to prevent.
- *
- * Nothing in the flattened string marks which part is the suburb, so no smarter
- * parse can fix it. The structured object does mark it, and we were already
- * receiving one: both call sites send `addressdetails=1` and read only
- * `display_name`.
- *
- * Ordered narrowest-first, starting at `suburb` rather than `neighbourhood`:
- * "Mavale vasti" is a lane cluster, too fine to be recognised and too easily
- * true in two cities. The suburb is the level people name themselves by.
- */
-export function localityFromParts(parts: AddressParts | undefined, fallbackLabel: string): string {
-  const named = [
-    parts?.suburb,
-    parts?.neighbourhood,
-    parts?.village,
-    parts?.town,
-    parts?.city_district,
-    parts?.city,
-  ].find((value) => typeof value === "string" && value.trim().length > 0);
-
-  return named?.trim() ?? fallbackLabel;
-}
 
 /** How many leading parts are street-level rather than area-level. */
 const STREET_PARTS = 2;
 
 /**
- * Name the place from a flattened address string.
+ * Draw the locality out of a comma-separated address string.
  *
- * Superseded by `localityFromParts` wherever the structured object is in hand,
- * but not removed: saved addresses are stored as a single `full_address` string
- * and the components were never persisted, so every row already in the database
- * can only be named this way. It is the fallback, not the preferred path — see
- * the note on `localityFromParts` for the shape it gets wrong.
+ * Used on saved addresses, where the only source of a locality is what was
+ * once written into `full_address`. Fresh reverse geocodes call
+ * `localityFromComponents` — that path reads structured fields rather than
+ * counting commas.
  */
 export function localityFrom(fullAddress: string, fallbackLabel: string): string {
   const parts = fullAddress
@@ -98,4 +48,41 @@ export function localityFrom(fullAddress: string, fallbackLabel: string): string
   // Prefer the first area-level part; fall back to progressively broader ones,
   // then to whatever exists, then to the label.
   return parts[STREET_PARTS] ?? parts[parts.length - 1] ?? fallbackLabel;
+}
+
+/**
+ * Pick the recognisable place-name out of Google's structured components
+ * (SVC-284).
+ *
+ * Google returns `address_components: [{ long_name, short_name, types: [] }]`.
+ * Each component carries the *type* of thing it is — a suburb, a locality, a
+ * country — which is what lets this function ask for the right level of place
+ * by name rather than by position in a string.
+ *
+ * For an Indian address `sublocality_level_1` is almost always the
+ * neighbourhood a resident would recognise ("Kharadi", "Karve Nagar",
+ * "Koramangala"). `neighborhood` appears on some responses in the US-y sense.
+ * `locality` is the city — the last resort before the label, because a row
+ * reading "Pune" is only useful when the user has no other Pune addresses
+ * saved. `administrative_area_level_2` catches the very rare case where even
+ * the city is missing and we are down to the district.
+ */
+export function localityFromComponents(
+  components: google.maps.GeocoderAddressComponent[],
+  fallbackLabel: string,
+): string {
+  const byType = (type: string): string | undefined => {
+    const found = components.find((c) => c.types.includes(type as never));
+    const value = found?.long_name?.trim();
+    return value && value.length > 0 ? value : undefined;
+  };
+
+  return (
+    byType("sublocality_level_1") ??
+    byType("sublocality") ??
+    byType("neighborhood") ??
+    byType("locality") ??
+    byType("administrative_area_level_2") ??
+    fallbackLabel
+  );
 }
