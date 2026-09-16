@@ -32,6 +32,39 @@ describe("with coordinates", () => {
 
     await waitFor(() => expect(result.current).toBe("Karve Nagar"));
   });
+
+  it("prefers the structured suburb over parsing the string (SVC-284)", async () => {
+    // The Kharadi response, as the live API returns it. Parsing the string
+    // gives "Pune" — one fewer street-level part than Karve Nagar, so the
+    // fixed index overshoots. The `address` object names it outright, and we
+    // were already receiving one.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        json: async () => ({
+          display_name: "Lane Number 1, Kharadi, Pune, Pune City Subdistrict, Maharashtra, India",
+          address: { road: "Lane Number 1", suburb: "Kharadi", city: "Pune" },
+        }),
+      }),
+    );
+
+    const { result } = renderHook(() => useLocalityAt(18.5541343, 73.9351687));
+
+    await waitFor(() => expect(result.current).toBe("Kharadi"));
+  });
+
+  it("still parses the string when no structured address comes back", async () => {
+    // Older cached responses and any geocoder answer without `address`. The
+    // string path is the fallback, not dead code.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ json: async () => ({ display_name: PUNE_DISPLAY }) }),
+    );
+
+    const { result } = renderHook(() => useLocalityAt(18.5204, 73.8567));
+
+    await waitFor(() => expect(result.current).toBe("Karve Nagar"));
+  });
 });
 
 describe("without coordinates", () => {
