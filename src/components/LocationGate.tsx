@@ -241,8 +241,13 @@ export function LocationGate({
   const heading = title ?? copy.title;
   const body = subtitle ?? copy.subtitle;
 
+  // `safe-top` because this screen returns *from* AppGate rather than rendering
+  // inside it, so it does not inherit the inset a route does (SVC-285). Its
+  // heading sits at the very top, which on the iOS PWA is under the status bar
+  // — and this is the first screen many users see. Found on device: the gate
+  // was still colliding after the AppGate fix landed.
   return (
-    <div className="flex min-h-screen flex-col bg-background px-6 py-10">
+    <div className="safe-top flex min-h-screen flex-col bg-background px-6 py-10">
       <div className="flex-1">
         <h1 className="text-2xl font-semibold text-foreground">{heading}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{body}</p>
