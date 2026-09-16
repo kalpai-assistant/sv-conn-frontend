@@ -82,10 +82,29 @@ describe("the utility behind it", () => {
     expect(styles).toMatch(/\.safe-top\s*\{[^}]*padding-top:\s*env\(safe-area-inset-top/);
   });
 
-  it("paints the strip it clears", () => {
-    // `black-translucent` means transparent, not colourless: the status bar
-    // shows whatever is painted beneath it. Without a background the iOS PWA
-    // would be the only surface with no status bar colour.
-    expect(styles).toMatch(/\.safe-top\s*\{[^}]*background-color:\s*var\(--color-primary\)/);
+  it("paints the strip, not the element", () => {
+    // The bug this replaced: `background-color` directly on `.safe-top` painted
+    // the whole wrapper, and those wrappers are `min-h-screen` — so the entire
+    // app came up brand blue on Android. Caught on device, not by a test,
+    // because the first version of this file asserted the colour was declared
+    // without asking *what* it covered.
+    //
+    // The colour belongs on the pseudo-element, whose height is the inset, and
+    // `.safe-top` itself must set no background at all or it overrides the
+    // `bg-background` beside it in the class list.
+    const rule = styles.match(/\.safe-top\s*\{([^}]*)\}/);
+    expect(rule?.[1], ".safe-top rule not found").toBeDefined();
+    expect(rule?.[1]).not.toMatch(/background/);
+
+    expect(styles).toMatch(
+      /\.safe-top::before\s*\{[^}]*background-color:\s*var\(--color-primary\)/,
+    );
+  });
+
+  it("sizes the strip from the inset so it collapses off iOS", () => {
+    // Padding height and background extent are independent, so the strip has
+    // to be zeroed explicitly rather than inheriting it from the padding. That
+    // is what makes this inert on Android and in every browser.
+    expect(styles).toMatch(/\.safe-top::before\s*\{[^}]*height:\s*env\(safe-area-inset-top/);
   });
 });
