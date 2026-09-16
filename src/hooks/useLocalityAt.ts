@@ -16,7 +16,7 @@
  * provider from getting into the app, and this screen blocks by design.
  */
 import { useEffect, useState } from "react";
-import { localityFrom } from "@/lib/locality";
+import { localityFrom, localityFromParts } from "@/lib/locality";
 
 export function useLocalityAt(lat: number | null, lng: number | null): string | null {
   const [locality, setLocality] = useState<string | null>(null);
@@ -35,10 +35,16 @@ export function useLocalityAt(lat: number | null, lng: number | null): string | 
         );
         const data = await res.json();
         if (cancelled) return;
+        // The structured object first (SVC-284). We already ask for it —
+        // `addressdetails=1` above — and used to throw it away, which is how a
+        // Kharadi pin came back named "Pune": the string parse counts commas,
+        // and Kharadi has one fewer street-level part than Karve Nagar.
+        //
+        // "" as the fallback on both, so nothing useful from the geocoder
+        // becomes null rather than a label this hook has no business inventing.
+        const named = localityFromParts(data?.address, "");
         const display = typeof data?.display_name === "string" ? data.display_name : "";
-        // "" would fall through to the fallback label, which is what we want
-        // when the geocoder answers with nothing useful.
-        setLocality(display ? localityFrom(display, "") || null : null);
+        setLocality(named || (display ? localityFrom(display, "") : "") || null);
       } catch {
         // Offline, rate-limited, or blocked. The caller degrades rather than
         // waiting — see the module docs.
