@@ -6,58 +6,15 @@ import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { useBookings, useBookingsTotal } from "@/hooks/useApi";
+// Shared with Provider Home (SVC-274). One definition, so a status cannot mean
+// one thing on the Jobs page and another on Home.
+import { activeStatuses, endedAt, statusLabel, statusStyle } from "@/lib/job-status";
 import type { Booking, BookingStatus } from "@/lib/mock-data";
 import { formatRupees } from "@/lib/currency";
 
 export const Route = createFileRoute("/provider/bookings/")({
   component: ProviderBookingsPage,
 });
-
-// A job the provider still has work to do on. REQUESTED is deliberately absent:
-// an unaccepted booking belongs to the broadcast, not to this provider, and
-// `GET /bookings/` only returns rows already assigned to them anyway.
-const activeStatuses: BookingStatus[] = ["ACCEPTED", "EN_ROUTE", "IN_PROGRESS"];
-
-// Mirrors the consumer list's palette (src/routes/bookings.tsx) so the same
-// status means the same colour on both sides of the app.
-const statusStyle: Partial<Record<BookingStatus, string>> = {
-  ACCEPTED: "bg-blue-100 text-blue-700",
-  EN_ROUTE: "bg-purple-100 text-purple-700",
-  IN_PROGRESS: "bg-orange-100 text-orange-700",
-  COMPLETED: "bg-green-100 text-green-700",
-  CANCELLED: "bg-red-100 text-red-700",
-  EXPIRED: "bg-gray-100 text-gray-700",
-};
-
-const statusLabel: Partial<Record<BookingStatus, string>> = {
-  ACCEPTED: "Accepted",
-  EN_ROUTE: "On the way",
-  IN_PROGRESS: "In progress",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-  EXPIRED: "Expired",
-};
-
-/**
- * When a finished job actually finished (SVC-296).
- *
- * The terminal transition, not `scheduledAt` — a job cancelled three days after
- * it was booked is filed under the day it ended, which is what a provider
- * looking back is trying to find. Falls back to the booking date when the
- * history is missing rather than rendering an empty cell.
- */
-function endedAt(job: Booking): string {
-  const terminal = [...(job.statusHistory ?? [])]
-    .reverse()
-    .find((entry) => !activeStatuses.includes(entry.status));
-  const when = terminal?.at ?? job.createdAt ?? job.scheduledAt;
-  if (!when) return "";
-  return new Date(when).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 // SVC-70 — the provider's list of jobs in flight. Each row opens the job screen,
 // which is where the en-route / OTP / complete transitions actually happen.

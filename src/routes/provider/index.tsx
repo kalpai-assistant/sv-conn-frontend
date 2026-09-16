@@ -16,6 +16,9 @@ import { ApiError } from "@/lib/api";
 import { enablePushNotifications, getPushPermission, type PushPermission } from "@/lib/fcm";
 import { useInstallState } from "@/lib/install";
 import { ProviderHeader } from "@/components/provider/ProviderHeader";
+import { LiveJobs } from "@/components/provider/LiveJobs";
+import { useBookings } from "@/hooks/useApi";
+import { isActive } from "@/lib/job-status";
 import { useAuth } from "@/lib/auth-context";
 import { useProviderProfile, useProviderServices, useSetOnlineStatus } from "@/hooks/useApi";
 import type { KycStatus } from "@/hooks/useApi";
@@ -147,6 +150,12 @@ function ProviderHomePage() {
 
   const eligible = checklist.every((item) => item.done);
 
+  // Work in hand (SVC-274). `refetchOnWindowFocus` is on by default and
+  // `useAcceptOffer` already invalidates ["bookings"], so this stays current
+  // when a job is accepted or finished without a manual reload.
+  const { data: bookings, isLoading: jobsLoading, isError: jobsError } = useBookings();
+  const liveJobs = (bookings ?? []).filter(isActive);
+
   // SVC-255 item 3. A provider in an iOS Safari tab passes all three checks
   // above and is still unreachable — Apple grants Web Push only to an installed
   // site — so "You're set up to receive jobs" is, for them, a false
@@ -241,51 +250,63 @@ function ProviderHomePage() {
         }}
       />
 
-      {/* Why the provider is or isn't getting work. */}
-      <div className="mt-6">
-        <div
-          className={`flex items-start gap-3 rounded-lg border p-3 ${
-            eligible ? "border-emerald-300 bg-emerald-50" : "border-amber-300 bg-amber-50"
-          }`}
-        >
-          {eligible ? (
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-          ) : (
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-          )}
-          <div className="text-sm">
-            <p className={`font-medium ${eligible ? "text-emerald-900" : "text-amber-900"}`}>
-              {eligible ? "You're set up to receive jobs" : "You won't receive job requests yet"}
-            </p>
-            <p className={eligible ? "text-emerald-800" : "text-amber-800"}>
-              {eligible
-                ? "New requests matching your services will appear here."
-                : "All three of these are needed before we can send you a job."}
-            </p>
-          </div>
-        </div>
+      {/* Work in hand comes before eligibility for more of it (SVC-274). A
+          provider mid-job does not need three green ticks telling them they
+          qualify — they need the address they are driving to. */}
+      <LiveJobs jobs={bookings ?? []} isLoading={jobsLoading} isError={jobsError} />
 
-        <ul className="mt-3 space-y-3">
-          {checklist.map((item) => (
-            <li key={item.label} className="flex items-start gap-3">
-              <StatusIcon done={item.done} status={profile?.kyc_status} label={item.label} />
-              <div className="min-w-0 text-sm">
-                <p className="font-medium text-foreground">{item.label}</p>
-                <p className="text-muted-foreground">{item.detail}</p>
-                {item.fix && (
-                  <Link
-                    to={item.fix.to}
-                    className="mt-1 inline-flex items-center gap-0.5 font-medium text-primary"
-                  >
-                    {item.fix.label}
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* Why the provider is or isn't getting work.
+
+          Hidden only when they are eligible *and* busy. An ineligible provider
+          keeps it whatever their job count: it is the one thing on screen
+          explaining why no more work is coming, and that matters most to
+          someone who somehow holds a job while unverified. */}
+      {!(eligible && liveJobs.length > 0) && (
+        <div className="mt-6">
+          <div
+            className={`flex items-start gap-3 rounded-lg border p-3 ${
+              eligible ? "border-emerald-300 bg-emerald-50" : "border-amber-300 bg-amber-50"
+            }`}
+          >
+            {eligible ? (
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+            ) : (
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            )}
+            <div className="text-sm">
+              <p className={`font-medium ${eligible ? "text-emerald-900" : "text-amber-900"}`}>
+                {eligible ? "You're set up to receive jobs" : "You won't receive job requests yet"}
+              </p>
+              <p className={eligible ? "text-emerald-800" : "text-amber-800"}>
+                {eligible
+                  ? "New requests matching your services will appear here."
+                  : "All three of these are needed before we can send you a job."}
+              </p>
+            </div>
+          </div>
+
+          <ul className="mt-3 space-y-3">
+            {checklist.map((item) => (
+              <li key={item.label} className="flex items-start gap-3">
+                <StatusIcon done={item.done} status={profile?.kyc_status} label={item.label} />
+                <div className="min-w-0 text-sm">
+                  <p className="font-medium text-foreground">{item.label}</p>
+                  <p className="text-muted-foreground">{item.detail}</p>
+                  {item.fix && (
+                    <Link
+                      to={item.fix.to}
+                      className="mt-1 inline-flex items-center gap-0.5 font-medium text-primary"
+                    >
+                      {item.fix.label}
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
