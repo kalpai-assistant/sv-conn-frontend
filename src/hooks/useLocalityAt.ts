@@ -1,5 +1,5 @@
 /**
- * The place-name for a pair of coordinates (SVC-281).
+ * The place-name for a pair of coordinates (SVC-281, SVC-284).
  *
  * A provider's service area is stored as a point and a radius — there is no
  * address text anywhere. That left the location gate's row reading "your saved
@@ -8,15 +8,22 @@
  * keeps a Pune centre and goes on receiving nothing.
  *
  * The row only works if it can be *disagreed with*. That needs a name, and the
- * only source of one is a reverse geocode — the same Nominatim call
- * `MapPicker` already makes when a pin moves.
+ * only source of one is a reverse geocode — the same call `MapPicker` makes
+ * when a pin moves.
+ *
+ * Uses `reverseGeocode` from the Google Maps client rather than a raw fetch to
+ * Nominatim (SVC-284). Google returns structured `address_components`, which
+ * is what `localityFromComponents` reads directly — no more parsing a
+ * comma-separated string at a fixed index and drawing "Pune" for a Kharadi
+ * pin.
  *
  * Returns null while resolving and on failure. The caller shows a neutral
  * fallback in that case: a slow or unreachable geocoder must never block a
  * provider from getting into the app, and this screen blocks by design.
  */
 import { useEffect, useState } from "react";
-import { localityFrom, localityFromParts } from "@/lib/locality";
+import { reverseGeocode } from "@/lib/google-maps";
+import { localityFromComponents } from "@/lib/locality";
 
 export function useLocalityAt(lat: number | null, lng: number | null): string | null {
   const [locality, setLocality] = useState<string | null>(null);
@@ -30,24 +37,15 @@ export function useLocalityAt(lat: number | null, lng: number | null): string | 
 
     void (async () => {
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-        );
-        const data = await res.json();
+        const result = await reverseGeocode(lat, lng);
         if (cancelled) return;
-        // The structured object first (SVC-284). We already ask for it —
-        // `addressdetails=1` above — and used to throw it away, which is how a
-        // Kharadi pin came back named "Pune": the string parse counts commas,
-        // and Kharadi has one fewer street-level part than Karve Nagar.
-        //
-        // "" as the fallback on both, so nothing useful from the geocoder
-        // becomes null rather than a label this hook has no business inventing.
-        const named = localityFromParts(data?.address, "");
-        const display = typeof data?.display_name === "string" ? data.display_name : "";
-        setLocality(named || (display ? localityFrom(display, "") : "") || null);
+        // "" as the fallback, so nothing useful becomes null rather than a
+        // label this hook has no business inventing.
+        const named = result ? localityFromComponents(result.components, "") : "";
+        setLocality(named || null);
       } catch {
-        // Offline, rate-limited, or blocked. The caller degrades rather than
-        // waiting — see the module docs.
+        // Offline, rate-limited, key missing, or Google rejected. The caller
+        // degrades rather than waiting — see the module docs.
         if (!cancelled) setLocality(null);
       }
     })();

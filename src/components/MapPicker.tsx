@@ -4,6 +4,8 @@ import { MapPin, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
 import { GEOCODE_FAILED, GEOCODE_UNKNOWN } from "@/lib/geocode-result";
+import { reverseGeocode, type PlaceDetails } from "@/lib/google-maps";
+import { PlacesSearchBar } from "@/components/PlacesSearchBar";
 
 const DEFAULT_CENTER: [number, number] = [12.9716, 77.5946];
 
@@ -60,19 +62,39 @@ export function MapPicker({
   const fetchAddress = async (lat: number, lng: number) => {
     setIsFetching(true);
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-      );
-      const data = await res.json();
-      const displayAddress = data.display_name || GEOCODE_UNKNOWN;
+      // Google Geocoding via the shared SDK loader (SVC-284). Nominatim was
+      // returning a wrong PIN for Kharadi (411001 for what is really 411014)
+      // at every zoom, and no smarter request fixed it: the postcode resolved
+      // against the municipal boundary rather than the locality.
+      const result = await reverseGeocode(lat, lng);
+      const displayAddress = result?.formattedAddress || GEOCODE_UNKNOWN;
       setAddress(displayAddress);
       onLocationSelected(lat, lng, displayAddress);
-    } catch (err) {
+    } catch {
+      // Offline, rate-limited, key missing, or Google rejected. The caller
+      // recognises GEOCODE_FAILED (see geocode-result.ts) and blanks the
+      // saved line rather than storing our failure as an address.
       setAddress(GEOCODE_FAILED);
       onLocationSelected(lat, lng, GEOCODE_FAILED);
     } finally {
       setIsFetching(false);
     }
+  };
+
+  /**
+   * A picked suggestion from the search bar (SVC-284).
+   *
+   * `placeDetails` already returned the formatted address, so no reverse
+   * geocode is needed — we skip the round-trip and use what Google gave the
+   * search bar. Treated as a user-initiated move: `onUserMoved` fires so the
+   * provider Location screen counts it as a real choice, and the pin flies to
+   * the picked point.
+   */
+  const handlePlacePicked = (details: PlaceDetails) => {
+    onUserMoved?.();
+    setCenter([details.lat, details.lng]);
+    setAddress(details.formattedAddress);
+    onLocationSelected(details.lat, details.lng, details.formattedAddress);
   };
 
   useEffect(() => {
@@ -146,6 +168,16 @@ export function MapPicker({
           <MapEvents onCenterChanged={handleCenterChanged} />
           <RecenterMap center={center} />
         </MapContainer>
+
+        {/* SVC-284: Places search bar over the top of the map.
+
+            Not inside a portal — the map area is already `position: relative`
+            and the dropdown handles its own z-index. Kept above the pin so
+            the suggestion list can drop over the map surface without the pin
+            poking through it. */}
+        <div className="absolute top-3 left-3 right-3 z-20">
+          <PlacesSearchBar onPick={handlePlacePicked} />
+        </div>
 
         {/* Fixed Center Pin */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-10 pointer-events-none drop-shadow-lg">

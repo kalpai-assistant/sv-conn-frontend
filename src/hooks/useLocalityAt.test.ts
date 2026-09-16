@@ -1,5 +1,5 @@
 /**
- * Naming a provider's service area (SVC-281).
+ * Naming a provider's service area (SVC-281, SVC-284).
  *
  * A service area is a point and a radius — no address text exists for it. That
  * left the location gate's row reading "your saved service area": a
@@ -8,92 +8,103 @@
  *
  * The failure mode to guard is not "no name" — the caller handles that by
  * withholding the row. It is a name that *looks* like an answer while being
- * unfalsifiable.
+ * unfalsifiable. Since SVC-284 the reverse-geocode goes through Google, so the
+ * mock is on `@/lib/google-maps` rather than `fetch`.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
+
+// Hoisted so the factory below sees the same `vi.fn()` as the tests do —
+// vi.mock lifts to the top of the file, ahead of any plain top-level const.
+const { reverseGeocode } = vi.hoisted(() => ({ reverseGeocode: vi.fn() }));
+vi.mock("@/lib/google-maps", () => ({
+  reverseGeocode,
+}));
+
 import { useLocalityAt } from "@/hooks/useLocalityAt";
 
-const PUNE_DISPLAY =
-  "Lane Number 7, Mavale vasti, Karve Nagar, Anandnagar, Pune City Subdistrict, Pune District, Maharashtra, 411051, India";
+/** Build a Google-shaped components array from a `{ type: long_name }` map. */
+function components(entries: Record<string, string>): google.maps.GeocoderAddressComponent[] {
+  return Object.entries(entries).map(([type, long_name]) => ({
+    long_name,
+    short_name: long_name,
+    types: [type],
+  })) as google.maps.GeocoderAddressComponent[];
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
 describe("with coordinates", () => {
-  it("names the neighbourhood", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ json: async () => ({ display_name: PUNE_DISPLAY }) }),
-    );
-
-    const { result } = renderHook(() => useLocalityAt(18.5204, 73.8567));
-
-    await waitFor(() => expect(result.current).toBe("Karve Nagar"));
-  });
-
-  it("prefers the structured suburb over parsing the string (SVC-284)", async () => {
-    // The Kharadi response, as the live API returns it. Parsing the string
-    // gives "Pune" — one fewer street-level part than Karve Nagar, so the
-    // fixed index overshoots. The `address` object names it outright, and we
-    // were already receiving one.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        json: async () => ({
-          display_name: "Lane Number 1, Kharadi, Pune, Pune City Subdistrict, Maharashtra, India",
-          address: { road: "Lane Number 1", suburb: "Kharadi", city: "Pune" },
-        }),
+  it("names the sublocality — 'Kharadi' for a Kharadi pin (SVC-284)", async () => {
+    // The measured device case. Nominatim used to return "Pune" from the
+    // string parse; Google marks the sublocality directly.
+    reverseGeocode.mockResolvedValue({
+      formattedAddress: "Lane Number 1, Kharadi, Pune, Maharashtra 411014, India",
+      components: components({
+        route: "Lane Number 1",
+        sublocality_level_1: "Kharadi",
+        locality: "Pune",
+        country: "India",
       }),
-    );
+    });
 
     const { result } = renderHook(() => useLocalityAt(18.5541343, 73.9351687));
 
     await waitFor(() => expect(result.current).toBe("Kharadi"));
   });
 
-  it("still parses the string when no structured address comes back", async () => {
-    // Older cached responses and any geocoder answer without `address`. The
-    // string path is the fallback, not dead code.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ json: async () => ({ display_name: PUNE_DISPLAY }) }),
-    );
+  it("falls through to the locality when no sublocality is present", async () => {
+    reverseGeocode.mockResolvedValue({
+      formattedAddress: "MG Road, Bangalore, Karnataka, India",
+      components: components({ route: "MG Road", locality: "Bangalore" }),
+    });
 
-    const { result } = renderHook(() => useLocalityAt(18.5204, 73.8567));
+    const { result } = renderHook(() => useLocalityAt(12.9716, 77.5946));
 
-    await waitFor(() => expect(result.current).toBe("Karve Nagar"));
+    await waitFor(() => expect(result.current).toBe("Bangalore"));
   });
 });
 
 describe("without coordinates", () => {
   it("asks nothing", () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
     const { result } = renderHook(() => useLocalityAt(null, null));
 
     expect(result.current).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(reverseGeocode).not.toHaveBeenCalled();
   });
 });
 
 describe("when the geocoder is unreachable", () => {
   it("returns null rather than hanging", async () => {
-    // Offline, rate-limited or blocked. This screen blocks by design, so a
-    // slow geocoder must never be what keeps a provider out of the app — the
-    // caller degrades to the other two exits.
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    // Offline, rate-limited, key missing, or Google rejected. This screen
+    // blocks by design, so a slow geocoder must never be what keeps a provider
+    // out of the app — the caller degrades to the other exits.
+    reverseGeocode.mockRejectedValue(new Error("offline"));
 
     const { result } = renderHook(() => useLocalityAt(18.5204, 73.8567));
 
     await waitFor(() => expect(result.current).toBeNull());
   });
 
-  it("treats an empty answer as no answer", async () => {
-    // A blank display_name would otherwise render an empty button label.
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ json: async () => ({}) }));
+  it("treats no results as no answer", async () => {
+    // Mid-ocean, or an unmapped area. Google returns `null` from our
+    // reverseGeocode wrapper.
+    reverseGeocode.mockResolvedValue(null);
+
+    const { result } = renderHook(() => useLocalityAt(18.5204, 73.8567));
+
+    await waitFor(() => expect(result.current).toBeNull());
+  });
+
+  it("treats an empty components array as no answer", async () => {
+    // A response with no useful named types would otherwise render an empty
+    // button label.
+    reverseGeocode.mockResolvedValue({
+      formattedAddress: "somewhere",
+      components: [],
+    });
 
     const { result } = renderHook(() => useLocalityAt(18.5204, 73.8567));
 
