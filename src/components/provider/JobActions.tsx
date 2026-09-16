@@ -1,0 +1,295 @@
+/**
+ * The one thing a provider does next, for each stage of a job (SVC-70, SVC-71,
+ * SVC-72 — shared for SVC-274).
+ *
+ * These lived inside the job screen until Home needed them too. They are lifted
+ * rather than copied: a second implementation of "mark complete" would be two
+ * places to get an irreversible action wrong, and the app has already paid for
+ * that kind of drift once (SVC-287, two address sheets that disagreed).
+ *
+ * ## Why a provider's statuses are a pipeline, not a set of states
+ *
+ * Each one has exactly one sensible next action:
+ *
+ *   ACCEPTED     → tell the customer you have set off
+ *   EN_ROUTE     → enter their PIN at the door
+ *   IN_PROGRESS  → mark the work finished
+ *
+ * Because that mapping is total, the action can sit wherever the job is shown —
+ * it does not need a screen of its own to be unambiguous. That is what lets Home
+ * carry it.
+ *
+ * ## Graduated protection
+ *
+ * The three are not equally risky and are deliberately not treated the same:
+ *
+ * - **En route** is a status and nothing else. Reversible in effect, so a plain
+ *   button with no ceremony.
+ * - **The PIN** is self-verifying: the customer's four digits *are* the
+ *   confirmation, and a wrong one is a 400. No guard can improve on that.
+ * - **Complete** pushes a notification to the customer, queues
+ *   `process_cash_payment` on cash bookings, and flips the column the payout
+ *   query gates on. A push cannot be unsent and a queued task cannot be
+ *   recalled, so it is held behind an undo window — see `CompleteStep`.
+ */
+import { useState } from "react";
+import { REGEXP_ONLY_DIGITS } from "input-otp";
+import { toast } from "sonner";
+import { CheckCircle2, Loader2, Navigation } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { ApiError } from "@/lib/api";
+import { useMarkEnRoute, useStartBooking, useCompleteBooking } from "@/hooks/useApi";
+import { usePendingAction, UNDO_WINDOW_MS } from "@/hooks/usePendingAction";
+
+/**
+ * The wording SVC-71 asks for, verbatim. It is the only message a provider
+ * should ever see for a wrong PIN — anything vaguer and they retype the same
+ * wrong digits instead of asking the customer again.
+ */
+const WRONG_PIN = "Incorrect PIN, ask the customer again";
+
+export function transitionMessage(err: unknown, fallback: string) {
+  if (err instanceof ApiError && err.status === 409) {
+    return "This job has already moved on. Pull up the latest state and try again.";
+  }
+  return err instanceof Error ? err.message : fallback;
+}
+
+/** ACCEPTED → EN_ROUTE. A status change and nothing else (SVC-70). */
+export function EnRouteStep({
+  bookingId,
+  compact = false,
+}: {
+  bookingId: string;
+  compact?: boolean;
+}) {
+  const markEnRoute = useMarkEnRoute();
+
+  return (
+    <div>
+      {!compact && (
+        <p className="text-sm text-muted-foreground">
+          Let the customer know you’ve set off. They’ll be able to track you from their app.
+        </p>
+      )}
+      <Button
+        className={compact ? "w-full" : "mt-4 w-full"}
+        disabled={markEnRoute.isPending}
+        onClick={() =>
+          markEnRoute.mutate(
+            { bookingId },
+            {
+              onError: (err) =>
+                toast.error(transitionMessage(err, "Couldn’t update the job. Please try again.")),
+            },
+          )
+        }
+      >
+        {markEnRoute.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Navigation className="h-4 w-4" />
+        )}
+        I’m on my way
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * EN_ROUTE → IN_PROGRESS, gated on the customer's PIN (SVC-71).
+ *
+ * No extra guard, deliberately: four digits the provider has to ask a person
+ * for cannot be produced by a mis-tap, and a wrong one is a 400 that says so.
+ * This is the safest of the three actions despite looking like the most
+ * involved.
+ */
+export function DoorstepOtpStep({
+  bookingId,
+  compact = false,
+}: {
+  bookingId: string;
+  compact?: boolean;
+}) {
+  const [otp, setOtp] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const startBooking = useStartBooking();
+
+  const submit = (value: string) => {
+    if (startBooking.isPending) return;
+    setErrorMsg("");
+    startBooking.mutate(
+      { bookingId, otp: value },
+      {
+        onError: (err) => {
+          // 400 is the wrong-PIN case and the only one that means "try again".
+          // Everything else is a genuine failure and keeps the server's message.
+          setErrorMsg(
+            err instanceof ApiError && err.status === 400
+              ? WRONG_PIN
+              : transitionMessage(err, "Couldn’t start the job. Please try again."),
+          );
+          setOtp("");
+        },
+      },
+    );
+  };
+
+  return (
+    <div>
+      <p className="text-sm font-medium text-foreground">
+        {compact ? "Ask for the 4-digit PIN" : "Ask the customer for their 4-digit PIN"}
+      </p>
+      {!compact && (
+        <p className="mt-1 text-sm text-muted-foreground">
+          It’s shown in their app. Entering it starts the job.
+        </p>
+      )}
+
+      <div className={compact ? "mt-2" : "mt-4"}>
+        <InputOTP
+          maxLength={4}
+          pattern={REGEXP_ONLY_DIGITS}
+          inputMode="numeric"
+          value={otp}
+          disabled={startBooking.isPending}
+          onChange={(value) => {
+            setOtp(value);
+            if (errorMsg) setErrorMsg("");
+            // Auto-submit on the fourth digit — there is nothing else to fill in,
+            // so a separate confirm button would just be an extra tap at the door.
+            if (value.length === 4) submit(value);
+          }}
+        >
+          <InputOTPGroup>
+            {[0, 1, 2, 3].map((i) => (
+              <InputOTPSlot key={i} index={i} className="h-12 w-12 text-base" />
+            ))}
+          </InputOTPGroup>
+        </InputOTP>
+      </div>
+
+      {startBooking.isPending && (
+        <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Checking…
+        </p>
+      )}
+
+      {errorMsg && (
+        <p role="alert" className="mt-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+          {errorMsg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * IN_PROGRESS → COMPLETED, held behind an undo window (SVC-72, guarded SVC-274).
+ *
+ * This is the one action a provider cannot take back. `complete_booking` does
+ * three things, and two of them leave the app entirely:
+ *
+ *   1. moves the status — a column, reversible in principle
+ *   2. pushes "completed" to the customer — **a push cannot be unsent**
+ *   3. on cash bookings queues `process_cash_payment` — **a task cannot be recalled**
+ *
+ * and `Booking.status == COMPLETED` is the gate the payout query reads, so it is
+ * also what makes the money owed.
+ *
+ * It had no confirmation at all before this — one tap did all of the above. A
+ * dialog would be the wrong fix: a modal is for when someone must stop and read,
+ * and a provider who has just finished a job does not need to read anything.
+ * They need protection from a mis-tap, and a dialog taxes everyone who meant it
+ * to catch the few who did not.
+ *
+ * So the request is withheld for a few seconds instead. Nothing has been sent
+ * while the window is open, which is what makes Undo honest — there is no push
+ * to unsend and no task to recall, because neither has happened. The same shape
+ * SVC-295 uses for Ignore, and for the same reason.
+ */
+export function CompleteStep({
+  bookingId,
+  compact = false,
+}: {
+  bookingId: string;
+  compact?: boolean;
+}) {
+  const completeBooking = useCompleteBooking();
+  const pending = usePendingAction();
+  // Local, because the row has to *look* finished the moment it is tapped even
+  // though nothing has been sent. Pretending otherwise — leaving the button live
+  // for seven seconds — would invite the second tap this exists to prevent.
+  const [held, setHeld] = useState(false);
+
+  const complete = () =>
+    completeBooking.mutate(
+      { bookingId },
+      {
+        onError: (err) => {
+          setHeld(false);
+          toast.error(transitionMessage(err, "Couldn’t complete the job. Please try again."));
+        },
+      },
+    );
+
+  const start = () => {
+    setHeld(true);
+    pending.schedule(bookingId, complete);
+    // Present tense on purpose: it has not happened yet, and saying "Completed"
+    // for seven seconds before it is true would be the app lying to hide its own
+    // mechanism.
+    toast("Completing job", {
+      duration: UNDO_WINDOW_MS,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          pending.cancel(bookingId);
+          setHeld(false);
+        },
+      },
+      // Swiped away, or closed early: the provider saw it and did not undo,
+      // which is the same answer as letting the window run out.
+      onDismiss: () => pending.flush(bookingId),
+    });
+  };
+
+  if (held) {
+    return (
+      <div className={compact ? "" : "mt-4"}>
+        <p className="flex items-center justify-center gap-2 rounded-lg bg-muted px-3 py-2.5 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Completing…
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {!compact && (
+        <>
+          <p className="text-sm font-medium text-foreground">Job in progress</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Mark it complete once you’ve finished the work.
+          </p>
+        </>
+      )}
+      <Button
+        className={compact ? "w-full" : "mt-4 w-full"}
+        disabled={completeBooking.isPending}
+        onClick={start}
+      >
+        {completeBooking.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <CheckCircle2 className="h-4 w-4" />
+        )}
+        Mark as Complete
+      </Button>
+    </div>
+  );
+}
