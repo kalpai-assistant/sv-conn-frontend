@@ -133,7 +133,7 @@
           "Authentication"
         ],
         "summary": "Logout",
-        "description": "SVC-241: revoke a refresh token so /auth/refresh with it returns 401.\n\nSilently succeeds on any token — even malformed / already-expired — so\nthe client can call this once, drop its stored tokens, and never care\nwhether the server had anything to blacklist.",
+        "description": "SVC-241: revoke a refresh token so /auth/refresh with it returns 401.\n\nSilently succeeds on any token \u2014 even malformed / already-expired \u2014 so\nthe client can call this once, drop its stored tokens, and never care\nwhether the server had anything to blacklist.",
         "operationId": "logout_api_v1_auth_logout_post",
         "requestBody": {
           "content": {
@@ -238,7 +238,7 @@
           "Users"
         ],
         "summary": "Update Fcm Token",
-        "description": "Register the caller's FCM token, or clear it by sending `null` on sign-out.\n\nThe field is required, so an empty body is rejected — clearing must be explicit.",
+        "description": "Register the caller's FCM token, or clear it by sending `null` on sign-out.\n\nThe field is required, so an empty body is rejected \u2014 clearing must be explicit.",
         "operationId": "update_fcm_token_api_v1_users_me_fcm_token_patch",
         "requestBody": {
           "content": {
@@ -278,7 +278,7 @@
           "Users"
         ],
         "summary": "Report Push Capability",
-        "description": "Record what the caller's device can do about push (SVC-255). Logs only.\n\nSVC-255 is about providers who never receive notifications, and nobody can\ncurrently say how many that is. Sentry captures registration *failures*, but\nwith no denominator — and no existing request carries the platform, so there\nis nothing to mine retroactively. The version check looks like it would help\nand does not: it reads a static `latest.json` and picks the platform branch\non the client, so the server never sees which one.\n\nDeliberately stores nothing. One structured line, counted in CloudWatch\nInsights. The question is \"should we invest in the iOS path at all\", which\nneeds answering once — a column on `users` would answer a different\nquestion (\"which providers should we chase\") and is only worth adding if\nthe distribution says the problem is real.\n\nFire-and-forget from the client's side: a failure here must never affect\nwhether push itself registers.",
+        "description": "Record what the caller's device can do about push (SVC-255). Logs only.\n\nSVC-255 is about providers who never receive notifications, and nobody can\ncurrently say how many that is. Sentry captures registration *failures*, but\nwith no denominator \u2014 and no existing request carries the platform, so there\nis nothing to mine retroactively. The version check looks like it would help\nand does not: it reads a static `latest.json` and picks the platform branch\non the client, so the server never sees which one.\n\nDeliberately stores nothing. One structured line, counted in CloudWatch\nInsights. The question is \"should we invest in the iOS path at all\", which\nneeds answering once \u2014 a column on `users` would answer a different\nquestion (\"which providers should we chase\") and is only worth adding if\nthe distribution says the problem is real.\n\nFire-and-forget from the client's side: a failure here must never affect\nwhether push itself registers.",
         "operationId": "report_push_capability_api_v1_users_me_push_capability_post",
         "requestBody": {
           "content": {
@@ -449,7 +449,7 @@
           "Users"
         ],
         "summary": "Delete Address",
-        "description": "Remove a saved address (SVC-277: now a soft delete).\n\nThe row is hidden, not deleted — `bookings.consumer_address_id` is an\nunqualified FK, so removing an address any booking has ever used raises.",
+        "description": "Remove a saved address (SVC-277: now a soft delete).\n\nThe row is hidden, not deleted \u2014 `bookings.consumer_address_id` is an\nunqualified FK, so removing an address any booking has ever used raises.",
         "operationId": "delete_address_api_v1_users_me_addresses__address_id__delete",
         "security": [
           {
@@ -608,7 +608,7 @@
           "Providers"
         ],
         "summary": "Remove Payout Method",
-        "description": "Erase all stored payout destinations.\n\nDeliberate, explicit action — saving a new method never removes the old one, so\nthis is the only path that deletes payout details. Clears both methods, not just\nthe active one: \"remove my payout details\" should leave the platform holding\nnothing. Afterwards ``payout_set`` is false and the provider cannot be paid until\nthey add a method again.",
+        "description": "Erase all stored payout destinations.\n\nDeliberate, explicit action \u2014 saving a new method never removes the old one, so\nthis is the only path that deletes payout details. Clears both methods, not just\nthe active one: \"remove my payout details\" should leave the platform holding\nnothing. Afterwards ``payout_set`` is false and the provider cannot be paid until\nthey add a method again.",
         "operationId": "remove_payout_method_api_v1_providers_me_payout_method_delete",
         "responses": {
           "200": {
@@ -877,7 +877,7 @@
           "Providers"
         ],
         "summary": "List My Offers",
-        "description": "Open job offers for the current provider (SVC-254).\n\nThe fallback delivery path. Until this existed, an FCM push was the only way\nan offer reached anyone — so a stale token, a denied notification permission\nor an iOS Safari tab meant the provider was silently deaf to paid work.\n\nThe provider app polls this while online. Each entry is the same\n``BookingOfferResponse`` the push route's card fetches, so a polled offer and\na pushed one are indistinguishable to the UI. Soonest-expiring first.\n\nAlso tops up: a provider who came online after a booking was dispatched has\nno offer row for it, and its push has already been sent. This is the only\nplace they can be added, so the read writes the missing rows.",
+        "description": "Open job offers for the current provider (SVC-254).\n\nThe fallback delivery path. Until this existed, an FCM push was the only way\nan offer reached anyone \u2014 so a stale token, a denied notification permission\nor an iOS Safari tab meant the provider was silently deaf to paid work.\n\nThe provider app polls this while online. Each entry is the same\n``BookingOfferResponse`` the push route's card fetches, so a polled offer and\na pushed one are indistinguishable to the UI. Soonest-expiring first.\n\nAlso tops up: a provider who came online after a booking was dispatched has\nno offer row for it, and its push has already been sent. This is the only\nplace they can be added, so the read writes the missing rows.",
         "operationId": "list_my_offers_api_v1_providers_me_offers_get",
         "responses": {
           "200": {
@@ -890,6 +890,33 @@
                   },
                   "type": "array",
                   "title": "Response List My Offers Api V1 Providers Me Offers Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/providers/me/earnings/summary": {
+      "get": {
+        "tags": [
+          "Providers"
+        ],
+        "summary": "Get My Earnings Summary",
+        "description": "Lifetime earnings total for the signed-in provider (SVC-275).\n\nA separate route rather than a fourth `range` value on the endpoint below,\nbecause that one returns a row per booking: bounded over a window, unbounded\nover a lifetime. Provider Home shows a single figure and should not pay for\nevery job the provider has ever done to render it.\n\nSame definition of \"earned\" as the windowed endpoint (completed, not\nrefunded), shared via `ProviderService._earned_filter`. That is narrower than\nthe payout path's `_owed_filter`, which also excludes cash jobs: a cash job is\nearned but not owed, since the provider already has the money.",
+        "operationId": "get_my_earnings_summary_api_v1_providers_me_earnings_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EarningsSummaryResponse"
                 }
               }
             }
@@ -1175,7 +1202,7 @@
           "Catalog"
         ],
         "summary": "Get Service",
-        "description": "One service + variants + the three related-services buckets (SVC-291).\n\nDistinct from the list route because the related payload is only worth\nthe extra joins on a detail page — a home-page listing that renders\njust name / price / duration does not need the rails, and joining for\nthem there would multiply the query cost of the app's biggest single\nrequest.",
+        "description": "One service + variants + the three related-services buckets (SVC-291).\n\nDistinct from the list route because the related payload is only worth\nthe extra joins on a detail page \u2014 a home-page listing that renders\njust name / price / duration does not need the rails, and joining for\nthem there would multiply the query cost of the app's biggest single\nrequest.",
         "operationId": "get_service_api_v1_services__service_id__get",
         "parameters": [
           {
@@ -1451,7 +1478,7 @@
           "Bookings"
         ],
         "summary": "Accept Booking",
-        "description": "Claim a broadcast booking. First provider to accept wins.\n\nIdempotent: a provider re-accepting a booking they already hold gets 200 and\nthe booking, with no second notification to the consumer. That case is a\nretry after a lost response, not a new acceptance — notifying again would\ntell the consumer twice, and returning an error would tell the *winning*\nprovider they lost (SVC-154).",
+        "description": "Claim a broadcast booking. First provider to accept wins.\n\nIdempotent: a provider re-accepting a booking they already hold gets 200 and\nthe booking, with no second notification to the consumer. That case is a\nretry after a lost response, not a new acceptance \u2014 notifying again would\ntell the consumer twice, and returning an error would tell the *winning*\nprovider they lost (SVC-154).",
         "operationId": "accept_booking_api_v1_bookings__booking_id__accept_patch",
         "security": [
           {
@@ -1482,13 +1509,13 @@
             }
           },
           "403": {
-            "description": "You were not offered this booking. Not visible to a well-behaved client — the app never sends /accept for a booking it hasn't been notified about."
+            "description": "You were not offered this booking. Not visible to a well-behaved client \u2014 the app never sends /accept for a booking it hasn't been notified about."
           },
           "404": {
             "description": "No such booking"
           },
           "410": {
-            "description": "The offer is over — claimed by another provider, cancelled, or expired. Dismiss the card."
+            "description": "The offer is over \u2014 claimed by another provider, cancelled, or expired. Dismiss the card."
           },
           "422": {
             "description": "Validation Error",
@@ -1509,7 +1536,7 @@
           "Bookings"
         ],
         "summary": "Decline Booking",
-        "description": "Turn down a job offer (SVC-254). Backs the card's \"Not now\".\n\nWithout this the poll would re-serve a dismissed offer every fifteen seconds\nuntil the window closed — worse than never showing it. Declining only\nsilences it for this provider; the booking stays open for everyone else.\n\nIdempotent, and quiet about it: declining an offer already answered returns\n204 rather than an error. A double tap is the common cause, and the\nprovider's intent is satisfied either way. 403 when they were never offered\nthe booking — the same answer ``/offer`` gives a non-recipient, so decline\ncan't be used to probe which bookings exist.",
+        "description": "Turn down a job offer (SVC-254). Backs the card's \"Not now\".\n\nWithout this the poll would re-serve a dismissed offer every fifteen seconds\nuntil the window closed \u2014 worse than never showing it. Declining only\nsilences it for this provider; the booking stays open for everyone else.\n\nIdempotent, and quiet about it: declining an offer already answered returns\n204 rather than an error. A double tap is the common cause, and the\nprovider's intent is satisfied either way. 403 when they were never offered\nthe booking \u2014 the same answer ``/offer`` gives a non-recipient, so decline\ncan't be used to probe which bookings exist.",
         "operationId": "decline_booking_api_v1_bookings__booking_id__decline_patch",
         "security": [
           {
@@ -1767,7 +1794,7 @@
           "Bookings"
         ],
         "summary": "Tip Booking",
-        "description": "Consumer adds (or updates) a gratuity on a completed booking.\n\n100% of the tip flows to the provider — added on top of provider_payout\nat payout time. A subsequent call with a different amount replaces\nrather than accumulates; ``amount=0`` removes the tip. Bounds live in\nthe request schema; state + access checks live in the service layer.",
+        "description": "Consumer adds (or updates) a gratuity on a completed booking.\n\n100% of the tip flows to the provider \u2014 added on top of provider_payout\nat payout time. A subsequent call with a different amount replaces\nrather than accumulates; ``amount=0`` removes the tip. Bounds live in\nthe request schema; state + access checks live in the service layer.",
         "operationId": "tip_booking_api_v1_bookings__booking_id__tip_post",
         "security": [
           {
@@ -1835,7 +1862,7 @@
           "Bookings"
         ],
         "summary": "Get Booking Offer",
-        "description": "What a provider may see about a broadcast job before accepting it (SVC-153).\n\nBacks the Incoming Request Card: the ``new_request`` push carries only a booking\nid, and ``GET /{booking_id}`` refuses a provider who has not been assigned yet.\n\n403 when the caller was not offered this booking, 410 once it is no longer\nopen. Both come from the service so they carry the standard error shape — the\ncard keys off the status code, not the message. Role is not gated here: the\neligibility check subsumes it, since only a matching provider can pass it.",
+        "description": "What a provider may see about a broadcast job before accepting it (SVC-153).\n\nBacks the Incoming Request Card: the ``new_request`` push carries only a booking\nid, and ``GET /{booking_id}`` refuses a provider who has not been assigned yet.\n\n403 when the caller was not offered this booking, 410 once it is no longer\nopen. Both come from the service so they carry the standard error shape \u2014 the\ncard keys off the status code, not the message. Role is not gated here: the\neligibility check subsumes it, since only a matching provider can pass it.",
         "operationId": "get_booking_offer_api_v1_bookings__booking_id__offer_get",
         "security": [
           {
@@ -1872,7 +1899,7 @@
             "description": "No such booking"
           },
           "410": {
-            "description": "The offer is over — claimed by another provider, cancelled, or expired. Dismiss the card."
+            "description": "The offer is over \u2014 claimed by another provider, cancelled, or expired. Dismiss the card."
           },
           "422": {
             "description": "Validation Error",
@@ -2052,7 +2079,7 @@
           "Payments"
         ],
         "summary": "Razorpay Webhook",
-        "description": "Razorpay Payments webhook — verified against RAZORPAY_WEBHOOK_SECRET.",
+        "description": "Razorpay Payments webhook \u2014 verified against RAZORPAY_WEBHOOK_SECRET.",
         "operationId": "razorpay_webhook_api_v1_payments_webhook_post",
         "responses": {
           "200": {
@@ -2072,7 +2099,7 @@
           "Payments"
         ],
         "summary": "Razorpayx Payout Webhook",
-        "description": "RazorpayX (payouts) webhook — verified against RAZORPAYX_WEBHOOK_SECRET.\n\nRazorpayX is a separate Razorpay product with its own webhook secret, so its\npayout.processed / payout.failed / payout.reversed events must arrive on a\ndedicated endpoint rather than the Payments webhook (different secret).\n\nThe provider's push is dispatched as a background task so it runs only after\n``get_db`` commits. If this delivery rolls back, RazorpayX retries it and the\nretry settles the same bookings — pushing inline would notify the provider once\nper attempt.",
+        "description": "RazorpayX (payouts) webhook \u2014 verified against RAZORPAYX_WEBHOOK_SECRET.\n\nRazorpayX is a separate Razorpay product with its own webhook secret, so its\npayout.processed / payout.failed / payout.reversed events must arrive on a\ndedicated endpoint rather than the Payments webhook (different secret).\n\nThe provider's push is dispatched as a background task so it runs only after\n``get_db`` commits. If this delivery rolls back, RazorpayX retries it and the\nretry settles the same bookings \u2014 pushing inline would notify the provider once\nper attempt.",
         "operationId": "razorpayx_payout_webhook_api_v1_payments_payout_webhook_post",
         "responses": {
           "200": {
@@ -2204,7 +2231,7 @@
           "Coupons"
         ],
         "summary": "List Available Coupons",
-        "description": "Coupons the current user can apply to a new booking today.\n\nThe list matches what ``POST /coupons/validate`` will accept — the\nfilter set is shared through ``CouponService`` so a coupon shown here\nis never refused there.",
+        "description": "Coupons the current user can apply to a new booking today.\n\nThe list matches what ``POST /coupons/validate`` will accept \u2014 the\nfilter set is shared through ``CouponService`` so a coupon shown here\nis never refused there.",
         "operationId": "list_available_coupons_api_v1_coupons_available_get",
         "responses": {
           "200": {
@@ -2235,7 +2262,7 @@
           "Coupons"
         ],
         "summary": "Validate Coupon",
-        "description": "Price a coupon against a cart amount.\n\nThe cart hasn't been persisted as a Booking yet — the app calls this\nwhile the user is on the Cart screen so the bill preview updates\nlive. On success we return the computed discount; a subsequent\n``POST /bookings`` with ``coupon_code`` recomputes on the server side\nand applies the *authoritative* number, so a client that hoards a\nstale discount can't over-apply.",
+        "description": "Price a coupon against a cart amount.\n\nThe cart hasn't been persisted as a Booking yet \u2014 the app calls this\nwhile the user is on the Cart screen so the bill preview updates\nlive. On success we return the computed discount; a subsequent\n``POST /bookings`` with ``coupon_code`` recomputes on the server side\nand applies the *authoritative* number, so a client that hoards a\nstale discount can't over-apply.",
         "operationId": "validate_coupon_api_v1_coupons_validate_post",
         "requestBody": {
           "content": {
@@ -2390,9 +2417,9 @@
         "tags": [
           "Admin"
         ],
-        "summary": "List Pending Kyc",
-        "description": "List providers whose KYC is awaiting admin review.",
-        "operationId": "list_pending_kyc_api_v1_admin_providers_kyc_pending_get",
+        "summary": "List Kyc Queue",
+        "description": "List providers filtered by KYC status.\n\nSVC-298: same endpoint answers both the pending review queue (default) and\nthe rejected view \u2014 one query param instead of a sibling route keeps the\npagination + response shape DRY. Rejected rows sort by most-recent review\nfirst (that's the useful order when hunting a specific past rejection);\nsubmitted rows keep oldest-first so the admin drains the queue FIFO.",
+        "operationId": "list_kyc_queue_api_v1_admin_providers_kyc_pending_get",
         "security": [
           {
             "HTTPBearer": []
@@ -2421,6 +2448,17 @@
               "default": 50,
               "title": "Per Page"
             }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/KYCStatus",
+              "description": "Filter by KYC status. Default 'submitted' preserves the pre-SVC-298 shape.",
+              "default": "submitted"
+            },
+            "description": "Filter by KYC status. Default 'submitted' preserves the pre-SVC-298 shape."
           }
         ],
         "responses": {
@@ -2431,9 +2469,9 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/UserResponse"
+                    "$ref": "#/components/schemas/KYCQueueRow"
                   },
-                  "title": "Response List Pending Kyc Api V1 Admin Providers Kyc Pending Get"
+                  "title": "Response List Kyc Queue Api V1 Admin Providers Kyc Pending Get"
                 }
               }
             }
@@ -2701,13 +2739,78 @@
         }
       }
     },
+    "/api/v1/admin/bookings/{booking_id}/cancel": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Force Cancel Booking",
+        "description": "Cancel a booking on a customer's behalf (SVC-299).\n\nSupport-only escape hatch \u2014 bypasses the customer/provider valid-transition\nrules so a stuck booking (partner ghosted en_route, wrong service dispatched,\nobvious fraud) can be closed without opening a psql shell.\n\nRefund inherits the consumer cancel policy in\n``BookingService._apply_cancellation_policy`` (see there): a captured\nonline payment triggers a Razorpay refund minus the ``ACCEPTED`` / ``EN_ROUTE``\ncancellation fee; PENDING and cash bookings are pure state changes with no\nmoney movement. IN_PROGRESS is intentionally *not* auto-refunded \u2014 the\njob has started, so support is expected to refund manually via the\npayments surface after diagnosing.\n\n``booking_status_logs`` gets a row with ``changed_by=admin.id`` and the\nreason in the ``note`` column; ``booking.cancellation_reason`` is stamped\nwith the same string. The other party gets the standard cancelled push\n(SVC-278) with the admin as actor so the notification tone matches\nconsumer-initiated cancels \u2014 the customer/provider hears \"your booking\nwas cancelled\", not the internal detail that support did it.",
+        "operationId": "force_cancel_booking_api_v1_admin_bookings__booking_id__cancel_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForceCancelBookingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such booking"
+          },
+          "409": {
+            "description": "Booking is already in a terminal state"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/bookings/{booking_id}": {
       "get": {
         "tags": [
           "Admin"
         ],
         "summary": "Get Any Booking",
-        "description": "Fetch any one booking by id, whoever it belongs to.\n\nDistinct from ``GET /bookings/{id}``, which admits only that booking's own\nconsumer or assigned provider — an admin is neither, so the user-facing route\nrefuses them and there was previously no way for support to look at a single\nbooking at all.\n\nThis one carries the consumer's address, which the bulk listing above\ndeliberately does not (SVC-170). That is the whole distinction: one booking\nasked for by id is a support question about a specific job, where a page of\nevery booking on the platform is a standing export of home addresses. It\nstill withholds the doorstep PIN — see ``BookingResponse.for_admin``.",
+        "description": "Fetch any one booking by id, whoever it belongs to.\n\nDistinct from ``GET /bookings/{id}``, which admits only that booking's own\nconsumer or assigned provider \u2014 an admin is neither, so the user-facing route\nrefuses them and there was previously no way for support to look at a single\nbooking at all.\n\nThis one carries the consumer's address, which the bulk listing above\ndeliberately does not (SVC-170). That is the whole distinction: one booking\nasked for by id is a support question about a specific job, where a page of\nevery booking on the platform is a standing export of home addresses. It\nstill withholds the doorstep PIN \u2014 see ``BookingResponse.for_admin``.",
         "operationId": "get_any_booking_api_v1_admin_bookings__booking_id__get",
         "security": [
           {
@@ -2780,13 +2883,85 @@
         ]
       }
     },
+    "/api/v1/admin/providers/{user_id}/payouts": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List Provider Payout History",
+        "description": "Payout audit trail for a single provider, newest-first (SVC-300).\n\nPaired with the pending-settlements list: the admin expands a row to see\nwhat has already been paid before triggering a fresh payout, closing the\n\"did I pay this guy last week or not\" gap that used to invite double\ndispatch. Read-only projection over ``payout_audits`` \u2014 no state changes.",
+        "operationId": "list_provider_payout_history_api_v1_admin_providers__user_id__payouts_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Per Page"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderPayoutHistoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/providers/{user_id}/payout": {
       "post": {
         "tags": [
           "Admin"
         ],
         "summary": "Pay Out Provider",
-        "description": "Enqueue a RazorpayX payout for a provider's completed-but-unsettled bookings.\n\nReturns 202 with a summary of what will be paid and the Celery task id. The\npayout itself runs asynchronously (SVC-188 / G30): before this, the endpoint\nawaited a 30-90s RazorpayX HTTP call while holding a DB connection and a\n``SELECT … FOR UPDATE`` lock on the provider's pending bookings, which\nputs pool pressure on the same workers serving consumer traffic during a\nRazorpayX slowdown.\n\nThe upfront reads compute the batch total + booking count without a row\nlock, so the admin gets an accurate estimate immediately. The task then\nruns the full flow (record audit → lock rows → RazorpayX → resolve audit\n→ update bookings → drain pushes) — every guarantee from the synchronous\npath is preserved because the task calls the same\n``PayoutService.create_provider_payout``.\n\nEvery attempt is still recorded in ``payout_audits`` before the RazorpayX\ncall fires; the admin payouts screen surfaces the outcome from there, and\n``reconcile_payouts`` (nightly) resolves any breadcrumb whose task\nprocess died mid-flight.",
+        "description": "Enqueue a RazorpayX payout for a provider's completed-but-unsettled bookings.\n\nReturns 202 with a summary of what will be paid and the Celery task id. The\npayout itself runs asynchronously (SVC-188 / G30): before this, the endpoint\nawaited a 30-90s RazorpayX HTTP call while holding a DB connection and a\n``SELECT \u2026 FOR UPDATE`` lock on the provider's pending bookings, which\nputs pool pressure on the same workers serving consumer traffic during a\nRazorpayX slowdown.\n\nThe upfront reads compute the batch total + booking count without a row\nlock, so the admin gets an accurate estimate immediately. The task then\nruns the full flow (record audit \u2192 lock rows \u2192 RazorpayX \u2192 resolve audit\n\u2192 update bookings \u2192 drain pushes) \u2014 every guarantee from the synchronous\npath is preserved because the task calls the same\n``PayoutService.create_provider_payout``.\n\nEvery attempt is still recorded in ``payout_audits`` before the RazorpayX\ncall fires; the admin payouts screen surfaces the outcome from there, and\n``reconcile_payouts`` (nightly) resolves any breadcrumb whose task\nprocess died mid-flight.",
         "operationId": "pay_out_provider_api_v1_admin_providers__user_id__payout_post",
         "security": [
           {
@@ -2880,7 +3055,7 @@
           "Admin"
         ],
         "summary": "Requeue Reversed Settlements",
-        "description": "Reset a provider's REVERSED settlements to PENDING so they can be paid again.\n\nA reversal means the payout reached the provider and was then clawed back —\noften a KYC/compliance signal, not a simple retry. Only use this once you've\nconfirmed the provider is genuinely still owed and the underlying cause is\nfixed; otherwise the re-payment will likely bounce again. Admin-only and\nrecorded in the audit trail.",
+        "description": "Reset a provider's REVERSED settlements to PENDING so they can be paid again.\n\nA reversal means the payout reached the provider and was then clawed back \u2014\noften a KYC/compliance signal, not a simple retry. Only use this once you've\nconfirmed the provider is genuinely still owed and the underlying cause is\nfixed; otherwise the re-payment will likely bounce again. Admin-only and\nrecorded in the audit trail.",
         "operationId": "requeue_reversed_settlements_api_v1_admin_providers__user_id__payout_requeue_reversed_post",
         "security": [
           {
@@ -2927,7 +3102,7 @@
           "Admin"
         ],
         "summary": "Publish App Release",
-        "description": "One-shot publish: bump `app_versions.{platform}` + (optionally) push\na \"New version available\" notification to every consumer with an\nFCM token.\n\nThe two-step manual ritual — SQL update + separate broadcast call —\nis easy to get wrong (bump the version without notifying, or notify\nwithout bumping and users tap through to nothing new). This endpoint\ndoes both atomically: the DB write happens first (so the poll-on-\nforeground path immediately reflects the new version even if the\nbroadcast fails to enqueue), then the Celery task is fired.\n\nNot the same as ``release-apk.yml`` — that builds and uploads the\nAPK. This endpoint tells the running fleet about it after the APK\nis in place. The current publish ritual is:\n  1. `gh workflow run release-apk.yml -f version=X.Y.Z`\n  2. `POST /admin/app-versions/android/release {\"version\": \"X.Y.Z\"}`",
+        "description": "One-shot publish: bump `app_versions.{platform}` + (optionally) push\na \"New version available\" notification to every consumer with an\nFCM token.\n\nThe two-step manual ritual \u2014 SQL update + separate broadcast call \u2014\nis easy to get wrong (bump the version without notifying, or notify\nwithout bumping and users tap through to nothing new). This endpoint\ndoes both atomically: the DB write happens first (so the poll-on-\nforeground path immediately reflects the new version even if the\nbroadcast fails to enqueue), then the Celery task is fired.\n\nNot the same as ``release-apk.yml`` \u2014 that builds and uploads the\nAPK. This endpoint tells the running fleet about it after the APK\nis in place. The current publish ritual is:\n  1. `gh workflow run release-apk.yml -f version=X.Y.Z`\n  2. `POST /admin/app-versions/android/release {\"version\": \"X.Y.Z\"}`",
         "operationId": "publish_app_release_api_v1_admin_app_versions__platform__release_post",
         "security": [
           {
@@ -3001,7 +3176,7 @@
           "Downloads"
         ],
         "summary": "Send Download Link Sms",
-        "description": "SMS the download page URL to the phone number the visitor entered.\n\nPublic. Rate-limited by IP (3/hour). No user record created — this is\nthe pre-signup surface.\n\nReturns 501 when the feature flag is off, which is the default during\nbeta until the MSG91 template is approved.",
+        "description": "SMS the download page URL to the phone number the visitor entered.\n\nPublic. Rate-limited by IP (3/hour). No user record created \u2014 this is\nthe pre-signup surface.\n\nReturns 501 when the feature flag is off, which is the default during\nbeta until the MSG91 template is approved.",
         "operationId": "send_download_link_sms_api_v1_downloads_sms_link_post",
         "requestBody": {
           "content": {
@@ -3018,7 +3193,7 @@
             "description": "Successful Response"
           },
           "501": {
-            "description": "SMS delivery not yet enabled — use the QR code."
+            "description": "SMS delivery not yet enabled \u2014 use the QR code."
           },
           "422": {
             "description": "Validation Error",
@@ -3039,7 +3214,7 @@
           "Downloads"
         ],
         "summary": "Get Latest Version",
-        "description": "Return the latest + minimum-supported version for each platform.\n\nHit on every app cold start + foreground event. Cached at the CDN edge\nfor 5 minutes so a burst of foregrounds after a network blip doesn't\nhammer the DB. Long enough to spare load; short enough that flipping\n``min_supported_version`` during an incident propagates in minutes,\nnot hours.\n\n503 rather than an empty response if seed rows are missing — that's a\ndeployment bug (missing migration), and returning defaults would\nsilently mask it.",
+        "description": "Return the latest + minimum-supported version for each platform.\n\nHit on every app cold start + foreground event. Cached at the CDN edge\nfor 5 minutes so a burst of foregrounds after a network blip doesn't\nhammer the DB. Long enough to spare load; short enough that flipping\n``min_supported_version`` during an incident propagates in minutes,\nnot hours.\n\n503 rather than an empty response if seed rows are missing \u2014 that's a\ndeployment bug (missing migration), and returning defaults would\nsilently mask it.",
         "operationId": "get_latest_version_api_v1_downloads_latest_json_get",
         "responses": {
           "200": {
@@ -3053,7 +3228,7 @@
             }
           },
           "503": {
-            "description": "Version data not seeded — Alembic migration missing?"
+            "description": "Version data not seeded \u2014 Alembic migration missing?"
           }
         }
       }
@@ -3064,7 +3239,7 @@
           "Health"
         ],
         "summary": "Liveness",
-        "description": "Liveness probe — the process is running.\n\nNever touches the DB / Redis. Used by container orchestrators to decide\nwhen to restart; a failed DB should NOT trigger a restart (that just\nthrashes the pod without fixing anything).",
+        "description": "Liveness probe \u2014 the process is running.\n\nNever touches the DB / Redis. Used by container orchestrators to decide\nwhen to restart; a failed DB should NOT trigger a restart (that just\nthrashes the pod without fixing anything).",
         "operationId": "liveness_health_get",
         "responses": {
           "200": {
@@ -3084,7 +3259,7 @@
           "Health"
         ],
         "summary": "Readiness",
-        "description": "Readiness probe — the process can actually serve requests.\n\nPings each dependency with a short timeout, returns a per-dependency\nresult. If ANY dependency fails, response is HTTP 503 (Service\nUnavailable) — so load balancers can drain traffic from this pod without\nalso killing it.",
+        "description": "Readiness probe \u2014 the process can actually serve requests.\n\nPings each dependency with a short timeout, returns a per-dependency\nresult. If ANY dependency fails, response is HTTP 503 (Service\nUnavailable) \u2014 so load balancers can drain traffic from this pod without\nalso killing it.",
         "operationId": "readiness_healthz_get",
         "responses": {
           "200": {
@@ -3309,7 +3484,7 @@
           "lng"
         ],
         "title": "BookingAddress",
-        "description": "Where the job is, as the booking's two parties see it (SVC-170).\n\nIts own schema rather than a reuse of ``AddressResponse``, which backs the\nconsumer's own address book: that one carries ``is_default``, a detail of how\nthe consumer manages their saved addresses and nothing a provider standing\noutside the building has any use for. Same principle that gave\n``BookingOfferResponse`` its own shape (SVC-153) — serve each audience the\nfields its screen actually renders.\n\n``lat``/``lng`` are the point of this being a nested object rather than a bare\n``full_address`` string. The job to be done is *navigate there*: with\ncoordinates the app can hand off to the device maps app, without them the\nprovider retypes a free-text Indian address into Google Maps and trusts its\ngeocoder — the failure mode this ticket exists to remove. ``get_offer``\nalready reads the same geography to derive ``distance_km``.\n\nBoth are optional because ``location`` is nullable: ``CreateAddressRequest``\naccepts an address with no coordinates, and older rows have none. Clients must\ntreat text as the source of truth and coordinates as the enhancement, never\nthe reverse."
+        "description": "Where the job is, as the booking's two parties see it (SVC-170).\n\nIts own schema rather than a reuse of ``AddressResponse``, which backs the\nconsumer's own address book: that one carries ``is_default``, a detail of how\nthe consumer manages their saved addresses and nothing a provider standing\noutside the building has any use for. Same principle that gave\n``BookingOfferResponse`` its own shape (SVC-153) \u2014 serve each audience the\nfields its screen actually renders.\n\n``lat``/``lng`` are the point of this being a nested object rather than a bare\n``full_address`` string. The job to be done is *navigate there*: with\ncoordinates the app can hand off to the device maps app, without them the\nprovider retypes a free-text Indian address into Google Maps and trusts its\ngeocoder \u2014 the failure mode this ticket exists to remove. ``get_offer``\nalready reads the same geography to derive ``distance_km``.\n\nBoth are optional because ``location`` is nullable: ``CreateAddressRequest``\naccepts an address with no coordinates, and older rows have none. Clients must\ntreat text as the source of truth and coordinates as the enhancement, never\nthe reverse."
       },
       "BookingItemResponse": {
         "properties": {
@@ -3373,7 +3548,7 @@
           "total_price"
         ],
         "title": "BookingItemResponse",
-        "description": "One line on a booking response.\n\n``service_name`` is denormalised into the response so the mobile app\ndoesn't have to cross-reference against /services for every booking it\ndisplays — the list route already returns dozens of items and doing that\nlookup client-side is exactly the sort of N+1 pattern the frontend keeps\nhitting. Read from the loaded ``BookingItem.service`` relationship, which\nmust be eager-loaded (see ``BookingItem.service`` — ``raise_on_sql``)."
+        "description": "One line on a booking response.\n\n``service_name`` is denormalised into the response so the mobile app\ndoesn't have to cross-reference against /services for every booking it\ndisplays \u2014 the list route already returns dozens of items and doing that\nlookup client-side is exactly the sort of N+1 pattern the frontend keeps\nhitting. Read from the loaded ``BookingItem.service`` relationship, which\nmust be eager-loaded (see ``BookingItem.service`` \u2014 ``raise_on_sql``)."
       },
       "BookingListResponse": {
         "properties": {
@@ -3450,7 +3625,7 @@
           "seconds_remaining"
         ],
         "title": "BookingOfferResponse",
-        "description": "What a broadcast recipient may see about a job they have not yet accepted.\n\nDeliberately its own schema rather than a reuse of ``BookingResponse`` (SVC-153).\nThis is served to *every* nearby provider, none of whom is assigned yet, so it\ncarries only what the Incoming Request Card renders — and notably not\n``doorstep_otp``, which gates the en_route → in_progress transition and must\nreach the provider from the consumer at the door, not from this API.\n\n``service_amount`` is returned as a plain number; the app formats the ₹ string.\nRupee formatting is not done server-side here — see the ticket's money note.\n\n``expires_at`` and ``seconds_remaining`` both describe the same instant and are\nboth returned on purpose (SVC-166). The card's countdown must use\n``seconds_remaining``: it is computed server-side, so a device with a wrong\nclock still counts down correctly, and clock skew is unbounded on a 120-second\nwindow. ``expires_at`` is the absolute form, for anything needing a real\ninstant rather than a duration.\n\nNeither field carries a default — a defaulted field falls out of OpenAPI\n``required`` and the generated client types it optional, which invites a\n``?? 120`` fallback and reintroduces the bug this exists to fix."
+        "description": "What a broadcast recipient may see about a job they have not yet accepted.\n\nDeliberately its own schema rather than a reuse of ``BookingResponse`` (SVC-153).\nThis is served to *every* nearby provider, none of whom is assigned yet, so it\ncarries only what the Incoming Request Card renders \u2014 and notably not\n``doorstep_otp``, which gates the en_route \u2192 in_progress transition and must\nreach the provider from the consumer at the door, not from this API.\n\n``service_amount`` is returned as a plain number; the app formats the \u20b9 string.\nRupee formatting is not done server-side here \u2014 see the ticket's money note.\n\n``expires_at`` and ``seconds_remaining`` both describe the same instant and are\nboth returned on purpose (SVC-166). The card's countdown must use\n``seconds_remaining``: it is computed server-side, so a device with a wrong\nclock still counts down correctly, and clock skew is unbounded on a 120-second\nwindow. ``expires_at`` is the absolute form, for anything needing a real\ninstant rather than a duration.\n\nNeither field carries a default \u2014 a defaulted field falls out of OpenAPI\n``required`` and the generated client types it optional, which invites a\n``?? 120`` fallback and reintroduces the bug this exists to fix."
       },
       "BookingResponse": {
         "properties": {
@@ -3555,6 +3730,28 @@
             "title": "Is Disputed",
             "default": false
           },
+          "consumer_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consumer Phone"
+          },
+          "provider_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Name"
+          },
           "scheduled_at": {
             "anyOf": [
               {
@@ -3612,7 +3809,7 @@
           "created_at"
         ],
         "title": "BookingStatusLogResponse",
-        "description": "One state transition on a booking, as the tracking timeline sees it.\n\nA deliberately narrow projection of ``booking_status_logs``, which is an\ninternal audit trail and not a consumer-facing record (SVC-248). Two\ncolumns are withheld on purpose:\n\n``changed_by`` is a user id — usually the assigned provider's, sometimes an\nadmin's. Who moved a booking is an operational fact; handing it to the\nconsumer's app turns an audit row into a disclosure about another person.\n\n``metadata_`` is free-form JSONB written by whatever called\n``_log_transition``. Nobody has audited what is already in those rows\nacross the project's history, and a field whose contents are unknown\ncannot be knowingly published. If some part of it is worth showing, it\nshould be promoted to a named column first.\n\n``from_status`` is left out for a plainer reason: on an ordered list the\nprevious state is always the ``to_status`` of the entry before it."
+        "description": "One state transition on a booking, as the tracking timeline sees it.\n\nA deliberately narrow projection of ``booking_status_logs``, which is an\ninternal audit trail and not a consumer-facing record (SVC-248). Two\ncolumns are withheld on purpose:\n\n``changed_by`` is a user id \u2014 usually the assigned provider's, sometimes an\nadmin's. Who moved a booking is an operational fact; handing it to the\nconsumer's app turns an audit row into a disclosure about another person.\n\n``metadata_`` is free-form JSONB written by whatever called\n``_log_transition``. Nobody has audited what is already in those rows\nacross the project's history, and a field whose contents are unknown\ncannot be knowingly published. If some part of it is worth showing, it\nshould be promoted to a named column first.\n\n``from_status`` is left out for a plainer reason: on an ordered list the\nprevious state is always the ``to_status`` of the entry before it."
       },
       "CancelBookingRequest": {
         "properties": {
@@ -3753,7 +3950,7 @@
           "expires_at"
         ],
         "title": "CouponResponse",
-        "description": "One coupon in a user's available list.\n\n``discount_type`` lets the UI render the correct microcopy\n(\"20% off\" vs \"₹100 off\") without needing to know the value's units\nfrom context. ``expires_at`` is what the card renders — the internal\n``valid_from`` is not exposed, a coupon that hasn't started yet simply\ndoesn't appear in the list."
+        "description": "One coupon in a user's available list.\n\n``discount_type`` lets the UI render the correct microcopy\n(\"20% off\" vs \"\u20b9100 off\") without needing to know the value's units\nfrom context. ``expires_at`` is what the card renders \u2014 the internal\n``valid_from`` is not exposed, a coupon that hasn't started yet simply\ndoesn't appear in the list."
       },
       "CouponValidateRequest": {
         "properties": {
@@ -3842,15 +4039,9 @@
             "default": false
           },
           "house_floor": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 120
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
             "title": "House Floor"
           },
           "building": {
@@ -3916,7 +4107,8 @@
         },
         "type": "object",
         "required": [
-          "full_address"
+          "full_address",
+          "house_floor"
         ],
         "title": "CreateAddressRequest"
       },
@@ -4184,6 +4376,41 @@
         ],
         "title": "EarningsResponse"
       },
+      "EarningsSummaryResponse": {
+        "properties": {
+          "lifetime_payout": {
+            "type": "number",
+            "title": "Lifetime Payout"
+          },
+          "completed_count": {
+            "type": "integer",
+            "title": "Completed Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lifetime_payout",
+          "completed_count"
+        ],
+        "title": "EarningsSummaryResponse",
+        "description": "All-time totals, with no per-booking breakdown (SVC-275).\n\nDeliberately two scalars. ``EarningsResponse`` carries one row per booking,\nwhich is fine over a window and unbounded over a lifetime \u2014 Provider Home\nwould download every job a provider has ever completed to render a single\nnumber."
+      },
+      "ForceCancelBookingRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "ForceCancelBookingRequest",
+        "description": "Admin-driven cancel request (SVC-299).\n\nSame shape as ``KYCRejectionRequest`` \u2014 one required free-text reason,\n500-char ceiling. ``min_length=1`` rather than the 5 the consumer cancel\nschema imposes: support can legitimately write \"duplicate\" or \"fraud\"\nand reserving stricter validation to the consumer path keeps that gate\nwhere it exists to slow accidental one-tap cancels, not admin ones."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4295,6 +4522,88 @@
         "title": "KYCDocsResponse",
         "description": "Admin-only: full KYC payload including presigned doc URLs for review."
       },
+      "KYCQueueRow": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "kyc_submitted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kyc Submitted At"
+          },
+          "kyc_reviewed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kyc Reviewed At"
+          },
+          "kyc_rejection_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kyc Rejection Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "phone",
+          "name",
+          "email",
+          "kyc_submitted_at",
+          "kyc_reviewed_at",
+          "kyc_rejection_reason"
+        ],
+        "title": "KYCQueueRow",
+        "description": "One row in the admin KYC queue listing (SVC-298).\n\nShape is a UserResponse plus the three ProviderProfile timestamps the review\nUI wants for aging + the rejected view. Kept separate from UserResponse\nbecause those are provider-only columns \u2014 surfacing them on every user list\nwould be schema noise."
+      },
       "KYCRejectionRequest": {
         "properties": {
           "reason": {
@@ -4397,7 +4706,7 @@
           "pwa"
         ],
         "title": "LatestVersionResponse",
-        "description": "The whole payload returned by GET /downloads/latest.json.\n\nShape is stable — the frontend hook branches on the presence of each\nplatform key. Adding a new platform (post-beta iOS native) means\nadding a new required key here + a matching row in ``app_versions``."
+        "description": "The whole payload returned by GET /downloads/latest.json.\n\nShape is stable \u2014 the frontend hook branches on the presence of each\nplatform key. Adding a new platform (post-beta iOS native) means\nadding a new required key here + a matching row in ``app_versions``."
       },
       "LogoutRequest": {
         "properties": {
@@ -4495,7 +4804,7 @@
           "bank"
         ],
         "title": "PayoutMethod",
-        "description": "Which stored destination a provider's payouts actually go to.\n\nA provider may keep both a UPI handle and a bank account on file (SVC-148:\nswitching does not erase the old one). This is the single source of truth for\nwhich one the money is sent to — the payout must never infer it from which\ncolumns happen to be populated."
+        "description": "Which stored destination a provider's payouts actually go to.\n\nA provider may keep both a UPI handle and a bank account on file (SVC-148:\nswitching does not erase the old one). This is the single source of truth for\nwhich one the money is sent to \u2014 the payout must never infer it from which\ncolumns happen to be populated."
       },
       "PayoutMethodSelect": {
         "properties": {
@@ -4641,7 +4950,141 @@
           "released_at"
         ],
         "title": "PlatformVersion",
-        "description": "Version metadata for one platform (android / pwa).\n\n``version`` and ``min_supported_version`` are SemVer strings. Clients\ncompare using SemVer semantics — a lex compare would treat 1.10 < 1.2."
+        "description": "Version metadata for one platform (android / pwa).\n\n``version`` and ``min_supported_version`` are SemVer strings. Clients\ncompare using SemVer semantics \u2014 a lex compare would treat 1.10 < 1.2."
+      },
+      "ProviderPayoutHistoryEntry": {
+        "properties": {
+          "audit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Audit Id"
+          },
+          "payout_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payout Id"
+          },
+          "reference_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Id"
+          },
+          "amount_paise": {
+            "type": "integer",
+            "title": "Amount Paise"
+          },
+          "booking_count": {
+            "type": "integer",
+            "title": "Booking Count"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "admin_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admin User Id"
+          },
+          "admin_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admin Name"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "audit_id",
+          "payout_id",
+          "reference_id",
+          "amount_paise",
+          "booking_count",
+          "outcome",
+          "source",
+          "admin_user_id",
+          "admin_name",
+          "error",
+          "created_at"
+        ],
+        "title": "ProviderPayoutHistoryEntry",
+        "description": "One row from the payout audit trail for a single provider (SVC-300).\n\nMirrors the ``payout_audits`` row directly rather than inventing new field\nnames \u2014 the admin history view is the ledger, and drift between the two\ninvites \"the row I see is not the row that moved\" bugs."
+      },
+      "ProviderPayoutHistoryResponse": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderPayoutHistoryEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "per_page": {
+            "type": "integer",
+            "title": "Per Page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entries",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "title": "ProviderPayoutHistoryResponse",
+        "description": "Paginated payout history for one provider, newest-first."
       },
       "ProviderProfileUpdate": {
         "properties": {
@@ -5017,7 +5460,7 @@
           "version"
         ],
         "title": "PublishReleaseRequest",
-        "description": "Bump the current version + optionally push a nudge to every device.\n\n``version`` is the customer-facing SemVer of the new build. The\nmatching APK must already be at ``app_versions.url`` (usually\n``s3://eazyserv-downloads/apk/latest.apk``, since ``release-apk.yml``\nalways overwrites that key). If they don't match, users will nudge\nthemselves onto a version we haven't shipped yet.\n\n``min_supported_version``, when passed, atomically hard-blocks anyone\nbelow it — the SVC-162 emergency lever. Leave it unset to keep the\ncurrent threshold.\n\n``notify`` = true enqueues the FCM broadcast (``broadcast_update_available``).\nSet to false when releasing a build we don't want to interrupt users\nover (e.g. a silent metrics fix — the poll on next foreground will\nstill surface the nudge)."
+        "description": "Bump the current version + optionally push a nudge to every device.\n\n``version`` is the customer-facing SemVer of the new build. The\nmatching APK must already be at ``app_versions.url`` (usually\n``s3://eazyserv-downloads/apk/latest.apk``, since ``release-apk.yml``\nalways overwrites that key). If they don't match, users will nudge\nthemselves onto a version we haven't shipped yet.\n\n``min_supported_version``, when passed, atomically hard-blocks anyone\nbelow it \u2014 the SVC-162 emergency lever. Leave it unset to keep the\ncurrent threshold.\n\n``notify`` = true enqueues the FCM broadcast (``broadcast_update_available``).\nSet to false when releasing a build we don't want to interrupt users\nover (e.g. a silent metrics fix \u2014 the poll on next foreground will\nstill surface the nudge)."
       },
       "PublishReleaseResponse": {
         "properties": {
@@ -5112,7 +5555,7 @@
           "token_obtained"
         ],
         "title": "PushCapabilityReport",
-        "description": "What the client can tell us about its ability to receive push (SVC-255).\n\nSent on every registration attempt, successful or not. That \"or not\" is the\nwhole point: Sentry already records failures, but with no denominator —\n\"12 failures this week\" is unreadable without knowing whether that is 12 out\nof 12 or 12 out of 400. Reporting every attempt supplies the denominator.\n\nNothing here is stored. The handler logs one line and returns; the question\nit answers (\"how many providers can actually receive push, and on what?\") is\na one-off scoping question, not a per-user fact worth a column."
+        "description": "What the client can tell us about its ability to receive push (SVC-255).\n\nSent on every registration attempt, successful or not. That \"or not\" is the\nwhole point: Sentry already records failures, but with no denominator \u2014\n\"12 failures this week\" is unreadable without knowing whether that is 12 out\nof 12 or 12 out of 400. Reporting every attempt supplies the denominator.\n\nNothing here is stored. The handler logs one line and returns; the question\nit answers (\"how many providers can actually receive push, and on what?\") is\na one-off scoping question, not a per-user fact worth a column."
       },
       "RefreshTokenRequest": {
         "properties": {
@@ -5155,7 +5598,7 @@
           "sort_order"
         ],
         "title": "RelatedServiceEntry",
-        "description": "One entry in a related-services rail on the service detail page (SVC-292).\n\nDenormalises name + base_price so the frontend renders the three rails\nin the same round trip that fetches the service itself — no per-row\nlookups from the client. ``sort_order`` is preserved so the frontend\nrespects the seed's / admin's ordering."
+        "description": "One entry in a related-services rail on the service detail page (SVC-292).\n\nDenormalises name + base_price so the frontend renders the three rails\nin the same round trip that fetches the service itself \u2014 no per-row\nlookups from the client. ``sort_order`` is preserved so the frontend\nrespects the seed's / admin's ordering."
       },
       "RelatedServicesBucket": {
         "properties": {
@@ -5186,7 +5629,7 @@
         },
         "type": "object",
         "title": "RelatedServicesBucket",
-        "description": "The three related-services surfaces the redesigned service page renders.\n\nNames track the three ``relationship_type`` enum values so the mapping\nfrom row to render surface is 1:1 — no server-side re-shaping. An empty\nlist is a legitimate answer (a service with no seeded hooks, for example)\nand the frontend renders nothing for that surface."
+        "description": "The three related-services surfaces the redesigned service page renders.\n\nNames track the three ``relationship_type`` enum values so the mapping\nfrom row to render surface is 1:1 \u2014 no server-side re-shaping. An empty\nlist is a legitimate answer (a service with no seeded hooks, for example)\nand the frontend renders nothing for that surface."
       },
       "ReviewListResponse": {
         "properties": {
@@ -5346,6 +5789,28 @@
             "title": "Variants",
             "default": []
           },
+          "banner_image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banner Image Url"
+          },
+          "banner_video_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banner Video Url"
+          },
           "related": {
             "$ref": "#/components/schemas/RelatedServicesBucket",
             "default": {
@@ -5367,7 +5832,7 @@
           "created_at"
         ],
         "title": "ServiceDetailResponse",
-        "description": "``GET /services/{id}`` response — the ServiceResponse shape plus the\nthree related-services buckets from SVC-291.\n\nKept as a subclass so the plain-list ``GET /services`` endpoint stays\nlean (no related payload per row across dozens of catalogue entries)\nand the per-service fetch pays exactly one extra roundtrip's worth of\njoins to surface the rails."
+        "description": "``GET /services/{id}`` response \u2014 the ServiceResponse shape plus the\nthree related-services buckets from SVC-291.\n\nKept as a subclass so the plain-list ``GET /services`` endpoint stays\nlean (no related payload per row across dozens of catalogue entries)\nand the per-service fetch pays exactly one extra roundtrip's worth of\njoins to surface the rails."
       },
       "ServiceResponse": {
         "properties": {
@@ -5420,6 +5885,28 @@
             "type": "array",
             "title": "Variants",
             "default": []
+          },
+          "banner_image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banner Image Url"
+          },
+          "banner_video_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banner Video Url"
           }
         },
         "type": "object",
@@ -5519,7 +6006,7 @@
           "is_active"
         ],
         "title": "ServiceVariantResponse",
-        "description": "One priced option under a service.\n\n``base_price`` is what the customer sees before GST; ``gst_percent`` is 0\nfor the launch summary rows and 18 for the vertical sheets. Frontend\ncomputes the customer total as ``base_price * (1 + gst_percent/100)``\nwhen rendering the checkout.\n\n``provider_payout`` + ``platform_commission`` are stored, not derived,\nbecause the split ratio isn't a global constant — the launch summary\nrows are 70/30 and the vertical sheets are 65/35. The booking service\nsnapshots these fields into ``booking_items`` at booking time."
+        "description": "One priced option under a service.\n\n``base_price`` is what the customer sees before GST; ``gst_percent`` is 0\nfor the launch summary rows and 18 for the vertical sheets. Frontend\ncomputes the customer total as ``base_price * (1 + gst_percent/100)``\nwhen rendering the checkout.\n\n``provider_payout`` + ``platform_commission`` are stored, not derived,\nbecause the split ratio isn't a global constant \u2014 the launch summary\nrows are 70/30 and the vertical sheets are 65/35. The booking service\nsnapshots these fields into ``booking_items`` at booking time."
       },
       "SmsLinkRequest": {
         "properties": {
@@ -5565,7 +6052,7 @@
           "amount"
         ],
         "title": "TipBookingRequest",
-        "description": "Consumer adds (or updates) a gratuity on a completed booking.\n\nZero is a valid amount — the client uses this to *remove* a tip the\nconsumer changed their mind about before payout has flowed. Bounded\nat ₹10,000 so a fat-finger doesn't move real money by accident;\nhigher values need to route through support."
+        "description": "Consumer adds (or updates) a gratuity on a completed booking.\n\nZero is a valid amount \u2014 the client uses this to *remove* a tip the\nconsumer changed their mind about before payout has flowed. Bounded\nat \u20b910,000 so a fat-finger doesn't move real money by accident;\nhigher values need to route through support."
       },
       "TokenResponse": {
         "properties": {
@@ -5740,7 +6227,7 @@
         },
         "type": "object",
         "title": "UpdateAddressRequest",
-        "description": "Edit a saved address (SVC-277). Every field optional — this is a PATCH.\n\nServed by a copy-on-write update: the old row is soft-deleted and a new one\ncreated, so bookings that already point at the old address keep recording\nwhere the job actually happened. See `UserService.update_address`."
+        "description": "Edit a saved address (SVC-277). Every field optional \u2014 this is a PATCH.\n\nServed by a copy-on-write update: the old row is soft-deleted and a new one\ncreated, so bookings that already point at the old address keep recording\nwhere the job actually happened. See `UserService.update_address`."
       },
       "UpdateFCMTokenRequest": {
         "properties": {
@@ -5762,7 +6249,7 @@
           "fcm_token"
         ],
         "title": "UpdateFCMTokenRequest",
-        "description": "Register or clear the caller's FCM token.\n\n`fcm_token` is nullable but *required* — `null` clears the stored token\n(sign-out), while an omitted field is a 422. Without that distinction an\nempty body would silently wipe push for the user."
+        "description": "Register or clear the caller's FCM token.\n\n`fcm_token` is nullable but *required* \u2014 `null` clears the stored token\n(sign-out), while an omitted field is a 422. Without that distinction an\nempty body would silently wipe push for the user."
       },
       "UpdateProfileRequest": {
         "properties": {

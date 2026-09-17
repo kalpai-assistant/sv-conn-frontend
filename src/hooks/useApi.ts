@@ -1335,3 +1335,56 @@ export const useRemovePayoutMethod = () => {
     onSuccess: seedProfile(queryClient),
   });
 };
+
+// ---------------------------------------------------------------------------
+// Provider earnings (SVC-260 / SVC-275)
+// ---------------------------------------------------------------------------
+
+export type EarningsRange = "today" | "week" | "month";
+
+export type API_EarningsResponse = Schema<"EarningsResponse">;
+export type API_EarningsBookingItem = Schema<"EarningsBookingItem">;
+export type API_EarningsSummaryResponse = Schema<"EarningsSummaryResponse">;
+
+/**
+ * Lifetime totals: GET /providers/me/earnings/summary.
+ *
+ * Two scalars, whatever the history. The windowed hook below returns a row per
+ * booking — fine over a week, unbounded over a lifetime — which is why the
+ * backend grew a second route rather than a fourth `range` value (SVC-275).
+ *
+ * Provider Home and the Earnings hero both call this, deliberately: one query
+ * key means react-query dedupes them into a single request and the two screens
+ * cannot disagree about the number. That is SVC-275 AC3 satisfied by
+ * construction rather than by two call sites staying in step.
+ *
+ * "Earned" here is completed-and-not-refunded, which includes cash jobs. It is
+ * *not* the same as what the provider is owed — cash is already in their hand.
+ * See `ProviderService._earned_filter` vs `PayoutService._owed_filter`.
+ */
+export const useEarningsSummary = () => {
+  return useQuery({
+    queryKey: ["earnings", "summary"],
+    queryFn: () => apiFetch<API_EarningsSummaryResponse>("/providers/me/earnings/summary"),
+  });
+};
+
+/**
+ * One window's earnings + its per-booking breakdown: GET /providers/me/earnings.
+ *
+ * Keyed by range so switching segments swaps to cached data instead of
+ * re-fetching, and switching back is instant. `placeholderData` keeps the
+ * previous window on screen while the next one loads, so the figure does not
+ * blink to a skeleton on every tap.
+ *
+ * Windows are IST calendar boundaries on the server (today = since 00:00 IST,
+ * week = since Monday, month = since the 1st) — not rolling 24h/7d. The labels
+ * say "Today"/"This week" for exactly that reason.
+ */
+export const useEarnings = (range: EarningsRange) => {
+  return useQuery({
+    queryKey: ["earnings", range],
+    queryFn: () => apiFetch<API_EarningsResponse>(`/providers/me/earnings?range=${range}`),
+    placeholderData: (previous) => previous,
+  });
+};

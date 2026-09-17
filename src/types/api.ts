@@ -362,6 +362,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/providers/me/earnings/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Earnings Summary
+         * @description Lifetime earnings total for the signed-in provider (SVC-275).
+         *
+         *     A separate route rather than a fourth `range` value on the endpoint below,
+         *     because that one returns a row per booking: bounded over a window, unbounded
+         *     over a lifetime. Provider Home shows a single figure and should not pay for
+         *     every job the provider has ever done to render it.
+         *
+         *     Same definition of "earned" as the windowed endpoint (completed, not
+         *     refunded), shared via `ProviderService._earned_filter`. That is narrower than
+         *     the payout path's `_owed_filter`, which also excludes cash jobs: a cash job is
+         *     earned but not owed, since the provider already has the money.
+         */
+        get: operations["get_my_earnings_summary_api_v1_providers_me_earnings_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/providers/me/earnings": {
         parameters: {
             query?: never;
@@ -930,10 +960,16 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Pending Kyc
-         * @description List providers whose KYC is awaiting admin review.
+         * List Kyc Queue
+         * @description List providers filtered by KYC status.
+         *
+         *     SVC-298: same endpoint answers both the pending review queue (default) and
+         *     the rejected view — one query param instead of a sibling route keeps the
+         *     pagination + response shape DRY. Rejected rows sort by most-recent review
+         *     first (that's the useful order when hunting a specific past rejection);
+         *     submitted rows keep oldest-first so the admin drains the queue FIFO.
          */
-        get: operations["list_pending_kyc_api_v1_admin_providers_kyc_pending_get"];
+        get: operations["list_kyc_queue_api_v1_admin_providers_kyc_pending_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1014,6 +1050,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/bookings/{booking_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Force Cancel Booking
+         * @description Cancel a booking on a customer's behalf (SVC-299).
+         *
+         *     Support-only escape hatch — bypasses the customer/provider valid-transition
+         *     rules so a stuck booking (partner ghosted en_route, wrong service dispatched,
+         *     obvious fraud) can be closed without opening a psql shell.
+         *
+         *     Refund inherits the consumer cancel policy in
+         *     ``BookingService._apply_cancellation_policy`` (see there): a captured
+         *     online payment triggers a Razorpay refund minus the ``ACCEPTED`` / ``EN_ROUTE``
+         *     cancellation fee; PENDING and cash bookings are pure state changes with no
+         *     money movement. IN_PROGRESS is intentionally *not* auto-refunded — the
+         *     job has started, so support is expected to refund manually via the
+         *     payments surface after diagnosing.
+         *
+         *     ``booking_status_logs`` gets a row with ``changed_by=admin.id`` and the
+         *     reason in the ``note`` column; ``booking.cancellation_reason`` is stamped
+         *     with the same string. The other party gets the standard cancelled push
+         *     (SVC-278) with the admin as actor so the notification tone matches
+         *     consumer-initiated cancels — the customer/provider hears "your booking
+         *     was cancelled", not the internal detail that support did it.
+         */
+        post: operations["force_cancel_booking_api_v1_admin_bookings__booking_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/bookings/{booking_id}": {
         parameters: {
             query?: never;
@@ -1062,6 +1137,31 @@ export interface paths {
          *     the role guard rather than injecting the admin (nothing to audit).
          */
         get: operations["list_pending_settlements_api_v1_admin_providers_pending_settlements_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/{user_id}/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Provider Payout History
+         * @description Payout audit trail for a single provider, newest-first (SVC-300).
+         *
+         *     Paired with the pending-settlements list: the admin expands a row to see
+         *     what has already been paid before triggering a fresh payout, closing the
+         *     "did I pay this guy last week or not" gap that used to invite double
+         *     dispatch. Read-only projection over ``payout_audits`` — no state changes.
+         */
+        get: operations["list_provider_payout_history_api_v1_admin_providers__user_id__payouts_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1536,6 +1636,10 @@ export interface components {
              * @default false
              */
             is_disputed: boolean;
+            /** Consumer Phone */
+            consumer_phone?: string | null;
+            /** Provider Name */
+            provider_name?: string | null;
             /** Scheduled At */
             scheduled_at: string | null;
             /**
@@ -1669,7 +1773,7 @@ export interface components {
              */
             is_default: boolean;
             /** House Floor */
-            house_floor?: string | null;
+            house_floor: string;
             /** Building */
             building?: string | null;
             /** Landmark Area */
@@ -1802,6 +1906,35 @@ export interface components {
             /** Bookings */
             bookings: components["schemas"]["EarningsBookingItem"][];
         };
+        /**
+         * EarningsSummaryResponse
+         * @description All-time totals, with no per-booking breakdown (SVC-275).
+         *
+         *     Deliberately two scalars. ``EarningsResponse`` carries one row per booking,
+         *     which is fine over a window and unbounded over a lifetime — Provider Home
+         *     would download every job a provider has ever completed to render a single
+         *     number.
+         */
+        EarningsSummaryResponse: {
+            /** Lifetime Payout */
+            lifetime_payout: number;
+            /** Completed Count */
+            completed_count: number;
+        };
+        /**
+         * ForceCancelBookingRequest
+         * @description Admin-driven cancel request (SVC-299).
+         *
+         *     Same shape as ``KYCRejectionRequest`` — one required free-text reason,
+         *     500-char ceiling. ``min_length=1`` rather than the 5 the consumer cancel
+         *     schema imposes: support can legitimately write "duplicate" or "fraud"
+         *     and reserving stricter validation to the consumer path keeps that gate
+         *     where it exists to slow accidental one-tap cancels, not admin ones.
+         */
+        ForceCancelBookingRequest: {
+            /** Reason */
+            reason: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1832,6 +1965,34 @@ export interface components {
             aadhaar_url: string | null;
             /** Selfie Url */
             selfie_url: string | null;
+        };
+        /**
+         * KYCQueueRow
+         * @description One row in the admin KYC queue listing (SVC-298).
+         *
+         *     Shape is a UserResponse plus the three ProviderProfile timestamps the review
+         *     UI wants for aging + the rejected view. Kept separate from UserResponse
+         *     because those are provider-only columns — surfacing them on every user list
+         *     would be schema noise.
+         */
+        KYCQueueRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Phone */
+            phone: string;
+            /** Name */
+            name: string | null;
+            /** Email */
+            email: string | null;
+            /** Kyc Submitted At */
+            kyc_submitted_at: string | null;
+            /** Kyc Reviewed At */
+            kyc_reviewed_at: string | null;
+            /** Kyc Rejection Reason */
+            kyc_rejection_reason: string | null;
         };
         /** KYCRejectionRequest */
         KYCRejectionRequest: {
@@ -1997,6 +2158,58 @@ export interface components {
              * Format: date-time
              */
             released_at: string;
+        };
+        /**
+         * ProviderPayoutHistoryEntry
+         * @description One row from the payout audit trail for a single provider (SVC-300).
+         *
+         *     Mirrors the ``payout_audits`` row directly rather than inventing new field
+         *     names — the admin history view is the ledger, and drift between the two
+         *     invites "the row I see is not the row that moved" bugs.
+         */
+        ProviderPayoutHistoryEntry: {
+            /**
+             * Audit Id
+             * Format: uuid
+             */
+            audit_id: string;
+            /** Payout Id */
+            payout_id: string | null;
+            /** Reference Id */
+            reference_id: string | null;
+            /** Amount Paise */
+            amount_paise: number;
+            /** Booking Count */
+            booking_count: number;
+            /** Outcome */
+            outcome: string;
+            /** Source */
+            source: string;
+            /** Admin User Id */
+            admin_user_id: string | null;
+            /** Admin Name */
+            admin_name: string | null;
+            /** Error */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ProviderPayoutHistoryResponse
+         * @description Paginated payout history for one provider, newest-first.
+         */
+        ProviderPayoutHistoryResponse: {
+            /** Entries */
+            entries: components["schemas"]["ProviderPayoutHistoryEntry"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
         };
         /**
          * ProviderProfileUpdate
@@ -2345,6 +2558,10 @@ export interface components {
              * @default []
              */
             variants: components["schemas"]["ServiceVariantResponse"][];
+            /** Banner Image Url */
+            banner_image_url?: string | null;
+            /** Banner Video Url */
+            banner_video_url?: string | null;
             /**
              * @default {
              *       "hook": [],
@@ -2386,6 +2603,10 @@ export interface components {
              * @default []
              */
             variants: components["schemas"]["ServiceVariantResponse"][];
+            /** Banner Image Url */
+            banner_image_url?: string | null;
+            /** Banner Video Url */
+            banner_video_url?: string | null;
         };
         /**
          * ServiceVariantResponse
@@ -3245,6 +3466,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BookingOfferResponse"][];
+                };
+            };
+        };
+    };
+    get_my_earnings_summary_api_v1_providers_me_earnings_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EarningsSummaryResponse"];
                 };
             };
         };
@@ -4268,11 +4509,13 @@ export interface operations {
             };
         };
     };
-    list_pending_kyc_api_v1_admin_providers_kyc_pending_get: {
+    list_kyc_queue_api_v1_admin_providers_kyc_pending_get: {
         parameters: {
             query?: {
                 page?: number;
                 per_page?: number;
+                /** @description Filter by KYC status. Default 'submitted' preserves the pre-SVC-298 shape. */
+                status?: components["schemas"]["KYCStatus"];
             };
             header?: never;
             path?: never;
@@ -4286,7 +4529,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserResponse"][];
+                    "application/json": components["schemas"]["KYCQueueRow"][];
                 };
             };
             /** @description Validation Error */
@@ -4432,6 +4675,55 @@ export interface operations {
             };
         };
     };
+    force_cancel_booking_api_v1_admin_bookings__booking_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForceCancelBookingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Booking is already in a terminal state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_any_booking_api_v1_admin_bookings__booking_id__get: {
         parameters: {
             query?: never;
@@ -4486,6 +4778,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PendingSettlementsResponse"];
+                };
+            };
+        };
+    };
+    list_provider_payout_history_api_v1_admin_providers__user_id__payouts_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderPayoutHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
