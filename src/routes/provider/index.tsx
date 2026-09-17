@@ -17,6 +17,7 @@ import { enablePushNotifications, getPushPermission, type PushPermission } from 
 import { useInstallState } from "@/lib/install";
 import { ProviderHeader } from "@/components/provider/ProviderHeader";
 import { LiveJobs } from "@/components/provider/LiveJobs";
+import { EarningsRow } from "@/components/provider/EarningsRow";
 import { useBookings } from "@/hooks/useApi";
 import { isActive } from "@/lib/job-status";
 import { useAuth } from "@/lib/auth-context";
@@ -254,6 +255,12 @@ function ProviderHomePage() {
           provider mid-job does not need three green ticks telling them they
           qualify — they need the address they are driving to. */}
       <LiveJobs jobs={bookings ?? []} isLoading={jobsLoading} isError={jobsError} />
+
+      {/* Earnings, under the work (SVC-275). Below LiveJobs because the job in
+          hand outranks the money already banked, and above the checklist
+          because a provider who is set up has no reason to read three green
+          ticks again. One figure only — see EarningsRow. */}
+      <EarningsRow />
 
       {/* Why the provider is or isn't getting work.
 

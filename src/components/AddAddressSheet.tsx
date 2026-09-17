@@ -265,6 +265,12 @@ export function AddAddressSheet({
           lat,
           lng,
           ...structuredFields(),
+          // Restated after the spread, and not only to satisfy the type.
+          // `house_floor` is required on create and optional on update, so the
+          // shared `structuredFields()` types it `string | undefined` — true of
+          // the PATCH, false here, where the guard at the top of this function
+          // has already refused an empty one.
+          house_floor: houseFloor.trim(),
         });
         // Saving an address is choosing it (SVC-283).
         //
