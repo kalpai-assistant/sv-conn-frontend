@@ -123,9 +123,14 @@ function ProviderEarningsPage() {
             role="tab"
             aria-selected={r.value === range}
             onClick={() => setRange(r.value)}
+            // Selected is the brand purple, not the shadcn default of a white
+            // card on grey. On this screen the segment is the one control the
+            // provider operates, and a near-white pill on a near-white ground
+            // does not read as "pressed" at arm's length in daylight — which is
+            // where a provider actually uses it.
             className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               r.value === range
-                ? "bg-card text-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
