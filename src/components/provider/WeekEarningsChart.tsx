@@ -13,12 +13,11 @@
  * So this renders for the week range only. The other two keep the job rows,
  * which at those volumes say strictly more.
  *
- * ## Why it hides itself
+ * ## When it hides
  *
- * Below two earning days the chart is one bar and six flat lines, and all it
- * says is which day — which the row underneath already says, with the service
- * name, the time and the amount. `isWeekChartWorthShowing` encodes that, so a
- * quiet week gets rows alone rather than a chart pretending to be information.
+ * Only on a week with no completed work at all — there is no shape to draw, and
+ * the empty-state copy below already says so. A single job still gets a chart:
+ * thin, but a provider who has worked and sees no chart reads that as broken.
  *
  * ## What the chart is for
  *

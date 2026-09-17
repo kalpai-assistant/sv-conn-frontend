@@ -41,12 +41,21 @@ describe("when it declines to render", () => {
     const { container } = render(<MonthEarningsChart bookings={[]} />);
     expect(container).toBeEmptyDOMElement();
   });
+});
 
-  it("renders nothing for a single earning day", () => {
-    // The 1st of the month is one bar and thirty gaps.
+describe("when a month holds only one earning day", () => {
+  it("still renders", () => {
     const [one] = twoDaysThisMonth();
-    const { container } = render(<MonthEarningsChart bookings={[one]} />);
-    expect(container).toBeEmptyDOMElement();
+    render(<MonthEarningsChart bookings={[one]} />);
+    expect(screen.getByText(/tap a bar/i)).toBeInTheDocument();
+  });
+
+  it("rests the readout on that day, since it is also the best one", () => {
+    const [one] = twoDaysThisMonth();
+    render(<MonthEarningsChart bookings={[one]} />);
+
+    const readouts = screen.getAllByText(/₹349/).filter((el) => !el.closest(".sr-only"));
+    expect(readouts).toHaveLength(1);
   });
 });
 

@@ -142,19 +142,19 @@ describe("today", () => {
 });
 
 describe("whether to draw it at all", () => {
-  it("suppresses the chart on a single earning day", () => {
-    // One bar and six flat lines says which day — which the job row below
-    // already says, with the service, the time and the amount.
+  it("draws for a single earning day", () => {
+    // Thin, but honest. A provider who has worked once and sees no chart reads
+    // the absence as the chart being broken.
     const buckets = bucketWeek([job("2026-09-17T06:00:00Z", 349)], THU);
 
-    expect(isWeekChartWorthShowing(buckets)).toBe(false);
+    expect(isWeekChartWorthShowing(buckets)).toBe(true);
   });
 
   it("suppresses it on an empty week", () => {
     expect(isWeekChartWorthShowing(bucketWeek([], THU))).toBe(false);
   });
 
-  it("shows it from two earning days, where shape becomes real information", () => {
+  it("draws for several earning days, where shape is real information", () => {
     const buckets = bucketWeek(
       [job("2026-09-14T06:00:00Z", 349), job("2026-09-17T06:00:00Z", 559)],
       THU,
@@ -163,7 +163,7 @@ describe("whether to draw it at all", () => {
     expect(isWeekChartWorthShowing(buckets)).toBe(true);
   });
 
-  it("counts days, not jobs — three jobs on one day is still one bar", () => {
+  it("draws for several jobs sharing one day", () => {
     const buckets = bucketWeek(
       [
         job("2026-09-17T06:00:00Z", 100),
@@ -173,7 +173,7 @@ describe("whether to draw it at all", () => {
       THU,
     );
 
-    expect(isWeekChartWorthShowing(buckets)).toBe(false);
+    expect(isWeekChartWorthShowing(buckets)).toBe(true);
   });
 });
 
@@ -273,18 +273,18 @@ describe("month totals", () => {
 });
 
 describe("whether to draw the month chart", () => {
-  it("suppresses it on a single earning day", () => {
-    // The 1st of the month is one bar and thirty gaps.
+  it("draws for a single earning day", () => {
+    // One bar and thirty gaps is a true picture of a month with one job in it.
     const buckets = bucketMonth([job("2026-09-17T06:00:00Z", 349)], THU);
 
-    expect(isMonthChartWorthShowing(buckets)).toBe(false);
+    expect(isMonthChartWorthShowing(buckets)).toBe(true);
   });
 
   it("suppresses it on an empty month", () => {
     expect(isMonthChartWorthShowing(bucketMonth([], THU))).toBe(false);
   });
 
-  it("shows it from two earning days", () => {
+  it("draws for several earning days", () => {
     const buckets = bucketMonth(
       [job("2026-09-14T06:00:00Z", 349), job("2026-09-17T06:00:00Z", 559)],
       THU,

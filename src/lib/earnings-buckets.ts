@@ -97,16 +97,17 @@ export function bucketWeek(
 /**
  * Whether the chart is worth drawing at all.
  *
- * One bar and six flat lines says which day — which the job row underneath
- * already says, with the service name, the time and the amount. Below two
- * earning days the rows carry strictly more, so the chart is suppressed rather
- * than shown empty.
+ * Any completed work draws it. An earlier version required two earning days,
+ * on the reasoning that one bar among six gaps only repeats what the job row
+ * below already says — but that reasoning was about the chart's *value*, and a
+ * provider who has worked once and sees no chart reads it as the chart being
+ * broken. A thin chart is honest; a missing one is ambiguous.
  *
- * This is the rule that keeps the chart from being decoration on a quiet week,
- * and it applies to the month just as well.
+ * A genuinely empty window is the only case still suppressed: there is no shape
+ * to show, and the empty-state copy beneath already says so.
  */
 export function isWeekChartWorthShowing(buckets: DayBucket[]): boolean {
-  return buckets.filter((b) => b.count > 0).length >= 2;
+  return buckets.some((b) => b.count > 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -151,9 +152,9 @@ function istDaysInMonth(date: Date): number {
  * days that have not happened yet.
  *
  * Fixed length for the same reason the week is fixed at seven: the axis must not
- * change width as the month fills, and the empty days are information. That does
- * mean the first of the month draws a chart that is one bar and thirty gaps —
- * which `isWeekChartWorthShowing` suppresses, same as a quiet week.
+ * change width as the month fills, and the empty days are information. On the
+ * first of the month that means one bar and thirty gaps, which is a true picture
+ * of a month that has just started.
  *
  * The month length comes from `now`, not from the data: a month with no jobs
  * after the 20th still has its full 30 or 31 slots.
@@ -199,7 +200,7 @@ export function bucketMonth(
   return buckets;
 }
 
-/** Whether the month chart is worth drawing. Same two-day rule as the week. */
+/** Whether the month chart is worth drawing. Same rule as the week. */
 export function isMonthChartWorthShowing(buckets: MonthDayBucket[]): boolean {
-  return buckets.filter((b) => b.count > 0).length >= 2;
+  return buckets.some((b) => b.count > 0);
 }

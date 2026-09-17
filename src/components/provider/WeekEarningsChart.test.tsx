@@ -34,32 +34,22 @@ describe("when it declines to render", () => {
     const { container } = render(<WeekEarningsChart bookings={[]} />);
     expect(container).toBeEmptyDOMElement();
   });
+});
 
-  it("renders nothing for a single earning day", () => {
-    const { container } = render(
-      <WeekEarningsChart bookings={[job("2026-09-17T06:00:00Z", 349)]} />,
-    );
-    expect(container).toBeEmptyDOMElement();
+describe("when a week holds only one earning day", () => {
+  it("still renders, rather than leaving the provider wondering", () => {
+    render(<WeekEarningsChart bookings={[job("2026-09-17T06:00:00Z", 349)]} />);
+    expect(screen.getByText(/by day/i)).toBeInTheDocument();
   });
 
-  it("renders nothing when several jobs all fall on one day", () => {
-    // Three jobs, one bar — the shape a chart would draw is still a single
-    // column, so the rows below remain strictly more informative.
-    const { container } = render(
-      <WeekEarningsChart
-        bookings={[
-          job("2026-09-17T06:00:00Z", 100),
-          job("2026-09-17T08:00:00Z", 200),
-          job("2026-09-17T10:00:00Z", 300),
-        ]}
-      />,
-    );
-    expect(container).toBeEmptyDOMElement();
+  it("names that day in the summary", () => {
+    render(<WeekEarningsChart bookings={[job("2026-09-17T06:00:00Z", 349)]} />);
+    expect(screen.getByText(/Thursday: ₹349/)).toBeInTheDocument();
   });
 });
 
 describe("when it renders", () => {
-  it("appears from two earning days", () => {
+  it("appears for several earning days", () => {
     render(<WeekEarningsChart bookings={TWO_DAYS} />);
     expect(screen.getByText(/by day/i)).toBeInTheDocument();
   });

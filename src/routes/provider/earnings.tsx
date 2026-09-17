@@ -171,8 +171,8 @@ function ProviderEarningsPage() {
             answer — tap a bar to name the day — would be pointless clutter on a
             week whose axis already says M T W T F S S.
 
-            Both hide themselves below two earning days, and neither renders on
-            "today", where one day is one bar and the row says more. */}
+            Both hide only on a window with no completed work, and neither
+            renders on "today", where one day is one bar and the row says more. */}
         {!period.isLoading && !period.isError && period.data && range === "week" && (
           <WeekEarningsChart bookings={period.data.bookings} />
         )}
