@@ -34,6 +34,7 @@ import { useState } from "react";
 import { AlertCircle, Receipt } from "lucide-react";
 
 import { AccountAvatar } from "@/components/AccountAvatar";
+import { WeekEarningsChart } from "@/components/provider/WeekEarningsChart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRupees } from "@/lib/currency";
 import { useAuth } from "@/lib/auth-context";
@@ -162,6 +163,13 @@ function ProviderEarningsPage() {
             </p>
           )}
         </div>
+
+        {/* The chart, week only (SVC-260). It hides itself on a quiet week and
+            is absent on today/month — see WeekEarningsChart for both reasons.
+            Placed above the list because it is the summary the list details. */}
+        {!period.isLoading && !period.isError && range === "week" && period.data && (
+          <WeekEarningsChart bookings={period.data.bookings} />
+        )}
 
         {period.isLoading ? (
           <div className="mt-3 space-y-2">

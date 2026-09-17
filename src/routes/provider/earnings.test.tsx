@@ -23,6 +23,11 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 vi.mock("@/components/AccountAvatar", () => ({ AccountAvatar: () => <div /> }));
+// Stubbed: recharts needs a measured container, and what matters at this level
+// is which range the chart appears on, not how it draws.
+vi.mock("@/components/provider/WeekEarningsChart", () => ({
+  WeekEarningsChart: () => <div data-testid="week-chart" />,
+}));
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { name: "Ravi" } }) }));
 
 const useEarningsSummary = vi.fn();
@@ -190,5 +195,45 @@ describe("the window picker", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "This month" }));
     expect(screen.getByText("THIS MONTH")).toBeInTheDocument();
+  });
+});
+
+describe("the week chart", () => {
+  it("appears on the week range", () => {
+    render(<Page />);
+
+    expect(screen.getByTestId("week-chart")).toBeInTheDocument();
+  });
+
+  it("is absent on today — one day is one bar", () => {
+    render(<Page />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Today" }));
+    expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
+  });
+
+  it("is absent on the month range", () => {
+    // 31 bars inside a phone's content width is ~9px each: no day label fits,
+    // so no bar is identifiable. A month needs a different chart, which this
+    // ticket never specified.
+    render(<Page />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "This month" }));
+    expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
+  });
+
+  it("is absent while the window is loading", () => {
+    useEarnings.mockReturnValue({ ...failed, isLoading: true, isError: false });
+    render(<Page />);
+
+    expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
+  });
+
+  it("is absent when the window request failed", () => {
+    // A chart drawn from no data would read as a genuinely empty week.
+    useEarnings.mockReturnValue(failed);
+    render(<Page />);
+
+    expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
   });
 });
