@@ -23,6 +23,14 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 vi.mock("@/components/AccountAvatar", () => ({ AccountAvatar: () => <div /> }));
+// Stubbed: recharts needs a measured container, and what matters at this level
+// is which range the chart appears on, not how it draws.
+vi.mock("@/components/provider/WeekEarningsChart", () => ({
+  WeekEarningsChart: () => <div data-testid="week-chart" />,
+}));
+vi.mock("@/components/provider/MonthEarningsChart", () => ({
+  MonthEarningsChart: () => <div data-testid="month-chart" />,
+}));
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { name: "Ravi" } }) }));
 
 const useEarningsSummary = vi.fn();
@@ -190,5 +198,55 @@ describe("the window picker", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "This month" }));
     expect(screen.getByText("THIS MONTH")).toBeInTheDocument();
+  });
+});
+
+describe("the week chart", () => {
+  it("appears on the week range", () => {
+    render(<Page />);
+
+    expect(screen.getByTestId("week-chart")).toBeInTheDocument();
+  });
+
+  it("is absent on today — one day is one bar", () => {
+    render(<Page />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Today" }));
+    expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
+  });
+
+  it("hands over to the month chart on the month range", () => {
+    // Two components, not one: 31 unlabelled bars need a tap to name a day,
+    // which would be clutter on a week whose axis already reads M T W T F S S.
+    render(<Page />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "This month" }));
+    expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
+    expect(screen.getByTestId("month-chart")).toBeInTheDocument();
+  });
+
+  it("shows no chart at all on today", () => {
+    render(<Page />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Today" }));
+    expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("month-chart")).not.toBeInTheDocument();
+  });
+
+  it("is absent while the window is loading", () => {
+    useEarnings.mockReturnValue({ ...failed, isLoading: true, isError: false });
+    render(<Page />);
+
+    expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("month-chart")).not.toBeInTheDocument();
+  });
+
+  it("is absent when the window request failed", () => {
+    // A chart drawn from no data would read as a genuinely empty window.
+    useEarnings.mockReturnValue(failed);
+    render(<Page />);
+
+    expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("month-chart")).not.toBeInTheDocument();
   });
 });

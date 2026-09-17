@@ -34,6 +34,8 @@ import { useState } from "react";
 import { AlertCircle, Receipt } from "lucide-react";
 
 import { AccountAvatar } from "@/components/AccountAvatar";
+import { WeekEarningsChart } from "@/components/provider/WeekEarningsChart";
+import { MonthEarningsChart } from "@/components/provider/MonthEarningsChart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRupees } from "@/lib/currency";
 import { useAuth } from "@/lib/auth-context";
@@ -162,6 +164,21 @@ function ProviderEarningsPage() {
             </p>
           )}
         </div>
+
+        {/* The per-day chart (SVC-260), above the list because it is the summary
+            the list details. Two components rather than one: seven labelled bars
+            and thirty-one unlabelled ones are different problems, and the month's
+            answer — tap a bar to name the day — would be pointless clutter on a
+            week whose axis already says M T W T F S S.
+
+            Both hide only on a window with no completed work, and neither
+            renders on "today", where one day is one bar and the row says more. */}
+        {!period.isLoading && !period.isError && period.data && range === "week" && (
+          <WeekEarningsChart bookings={period.data.bookings} />
+        )}
+        {!period.isLoading && !period.isError && period.data && range === "month" && (
+          <MonthEarningsChart bookings={period.data.bookings} />
+        )}
 
         {period.isLoading ? (
           <div className="mt-3 space-y-2">
