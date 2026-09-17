@@ -1,5 +1,5 @@
 /**
- * Bucketing completed jobs into the seven days of the earnings week (SVC-260).
+ * Bucketing completed jobs into the days of an earnings window (SVC-260).
  *
  * ## Why this is not a one-liner
  *
@@ -97,13 +97,109 @@ export function bucketWeek(
 /**
  * Whether the chart is worth drawing at all.
  *
- * One bar and six flat lines says "Wednesday" — which the job row underneath
+ * One bar and six flat lines says which day — which the job row underneath
  * already says, with the service name, the time and the amount. Below two
  * earning days the rows carry strictly more, so the chart is suppressed rather
  * than shown empty.
  *
- * This is the rule that keeps the chart from being decoration on a quiet week.
+ * This is the rule that keeps the chart from being decoration on a quiet week,
+ * and it applies to the month just as well.
  */
 export function isWeekChartWorthShowing(buckets: DayBucket[]): boolean {
+  return buckets.filter((b) => b.count > 0).length >= 2;
+}
+
+// ---------------------------------------------------------------------------
+// Month
+// ---------------------------------------------------------------------------
+
+/** One calendar day of the current IST month. */
+export interface MonthDayBucket {
+  /** Day of the month, 1-31. The axis shows only the endpoints; this is for taps. */
+  day: number;
+  /** "24 Sept" — what the tooltip names, since the axis cannot label 31 bars. */
+  fullLabel: string;
+  total: number;
+  count: number;
+  isToday: boolean;
+}
+
+const MONTH_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** Days in the IST month `date` falls in. Handles February and leap years. */
+function istDaysInMonth(date: Date): number {
+  const ist = toIst(date);
+  // Day 0 of the next month is the last day of this one.
+  return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth() + 1, 0)).getUTCDate();
+}
+
+/**
+ * One bucket per day of the current month, 1st through the last — including the
+ * days that have not happened yet.
+ *
+ * Fixed length for the same reason the week is fixed at seven: the axis must not
+ * change width as the month fills, and the empty days are information. That does
+ * mean the first of the month draws a chart that is one bar and thirty gaps —
+ * which `isWeekChartWorthShowing` suppresses, same as a quiet week.
+ *
+ * The month length comes from `now`, not from the data: a month with no jobs
+ * after the 20th still has its full 30 or 31 slots.
+ */
+export function bucketMonth(
+  bookings: { completed_at: string; payout_amount: number }[],
+  now: Date = new Date(),
+): MonthDayBucket[] {
+  const istNow = toIst(now);
+  const todayDay = istNow.getUTCDate();
+  const month = istNow.getUTCMonth();
+  const year = istNow.getUTCFullYear();
+  const length = istDaysInMonth(now);
+
+  const buckets: MonthDayBucket[] = Array.from({ length }, (_, i) => ({
+    day: i + 1,
+    fullLabel: `${i + 1} ${MONTH_SHORT[month]}`,
+    total: 0,
+    count: 0,
+    isToday: i + 1 === todayDay,
+  }));
+
+  for (const booking of bookings) {
+    const completed = new Date(booking.completed_at);
+    if (Number.isNaN(completed.getTime())) continue;
+
+    const ist = toIst(completed);
+    // A booking from another month cannot be placed on this axis. The server
+    // only sends the current window, so this is a guard rather than a case —
+    // but silently folding a stray August job onto a September bar would be a
+    // wrong number on screen, which is the one outcome worth coding against.
+    if (ist.getUTCMonth() !== month || ist.getUTCFullYear() !== year) continue;
+
+    const index = ist.getUTCDate() - 1;
+    buckets[index].total += booking.payout_amount;
+    buckets[index].count += 1;
+  }
+
+  for (const bucket of buckets) {
+    bucket.total = Math.round(bucket.total * 100) / 100;
+  }
+
+  return buckets;
+}
+
+/** Whether the month chart is worth drawing. Same two-day rule as the week. */
+export function isMonthChartWorthShowing(buckets: MonthDayBucket[]): boolean {
   return buckets.filter((b) => b.count > 0).length >= 2;
 }

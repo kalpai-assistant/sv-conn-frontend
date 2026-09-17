@@ -32,7 +32,7 @@ import { Bar, BarChart, Cell, XAxis } from "recharts";
 
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { formatRupees } from "@/lib/currency";
-import { bucketWeek, isWeekChartWorthShowing, type DayBucket } from "@/lib/earnings-week";
+import { bucketWeek, isWeekChartWorthShowing, type DayBucket } from "@/lib/earnings-buckets";
 import type { API_EarningsBookingItem } from "@/hooks/useApi";
 
 const chartConfig = {

@@ -1,5 +1,5 @@
 /**
- * Bucketing the earnings week (SVC-260).
+ * Bucketing the earnings window into days (SVC-260).
  *
  * The bug worth a test file: the server defines the week as **Monday 00:00
  * IST** and returns `completed_at` in UTC. Bucketing by the browser's local day
@@ -13,7 +13,12 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { bucketWeek, isWeekChartWorthShowing } from "@/lib/earnings-week";
+import {
+  bucketMonth,
+  bucketWeek,
+  isMonthChartWorthShowing,
+  isWeekChartWorthShowing,
+} from "@/lib/earnings-buckets";
 
 const job = (completed_at: string, payout_amount = 100) => ({ completed_at, payout_amount });
 
@@ -169,5 +174,122 @@ describe("whether to draw it at all", () => {
     );
 
     expect(isWeekChartWorthShowing(buckets)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Month
+// ---------------------------------------------------------------------------
+
+describe("the month buckets", () => {
+  it("spans the whole month, 1st through last, however far in we are", () => {
+    // Length comes from the calendar, not the data: a month with no jobs after
+    // the 17th still has all 30 slots, and the axis must not grow as it fills.
+    const buckets = bucketMonth([job("2026-09-17T06:00:00Z", 349)], THU);
+
+    expect(buckets).toHaveLength(30); // September
+    expect(buckets[0].day).toBe(1);
+    expect(buckets[29].day).toBe(30);
+  });
+
+  it("gets February right in a non-leap year", () => {
+    const buckets = bucketMonth([], new Date("2026-02-10T06:00:00Z"));
+    expect(buckets).toHaveLength(28);
+  });
+
+  it("gets February right in a leap year", () => {
+    const buckets = bucketMonth([], new Date("2028-02-10T06:00:00Z"));
+    expect(buckets).toHaveLength(29);
+  });
+
+  it("gets a 31-day month right", () => {
+    const buckets = bucketMonth([], new Date("2026-10-10T06:00:00Z"));
+    expect(buckets).toHaveLength(31);
+  });
+
+  it("labels each bar with its date, for the tap readout", () => {
+    const buckets = bucketMonth([], THU);
+
+    expect(buckets[0].fullLabel).toBe("1 Sep");
+    expect(buckets[16].fullLabel).toBe("17 Sep");
+  });
+});
+
+describe("month bucketing is IST too", () => {
+  it("puts a job just after IST midnight on that IST day", () => {
+    // 2026-09-16T19:10Z is 17 Sept 00:40 IST.
+    const buckets = bucketMonth([job("2026-09-16T19:10:00Z", 349)], THU);
+
+    expect(buckets[16].total).toBe(349); // 17th
+    expect(buckets[15].total).toBe(0); // 16th
+  });
+
+  it("puts a job just before IST midnight on the earlier day", () => {
+    const buckets = bucketMonth([job("2026-09-16T18:20:00Z", 200)], THU);
+
+    expect(buckets[15].total).toBe(200); // 16th
+    expect(buckets[16].total).toBe(0);
+  });
+
+  it("marks today by IST, not by the UTC date", () => {
+    // 2026-09-16T20:00Z is 17 Sept 01:30 IST — the UTC date still reads the 16th.
+    const buckets = bucketMonth([], new Date("2026-09-16T20:00:00Z"));
+
+    expect(buckets.filter((b) => b.isToday)).toHaveLength(1);
+    expect(buckets[16].isToday).toBe(true);
+  });
+});
+
+describe("month totals", () => {
+  it("sums several jobs on one day", () => {
+    const buckets = bucketMonth(
+      [job("2026-09-17T06:00:00Z", 499), job("2026-09-17T11:00:00Z", 389)],
+      THU,
+    );
+
+    expect(buckets[16].total).toBe(888);
+    expect(buckets[16].count).toBe(2);
+  });
+
+  it("drops a booking from another month rather than folding it onto a bar", () => {
+    // The server only sends the current window, so this is a guard — but
+    // silently banking an August job onto a September day would be a wrong
+    // number on screen, which is the outcome worth coding against.
+    const buckets = bucketMonth(
+      [job("2026-08-17T06:00:00Z", 999), job("2026-09-17T06:00:00Z", 349)],
+      THU,
+    );
+
+    expect(buckets[16].total).toBe(349);
+    expect(buckets.reduce((a, b) => a + b.total, 0)).toBe(349);
+  });
+
+  it("ignores a malformed timestamp", () => {
+    const buckets = bucketMonth([job("not a date", 999), job("2026-09-17T06:00:00Z", 349)], THU);
+
+    expect(buckets[0].total).toBe(0);
+    expect(buckets[16].total).toBe(349);
+  });
+});
+
+describe("whether to draw the month chart", () => {
+  it("suppresses it on a single earning day", () => {
+    // The 1st of the month is one bar and thirty gaps.
+    const buckets = bucketMonth([job("2026-09-17T06:00:00Z", 349)], THU);
+
+    expect(isMonthChartWorthShowing(buckets)).toBe(false);
+  });
+
+  it("suppresses it on an empty month", () => {
+    expect(isMonthChartWorthShowing(bucketMonth([], THU))).toBe(false);
+  });
+
+  it("shows it from two earning days", () => {
+    const buckets = bucketMonth(
+      [job("2026-09-14T06:00:00Z", 349), job("2026-09-17T06:00:00Z", 559)],
+      THU,
+    );
+
+    expect(isMonthChartWorthShowing(buckets)).toBe(true);
   });
 });

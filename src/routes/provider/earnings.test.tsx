@@ -28,6 +28,9 @@ vi.mock("@/components/AccountAvatar", () => ({ AccountAvatar: () => <div /> }));
 vi.mock("@/components/provider/WeekEarningsChart", () => ({
   WeekEarningsChart: () => <div data-testid="week-chart" />,
 }));
+vi.mock("@/components/provider/MonthEarningsChart", () => ({
+  MonthEarningsChart: () => <div data-testid="month-chart" />,
+}));
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { name: "Ravi" } }) }));
 
 const useEarningsSummary = vi.fn();
@@ -212,14 +215,22 @@ describe("the week chart", () => {
     expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
   });
 
-  it("is absent on the month range", () => {
-    // 31 bars inside a phone's content width is ~9px each: no day label fits,
-    // so no bar is identifiable. A month needs a different chart, which this
-    // ticket never specified.
+  it("hands over to the month chart on the month range", () => {
+    // Two components, not one: 31 unlabelled bars need a tap to name a day,
+    // which would be clutter on a week whose axis already reads M T W T F S S.
     render(<Page />);
 
     fireEvent.click(screen.getByRole("tab", { name: "This month" }));
     expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
+    expect(screen.getByTestId("month-chart")).toBeInTheDocument();
+  });
+
+  it("shows no chart at all on today", () => {
+    render(<Page />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Today" }));
+    expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("month-chart")).not.toBeInTheDocument();
   });
 
   it("is absent while the window is loading", () => {
@@ -227,13 +238,15 @@ describe("the week chart", () => {
     render(<Page />);
 
     expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("month-chart")).not.toBeInTheDocument();
   });
 
   it("is absent when the window request failed", () => {
-    // A chart drawn from no data would read as a genuinely empty week.
+    // A chart drawn from no data would read as a genuinely empty window.
     useEarnings.mockReturnValue(failed);
     render(<Page />);
 
     expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("month-chart")).not.toBeInTheDocument();
   });
 });
