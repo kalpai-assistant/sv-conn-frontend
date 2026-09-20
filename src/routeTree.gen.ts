@@ -30,6 +30,7 @@ import { Route as ProviderEarningsRouteImport } from './routes/provider/earnings
 import { Route as ProviderLocationRouteImport } from './routes/provider/location'
 import { Route as ProviderOnboardingRouteImport } from './routes/provider/onboarding'
 import { Route as ProviderPayoutRouteImport } from './routes/provider/payout'
+import { Route as ProviderPayoutsRouteImport } from './routes/provider/payouts'
 import { Route as ProviderProfileRouteImport } from './routes/provider/profile'
 import { Route as ServiceServiceIdRouteImport } from './routes/service.$serviceId'
 import { Route as TrackingBookingIdRouteImport } from './routes/tracking.$bookingId'
@@ -141,6 +142,11 @@ const ProviderPayoutRoute = ProviderPayoutRouteImport.update({
   path: '/provider/payout',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProviderPayoutsRoute = ProviderPayoutsRouteImport.update({
+  id: '/provider/payouts',
+  path: '/provider/payouts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProviderProfileRoute = ProviderProfileRouteImport.update({
   id: '/provider/profile',
   path: '/provider/profile',
@@ -189,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
   '/provider/payout': typeof ProviderPayoutRoute
+  '/provider/payouts': typeof ProviderPayoutsRoute
   '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
@@ -217,6 +224,7 @@ export interface FileRoutesByTo {
   '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
   '/provider/payout': typeof ProviderPayoutRoute
+  '/provider/payouts': typeof ProviderPayoutsRoute
   '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
@@ -246,6 +254,7 @@ export interface FileRoutesById {
   '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
   '/provider/payout': typeof ProviderPayoutRoute
+  '/provider/payouts': typeof ProviderPayoutsRoute
   '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
@@ -276,6 +285,7 @@ export interface FileRouteTypes {
     | '/provider/location'
     | '/provider/onboarding'
     | '/provider/payout'
+    | '/provider/payouts'
     | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
@@ -304,6 +314,7 @@ export interface FileRouteTypes {
     | '/provider/location'
     | '/provider/onboarding'
     | '/provider/payout'
+    | '/provider/payouts'
     | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
@@ -332,6 +343,7 @@ export interface FileRouteTypes {
     | '/provider/location'
     | '/provider/onboarding'
     | '/provider/payout'
+    | '/provider/payouts'
     | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
@@ -361,6 +373,7 @@ export interface RootRouteChildren {
   ProviderLocationRoute: typeof ProviderLocationRoute
   ProviderOnboardingRoute: typeof ProviderOnboardingRoute
   ProviderPayoutRoute: typeof ProviderPayoutRoute
+  ProviderPayoutsRoute: typeof ProviderPayoutsRoute
   ProviderProfileRoute: typeof ProviderProfileRoute
   ServiceServiceIdRoute: typeof ServiceServiceIdRoute
   TrackingBookingIdRoute: typeof TrackingBookingIdRoute
@@ -518,6 +531,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProviderPayoutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/provider/payouts': {
+      id: '/provider/payouts'
+      path: '/provider/payouts'
+      fullPath: '/provider/payouts'
+      preLoaderRoute: typeof ProviderPayoutsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/provider/profile': {
       id: '/provider/profile'
       path: '/provider/profile'
@@ -577,6 +597,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProviderLocationRoute: ProviderLocationRoute,
   ProviderOnboardingRoute: ProviderOnboardingRoute,
   ProviderPayoutRoute: ProviderPayoutRoute,
+  ProviderPayoutsRoute: ProviderPayoutsRoute,
   ProviderProfileRoute: ProviderProfileRoute,
   ServiceServiceIdRoute: ServiceServiceIdRoute,
   TrackingBookingIdRoute: TrackingBookingIdRoute,

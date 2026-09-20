@@ -1388,3 +1388,59 @@ export const useEarnings = (range: EarningsRange) => {
     placeholderData: (previous) => previous,
   });
 };
+
+// ---------------------------------------------------------------------------
+// Provider payouts (SVC-303)
+// ---------------------------------------------------------------------------
+
+export type API_ProviderPayoutSummary = Schema<"ProviderPayoutSummaryResponse">;
+export type API_ProviderPayoutEntry = Schema<"ProviderPayoutEntry">;
+export type API_ProviderPayoutList = Schema<"ProviderPayoutListResponse">;
+export type SettlementStatus = Schema<"SettlementStatus">;
+export type ApiPaymentMethod = Schema<"PaymentMethod">;
+
+/**
+ * What the next transfer will actually be: GET /providers/me/payouts/summary.
+ *
+ * Deliberately **not** the same question as `useEarningsSummary`. That one
+ * answers "what have I earned" — completed and not refunded, cash included.
+ * This answers "what is coming to me", and the two differ by real money:
+ *
+ * - **cash commission** is netted off. On a cash job the provider collected the
+ *   whole amount at the door, so the platform's 20% comes out of their next
+ *   online transfer.
+ * - **a T+1 settlement gate** holds a completed job out of the payable balance
+ *   until Razorpay has actually deposited that money with the platform.
+ *
+ * Hence three figures rather than one. `pending_amount` is what the bank will
+ * send, `gross_amount` what the queued jobs are worth, and the UI names the
+ * difference rather than letting a provider discover it at the bank — which is
+ * the bug SVC-303 exists to close.
+ *
+ * Provider Home and the Earnings tab both read this, on one query key, so the
+ * two screens cannot disagree. Same construction as SVC-275 AC3.
+ */
+export const useProviderPayoutSummary = () => {
+  return useQuery({
+    queryKey: ["payouts", "summary"],
+    queryFn: () => apiFetch<API_ProviderPayoutSummary>("/providers/me/payouts/summary"),
+  });
+};
+
+/**
+ * The provider's own payout statement: GET /providers/me/payouts.
+ *
+ * Reads settlement statements, not payout attempts. The backend filters to
+ * cycles that actually moved money, so a row here means "this landed in your
+ * account" rather than "we asked the bank" — see `list_my_payouts`.
+ *
+ * `enabled` so the Payouts screen pays for it and the Earnings tab does not:
+ * the tab shows only the last-paid figure, which the summary already carries.
+ */
+export const useProviderPayouts = (enabled = true) => {
+  return useQuery({
+    queryKey: ["payouts", "list"],
+    queryFn: () => apiFetch<API_ProviderPayoutList>("/providers/me/payouts"),
+    enabled,
+  });
+};

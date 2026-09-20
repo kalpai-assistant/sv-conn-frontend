@@ -3,22 +3,30 @@
  *
  * ## One figure, not two
  *
- * Home carries **total earned** and nothing else. The temptation is to show
+ * Home carries **what is coming to them** and nothing else. The temptation is to show
  * lifetime alongside a window — "₹48,250 all time · ₹3,480 this week" — and it
  * is the wrong call twice over: two numbers on a row this small is a comparison
  * nobody asked for, and the second one is the weaker of the pair on a screen
  * whose job is the work in hand, not the accounting. A provider who wants the
  * breakdown taps through to the tab that exists for it.
  *
- * When the payout view lands, "Coming to you" replaces this figure — that is the
- * number a provider actually chases, and it is the same one-figure row. Until
- * then it would be a promise the backend cannot keep: payouts are admin-
- * triggered, there is no schedule to name.
+ * ## Why the net figure, not the booking sum
+ *
+ * `pending_amount` is what the transfer will really send. It is smaller than
+ * what the queued jobs are worth, for two reasons: cash commission is netted
+ * off (the provider kept the whole amount at the door on those jobs), and a
+ * T+1 gate holds a job out until Razorpay has settled it with the platform.
+ *
+ * Showing the gross here and sending the net would be precisely the bug SVC-303
+ * exists to close — so Home and the bank agree, and the tab explains the gap.
+ *
+ * No payout *date* appears: payouts are admin-triggered with no schedule, so
+ * any date would be invented.
  *
  * ## Same query as the Earnings tab
  *
- * `useEarningsSummary` is keyed `["earnings", "summary"]` on both screens, so
- * react-query serves one request to both and they cannot drift apart. SVC-275
+ * `useProviderPayoutSummary` is keyed `["payouts", "summary"]` on both screens,
+ * so react-query serves one request to both and they cannot drift apart. SVC-275
  * AC3 ("the two figures agree") is then true by construction rather than by two
  * call sites remembering to stay in step.
  *
@@ -26,18 +34,18 @@
  *
  * Loading is a skeleton in the figure's place, so the row does not jump. Error
  * shows no number and keeps the row tappable — the tab is still reachable and
- * may well load fine. Zero shows ₹0, which is honest for a provider who has not
- * finished a job yet; that is exactly why error must not fall through to it.
+ * may well load fine. Zero shows ₹0, which is honest for a provider with nothing
+ * queued; that is exactly why error must not fall through to it.
  */
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, Wallet } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRupees } from "@/lib/currency";
-import { useEarningsSummary } from "@/hooks/useApi";
+import { useProviderPayoutSummary } from "@/hooks/useApi";
 
 export function EarningsRow() {
-  const { data, isLoading, isError } = useEarningsSummary();
+  const { data, isLoading, isError } = useProviderPayoutSummary();
 
   return (
     <Link
@@ -50,7 +58,7 @@ export function EarningsRow() {
 
       <span className="min-w-0 flex-1">
         <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Total earned
+          Coming to you
         </span>
         {isLoading ? (
           <Skeleton className="mt-1 h-6 w-24" />
@@ -62,7 +70,7 @@ export function EarningsRow() {
           </span>
         ) : (
           <span className="mt-0.5 block text-xl font-bold tabular-nums text-foreground">
-            {formatRupees(data?.lifetime_payout ?? 0)}
+            {formatRupees(data?.pending_amount ?? 0)}
           </span>
         )}
       </span>
