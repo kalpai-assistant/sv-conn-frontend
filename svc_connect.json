@@ -902,6 +902,95 @@
         ]
       }
     },
+    "/api/v1/providers/me/payouts/summary": {
+      "get": {
+        "tags": [
+          "Providers"
+        ],
+        "summary": "Get My Payout Summary",
+        "description": "What the provider's next transfer will actually be (SVC-303).\n\nDistinct from `/me/earnings/summary`, which answers \"what have I earned\".\nThis answers \"what is coming to me\", and the two differ by real money:\n\n* **cash commission** \u2014 on a cash job the provider collected the full amount\n  at the door, so the platform's 20% is netted off their next online\n  transfer;\n* **the T+1 settlement gate** \u2014 a completed job is only payable once\n  Razorpay has deposited that money with us, since paying from platform\n  float is not permitted.\n\nSo `pending_amount` is the wallet-derived figure the payout will really\nsend, `gross_amount` is what the queued jobs are worth before netting, and\nthe frontend shows the difference rather than letting the provider discover\nit at the bank.\n\nNames no future payout date: payouts are admin-triggered and there is no\nschedule, so any date here would be invented.",
+        "operationId": "get_my_payout_summary_api_v1_providers_me_payouts_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderPayoutSummaryResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/providers/me/payouts": {
+      "get": {
+        "tags": [
+          "Providers"
+        ],
+        "summary": "List My Payouts",
+        "description": "The provider's own payout statement, newest first (SVC-303).\n\nReads `settlement_statements` \u2014 the artifact built to be the snapshot a\nprovider actually sees \u2014 rather than `payout_audits`, which records\n*attempts* (RazorpayX's status frozen at creation, never updated when the\nmoney lands) plus internal retries and nightly reconciliation repairs. A\nprovider reading those raw would see several rows for one payment.\n\nCarries no admin id, gateway id or error text: a provider learns what\nhappened to their money, not who moved it or through which processor.",
+        "operationId": "list_my_payouts_api_v1_providers_me_payouts_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Per Page"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderPayoutListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/providers/me/earnings/summary": {
       "get": {
         "tags": [
@@ -4334,6 +4423,37 @@
             "type": "number",
             "title": "Tip Amount",
             "default": 0.0
+          },
+          "settlement_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SettlementStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment_method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "settlement_failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settlement Failure Reason"
           }
         },
         "type": "object",
@@ -4769,6 +4889,14 @@
         "title": "NearbyProviderResponse",
         "description": "Slim response for the 'nearby providers' discovery endpoint."
       },
+      "PaymentMethod": {
+        "type": "string",
+        "enum": [
+          "cash",
+          "online"
+        ],
+        "title": "PaymentMethod"
+      },
       "PaymentOrderResponse": {
         "properties": {
           "razorpay_order_id": {
@@ -4952,6 +5080,37 @@
         "title": "PlatformVersion",
         "description": "Version metadata for one platform (android / pwa).\n\n``version`` and ``min_supported_version`` are SemVer strings. Clients\ncompare using SemVer semantics \u2014 a lex compare would treat 1.10 < 1.2."
       },
+      "ProviderPayoutEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "paid_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Paid At"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount"
+          },
+          "cash_commission_deducted": {
+            "type": "number",
+            "title": "Cash Commission Deducted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "paid_at",
+          "amount",
+          "cash_commission_deducted"
+        ],
+        "title": "ProviderPayoutEntry",
+        "description": "One settlement cycle, as the provider sees it.\n\nDeliberately carries no ``payout_audit_id``, RazorpayX id, admin or error.\nA provider learns what happened to their money, never who moved it or\nthrough which processor."
+      },
       "ProviderPayoutHistoryEntry": {
         "properties": {
           "audit_id": {
@@ -5085,6 +5244,94 @@
         ],
         "title": "ProviderPayoutHistoryResponse",
         "description": "Paginated payout history for one provider, newest-first."
+      },
+      "ProviderPayoutListResponse": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderPayoutEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "per_page": {
+            "type": "integer",
+            "title": "Per Page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entries",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "title": "ProviderPayoutListResponse"
+      },
+      "ProviderPayoutSummaryResponse": {
+        "properties": {
+          "pending_amount": {
+            "type": "number",
+            "title": "Pending Amount"
+          },
+          "gross_amount": {
+            "type": "number",
+            "title": "Gross Amount"
+          },
+          "balance_owed": {
+            "type": "number",
+            "title": "Balance Owed"
+          },
+          "pending_booking_count": {
+            "type": "integer",
+            "title": "Pending Booking Count"
+          },
+          "last_paid_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Paid At"
+          },
+          "last_paid_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Paid Amount"
+          },
+          "payout_set": {
+            "type": "boolean",
+            "title": "Payout Set"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pending_amount",
+          "gross_amount",
+          "balance_owed",
+          "pending_booking_count",
+          "payout_set"
+        ],
+        "title": "ProviderPayoutSummaryResponse",
+        "description": "What the next transfer will actually send, and what the last one did.\n\nThree money figures rather than one, because they genuinely differ and the\ndifference is the thing this ticket exists to explain:\n\n* ``pending_amount`` is ``min(wallet_balance, booking_sum)`` \u2014 what the\n  payout will really send.\n* ``gross_amount`` is what those jobs are worth before netting.\n* ``balance_owed`` is set only when the provider owes the platform more than\n  it owes them, which happens after a run of cash work.\n\nA provider told \"\u20b93,480 coming\" who receives \u20b92,900 has been misled by their\nown app, so the headline figure is the net one and the gap is named."
       },
       "ProviderProfileUpdate": {
         "properties": {
@@ -6007,6 +6254,18 @@
         ],
         "title": "ServiceVariantResponse",
         "description": "One priced option under a service.\n\n``base_price`` is what the customer sees before GST; ``gst_percent`` is 0\nfor the launch summary rows and 18 for the vertical sheets. Frontend\ncomputes the customer total as ``base_price * (1 + gst_percent/100)``\nwhen rendering the checkout.\n\n``provider_payout`` + ``platform_commission`` are stored, not derived,\nbecause the split ratio isn't a global constant \u2014 the launch summary\nrows are 70/30 and the vertical sheets are 65/35. The booking service\nsnapshots these fields into ``booking_items`` at booking time."
+      },
+      "SettlementStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "processing",
+          "completed",
+          "failed",
+          "reversed"
+        ],
+        "title": "SettlementStatus",
+        "description": "Provider-payout lifecycle. Driven by ``PayoutService`` \u2014 every read/write of\n``bookings.settlement_status`` goes through it."
       },
       "SmsLinkRequest": {
         "properties": {

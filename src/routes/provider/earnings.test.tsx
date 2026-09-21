@@ -31,6 +31,11 @@ vi.mock("@/components/provider/WeekEarningsChart", () => ({
 vi.mock("@/components/provider/MonthEarningsChart", () => ({
   MonthEarningsChart: () => <div data-testid="month-chart" />,
 }));
+// Stubbed: the payout block has its own test file, and leaving it live would
+// make every assertion here depend on a second query's state.
+vi.mock("@/components/provider/PayoutSummary", () => ({
+  PayoutSummary: () => <div data-testid="payout-summary" />,
+}));
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { name: "Ravi" } }) }));
 
 const useEarningsSummary = vi.fn();

@@ -362,6 +362,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/providers/me/payouts/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Payout Summary
+         * @description What the provider's next transfer will actually be (SVC-303).
+         *
+         *     Distinct from `/me/earnings/summary`, which answers "what have I earned".
+         *     This answers "what is coming to me", and the two differ by real money:
+         *
+         *     * **cash commission** — on a cash job the provider collected the full amount
+         *       at the door, so the platform's 20% is netted off their next online
+         *       transfer;
+         *     * **the T+1 settlement gate** — a completed job is only payable once
+         *       Razorpay has deposited that money with us, since paying from platform
+         *       float is not permitted.
+         *
+         *     So `pending_amount` is the wallet-derived figure the payout will really
+         *     send, `gross_amount` is what the queued jobs are worth before netting, and
+         *     the frontend shows the difference rather than letting the provider discover
+         *     it at the bank.
+         *
+         *     Names no future payout date: payouts are admin-triggered and there is no
+         *     schedule, so any date here would be invented.
+         */
+        get: operations["get_my_payout_summary_api_v1_providers_me_payouts_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers/me/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Payouts
+         * @description The provider's own payout statement, newest first (SVC-303).
+         *
+         *     Reads `settlement_statements` — the artifact built to be the snapshot a
+         *     provider actually sees — rather than `payout_audits`, which records
+         *     *attempts* (RazorpayX's status frozen at creation, never updated when the
+         *     money lands) plus internal retries and nightly reconciliation repairs. A
+         *     provider reading those raw would see several rows for one payment.
+         *
+         *     Carries no admin id, gateway id or error text: a provider learns what
+         *     happened to their money, not who moved it or through which processor.
+         */
+        get: operations["list_my_payouts_api_v1_providers_me_payouts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/providers/me/earnings/summary": {
         parameters: {
             query?: never;
@@ -1894,6 +1961,10 @@ export interface components {
              * @default 0
              */
             tip_amount: number;
+            settlement_status?: components["schemas"]["SettlementStatus"] | null;
+            payment_method?: components["schemas"]["PaymentMethod"] | null;
+            /** Settlement Failure Reason */
+            settlement_failure_reason?: string | null;
         };
         /** EarningsResponse */
         EarningsResponse: {
@@ -2064,6 +2135,11 @@ export interface components {
             /** Distance Km */
             distance_km?: number | null;
         };
+        /**
+         * PaymentMethod
+         * @enum {string}
+         */
+        PaymentMethod: "cash" | "online";
         /** PaymentOrderResponse */
         PaymentOrderResponse: {
             /** Razorpay Order Id */
@@ -2160,6 +2236,30 @@ export interface components {
             released_at: string;
         };
         /**
+         * ProviderPayoutEntry
+         * @description One settlement cycle, as the provider sees it.
+         *
+         *     Deliberately carries no ``payout_audit_id``, RazorpayX id, admin or error.
+         *     A provider learns what happened to their money, never who moved it or
+         *     through which processor.
+         */
+        ProviderPayoutEntry: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Paid At
+             * Format: date-time
+             */
+            paid_at: string;
+            /** Amount */
+            amount: number;
+            /** Cash Commission Deducted */
+            cash_commission_deducted: number;
+        };
+        /**
          * ProviderPayoutHistoryEntry
          * @description One row from the payout audit trail for a single provider (SVC-300).
          *
@@ -2210,6 +2310,49 @@ export interface components {
             page: number;
             /** Per Page */
             per_page: number;
+        };
+        /** ProviderPayoutListResponse */
+        ProviderPayoutListResponse: {
+            /** Entries */
+            entries: components["schemas"]["ProviderPayoutEntry"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+        };
+        /**
+         * ProviderPayoutSummaryResponse
+         * @description What the next transfer will actually send, and what the last one did.
+         *
+         *     Three money figures rather than one, because they genuinely differ and the
+         *     difference is the thing this ticket exists to explain:
+         *
+         *     * ``pending_amount`` is ``min(wallet_balance, booking_sum)`` — what the
+         *       payout will really send.
+         *     * ``gross_amount`` is what those jobs are worth before netting.
+         *     * ``balance_owed`` is set only when the provider owes the platform more than
+         *       it owes them, which happens after a run of cash work.
+         *
+         *     A provider told "₹3,480 coming" who receives ₹2,900 has been misled by their
+         *     own app, so the headline figure is the net one and the gap is named.
+         */
+        ProviderPayoutSummaryResponse: {
+            /** Pending Amount */
+            pending_amount: number;
+            /** Gross Amount */
+            gross_amount: number;
+            /** Balance Owed */
+            balance_owed: number;
+            /** Pending Booking Count */
+            pending_booking_count: number;
+            /** Last Paid At */
+            last_paid_at?: string | null;
+            /** Last Paid Amount */
+            last_paid_amount?: number | null;
+            /** Payout Set */
+            payout_set: boolean;
         };
         /**
          * ProviderProfileUpdate
@@ -2649,6 +2792,13 @@ export interface components {
             /** Is Active */
             is_active: boolean;
         };
+        /**
+         * SettlementStatus
+         * @description Provider-payout lifecycle. Driven by ``PayoutService`` — every read/write of
+         *     ``bookings.settlement_status`` goes through it.
+         * @enum {string}
+         */
+        SettlementStatus: "pending" | "processing" | "completed" | "failed" | "reversed";
         /** SmsLinkRequest */
         SmsLinkRequest: {
             /**
@@ -3466,6 +3616,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BookingOfferResponse"][];
+                };
+            };
+        };
+    };
+    get_my_payout_summary_api_v1_providers_me_payouts_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderPayoutSummaryResponse"];
+                };
+            };
+        };
+    };
+    list_my_payouts_api_v1_providers_me_payouts_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderPayoutListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

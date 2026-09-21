@@ -35,9 +35,11 @@ import { AlertCircle, Receipt } from "lucide-react";
 
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { WeekEarningsChart } from "@/components/provider/WeekEarningsChart";
+import { PayoutSummary } from "@/components/provider/PayoutSummary";
 import { MonthEarningsChart } from "@/components/provider/MonthEarningsChart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRupees } from "@/lib/currency";
+import { payoutState } from "@/lib/payout-status";
 import { useAuth } from "@/lib/auth-context";
 import {
   useEarnings,
@@ -112,6 +114,12 @@ function ProviderEarningsPage() {
           </>
         )}
       </section>
+
+      {/* What is actually coming, and why it differs from what was earned
+          (SVC-303). Below the hero because the lifetime total is the reason
+          this tab exists; above the window picker because "when do I get paid"
+          outranks "how was last week". */}
+      <PayoutSummary />
 
       {/* ---- Window picker ------------------------------------------------ */}
       <div
@@ -222,6 +230,7 @@ function ProviderEarningsPage() {
  */
 function EarningRow({ job, divided }: { job: API_EarningsBookingItem; divided: boolean }) {
   const tip = job.tip_amount ?? 0;
+  const state = payoutState(job.payment_method, job.settlement_status);
 
   return (
     <div className={`flex items-start gap-3 p-3.5 ${divided ? "border-t border-border" : ""}`}>
@@ -230,6 +239,16 @@ function EarningRow({ job, divided }: { job: API_EarningsBookingItem; divided: b
         <p className="mt-0.5 text-xs text-muted-foreground">
           {formatCompletedAt(job.completed_at)}
         </p>
+        {/* Where this job's money is (SVC-303). Absent on bookings from before
+            these columns existed — an unlabelled row beats a guessed label on a
+            screen about money. */}
+        {state && (
+          <span
+            className={`mt-1.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${state.className}`}
+          >
+            {state.label}
+          </span>
+        )}
       </div>
       <div className="shrink-0 text-right">
         <p className="text-sm font-semibold tabular-nums text-foreground">
