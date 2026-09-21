@@ -750,7 +750,40 @@ export interface API_KYCQueueRow {
 // and the rejected list are two flavours of the same shape.
 export type API_PendingKYCUser = API_KYCQueueRow;
 
-export type KYCQueueStatus = "submitted" | "rejected";
+// SVC-308: `auto_approved` is the third queue view — providers the AI verifier
+// waved through in the last 7 days, surfaced for reviewer spot-checks. The
+// backend filter on `/admin/providers/kyc/pending?status=auto_approved` is
+// added by the SVC-307 agent; the frontend treats it as one more status.
+export type KYCQueueStatus = "submitted" | "rejected" | "auto_approved";
+
+// SVC-308: AI-verdict payload embedded in `GET /admin/providers/{id}/kyc`.
+// The shape mirrors the `KYCVerdict` Pydantic model produced by SVC-307 so
+// fixtures written against the ticket description double as an integration
+// test against the real endpoint once that PR lands.
+export type KYCVerdictOutcome = "auto_approve" | "needs_review" | "reject";
+
+export interface API_KYCVerdictExtracted {
+  aadhaar_last4: string | null;
+  name_en: string | null;
+  name_local: string | null;
+  dob: string | null;
+  gender: string | null;
+  address: string | null;
+}
+
+export interface API_KYCVerdict {
+  outcome: KYCVerdictOutcome;
+  // 0..1 from Gemini; the UI renders confidence * 100 as a horizontal bar.
+  confidence: number;
+  extracted: API_KYCVerdictExtracted;
+  // Machine codes (`name_mismatch`, `blurred_selfie`, …). Rendered through
+  // KYC_FLAG_LABELS in the route so an unknown code degrades to its raw form
+  // rather than blocking the render.
+  flags: string[];
+  // Kept in the payload for audit / re-verification tooling; the review UI
+  // deliberately doesn't render it.
+  raw_response: Record<string, unknown>;
+}
 
 export interface API_KYCDocsResponse {
   user_id: string;
@@ -763,6 +796,15 @@ export interface API_KYCDocsResponse {
   // Presigned, 1-hour TTL. Null if no docs were uploaded for that slot.
   aadhaar_url: string | null;
   selfie_url: string | null;
+  // SVC-308: null for KYCs submitted before SVC-307 shipped — the UI shows
+  // an "AI: unavailable" state rather than an empty section.
+  ai_verdict: API_KYCVerdict | null;
+  // SVC-308: provider's stated DOB (from provider_profiles), side-by-side
+  // against `ai_verdict.extracted.dob` in the comparison table. The stated
+  // *name* is already the top-level `name` field (users.name) so it doesn't
+  // repeat here. Nullable because a provider can submit KYC before filling
+  // DOB on their profile — the row degrades to "—" rather than mismatching.
+  provider_stated_dob: string | null;
 }
 
 export const useKYCQueue = (status: KYCQueueStatus = "submitted") => {
