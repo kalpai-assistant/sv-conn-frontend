@@ -6,10 +6,16 @@
  * placeholder, true wherever the provider is standing, confirming nothing.
  * Found on device.
  *
- * The failure mode to guard is not "no name" — the caller handles that by
- * withholding the row. It is a name that *looks* like an answer while being
+ * The failure mode to guard is not "no name" — the caller handles that with an
+ * honest fallback label. It is a name that *looks* like an answer while being
  * unfalsifiable. Since SVC-284 the reverse-geocode goes through Google, so the
  * mock is on `@/lib/google-maps` rather than `fetch`.
+ *
+ * SVC-309 widened the return from `string | null` to a status. The distinction
+ * that earns its keep: **failed** and **unnamed** must not look alike to the
+ * caller. A geocoder outage says nothing about whether the provider's saved
+ * service area is usable, and collapsing the two is what made a missing API key
+ * remove their one-tap row entirely.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
@@ -52,7 +58,7 @@ describe("with coordinates", () => {
 
     const { result } = renderHook(() => useLocalityAt(18.5541343, 73.9351687));
 
-    await waitFor(() => expect(result.current).toBe("Kharadi"));
+    await waitFor(() => expect(result.current).toEqual({ status: "named", name: "Kharadi" }));
   });
 
   it("falls through to the locality when no sublocality is present", async () => {
@@ -63,7 +69,7 @@ describe("with coordinates", () => {
 
     const { result } = renderHook(() => useLocalityAt(12.9716, 77.5946));
 
-    await waitFor(() => expect(result.current).toBe("Bangalore"));
+    await waitFor(() => expect(result.current).toEqual({ status: "named", name: "Bangalore" }));
   });
 });
 
@@ -71,21 +77,22 @@ describe("without coordinates", () => {
   it("asks nothing", () => {
     const { result } = renderHook(() => useLocalityAt(null, null));
 
-    expect(result.current).toBeNull();
+    expect(result.current).toEqual({ status: "pending", name: null });
     expect(reverseGeocode).not.toHaveBeenCalled();
   });
 });
 
 describe("when the geocoder is unreachable", () => {
-  it("returns null rather than hanging", async () => {
+  it("reports failure, distinctly from having no name", async () => {
     // Offline, rate-limited, key missing, or Google rejected. This screen
-    // blocks by design, so a slow geocoder must never be what keeps a provider
-    // out of the app — the caller degrades to the other exits.
+    // blocks by design, so a geocoder outage must never be what keeps a
+    // provider out of the app — the caller keeps offering their saved area
+    // under a neutral label, which it can only do if it can see this status.
     reverseGeocode.mockRejectedValue(new Error("offline"));
 
     const { result } = renderHook(() => useLocalityAt(18.5204, 73.8567));
 
-    await waitFor(() => expect(result.current).toBeNull());
+    await waitFor(() => expect(result.current).toEqual({ status: "failed", name: null }));
   });
 
   it("treats no results as no answer", async () => {
@@ -95,7 +102,7 @@ describe("when the geocoder is unreachable", () => {
 
     const { result } = renderHook(() => useLocalityAt(18.5204, 73.8567));
 
-    await waitFor(() => expect(result.current).toBeNull());
+    await waitFor(() => expect(result.current).toEqual({ status: "unnamed", name: null }));
   });
 
   it("treats an empty components array as no answer", async () => {
@@ -108,6 +115,38 @@ describe("when the geocoder is unreachable", () => {
 
     const { result } = renderHook(() => useLocalityAt(18.5204, 73.8567));
 
-    await waitFor(() => expect(result.current).toBeNull());
+    await waitFor(() => expect(result.current).toEqual({ status: "unnamed", name: null }));
+  });
+
+  it("never reports a name it did not get", async () => {
+    // The whole point of the status: a caller must be able to trust that
+    // `name` is non-null only when the geocoder actually said so.
+    reverseGeocode.mockRejectedValue(new Error("rate limited"));
+
+    const { result } = renderHook(() => useLocalityAt(18.5204, 73.8567));
+
+    await waitFor(() => expect(result.current.status).toBe("failed"));
+    expect(result.current.name).toBeNull();
+  });
+});
+
+describe("when the coordinates change", () => {
+  it("does not show the previous point's name against the new one", async () => {
+    reverseGeocode.mockResolvedValue({
+      formattedAddress: "Kharadi",
+      components: components({ sublocality_level_1: "Kharadi" }),
+    });
+
+    const { result, rerender } = renderHook(({ lat, lng }) => useLocalityAt(lat, lng), {
+      initialProps: { lat: 18.5541343, lng: 73.9351687 },
+    });
+    await waitFor(() => expect(result.current.name).toBe("Kharadi"));
+
+    // A provider who moves their service area must not see the old locality
+    // sitting under the new pin while the second lookup is in flight.
+    reverseGeocode.mockImplementation(() => new Promise(() => {}));
+    rerender({ lat: 12.9716, lng: 77.5946 });
+
+    expect(result.current).toEqual({ status: "pending", name: null });
   });
 });
