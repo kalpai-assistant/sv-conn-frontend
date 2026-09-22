@@ -112,12 +112,54 @@ jobs:
       # user sees a white screen on the phone. Hardcoded to the beta
       # backend URL for now; move to a repo variable once we run a
       # separate staging backend.
+      # Hoisted above the build, deliberately. Vite inlines `import.meta.env.VITE_*`
+      # at build time, so any secret the bundle needs has to be in the environment
+      # *before* `npm run build:mobile` runs. This step used to sit ~100 lines
+      # lower, just before the S3 upload — which is why the Maps key could not be
+      # read into the bundle however it was configured (SVC-309).
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::018272776203:role/eazyserv-github-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      # `build:mobile` produces dist-mobile/ ; cap sync copies it into
+      # android/app/src/main/assets/public where Capacitor picks it up.
+      #
+      # The Maps key comes from SSM rather than a repo secret so there is ONE
+      # source of truth shared with the PWA deploy. Note the name change across
+      # the boundary: SSM stores it as GOOGLE_MAPS_API_KEY, the frontend reads
+      # VITE_GOOGLE_MAPS_BROWSER_API_KEY (`src/lib/google-maps.ts`). The mapping
+      # is explicit here because the names do not match by accident — the SSM
+      # entry predates the frontend variable.
+      #
+      # Without it `reverseGeocode` throws on every call, and the failures are
+      # quiet: the provider location gate silently drops its saved-location row,
+      # and iOS shows "Couldn't get your location" after a successful GPS fix.
       - name: Build mobile web bundle + sync to Android
         env:
           VITE_API_BASE_URL: https://api.eazyserv.com/api/v1
         run: |
+          set -euo pipefail
+          MAPS_KEY=$(aws ssm get-parameter             --name /eazyserv/beta/GOOGLE_MAPS_API_KEY             --with-decryption --query 'Parameter.Value' --output text)
+          echo "::add-mask::$MAPS_KEY"
+          export VITE_GOOGLE_MAPS_BROWSER_API_KEY="$MAPS_KEY"
+
           npm run build:mobile
           npx cap sync android
+
+          # Fail loudly rather than shipping an APK whose location screens are
+          # broken. The bundle carries the throw path from `google-maps.ts` when
+          # the key is absent, so grepping for it is a direct check that the
+          # value was actually inlined — not merely that the variable was set.
+          # --include='*.js' matters: the same string survives in the
+          # accompanying .js.map whatever was inlined, because a source map
+          # carries the original source text. Grepping the whole directory
+          # makes this fire on every build, good or bad.
+          if grep -rq --include='*.js' "GOOGLE_MAPS_BROWSER_API_KEY is not set" dist-mobile/assets/; then
+            echo "::error::Maps key was not inlined — location screens would ship broken"
+            exit 1
+          fi
 
       # Materialise the release keystore from the base64 secret. The path
       # must match what `keystore.properties.example` declares:
@@ -210,12 +252,6 @@ jobs:
             echo "APK is DEBUG-signed — release signing config didn't fire"
             exit 1
           fi
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::018272776203:role/eazyserv-github-deploy
-          aws-region: ${{ env.AWS_REGION }}
 
       # Two uploads:
       # - Versioned key preserves history (users can grab a specific build).

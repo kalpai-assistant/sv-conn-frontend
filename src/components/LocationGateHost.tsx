@@ -179,9 +179,30 @@ export function ProviderLocationGate({
 }) {
   const { mutateAsync: updateServiceArea, isPending } = useUpdateServiceArea();
   // A service area is a point, not an address — so the only way to name it is
-  // to ask. Null while resolving, and on failure; see useLocalityAt.
+  // to ask. Carries a status, not just a string, so a geocoder failure can be
+  // told apart from a lookup still in flight; see useLocalityAt.
   const locality = useLocalityAt(lat, lng);
   const hasArea = lat != null && lng != null;
+
+  // Whether to offer the saved area at all.
+  //
+  // The original rule was `hasArea && locality` — show it only once named. That
+  // reads well until the geocoder is unreachable, at which point a provider
+  // with a perfectly good service area loses their one-tap path for a reason
+  // that has nothing to do with them, on a screen that blocks the whole app
+  // (SVC-309: a missing API key kept this null permanently, so the row simply
+  // never appeared).
+  //
+  // So the row is withheld only while the answer might still arrive. Once the
+  // geocoder has failed, or answered with no locality, the area is offered
+  // under an honest label instead — the provider knows where they set it, and
+  // the radius below distinguishes it well enough to act on.
+  const showSavedArea = hasArea && locality.status !== "pending";
+
+  // Named when we know it. When we don't, this says so rather than inventing a
+  // place — "a row the provider cannot disagree with is worse than one more
+  // tap" still holds; the fix is to be honest, not to disappear.
+  const areaLabel = locality.name ?? "Your service area";
 
   return (
     <LocationGate
@@ -200,11 +221,9 @@ export function ProviderLocationGate({
           : "Only jobs inside your service area reach you. Set the centre, then choose your radius."
       }
       reason={reason}
-      // Withheld until the geocode lands rather than shown with filler: a row
-      // the provider cannot disagree with is worse than one more tap.
       saved={
-        hasArea && locality
-          ? [{ id: "service-area", label: locality, full: `Within ${radiusKm} km` }]
+        showSavedArea
+          ? [{ id: "service-area", label: areaLabel, full: `Within ${radiusKm} km` }]
           : []
       }
       isSaving={isPending}
