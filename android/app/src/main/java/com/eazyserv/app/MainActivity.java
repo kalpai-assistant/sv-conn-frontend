@@ -1,11 +1,31 @@
 package com.eazyserv.app;
 
+import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+import android.webkit.WebView;
 
 import com.eazyserv.apkupdater.ApkUpdaterPlugin;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+
+    private static final String TAG = "EazyservMainActivity";
+
+    // SVC-315: SharedPreferences key that stores the versionCode we last
+    // successfully booted with. If the current versionCode differs, the
+    // APK was replaced between runs and we wipe the WebView HTTP cache
+    // once to avoid the SVC-313 stale-chunk white-screen. The in-app
+    // updater (ApkUpdaterPlugin.install) also clears on its way to the
+    // installer; this handler is the belt-and-braces for installs that
+    // bypass us — adb sideload today, Play Store rollout later.
+    private static final String PREFS = "eazyserv_native";
+    private static final String KEY_LAST_BOOT_VERSION_CODE = "last_boot_version_code";
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         // SVC-226: explicit register so the plugin is discoverable even
@@ -14,5 +34,47 @@ public class MainActivity extends BridgeActivity {
         // annotation's suspenders.
         registerPlugin(ApkUpdaterPlugin.class);
         super.onCreate(savedInstanceState);
+
+        maybeClearWebViewCacheOnVersionChange();
+    }
+
+    private void maybeClearWebViewCacheOnVersionChange() {
+        int current = readCurrentVersionCode();
+        if (current == -1) return;
+
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        int last = prefs.getInt(KEY_LAST_BOOT_VERSION_CODE, -1);
+        if (last == current) return;
+
+        Log.i(TAG, "versionCode changed " + last + " -> " + current
+            + "; clearing WebView cache once");
+
+        // Bridge/WebView isn't ready in onCreate before super has spun
+        // it up; post to the main looper so we clear after Capacitor's
+        // bridge has attached its WebView. WebView methods are
+        // main-thread only.
+        new Handler(Looper.getMainLooper()).post(() -> {
+            WebView wv = getBridge() != null ? getBridge().getWebView() : null;
+            if (wv != null) {
+                wv.clearCache(true);
+            }
+        });
+
+        prefs.edit().putInt(KEY_LAST_BOOT_VERSION_CODE, current).apply();
+    }
+
+    private int readCurrentVersionCode() {
+        try {
+            PackageManager pm = getPackageManager();
+            PackageInfo info = pm.getPackageInfo(getPackageName(), 0);
+            // versionCode (legacy field) — longVersionCode requires API 28+;
+            // our minSdk is 24. Fine as long as we stay monotonic +1 per release.
+            return info.versionCode;
+        } catch (PackageManager.NameNotFoundException e) {
+            // Our own package must exist — treat as unknown and skip the
+            // clear so we never brick boot on a lookup miss.
+            Log.w(TAG, "Could not read own PackageInfo", e);
+            return -1;
+        }
     }
 }
