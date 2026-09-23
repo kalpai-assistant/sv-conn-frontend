@@ -4,27 +4,64 @@
  * Uses a plain React DOM render (no TanStack Start SSR).
  * TanStack Router still handles client-side routing exactly
  * as it does in the web app.
+ *
+ * Boot-time observability (SVC-316): the fix tickets SVC-314 + SVC-315
+ * address the root causes of the intermittent white-screen on APK update
+ * (SVC-313), but the failure mode is *silent* — a sync throw before Sentry
+ * boots, or a lazy-import that never resolves, produces zero telemetry. This
+ * file wraps the pre-render phase in try/catch + a queued global-error
+ * capture + a `boot_ok` heartbeat so the next white-screen becomes an event
+ * we can see, and so a regression in the fixes is measurable (drop in
+ * `boot_ok` count within N minutes of a release).
  */
-import { StrictMode } from "react";
+import { StrictMode, useEffect } from "react";
 import ReactDOM from "react-dom/client";
+import * as Sentry from "@sentry/react";
 import { RouterProvider } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { getRouter } from "./router";
 import { initSentry } from "./lib/sentry";
+import { APP_VERSION } from "./lib/version";
 import { runBackInterceptors } from "./lib/back-interceptor";
 import { isProviderRoute } from "./lib/nav-visibility";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles.css";
-
-// Init before anything else renders — even the RouterProvider's first render
-// should be inside Sentry's error capture window.
-initSentry();
 
 // Capacitor native plugins (status bar, splash screen, etc.)
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
+
+// --- SVC-316: pre-Sentry error queue ---------------------------------------
+//
+// Attach the queue BEFORE initSentry() so a throw during Sentry init (or any
+// module-eval error surfaced via window.onerror between now and Sentry's own
+// handlers taking over) is preserved and flushed once Sentry is up. Without
+// this, the first cold-boot throw — the exact class of bug SVC-313 exhibits —
+// vanishes into a blank WebView.
+type StagedError = { error: unknown; stage: string };
+const preSentryErrors: StagedError[] = [];
+
+const stashPreSentryError = (stage: string) => (event: ErrorEvent | PromiseRejectionEvent) => {
+  const error = "error" in event ? event.error : (event as PromiseRejectionEvent).reason;
+  preSentryErrors.push({ error, stage });
+};
+
+window.addEventListener("error", stashPreSentryError("window.error"));
+window.addEventListener("unhandledrejection", stashPreSentryError("unhandledrejection"));
+
+try {
+  initSentry();
+} catch (err) {
+  preSentryErrors.push({ error: err, stage: "initSentry" });
+}
+
+// Sentry's own global handlers take over from here; drain anything that landed
+// in the pre-init window so it's still attributable in the issue stream.
+for (const { error, stage } of preSentryErrors) {
+  Sentry.captureException(error, { tags: { boot_stage: stage } });
+}
 
 /**
  * Window for the double-tap-to-exit gesture. Android's convention is 2s, but
@@ -100,10 +137,6 @@ async function initNative(router: ReturnType<typeof getRouter>) {
   });
 }
 
-const router = getRouter();
-
-initNative(router);
-
 /**
  * Wipe any service worker + Cache Storage the WebView carried over from a
  * prior install (SVC-314). Nothing in the current mobile bundle registers a
@@ -131,12 +164,78 @@ async function cleanupStalePwaState() {
   }
 }
 
-void cleanupStalePwaState();
+// --- SVC-316: first-render heartbeat ---------------------------------------
+//
+// Module-level guard, not a useRef: React 19 StrictMode double-invokes effects
+// in dev, and even the ref-in-a-remounted-component approach can be defeated
+// by hot reload. A file-scope boolean fires exactly once per JS context, which
+// is what the dashboard alert ("drop >30% in boot_ok count within 30min of a
+// release") depends on to be a reliable proxy for "boot succeeded".
+let bootOkFired = false;
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <RouterProvider router={router} />
-    </ErrorBoundary>
-  </StrictMode>,
-);
+function BootHeartbeat() {
+  useEffect(() => {
+    if (bootOkFired) return;
+    bootOkFired = true;
+    Sentry.addBreadcrumb({
+      category: "boot",
+      message: "app_first_render",
+      level: "info",
+    });
+    Sentry.captureMessage("boot_ok", {
+      level: "info",
+      tags: {
+        version_name: APP_VERSION,
+        platform: Capacitor.getPlatform(),
+      },
+    });
+  }, []);
+  return null;
+}
+
+/**
+ * Inline fallback UI rendered when the pre-render phase throws. Uses no
+ * imports and no external CSS — the whole point is that this has to work
+ * when Vite's chunks failed to load, or a native plugin import blew up,
+ * or the router construction itself threw. System font, inline styles,
+ * `location.reload()` on click.
+ *
+ * Exported for the unit test in main.mobile.test.tsx.
+ */
+export function renderBootFallback(root: HTMLElement) {
+  root.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:system-ui,-apple-system,sans-serif;background:#fff;color:#111">
+      <div style="max-width:320px;text-align:center">
+        <h2 style="margin:0 0 8px;font-size:18px;font-weight:600">Something went wrong</h2>
+        <p style="margin:0 0 20px;font-size:14px;color:#666;line-height:1.4">The app failed to start. Reload to try again.</p>
+        <button onclick="location.reload()" style="padding:10px 20px;font-size:14px;font-family:inherit;background:#7C3AED;color:#fff;border:none;border-radius:6px;cursor:pointer">Reload</button>
+      </div>
+    </div>
+  `;
+}
+
+// --- SVC-316: guarded boot -------------------------------------------------
+//
+// Everything from `getRouter()` through `createRoot(...).render(...)` runs
+// synchronously; any throw here today produces a white screen because nothing
+// commits into #root. Wrap the whole chain so a throw becomes (a) a Sentry
+// event tagged `boot_stage=pre_render` and (b) a visible reload UI.
+const rootElement = document.getElementById("root");
+if (rootElement) {
+  try {
+    const router = getRouter();
+    void initNative(router);
+    void cleanupStalePwaState();
+    ReactDOM.createRoot(rootElement).render(
+      <StrictMode>
+        <ErrorBoundary>
+          <BootHeartbeat />
+          <RouterProvider router={router} />
+        </ErrorBoundary>
+      </StrictMode>,
+    );
+  } catch (err) {
+    Sentry.captureException(err, { tags: { boot_stage: "pre_render" } });
+    renderBootFallback(rootElement);
+  }
+}
