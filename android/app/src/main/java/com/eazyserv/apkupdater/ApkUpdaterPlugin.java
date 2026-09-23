@@ -37,6 +37,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 
+import android.webkit.WebView;
+
 import androidx.core.content.FileProvider;
 
 import com.getcapacitor.JSObject;
@@ -187,6 +189,26 @@ public class ApkUpdaterPlugin extends Plugin {
             .setDataAndType(uri, "application/vnd.android.package-archive")
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        // SVC-315: wipe the WebView HTTP cache (and back/forward history)
+        // before we hand off to the installer. Android preserves the app's
+        // data dir across same-signing-key APK updates, so a cached
+        // index.html referencing a Vite chunk hash the new APK doesn't
+        // ship would 404 → blank WebView (SVC-313 white-screen).
+        // Deliberately NOT clearing localStorage / IndexedDB — AuthProvider
+        // relies on persisted tokens surviving app updates.
+        // WebView methods must run on the UI thread. The install intent
+        // tears down our process shortly after, so we don't wait on the
+        // post — either the clear lands or the process dies with a dirty
+        // cache that the new APK's cold-boot guard (MainActivity) will
+        // handle on next launch.
+        final WebView wv = getBridge() != null ? getBridge().getWebView() : null;
+        if (wv != null) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                wv.clearCache(true);
+                wv.clearHistory();
+            });
+        }
 
         try {
             ctx.startActivity(intent);
