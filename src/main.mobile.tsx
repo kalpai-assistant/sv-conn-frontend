@@ -104,6 +104,35 @@ const router = getRouter();
 
 initNative(router);
 
+/**
+ * Wipe any service worker + Cache Storage the WebView carried over from a
+ * prior install (SVC-314). Nothing in the current mobile bundle registers a
+ * SW, but Android preserves WebView data across APK updates, so a poisoned
+ * registration from an older version can still be serving a stale
+ * `index.html` that points at hashes this APK doesn't ship.
+ *
+ * Fire-and-forget on purpose: the caller does not await this — cleanup must
+ * never delay first render, and a hung `getRegistrations()` must not brick
+ * boot. Errors are swallowed for the same reason.
+ */
+async function cleanupStalePwaState() {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+    if ("caches" in globalThis) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch {
+    // Never block boot on cleanup.
+  }
+}
+
+void cleanupStalePwaState();
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>

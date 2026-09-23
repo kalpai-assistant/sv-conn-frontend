@@ -10,12 +10,42 @@
  * Usage:
  *   VITE_API_BASE_URL=https://api.svcconnect.in/api/v1 npm run build:mobile
  */
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
+import fs from "fs";
 import path from "path";
+
+/**
+ * Strip `firebase-messaging-sw.js` out of the mobile build (SVC-314).
+ *
+ * `public/firebase-messaging-sw.js` is a legitimate asset for the web PWA —
+ * the Firebase SDK registers it by URL there. Vite copies the entire `public/`
+ * dir into `dist-mobile/` too, which ships a dormant SW inside the APK at
+ * `https://localhost/firebase-messaging-sw.js`. Nothing calls
+ * `serviceWorker.register` on native today, but any accidental future call
+ * would activate it permanently — the trigger for the SVC-313 white-screen
+ * class. Removing the file removes the trigger.
+ *
+ * `closeBundle` fires after Vite has copied the public dir, so an unlink here
+ * is the last step and reliably wins.
+ */
+function excludeFirebaseMessagingSw(): Plugin {
+  return {
+    name: "mobile-exclude-firebase-messaging-sw",
+    apply: "build",
+    closeBundle() {
+      const target = path.resolve(__dirname, "dist-mobile", "firebase-messaging-sw.js");
+      try {
+        fs.unlinkSync(target);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+      }
+    },
+  };
+}
 
 // Sentry source-map upload for the Capacitor bundle. Same env-gated pattern
 // as vite.config.ts: no-op unless the CI-only env vars are set. Uploaded
@@ -34,7 +64,13 @@ const sentryPlugins =
     : [];
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), tsconfigPaths(), ...sentryPlugins],
+  plugins: [
+    react(),
+    tailwindcss(),
+    tsconfigPaths(),
+    excludeFirebaseMessagingSw(),
+    ...sentryPlugins,
+  ],
 
   resolve: {
     alias: {
