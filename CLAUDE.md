@@ -45,7 +45,7 @@ Edit `.env` — the only line you need to change to point at beta:
 ```
 VITE_API_BASE_URL=https://api.eazyserv.com/api/v1
 ```
-Everything else (Firebase, Sentry, Razorpay) is optional — the app runs without them.
+Everything else (Firebase, Sentry, Razorpay) is optional — the app runs without them. If you need the location gate to work (address search + reverse geocoding), follow the `aws ssm get-parameter` one-liner in the `VITE_GOOGLE_MAPS_BROWSER_API_KEY` block of `.env.example` to pull the same key CI uses.
 
 ### 3. Run
 
