@@ -136,15 +136,41 @@ jobs:
       # Without it `reverseGeocode` throws on every call, and the failures are
       # quiet: the provider location gate silently drops its saved-location row,
       # and iOS shows "Couldn't get your location" after a successful GPS fix.
+      #
+      # Written to $GITHUB_ENV (matching deploy-app.yml) so the SVC-317 probe
+      # step below can see it — an in-step `export` would not reach a
+      # subsequent step.
+      - name: Fetch Maps browser key from SSM
+        run: |
+          set -euo pipefail
+          MAPS_KEY=$(aws ssm get-parameter             --name /eazyserv/beta/GOOGLE_MAPS_API_KEY             --with-decryption --query 'Parameter.Value' --output text)
+          echo "::add-mask::$MAPS_KEY"
+          echo "VITE_GOOGLE_MAPS_BROWSER_API_KEY=$MAPS_KEY" >> "$GITHUB_ENV"
+          echo "  loaded VITE_GOOGLE_MAPS_BROWSER_API_KEY (len=${#MAPS_KEY})"
+
+      # SVC-317: a non-empty key can still ship a dead APK if either API is
+      # disabled on the GCP project (as happened on 2026-09-24) or if
+      # billing/restrictions drift. Hit both endpoints the app actually
+      # uses; fail-fast if either is not OK so the fix is `gcloud services
+      # enable`, not a workflow rerun.
+      - name: Verify Google Maps APIs are live
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="$VITE_GOOGLE_MAPS_BROWSER_API_KEY"
+          [ -z "$key" ] && { echo "::error::VITE_GOOGLE_MAPS_BROWSER_API_KEY empty"; exit 1; }
+          gc=$(curl -sf "https://maps.googleapis.com/maps/api/geocode/json?latlng=18.5204,73.8567&key=$key" | jq -r .status)
+          [ "$gc" = "OK" ] || { echo "::error::Geocoding API not OK (got $gc)"; exit 1; }
+          pl=$(curl -sf -X POST "https://places.googleapis.com/v1/places:autocomplete" \
+                 -H "Content-Type: application/json" -H "X-Goog-Api-Key: $key" \
+                 -d '{"input":"pune"}' | jq -r 'has("suggestions")')
+          [ "$pl" = "true" ] || { echo "::error::Places API (New) autocomplete failed"; exit 1; }
+
       - name: Build mobile web bundle + sync to Android
         env:
           VITE_API_BASE_URL: https://api.eazyserv.com/api/v1
         run: |
           set -euo pipefail
-          MAPS_KEY=$(aws ssm get-parameter             --name /eazyserv/beta/GOOGLE_MAPS_API_KEY             --with-decryption --query 'Parameter.Value' --output text)
-          echo "::add-mask::$MAPS_KEY"
-          export VITE_GOOGLE_MAPS_BROWSER_API_KEY="$MAPS_KEY"
-
           npm run build:mobile
           npx cap sync android
 
