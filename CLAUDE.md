@@ -90,7 +90,7 @@ Restart Claude Code. `uvx` fetches the proxy on first invocation.
 
 ## Getting the OTP during testing (beta only)
 
-MSG91 SMS delivery is blocked on DLT approval (SVC-225). Until it clears, the backend logs OTPs at INFO level and no SMS is sent. Grab the OTP from CloudWatch:
+MSG91 SMS delivery is blocked on DLT approval (SVC-225). Until it clears, the backend logs OTPs at INFO level and no SMS is sent. The log line is gated behind the `LOG_MOCK_OTP` env var (SVC-265) — it must be `true` in App Runner env for beta, or nothing shows up in CloudWatch. Grab the OTP from CloudWatch:
 
 ```bash
 aws logs tail /aws/apprunner/eazyserv-backend/7f383544153d4cf799fba30ced3ae033/application \
