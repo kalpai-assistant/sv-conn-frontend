@@ -79,12 +79,18 @@ function AppGate({ children }: { children: React.ReactNode }) {
   //   privacy nutrition reviewers. An AuthFlow gate would kill the submission.
   // - SVC-161: /download is the pre-signup landing page — auth would defeat
   //   the point (users haven't installed the app yet).
+  // - SVC-320: /loc-debug is a temporary diagnostics page, and it has to be
+  //   public for a duller reason than the others: it is read on a Cloudflare
+  //   preview deploy, whose *.pages.dev origin the backend's CORS policy does
+  //   not admit. Login is impossible there, so an authed route would be
+  //   unreachable — which is exactly what happened on the first attempt.
   // All rendered as full-width layout with no BottomNav.
   const isPublicRoute =
     pathname === "/privacy" ||
     pathname === "/terms" ||
     pathname === "/refund" ||
-    pathname === "/download";
+    pathname === "/download" ||
+    pathname === "/loc-debug";
   const role = user?.role ?? null;
   const isProvider = isAuthenticated && role === "provider";
 
