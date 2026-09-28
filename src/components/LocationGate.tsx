@@ -58,6 +58,7 @@ import { InUseBadge } from "@/components/InUseBadge";
 import {
   enableDeviceLocation,
   isNativeLocation,
+  peekBrowserPermission,
   peekLocationPermission,
   requestLocation,
 } from "@/lib/geolocation";
@@ -264,20 +265,32 @@ export function LocationGate({
       return;
     }
 
-    // A refusal on web has two possible causes and one error code. The tap is
-    // what separates them: a browser that refused before showing anything was
-    // not relaying a decision, it was reporting that the device's location
-    // switch is off. Measured on an iPhone: 6ms and nothing on screen, against
-    // ~1500ms for a real prompt.
+    // A refusal on web has two possible causes and one error code, and the
+    // timing alone does not separate them: a site the user denied earlier is
+    // refused from memory, just as instantly as a switched-off device.
     //
-    // Only now is the accusation earned — before the tap there was no evidence
-    // either way, which is why the gate opens on "Where are you?" instead.
+    // Re-reading the permission afterwards does separate them, because the two
+    // states disagree there. Measured on an iPhone:
+    //
+    //   Location Services off   ->  "prompt"  (the browser was never asked)
+    //   site denied by the user ->  "denied"
+    //
+    // So a refusal that still reports "prompt" cannot be the user's doing —
+    // nothing recorded a decision — which leaves the device switch. The
+    // timing stays as the fallback for browsers with no Permissions API.
+    let deviceLocationOff = refusedInstantly;
+    if (failure === "permission-denied" && !isNativeLocation()) {
+      const after = await peekBrowserPermission();
+      if (after === "denied") deviceLocationOff = false;
+      else if (after === "prompt") deviceLocationOff = true;
+    }
+
     if (failure === "permission-denied") setPermission("denied");
     setError(
       failure === "permission-denied"
         ? isNativeLocation()
           ? "Location is off for this app. Turn it on in settings, or choose where you are below."
-          : refusedInstantly
+          : deviceLocationOff
             ? "Your phone's location is switched off. Turn on Location Services in Settings, then tap Enable again."
             : "Location is blocked for this site. Allow it in your browser's settings, or choose where you are below."
         : failure === "location-disabled"
@@ -334,7 +347,12 @@ export function LocationGate({
                 {denied
                   ? isNativeLocation()
                     ? "Turn this on in Settings to use it"
-                    : "Allow location for this site, then tap Enable"
+                    : // On web the banner above already names the remedy, and
+                      // it knows which of the two causes applies where this
+                      // line does not. Repeating a guess beside it produced a
+                      // screen that told the user to fix the site permission
+                      // while the banner told them to fix the device switch.
+                      "Fix the above, then tap Enable"
                   : "Most accurate"}
               </p>
             </div>

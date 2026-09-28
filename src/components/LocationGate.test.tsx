@@ -21,12 +21,14 @@ const requestLocation = vi.fn();
 const enableDeviceLocation = vi.fn();
 const peekLocationPermission = vi.fn();
 const isNativeLocation = vi.fn();
+const peekBrowserPermission = vi.fn();
 
 vi.mock("@/lib/geolocation", () => ({
   requestLocation: (...a: unknown[]) => requestLocation(...a),
   enableDeviceLocation: (...a: unknown[]) => enableDeviceLocation(...a),
   peekLocationPermission: () => peekLocationPermission(),
   isNativeLocation: () => isNativeLocation(),
+  peekBrowserPermission: () => peekBrowserPermission(),
 }));
 
 import { LocationGate } from "@/components/LocationGate";
@@ -51,6 +53,7 @@ beforeEach(() => {
   // plugin's behaviour. The web differences get their own describe block.
   isNativeLocation.mockReturnValue(true);
   peekLocationPermission.mockResolvedValue("prompt");
+  peekBrowserPermission.mockResolvedValue(null);
   requestLocation.mockResolvedValue({ ok: false, failure: "unavailable", coords: null });
   enableDeviceLocation.mockResolvedValue({ ok: false, failure: "location-disabled", coords: null });
 });
@@ -341,7 +344,9 @@ describe("on the web", () => {
     // A browser denial is reversible from the site's own permission menu, and
     // the user returns to this very page — so the button has to stay live.
     expect(button).toBeEnabled();
-    expect(screen.getByText(/Allow location for this site, then tap Enable/i)).toBeInTheDocument();
+    // The banner above names which of the two causes applies; this line only
+    // says what to do next, so it cannot contradict it.
+    expect(screen.getByText(/Fix the above, then tap Enable/i)).toBeInTheDocument();
   });
 
   it("still disables Enable when denied on native", () => {
@@ -367,13 +372,17 @@ describe("after a tap that the browser refused", () => {
     isNativeLocation.mockReturnValue(false);
   });
 
-  it("blames the device switch when nothing was ever shown to the user", async () => {
+  it("blames the device switch when the browser still reports no decision", async () => {
+    // Location Services off: the browser was never asked, so nothing was
+    // recorded. Measured on an iPhone — this reads "prompt" even though the
+    // call was just refused.
     requestLocation.mockResolvedValue({
       ok: false,
       failure: "permission-denied",
       coords: null,
       refusedInstantly: true,
     });
+    peekBrowserPermission.mockResolvedValue("prompt");
 
     render(<LocationGate {...props({ reason: "unknown" })} />);
     await userEvent.click(screen.getByRole("button", { name: /enable/i }));
@@ -381,13 +390,32 @@ describe("after a tap that the browser refused", () => {
     expect(await screen.findByText(/Location Services in Settings/i)).toBeInTheDocument();
   });
 
-  it("blames the site permission when the user was actually asked", async () => {
+  it("blames the site permission when the browser recorded a refusal", async () => {
+    // Safari refuses a previously-denied site from memory, just as fast as a
+    // switched-off device — so the timing says "instant" here too. The stored
+    // permission is what separates them.
+    requestLocation.mockResolvedValue({
+      ok: false,
+      failure: "permission-denied",
+      coords: null,
+      refusedInstantly: true,
+    });
+    peekBrowserPermission.mockResolvedValue("denied");
+
+    render(<LocationGate {...props({ reason: "unknown" })} />);
+    await userEvent.click(screen.getByRole("button", { name: /enable/i }));
+
+    expect(await screen.findByText(/blocked for this site/i)).toBeInTheDocument();
+  });
+
+  it("falls back to the timing where there is no Permissions API", async () => {
     requestLocation.mockResolvedValue({
       ok: false,
       failure: "permission-denied",
       coords: null,
       refusedInstantly: false,
     });
+    peekBrowserPermission.mockResolvedValue(null);
 
     render(<LocationGate {...props({ reason: "unknown" })} />);
     await userEvent.click(screen.getByRole("button", { name: /enable/i }));
