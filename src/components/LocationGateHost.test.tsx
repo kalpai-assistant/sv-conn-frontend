@@ -16,6 +16,10 @@ const requestLocation = vi.fn();
 vi.mock("@/lib/geolocation", () => ({
   requestLocation: (...a: unknown[]) => requestLocation(...a),
   peekLocationPermission: () => Promise.resolve("prompt"),
+  enableDeviceLocation: () => Promise.resolve({ ok: false, failure: "timeout", coords: null }),
+  // These host cases are about which props reach the gate, not platform
+  // differences — native keeps the pre-SVC-318 copy they assert on.
+  isNativeLocation: () => true,
 }));
 const setSelectedId = vi.fn();
 

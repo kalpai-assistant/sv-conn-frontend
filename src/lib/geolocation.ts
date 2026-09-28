@@ -93,10 +93,22 @@ function classify(err: unknown): LocationFailure {
   if (DENIED_CODES.some((c) => haystack.includes(c))) return "permission-denied";
   if (TIMEOUT_CODES.some((c) => haystack.includes(c))) return "timeout";
 
-  // Web fallback: PositionError codes — 1 is PERMISSION_DENIED, 3 is TIMEOUT.
-  // The browser has no notion of a device-wide toggle.
-  if ((err as { code?: number })?.code === 1) return "permission-denied";
-  if ((err as { code?: number })?.code === 3) return "timeout";
+  // Web fallback: `GeolocationPositionError` codes, which is what the plugin
+  // rejects with on the PWA — it delegates straight to `navigator.geolocation`
+  // and passes the browser's own error through. The browser has no notion of a
+  // device-wide toggle, so there is no `location-disabled` to map to.
+  //
+  // 2 is POSITION_UNAVAILABLE, and it is treated as a timeout rather than as
+  // its own dead end (SVC-318). On iOS it is what Safari sends when the fix
+  // simply is not there yet — a home-screen PWA resumed from background, a
+  // cold start before Location Services has a position, indoors on Wi-Fi-only
+  // positioning. It is the same "not an answer" that GLOC-0010 is on native,
+  // and the callers already retry timeouts rather than believing them. Calling
+  // it `unavailable` instead made the gate conclude "we cannot locate you"
+  // from a fix that was merely late.
+  const webCode = (err as { code?: number })?.code;
+  if (webCode === 1) return "permission-denied";
+  if (webCode === 2 || webCode === 3) return "timeout";
 
   return "unavailable";
 }
@@ -113,16 +125,24 @@ export async function requestLocation(timeoutMs: number): Promise<LocationResult
   const { Geolocation } = await import("@capacitor/geolocation");
 
   try {
-    const status = await Geolocation.checkPermissions();
-    if (status.location !== "granted" && status.coarseLocation !== "granted") {
-      const asked = await Geolocation.requestPermissions();
-      if (asked.location !== "granted" && asked.coarseLocation !== "granted") {
-        // "denied" is final on Android; anything else can be asked again.
-        return {
-          ok: false,
-          failure: asked.location === "denied" ? "permission-denied" : "permission-prompt",
-          coords: null,
-        };
+    // Both of these are native-only conveniences. On web the plugin has no
+    // `requestPermissions` at all (it throws `unimplemented`) and
+    // `checkPermissions` needs `navigator.permissions`, which it throws
+    // without — so on the PWA neither call is allowed to decide anything.
+    // `getCurrentPosition` is the call that raises the browser's own prompt,
+    // and it is reached below regardless (SVC-318).
+    if (Capacitor.isNativePlatform()) {
+      const status = await Geolocation.checkPermissions();
+      if (status.location !== "granted" && status.coarseLocation !== "granted") {
+        const asked = await Geolocation.requestPermissions();
+        if (asked.location !== "granted" && asked.coarseLocation !== "granted") {
+          // "denied" is final on Android; anything else can be asked again.
+          return {
+            ok: false,
+            failure: asked.location === "denied" ? "permission-denied" : "permission-prompt",
+            coords: null,
+          };
+        }
       }
     }
 

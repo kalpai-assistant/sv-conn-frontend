@@ -20,11 +20,13 @@ import userEvent from "@testing-library/user-event";
 const requestLocation = vi.fn();
 const enableDeviceLocation = vi.fn();
 const peekLocationPermission = vi.fn();
+const isNativeLocation = vi.fn();
 
 vi.mock("@/lib/geolocation", () => ({
   requestLocation: (...a: unknown[]) => requestLocation(...a),
   enableDeviceLocation: (...a: unknown[]) => enableDeviceLocation(...a),
   peekLocationPermission: () => peekLocationPermission(),
+  isNativeLocation: () => isNativeLocation(),
 }));
 
 import { LocationGate } from "@/components/LocationGate";
@@ -45,6 +47,9 @@ function props(over: Partial<Parameters<typeof LocationGate>[0]> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Native by default: the existing cases below were all written against the
+  // plugin's behaviour. The web differences get their own describe block.
+  isNativeLocation.mockReturnValue(true);
   peekLocationPermission.mockResolvedValue("prompt");
   requestLocation.mockResolvedValue({ ok: false, failure: "unavailable", coords: null });
   enableDeviceLocation.mockResolvedValue({ ok: false, failure: "location-disabled", coords: null });
@@ -304,5 +309,44 @@ describe("the saved list (SVC-287)", () => {
 
     await screen.findByText("Karve Nagar");
     expect(screen.queryByRole("button", { name: /see all/i })).toBeNull();
+  });
+});
+
+/**
+ * The PWA behaves differently in two ways, and both were user-reported
+ * (SVC-318). Neither is reachable on native, so both need their own cases.
+ */
+describe("on the web", () => {
+  beforeEach(() => {
+    isNativeLocation.mockReturnValue(false);
+  });
+
+  it("names both remedies for a denial, because the toggle is indistinguishable", () => {
+    render(<LocationGate {...props({ reason: "permission-denied" })} />);
+
+    // Chrome reports a switched-off OS toggle as PERMISSION_DENIED with
+    // `permissions.query` still "prompt", so naming only the site permission
+    // would send half of these users to the wrong place.
+    expect(
+      screen.getByText(/Location is on in your phone's settings and allowed for this site/i),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps Enable usable when denied, as Retry", () => {
+    render(<LocationGate {...props({ reason: "permission-denied" })} />);
+
+    const button = screen.getByRole("button", { name: /retry/i });
+    // A browser denial is reversible from the site's own permission menu, and
+    // the user returns to this very page — so the retry has to be live.
+    expect(button).toBeEnabled();
+    expect(screen.getByText(/Allow location for this site, then tap Retry/i)).toBeInTheDocument();
+  });
+
+  it("still disables Enable when denied on native", () => {
+    isNativeLocation.mockReturnValue(true);
+    render(<LocationGate {...props({ reason: "permission-denied" })} />);
+
+    // Android will not ask twice; an enabled button would do nothing.
+    expect(screen.getByRole("button", { name: /enable/i })).toBeDisabled();
   });
 });

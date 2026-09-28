@@ -45,6 +45,14 @@ vi.mock("@/lib/google-maps", () => ({
   reverseGeocode,
 }));
 
+// SVC-318: the denial copy differs by platform, and importing the real module
+// would pull in Capacitor. Native by default — the cases below were written
+// against the plugin's wording; the web variant has its own test.
+const { isNativeLocation } = vi.hoisted(() => ({
+  isNativeLocation: vi.fn().mockReturnValue(true),
+}));
+vi.mock("@/lib/geolocation", () => ({ isNativeLocation }));
+
 // SVC-284: the search bar is its own unit, tested separately. Rendered here
 // as an empty passthrough — the locate-me tests below only care that the map
 // area renders and the button responds.
@@ -62,6 +70,8 @@ const TIMED_OUT = { code: 3, PERMISSION_DENIED: 1 };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // clearAllMocks drops the return value too, so re-assert the default.
+  isNativeLocation.mockReturnValue(true);
   reverseGeocode.mockResolvedValue({ formattedAddress: "", components: [] });
   vi.stubGlobal("navigator", { geolocation: { getCurrentPosition } });
   // If this is ever called the test must fail loudly: a native dialog freezes
@@ -88,6 +98,22 @@ describe("when the location cannot be read", () => {
     // A toast, not alert(). The distinction is the whole point: alert() is a
     // native modal that blocks every other interaction until dismissed.
     expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/turn it on in settings/i));
+  });
+
+  it("names both remedies on web, where the two causes are one error", async () => {
+    // This screen is the gate's "Enter address manually" escape hatch, so a
+    // blocked user lands here next. The browser rejects a switched-off OS
+    // toggle with PERMISSION_DENIED exactly as it does a refusal, so pointing
+    // only at the app permission would strand them twice (SVC-318).
+    isNativeLocation.mockReturnValue(false);
+    getCurrentPosition.mockImplementation((_ok, fail) => fail(DENIED));
+    renderPicker();
+
+    await userEvent.click(screen.getByRole("button", { name: /use my current location/i }));
+
+    expect(toastError).toHaveBeenCalledWith(
+      expect.stringMatching(/Location is on in your settings and allowed for this site/i),
+    );
   });
 
   it("says something different when the position simply failed", async () => {
