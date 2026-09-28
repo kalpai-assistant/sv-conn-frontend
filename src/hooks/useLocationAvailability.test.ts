@@ -14,14 +14,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 
 const requestLocation = vi.fn();
+const canProbeWithoutGesture = vi.fn();
 vi.mock("@/lib/geolocation", () => ({
   requestLocation: (...args: unknown[]) => requestLocation(...args),
+  canProbeWithoutGesture: () => canProbeWithoutGesture(),
 }));
 
 import { useLocationAvailability } from "@/hooks/useLocationAvailability";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Everywhere but iOS Safari. The skip has its own describe block below.
+  canProbeWithoutGesture.mockReturnValue(true);
 });
 
 describe("a user whose location works", () => {
@@ -153,5 +157,37 @@ describe("when the question is asked", () => {
     rerender();
 
     expect(requestLocation).toHaveBeenCalledOnce();
+  });
+});
+
+/**
+ * iOS Safari refuses a position request that no user gesture initiated, and
+ * reports it as PERMISSION_DENIED — the same code a real refusal produces
+ * (SVC-319). Probing there answers the question on the user's behalf, wrongly:
+ * reported from a home-screen PWA with Location Services switched ON, the gate
+ * was already showing the denial banner before the user could tap anything.
+ */
+describe("where a request needs a user gesture", () => {
+  beforeEach(() => {
+    canProbeWithoutGesture.mockReturnValue(false);
+  });
+
+  it("does not ask, so nothing can answer for the user", async () => {
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+    expect(requestLocation).not.toHaveBeenCalled();
+  });
+
+  it("reports available, so the gate opens neutral rather than denied", async () => {
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+    // `blocked: false` keeps the app rendering for someone who has an address,
+    // and leaves `reason` null so the gate reads "Where are you?" with no red
+    // banner for someone who does not. The Enable tap is the gesture Safari
+    // wants, and it still raises the real prompt.
+    expect(result.current.blocked).toBe(false);
+    expect(result.current.reason).toBeNull();
   });
 });

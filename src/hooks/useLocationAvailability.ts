@@ -34,7 +34,7 @@
  * question is real.
  */
 import { useEffect, useState } from "react";
-import { requestLocation, type LocationFailure } from "@/lib/geolocation";
+import { canProbeWithoutGesture, requestLocation, type LocationFailure } from "@/lib/geolocation";
 
 /**
  * Why we cannot locate them — the gate's copy turns on this, because the
@@ -117,6 +117,17 @@ export function useLocationAvailability(enabled = true): LocationAvailability {
     const settle = (next: LocationAvailability) => {
       if (!cancelled) setState(next);
     };
+
+    // iOS Safari refuses a position request that no user gesture initiated, and
+    // reports that refusal as PERMISSION_DENIED — indistinguishable from the
+    // user declining (SVC-319). Probing there answers the question on the
+    // user's behalf, wrongly, and the gate opens already showing a denial.
+    // Skip it: `blocked: false` keeps the app rendering, and the gate's own
+    // Enable tap supplies the gesture Safari wants.
+    if (!canProbeWithoutGesture()) {
+      settle(AVAILABLE);
+      return;
+    }
 
     void (async () => {
       // Asked through the plugin — the only thing that can answer truthfully

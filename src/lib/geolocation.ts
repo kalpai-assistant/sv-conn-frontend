@@ -32,6 +32,8 @@
  */
 import { Capacitor } from "@capacitor/core";
 
+import { detectPlatform } from "./platform";
+
 /** Why a location request failed, in terms the gate's copy can act on. */
 export type LocationFailure =
   /** The OS location toggle is off. Only the device settings fix this. */
@@ -272,4 +274,33 @@ export async function peekLocationPermission(): Promise<"granted" | "denied" | "
 /** True on a real device, where the native plugin is in play. */
 export function isNativeLocation(): boolean {
   return Capacitor.isNativePlatform();
+}
+
+/**
+ * Can this platform answer a position request that no one tapped for?
+ *
+ * ## Why the question exists (SVC-319)
+ *
+ * The launch probe asks where the user is before they have touched anything,
+ * so the gate can stay down for someone we can already locate. That is only
+ * safe where a request without a user gesture is allowed to prompt.
+ *
+ * iOS Safari does not allow it. A `getCurrentPosition` that no tap initiated
+ * is refused outright — Safari will not raise its permission sheet for one —
+ * and the refusal arrives as `PERMISSION_DENIED`, identical to a user saying
+ * no. Reported from a home-screen PWA with iOS Location Services switched on:
+ * the gate was already showing the denial banner at launch, before the user
+ * could tap Enable, because the probe had answered for them.
+ *
+ * So on iOS the probe is skipped and the gate opens in its neutral "Where are
+ * you?" state. Enable still works — that tap *is* the gesture, and it raises
+ * the real Safari prompt.
+ *
+ * Native is unaffected: the Capacitor plugin talks to the OS rather than to a
+ * browser gesture model, and Android Chrome allows the ungestured call (the
+ * probe answers `granted` there and the gate never appears).
+ */
+export function canProbeWithoutGesture(): boolean {
+  if (Capacitor.isNativePlatform()) return true;
+  return detectPlatform().platform !== "ios";
 }

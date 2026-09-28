@@ -332,14 +332,16 @@ describe("on the web", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps Enable usable when denied, as Retry", () => {
+  it("keeps Enable usable when denied", () => {
     render(<LocationGate {...props({ reason: "permission-denied" })} />);
 
-    const button = screen.getByRole("button", { name: /retry/i });
+    // Still labelled "Enable" — the word names what the button does, and one
+    // label across platforms is one less thing to explain (SVC-319).
+    const button = screen.getByRole("button", { name: /enable/i });
     // A browser denial is reversible from the site's own permission menu, and
-    // the user returns to this very page — so the retry has to be live.
+    // the user returns to this very page — so the button has to stay live.
     expect(button).toBeEnabled();
-    expect(screen.getByText(/Allow location for this site, then tap Retry/i)).toBeInTheDocument();
+    expect(screen.getByText(/Allow location for this site, then tap Enable/i)).toBeInTheDocument();
   });
 
   it("still disables Enable when denied on native", () => {

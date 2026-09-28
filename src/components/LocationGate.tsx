@@ -307,7 +307,11 @@ export function LocationGate({
             own permission menu and comes straight back, with nothing to
             re-launch. Disabling the button there would strand them on a screen
             whose only remaining exits are a saved address or typing one in —
-            and a retry that now succeeds is exactly what they need. */}
+            and a tap that now succeeds is exactly what they need.
+
+            The label stays "Enable" on every platform (SVC-319). It names what
+            the button does, and the same word on iOS, Android and desktop is
+            one less thing to explain. */}
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-3">
             <Navigation className="h-5 w-5 shrink-0 text-primary" />
@@ -317,7 +321,7 @@ export function LocationGate({
                 {denied
                   ? isNativeLocation()
                     ? "Turn this on in Settings to use it"
-                    : "Allow location for this site, then tap Retry"
+                    : "Allow location for this site, then tap Enable"
                   : "Most accurate"}
               </p>
             </div>
@@ -326,13 +330,7 @@ export function LocationGate({
               disabled={busy || (denied && isNativeLocation())}
               onClick={() => void locateMe()}
             >
-              {locating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : denied && !isNativeLocation() ? (
-                "Retry"
-              ) : (
-                "Enable"
-              )}
+              {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enable"}
             </Button>
           </div>
         </div>
