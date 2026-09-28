@@ -15,17 +15,21 @@ import { renderHook, waitFor } from "@testing-library/react";
 
 const requestLocation = vi.fn();
 const canProbeWithoutGesture = vi.fn();
+const peekBrowserPermission = vi.fn();
 vi.mock("@/lib/geolocation", () => ({
   requestLocation: (...args: unknown[]) => requestLocation(...args),
   canProbeWithoutGesture: () => canProbeWithoutGesture(),
+  peekBrowserPermission: () => peekBrowserPermission(),
 }));
 
 import { useLocationAvailability } from "@/hooks/useLocationAvailability";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Everywhere but iOS Safari. The skip has its own describe block below.
+  // Everywhere but iOS Safari. The read-instead-of-ask path has its own
+  // describe block below.
   canProbeWithoutGesture.mockReturnValue(true);
+  peekBrowserPermission.mockResolvedValue(null);
 });
 
 describe("a user whose location works", () => {
@@ -167,27 +171,59 @@ describe("when the question is asked", () => {
  * reported from a home-screen PWA with Location Services switched ON, the gate
  * was already showing the denial banner before the user could tap anything.
  */
-describe("where a request needs a user gesture", () => {
+describe("where a position cannot be asked for without a gesture", () => {
+  // iOS Safari. It will not answer an ungestured `getCurrentPosition` — 6ms
+  // and no prompt, measured on device — but it will answer
+  // `permissions.query`, which costs nothing. So the launch check reads the
+  // permission instead of asking for a fix.
   beforeEach(() => {
     canProbeWithoutGesture.mockReturnValue(false);
   });
 
-  it("does not ask, so nothing can answer for the user", async () => {
+  it("never requests a position, whatever the permission says", async () => {
+    peekBrowserPermission.mockResolvedValue("granted");
+
     const { result } = renderHook(() => useLocationAvailability());
 
     await waitFor(() => expect(result.current.isResolving).toBe(false));
     expect(requestLocation).not.toHaveBeenCalled();
   });
 
-  it("reports available, so the gate opens neutral rather than denied", async () => {
+  it("keeps the gate down when the browser has already granted", async () => {
+    peekBrowserPermission.mockResolvedValue("granted");
+
     const { result } = renderHook(() => useLocationAvailability());
 
     await waitFor(() => expect(result.current.isResolving).toBe(false));
-    // `blocked: false` keeps the app rendering for someone who has an address,
-    // and leaves `reason` null so the gate reads "Where are you?" with no red
-    // banner for someone who does not. The Enable tap is the gesture Safari
-    // wants, and it still raises the real prompt.
     expect(result.current.blocked).toBe(false);
     expect(result.current.reason).toBeNull();
   });
+
+  it("names the remedy when the browser reports a refusal", async () => {
+    peekBrowserPermission.mockResolvedValue("denied");
+
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+    expect(result.current.blocked).toBe(true);
+    expect(result.current.reason).toBe("permission-denied");
+  });
+
+  it.each([["prompt"], [null]])(
+    "blocks without accusing anyone when the browser says %s",
+    async (state) => {
+      // Measured on an iPhone: "prompt" is *also* what Safari reports when iOS
+      // Location Services is switched off, so it cannot be read as "location
+      // works" — the previous attempt did exactly that and let a user with
+      // location off sail past the gate. Nor is it a refusal. `unknown` opens
+      // on "Where are you?" with no error banner, and the tap decides.
+      peekBrowserPermission.mockResolvedValue(state);
+
+      const { result } = renderHook(() => useLocationAvailability());
+
+      await waitFor(() => expect(result.current.isResolving).toBe(false));
+      expect(result.current.blocked).toBe(true);
+      expect(result.current.reason).toBe("unknown");
+    },
+  );
 });

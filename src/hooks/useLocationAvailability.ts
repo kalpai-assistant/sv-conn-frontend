@@ -34,7 +34,12 @@
  * question is real.
  */
 import { useEffect, useState } from "react";
-import { canProbeWithoutGesture, requestLocation, type LocationFailure } from "@/lib/geolocation";
+import {
+  canProbeWithoutGesture,
+  peekBrowserPermission,
+  requestLocation,
+  type LocationFailure,
+} from "@/lib/geolocation";
 
 /**
  * Why we cannot locate them — the gate's copy turns on this, because the
@@ -118,14 +123,38 @@ export function useLocationAvailability(enabled = true): LocationAvailability {
       if (!cancelled) setState(next);
     };
 
-    // iOS Safari refuses a position request that no user gesture initiated, and
-    // reports that refusal as PERMISSION_DENIED — indistinguishable from the
-    // user declining (SVC-319). Probing there answers the question on the
-    // user's behalf, wrongly, and the gate opens already showing a denial.
-    // Skip it: `blocked: false` keeps the app rendering, and the gate's own
-    // Enable tap supplies the gesture Safari wants.
+    // Where a position cannot be requested without a gesture — iOS Safari —
+    // read the permission instead of asking for a fix. It costs nothing and
+    // raises nothing, and it is enough to answer the case that matters most.
     if (!canProbeWithoutGesture()) {
-      settle(AVAILABLE);
+      void (async () => {
+        const state = await peekBrowserPermission();
+        if (cancelled) return;
+
+        // Already granted: they should never see the gate. This is the whole
+        // reason for reading rather than skipping — the previous attempt
+        // asserted `blocked: false` for everyone on iOS, which let a user
+        // whose location was switched off sail past with a stale address.
+        if (state === "granted") {
+          settle(AVAILABLE);
+          return;
+        }
+
+        // Refused, and the browser is certain. Name the remedy.
+        if (state === "denied") {
+          settle(blockedBy("permission-denied"));
+          return;
+        }
+
+        // "prompt", or no answer at all. Measured on an iPhone: this is also
+        // what Safari reports when iOS Location Services is switched **off**,
+        // so it cannot be read as "location will work" — nor as a refusal.
+        // It is genuinely undecided, and only the user's tap decides it.
+        //
+        // `unknown` carries no accusation: the gate opens on "Where are you?"
+        // with no error banner, and Enable supplies the gesture Safari wants.
+        settle(blockedBy("unknown"));
+      })();
       return;
     }
 
