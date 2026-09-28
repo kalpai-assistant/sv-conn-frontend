@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MapPicker } from "@/components/MapPicker";
+import { isNativeLocation } from "@/lib/geolocation";
 import { useProviderProfile, useUpdateServiceArea } from "@/hooks/useApi";
 
 export const Route = createFileRoute("/provider/location")({
@@ -99,9 +100,16 @@ function ProviderLocationPage() {
         // Code 1 is a denial, which on Android is one-shot — the OS will not
         // ask again, so say where to fix it rather than inviting a retry that
         // resolves instantly with the same answer.
+        //
+        // The browser collapses two causes into that one code (SVC-318): a
+        // switched-off OS toggle rejects with PERMISSION_DENIED exactly as a
+        // refusal does, so on web the copy names both rather than picking the
+        // wrong settings screen.
         toast.error(
           err.code === 1
-            ? "Location permission is off. Turn it on in your device settings."
+            ? isNativeLocation()
+              ? "Location permission is off. Turn it on in your device settings."
+              : "Check that Location is on in your settings and allowed for this site."
             : "Couldn't get your location. Drag the pin instead.",
         );
       },

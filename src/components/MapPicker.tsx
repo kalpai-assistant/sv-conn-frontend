@@ -4,6 +4,7 @@ import { MapPin, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
 import { GEOCODE_FAILED, GEOCODE_UNKNOWN } from "@/lib/geocode-result";
+import { isNativeLocation } from "@/lib/geolocation";
 import { reverseGeocode, type PlaceDetails } from "@/lib/google-maps";
 import { PlacesSearchBar } from "@/components/PlacesSearchBar";
 
@@ -139,9 +140,20 @@ export function MapPicker({
         setIsFetching(false);
         // Naming the cause matters: "turn on location" is useless advice to
         // someone who denied the permission, and vice versa.
+        //
+        // On web that distinction is not available (SVC-318). Measured on
+        // device: switching the OS toggle off makes the browser reject with
+        // PERMISSION_DENIED and report `permissions.query` as "prompt", which
+        // is indistinguishable from a refusal. This screen is where a blocked
+        // user lands after taking the gate's "Enter address manually" escape
+        // hatch, so sending them to the app-permission screen — where
+        // everything already looks correct — strands them a second time. The
+        // web copy names both remedies instead.
         toast.error(
           err.code === err.PERMISSION_DENIED
-            ? "Location is off for this app. Turn it on in settings, or move the pin."
+            ? isNativeLocation()
+              ? "Location is off for this app. Turn it on in settings, or move the pin."
+              : "Check that Location is on in your settings and allowed for this site, or move the pin."
             : "Couldn't get your location. Move the pin to set it instead.",
         );
       },
