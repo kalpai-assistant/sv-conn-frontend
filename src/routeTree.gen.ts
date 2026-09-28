@@ -16,6 +16,7 @@ import { Route as AddressesRouteImport } from './routes/addresses'
 import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as DownloadRouteImport } from './routes/download'
+import { Route as LocDebugRouteImport } from './routes/loc-debug'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RefundRouteImport } from './routes/refund'
@@ -70,6 +71,11 @@ const CartRoute = CartRouteImport.update({
 const DownloadRoute = DownloadRouteImport.update({
   id: '/download',
   path: '/download',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LocDebugRoute = LocDebugRouteImport.update({
+  id: '/loc-debug',
+  path: '/loc-debug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/bookings': typeof BookingsRoute
   '/cart': typeof CartRoute
   '/download': typeof DownloadRoute
+  '/loc-debug': typeof LocDebugRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/bookings': typeof BookingsRoute
   '/cart': typeof CartRoute
   '/download': typeof DownloadRoute
+  '/loc-debug': typeof LocDebugRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
@@ -241,6 +249,7 @@ export interface FileRoutesById {
   '/bookings': typeof BookingsRoute
   '/cart': typeof CartRoute
   '/download': typeof DownloadRoute
+  '/loc-debug': typeof LocDebugRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
@@ -272,6 +281,7 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/cart'
     | '/download'
+    | '/loc-debug'
     | '/privacy'
     | '/profile'
     | '/refund'
@@ -301,6 +311,7 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/cart'
     | '/download'
+    | '/loc-debug'
     | '/privacy'
     | '/profile'
     | '/refund'
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/cart'
     | '/download'
+    | '/loc-debug'
     | '/privacy'
     | '/profile'
     | '/refund'
@@ -360,6 +372,7 @@ export interface RootRouteChildren {
   BookingsRoute: typeof BookingsRoute
   CartRoute: typeof CartRoute
   DownloadRoute: typeof DownloadRoute
+  LocDebugRoute: typeof LocDebugRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   RefundRoute: typeof RefundRoute
@@ -431,6 +444,13 @@ declare module '@tanstack/react-router' {
       path: '/download'
       fullPath: '/download'
       preLoaderRoute: typeof DownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/loc-debug': {
+      id: '/loc-debug'
+      path: '/loc-debug'
+      fullPath: '/loc-debug'
+      preLoaderRoute: typeof LocDebugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -584,6 +604,7 @@ const rootRouteChildren: RootRouteChildren = {
   BookingsRoute: BookingsRoute,
   CartRoute: CartRoute,
   DownloadRoute: DownloadRoute,
+  LocDebugRoute: LocDebugRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   RefundRoute: RefundRoute,
