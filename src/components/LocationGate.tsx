@@ -177,9 +177,14 @@ function copyFor(reason: LocationBlockedReason | null | undefined): {
         subtitle: "Turn it on to find services near you, or choose where you are below.",
       };
     default:
+      // Also the iOS launch state, where nothing has been attempted yet: Safari
+      // will not answer a position request without a tap, so the honest
+      // opening is a question rather than a report of a failure that has not
+      // happened. "We couldn't detect your location" would be a claim about an
+      // attempt nobody made.
       return {
         title: "Where are you?",
-        subtitle: "We couldn't detect your location. Choose where you'd like your service.",
+        subtitle: "Use your current location, or choose where you'd like your service.",
       };
   }
 }
@@ -251,7 +256,7 @@ export function LocationGate({
       result = await requestLocation(LOCATE_TIMEOUT_MS);
     }
 
-    const { ok, failure, coords } = result;
+    const { ok, failure, coords, refusedInstantly } = result;
     setLocating(false);
 
     if (ok && coords) {
@@ -259,14 +264,22 @@ export function LocationGate({
       return;
     }
 
-    // On web a refusal and a switched-off OS toggle are the same error, so the
-    // banner names both remedies there — see `copyFor` (SVC-318).
+    // A refusal on web has two possible causes and one error code. The tap is
+    // what separates them: a browser that refused before showing anything was
+    // not relaying a decision, it was reporting that the device's location
+    // switch is off. Measured on an iPhone: 6ms and nothing on screen, against
+    // ~1500ms for a real prompt.
+    //
+    // Only now is the accusation earned — before the tap there was no evidence
+    // either way, which is why the gate opens on "Where are you?" instead.
     if (failure === "permission-denied") setPermission("denied");
     setError(
       failure === "permission-denied"
         ? isNativeLocation()
           ? "Location is off for this app. Turn it on in settings, or choose where you are below."
-          : "Check that Location is on in your phone's settings and allowed for this site, or choose where you are below."
+          : refusedInstantly
+            ? "Your phone's location is switched off. Turn on Location Services in Settings, then tap Enable again."
+            : "Location is blocked for this site. Allow it in your browser's settings, or choose where you are below."
         : failure === "location-disabled"
           ? "Turn on Location in your phone's settings, or choose where you are below."
           : "Couldn't get your location. Choose where you are instead.",

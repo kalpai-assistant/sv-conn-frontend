@@ -61,7 +61,34 @@ export interface LocationResult {
   failure: LocationFailure | null;
   /** The position, when there is one. Callers that only need availability ignore it. */
   coords: { lat: number; lng: number } | null;
+  /**
+   * True when the browser refused before anything could be shown to the user.
+   *
+   * Only ever set on web, and only on a refusal. The web collapses two very
+   * different causes into `PERMISSION_DENIED`: the user tapping "Don't allow",
+   * and the device's location switch being off. Nothing in the API separates
+   * them — measured on an iPhone with Location Services off,
+   * `permissions.query` still reported `"prompt"`.
+   *
+   * What does separate them is how long the refusal took. Measured: **6ms with
+   * no prompt shown** when the system refused, against ~1500ms when a human
+   * answered a real dialog. A person cannot read and answer a permission sheet
+   * in single-digit milliseconds.
+   *
+   * It is a heuristic and is used as one — it picks which remedy the copy
+   * names, never whether the feature works. A wrong guess costs a sentence,
+   * not a capability.
+   */
+  refusedInstantly?: boolean;
 }
+
+/**
+ * Under this, nobody was asked.
+ *
+ * Deliberately far below the ~1500ms a real prompt-and-answer took on device,
+ * so ordinary slowness never reads as a system refusal.
+ */
+const INSTANT_REFUSAL_MS = 300;
 
 // Plugin error codes, from GeolocationErrors.kt. Matched as substrings because
 // the plugin prefixes them (`OS-PLUG-GLOC-0007`) and has changed that prefix
@@ -126,6 +153,12 @@ function classify(err: unknown): LocationFailure {
 export async function requestLocation(timeoutMs: number): Promise<LocationResult> {
   const { Geolocation } = await import("@capacitor/geolocation");
 
+  // Timed so a refusal can be told apart from an answer — see
+  // `refusedInstantly`. Started before the dynamic import's work is done so it
+  // can only ever over-estimate the elapsed time, never under-estimate it,
+  // which keeps the "instant" verdict conservative.
+  const startedAt = Date.now();
+
   try {
     // Both of these are native-only conveniences. On web the plugin has no
     // `requestPermissions` at all (it throws `unimplemented`) and
@@ -160,7 +193,18 @@ export async function requestLocation(timeoutMs: number): Promise<LocationResult
       coords: { lat: position.coords.latitude, lng: position.coords.longitude },
     };
   } catch (err) {
-    return { ok: false, failure: classify(err), coords: null };
+    const failure = classify(err);
+    return {
+      ok: false,
+      failure,
+      coords: null,
+      // Only meaningful for a refusal: a timeout is slow by definition, and a
+      // disabled toggle on native already says so in its own error code.
+      refusedInstantly:
+        failure === "permission-denied" &&
+        !Capacitor.isNativePlatform() &&
+        Date.now() - startedAt < INSTANT_REFUSAL_MS,
+    };
   }
 }
 
@@ -279,28 +323,60 @@ export function isNativeLocation(): boolean {
 /**
  * Can this platform answer a position request that no one tapped for?
  *
- * ## Why the question exists (SVC-319)
- *
  * The launch probe asks where the user is before they have touched anything,
  * so the gate can stay down for someone we can already locate. That is only
  * safe where a request without a user gesture is allowed to prompt.
  *
- * iOS Safari does not allow it. A `getCurrentPosition` that no tap initiated
- * is refused outright — Safari will not raise its permission sheet for one —
- * and the refusal arrives as `PERMISSION_DENIED`, identical to a user saying
- * no. Reported from a home-screen PWA with iOS Location Services switched on:
- * the gate was already showing the denial banner at launch, before the user
- * could tap Enable, because the probe had answered for them.
- *
- * So on iOS the probe is skipped and the gate opens in its neutral "Where are
- * you?" state. Enable still works — that tap *is* the gesture, and it raises
- * the real Safari prompt.
+ * iOS Safari does not allow it. Measured on an iPhone (iOS 18.7, Safari 26)
+ * with Location Services switched off: `getCurrentPosition` came back
+ * `PERMISSION_DENIED` in **6ms with no prompt shown**, where the same call on
+ * Android with location on takes ~1500ms and raises a real dialog. Safari
+ * refuses an ungestured request outright rather than asking, and the refusal
+ * is indistinguishable from a user saying no — which is how the gate came to
+ * show a denial the user never made.
  *
  * Native is unaffected: the Capacitor plugin talks to the OS rather than to a
- * browser gesture model, and Android Chrome allows the ungestured call (the
- * probe answers `granted` there and the gate never appears).
+ * browser's gesture model.
  */
 export function canProbeWithoutGesture(): boolean {
   if (Capacitor.isNativePlatform()) return true;
   return detectPlatform().platform !== "ios";
+}
+
+/**
+ * What the browser already knows, without asking anyone.
+ *
+ * ## Why this is the right question on iOS
+ *
+ * `canProbeWithoutGesture` says iOS cannot be *asked* at launch. But it can
+ * still be *read*: measured on the same iPhone,
+ * `navigator.permissions.query({name:"geolocation"})` resolves rather than
+ * throwing, and it costs nothing — no position request, no gesture, no prompt.
+ *
+ * That is enough to keep the gate down for someone already granted, which is
+ * the case that matters most: they should never see it at all.
+ *
+ * ## What it cannot tell us
+ *
+ * The same measurement, with iOS Location Services switched **off**, still
+ * reported `"prompt"` — identical to a site that has simply never been asked.
+ * The web has no notion of a device-wide toggle, so those two states are one
+ * value here, and `"prompt"` must not be read as "location will work". It
+ * means only "not decided yet", and the decision needs the user's tap.
+ *
+ * Returns null where the API is absent or throws, which is the same "we do
+ * not know" as `"prompt"` — callers treat them alike.
+ */
+export async function peekBrowserPermission(): Promise<PermissionState | null> {
+  try {
+    if (typeof navigator === "undefined" || !navigator.permissions) return null;
+    const status = await navigator.permissions.query({
+      name: "geolocation" as PermissionName,
+    });
+    return status.state;
+  } catch {
+    // Safari has historically thrown on an unsupported permission name rather
+    // than rejecting the promise. Either way we have learned nothing.
+    return null;
+  }
 }

@@ -352,3 +352,62 @@ describe("on the web", () => {
     expect(screen.getByRole("button", { name: /enable/i })).toBeDisabled();
   });
 });
+
+/**
+ * Two causes, one error code, and only the tap tells them apart.
+ *
+ * The web reports a switched-off device location and a user's refusal
+ * identically. Measured on an iPhone: the system refusal came back in 6ms with
+ * nothing shown, where a real prompt-and-answer took ~1500ms. That gap is the
+ * only available signal, so it picks which remedy the copy names — and it only
+ * runs after a tap, because before one there is no evidence at all.
+ */
+describe("after a tap that the browser refused", () => {
+  beforeEach(() => {
+    isNativeLocation.mockReturnValue(false);
+  });
+
+  it("blames the device switch when nothing was ever shown to the user", async () => {
+    requestLocation.mockResolvedValue({
+      ok: false,
+      failure: "permission-denied",
+      coords: null,
+      refusedInstantly: true,
+    });
+
+    render(<LocationGate {...props({ reason: "unknown" })} />);
+    await userEvent.click(screen.getByRole("button", { name: /enable/i }));
+
+    expect(await screen.findByText(/Location Services in Settings/i)).toBeInTheDocument();
+  });
+
+  it("blames the site permission when the user was actually asked", async () => {
+    requestLocation.mockResolvedValue({
+      ok: false,
+      failure: "permission-denied",
+      coords: null,
+      refusedInstantly: false,
+    });
+
+    render(<LocationGate {...props({ reason: "unknown" })} />);
+    await userEvent.click(screen.getByRole("button", { name: /enable/i }));
+
+    expect(await screen.findByText(/blocked for this site/i)).toBeInTheDocument();
+  });
+
+  it("keeps the native wording on a real device", async () => {
+    // Native has distinct error codes and needs no heuristic.
+    isNativeLocation.mockReturnValue(true);
+    requestLocation.mockResolvedValue({
+      ok: false,
+      failure: "permission-denied",
+      coords: null,
+      refusedInstantly: true,
+    });
+
+    render(<LocationGate {...props({ reason: "unknown" })} />);
+    await userEvent.click(screen.getByRole("button", { name: /enable/i }));
+
+    expect(await screen.findByText(/Location is off for this app/i)).toBeInTheDocument();
+  });
+});
