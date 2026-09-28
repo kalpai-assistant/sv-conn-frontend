@@ -25,6 +25,20 @@
  * That last one matters most. An enabled button that does nothing gets tapped
  * repeatedly, and the user concludes the app is broken.
  *
+ * ## The web reads two of those differently (SVC-318)
+ *
+ * The browser has no device-wide toggle to report and no permission call of
+ * its own, so two of the distinctions above collapse:
+ *
+ *   - `device-off` is unreachable. Measured on device: switching the OS
+ *     toggle off makes Chrome report `permissions.query` as "prompt" and
+ *     reject with PERMISSION_DENIED, identical to a refusal, even after an
+ *     explicit grant. The copy for `permission-denied` therefore names both
+ *     remedies on web rather than guessing at one.
+ *   - `permission-denied` is not one-shot. The user changes it in the site's
+ *     permission menu and returns to the same page, so Enable stays live
+ *     there and reads "Retry"; disabling it would strand them.
+ *
  * ## Three exits, and at least two never need permission
  *
  *   1. Enable / use my current location — the OS prompt fires here, on an
@@ -41,7 +55,12 @@ import { useEffect, useState } from "react";
 import { Check, Home, Loader2, MapPin, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InUseBadge } from "@/components/InUseBadge";
-import { enableDeviceLocation, peekLocationPermission, requestLocation } from "@/lib/geolocation";
+import {
+  enableDeviceLocation,
+  isNativeLocation,
+  peekLocationPermission,
+  requestLocation,
+} from "@/lib/geolocation";
 import type { LocationBlockedReason } from "@/hooks/useLocationAvailability";
 
 /** One place the user can pick without granting anything. */
@@ -135,7 +154,22 @@ function copyFor(reason: LocationBlockedReason | null | undefined): {
     case "permission-denied":
       return {
         title: "Location permission is off",
-        subtitle: "Allow location for EazyServ in Settings, or choose where you are below.",
+        // Two different remedies behind one browser error (SVC-318).
+        //
+        // On native the plugin distinguishes the OS toggle
+        // (LOCATION_DISABLED) from a refusal (LOCATION_PERMISSIONS_DENIED),
+        // so `device-off` above can name the exact screen. The web API has no
+        // such notion: measured on device, switching the OS toggle off makes
+        // Chrome report `permissions.query` as "prompt" and reject with
+        // PERMISSION_DENIED — byte-identical to a user who tapped Block, even
+        // after an explicit grant. There is no signal to tell them apart, so
+        // naming only one remedy would send half of these users to a screen
+        // where everything already looks correct.
+        //
+        // The honest copy names both, cheapest check first.
+        subtitle: isNativeLocation()
+          ? "Allow location for EazyServ in Settings, or choose where you are below."
+          : "Check that Location is on in your phone's settings and allowed for this site, or choose where you are below.",
       };
     case "permission-prompt":
       return {
@@ -225,10 +259,14 @@ export function LocationGate({
       return;
     }
 
+    // On web a refusal and a switched-off OS toggle are the same error, so the
+    // banner names both remedies there — see `copyFor` (SVC-318).
     if (failure === "permission-denied") setPermission("denied");
     setError(
       failure === "permission-denied"
-        ? "Location is off for this app. Turn it on in settings, or choose where you are below."
+        ? isNativeLocation()
+          ? "Location is off for this app. Turn it on in settings, or choose where you are below."
+          : "Check that Location is on in your phone's settings and allowed for this site, or choose where you are below."
         : failure === "location-disabled"
           ? "Turn on Location in your phone's settings, or choose where you are below."
           : "Couldn't get your location. Choose where you are instead.",
@@ -260,20 +298,41 @@ export function LocationGate({
 
       <div className="space-y-3">
         {/* Enable, styled as the primary action: it is the outcome we want, and
-            the one that keeps working next launch. Disabled when denied,
-            because Android will not ask twice and a button that silently does
-            nothing is worse than one that explains itself. */}
+            the one that keeps working next launch. Disabled when denied on
+            native, because Android will not ask twice and a button that
+            silently does nothing is worse than one that explains itself.
+
+            On web it stays live even when denied (SVC-318). A browser denial
+            is not final the way Android's is: the user fixes it in the site's
+            own permission menu and comes straight back, with nothing to
+            re-launch. Disabling the button there would strand them on a screen
+            whose only remaining exits are a saved address or typing one in —
+            and a retry that now succeeds is exactly what they need. */}
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-3">
             <Navigation className="h-5 w-5 shrink-0 text-primary" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-foreground">Use my current location</p>
               <p className="text-xs text-muted-foreground">
-                {denied ? "Turn this on in Settings to use it" : "Most accurate"}
+                {denied
+                  ? isNativeLocation()
+                    ? "Turn this on in Settings to use it"
+                    : "Allow location for this site, then tap Retry"
+                  : "Most accurate"}
               </p>
             </div>
-            <Button size="sm" disabled={busy || denied} onClick={() => void locateMe()}>
-              {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enable"}
+            <Button
+              size="sm"
+              disabled={busy || (denied && isNativeLocation())}
+              onClick={() => void locateMe()}
+            >
+              {locating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : denied && !isNativeLocation() ? (
+                "Retry"
+              ) : (
+                "Enable"
+              )}
             </Button>
           </div>
         </div>
