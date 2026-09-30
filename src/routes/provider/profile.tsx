@@ -3,6 +3,7 @@ import { ChevronRight, MapPin, WalletCards } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationsRow } from "@/components/NotificationsRow";
+import { BusinessSection } from "@/components/provider/BusinessSection";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
 import { useProviderProfile } from "@/hooks/useApi";
 import { APP_VERSION } from "@/lib/version";
@@ -26,6 +27,12 @@ function ProviderProfilePage() {
         <BackButton fallbackTo="/provider" />
         <h1 className="text-lg font-semibold text-foreground">Provider Profile</h1>
       </div>
+
+      {/* The business the provider trades as, editable after onboarding
+          (SVC-337). First because it is who they are, before the readiness rows.
+          Waits for the profile so it never flashes "Add your business name" at
+          a provider who has one. */}
+      {profile && <BusinessSection profile={profile} />}
 
       {/* Payout method summary → the SVC-148 edit screen. Shows the active method's
           label inline so the common case (checking where the money goes) needs no tap. */}

@@ -9,6 +9,8 @@ import { Progress } from "@/components/ui/progress";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
 import { PayoutStep } from "@/components/provider/PayoutStep";
 import { ServiceAreaStep } from "@/components/provider/ServiceAreaStep";
+import { BusinessNameField } from "@/components/provider/BusinessNameField";
+import { LogoPicker } from "@/components/provider/LogoPicker";
 import { useAuth } from "@/lib/auth-context";
 import { captureLivePhoto, captureNativePhoto, isNativePlatform } from "@/lib/camera";
 import {
@@ -21,6 +23,8 @@ import {
   useUpdateName,
   useUpdateLanguages,
   useUploadPhoto,
+  useUpdateBusinessName,
+  useUploadBusinessImage,
   useSubmitKyc,
 } from "@/hooks/useApi";
 
@@ -38,6 +42,8 @@ function ProviderOnboardingPage() {
   const updateName = useUpdateName();
   const uploadPhoto = useUploadPhoto();
   const updateLanguages = useUpdateLanguages();
+  const updateBusinessName = useUpdateBusinessName();
+  const uploadBusinessImage = useUploadBusinessImage();
   const submitKyc = useSubmitKyc();
 
   // Resume from a saved draft (step + text fields); images are re-captured.
@@ -50,6 +56,25 @@ function ProviderOnboardingPage() {
   const [photo, setPhoto] = useState<Blob | null>(null);
   const [languages, setLanguages] = useState<string[]>(draft.languages ?? []);
   const [langInput, setLangInput] = useState("");
+  // SVC-337: the business. Required name; optional logo (the default shows when
+  // there is none). The logo Blob is held until Continue, like the photo.
+  const [businessName, setBusinessName] = useState(draft.businessName ?? "");
+  const [businessNameInvalid, setBusinessNameInvalid] = useState(false);
+  const [businessLogo, setBusinessLogo] = useState<Blob | null>(null);
+
+  // A provider sent back here after finishing — "Resubmit documents", or the
+  // missing-service-area redirect — has no draft (it is cleared on finish), but
+  // already has a business name on the server. Fill it in once the profile
+  // loads so they are not made to retype it. Only once, and never over a draft
+  // or anything they have started typing.
+  const prefilledBusinessName = useRef(false);
+  useEffect(() => {
+    if (prefilledBusinessName.current || !profile) return;
+    prefilledBusinessName.current = true;
+    if (profile.business_name) {
+      setBusinessName((current) => current || profile.business_name || "");
+    }
+  }, [profile]);
 
   // Step 2 state — all captured live (no upload)
   const [aadhaarFront, setAadhaarFront] = useState<Blob | null>(null);
@@ -58,13 +83,15 @@ function ProviderOnboardingPage() {
 
   // Persist the resumable parts of the wizard on every change.
   useEffect(() => {
-    saveOnboardingDraft({ step, name, languages });
-  }, [step, name, languages]);
+    saveOnboardingDraft({ step, name, languages, businessName });
+  }, [step, name, languages, businessName]);
 
   const saving =
     updateName.isPending ||
     uploadPhoto.isPending ||
     updateLanguages.isPending ||
+    updateBusinessName.isPending ||
+    uploadBusinessImage.isPending ||
     submitKyc.isPending;
 
   const addLanguage = () => {
@@ -82,10 +109,22 @@ function ProviderOnboardingPage() {
       setError("Please enter your name.");
       return;
     }
+    if (!businessName.trim()) {
+      setBusinessNameInvalid(true);
+      setError("Please enter your business name.");
+      return;
+    }
     try {
       await updateName.mutateAsync(name.trim());
       updateUser({ name: name.trim() });
+      await updateBusinessName.mutateAsync(businessName.trim());
       if (photo) await uploadPhoto.mutateAsync(photo);
+      if (businessLogo) {
+        await uploadBusinessImage.mutateAsync(businessLogo);
+        // Uploaded: from here the picker shows the stored logo, and coming back
+        // to this step and pressing Continue again will not upload it twice.
+        setBusinessLogo(null);
+      }
       if (languages.length) await updateLanguages.mutateAsync(languages);
       setStep(2);
     } catch (err) {
@@ -196,6 +235,36 @@ function ProviderOnboardingPage() {
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* SVC-337: the business the provider trades as. */}
+                <div className="flex items-center gap-3 pt-1">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Your business
+                  </span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+
+                <BusinessNameField
+                  id="business-name"
+                  value={businessName}
+                  onChange={(value) => {
+                    setBusinessName(value);
+                    if (businessNameInvalid && value.trim()) setBusinessNameInvalid(false);
+                  }}
+                  invalid={businessNameInvalid}
+                />
+
+                <div className="space-y-2">
+                  <Label>
+                    Business logo{" "}
+                    <span className="font-normal text-muted-foreground">(optional)</span>
+                  </Label>
+                  <LogoPicker
+                    currentUrl={profile?.business_image_url}
+                    file={businessLogo}
+                    onSelect={setBusinessLogo}
+                  />
                 </div>
 
                 <Button className="w-full" disabled={saving} onClick={handleStep1}>

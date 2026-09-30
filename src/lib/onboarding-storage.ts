@@ -7,6 +7,8 @@ export interface OnboardingDraft {
   step: number;
   name: string;
   languages: string[];
+  // SVC-337. Absent from drafts saved before this field existed.
+  businessName?: string;
 }
 
 export function loadOnboardingDraft(): Partial<OnboardingDraft> {

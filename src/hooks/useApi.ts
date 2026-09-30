@@ -1197,6 +1197,12 @@ export interface ProviderProfile {
   // the switch optimistically, which the 400 handling already covers. Drop the `?`
   // once that backend is everywhere.
   payout_methods_stored?: PayoutMethodKind[];
+  // The business the provider trades as, and its logo (SVC-336/337). Null until
+  // set; a null logo is shown as the bundled default (see BusinessLogo) — the
+  // backend never stores a placeholder. Optional because a backend without
+  // SVC-336 omits both fields.
+  business_name?: string | null;
+  business_image_url?: string | null;
 }
 
 // GET /providers/me — the current provider's profile (kyc_status drives the
@@ -1260,6 +1266,37 @@ export const useUploadPhoto = () => {
       const form = new FormData();
       form.append("photo", photo, "photo.jpg");
       return apiFetch<ProviderProfile>("/providers/me/photo", { method: "POST", body: form });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+  });
+};
+
+// PATCH /providers/me { business_name } (SVC-337). The backend trims it and
+// rejects blank or over-100-character names with a 422.
+export const useUpdateBusinessName = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (business_name: string) =>
+      apiFetch<ProviderProfile>("/providers/me", {
+        method: "PATCH",
+        body: JSON.stringify({ business_name }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
+  });
+};
+
+// POST /providers/me/business-image (multipart, field `image`) — upload/replace
+// the business logo (SVC-336). There is no endpoint to remove one.
+export const useUploadBusinessImage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (image: Blob) => {
+      const form = new FormData();
+      form.append("image", image, "logo.jpg");
+      return apiFetch<ProviderProfile>("/providers/me/business-image", {
+        method: "POST",
+        body: form,
+      });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerProfile"] }),
   });
