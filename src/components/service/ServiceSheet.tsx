@@ -274,8 +274,10 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
                   response, same as the rails, so landing here moves nothing
                   already on screen — the variant picker never shifts under a
                   finger mid-tap. Nothing renders while the query is loading
-                  or when the service has none. */}
-              <StepsSection steps={detail?.steps ?? []} />
+                  or when the service has none. Keyed by service so a
+                  related-card swap re-opens it collapsed, like the variant
+                  reset above. */}
+              <StepsSection key={serviceId} steps={detail?.steps ?? []} />
               <ExclusionsSection exclusions={detail?.exclusions ?? []} />
 
               {/* SVC-292 related surfaces. Section titles are human — the

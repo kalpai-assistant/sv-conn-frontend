@@ -31,6 +31,10 @@ const SERVICE: Service = {
   variants: [],
 };
 
+// A related-service tap swaps the sheet's `serviceId` on the same mounted
+// instance (service-sheet-context renders it without a key).
+const RELATED: Service = { ...SERVICE, id: "s2", name: "Single wall painting" };
+
 const STEPS = ["Inspect walls", "Cover furniture", "Sand + prime", "Two coats", "Clean up"];
 const EXCLUSIONS = ["Ceiling painting", "Moving heavy furniture", "Crack repair"];
 
@@ -38,7 +42,7 @@ let detail: UI_ServiceDetail | undefined;
 
 vi.mock("@/hooks/useApi", () => ({
   useServices: () => ({
-    data: [SERVICE],
+    data: [SERVICE, RELATED],
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -117,6 +121,21 @@ describe("both populated", () => {
     expect(items.map((li) => li.textContent)).toEqual(STEPS.map((s, i) => `${i + 1}${s}`));
 
     await userEvent.click(trigger);
+    expect(screen.queryByText("Inspect walls")).not.toBeInTheDocument();
+  });
+
+  it("opens collapsed again after a related-service swap", async () => {
+    detail = withDetail(STEPS, EXCLUSIONS);
+    const { rerender } = renderSheet();
+    await userEvent.click(screen.getByRole("button", { name: /what's involved/i }));
+    expect(screen.getByText("Inspect walls")).toBeInTheDocument();
+
+    rerender(<ServiceSheet serviceId="s2" onClose={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: /what's involved/i })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
     expect(screen.queryByText("Inspect walls")).not.toBeInTheDocument();
   });
 
