@@ -28,10 +28,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useMotionValue, type PanInfo } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
-import { X, ShieldCheck, LockKeyhole, Clock, Loader2, Check } from "lucide-react";
+import {
+  X,
+  ShieldCheck,
+  LockKeyhole,
+  Clock,
+  Loader2,
+  Check,
+  ChevronDown,
+  CircleX,
+} from "lucide-react";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
-import { useCategories, useServices, useServiceRelated } from "@/hooks/useApi";
+import { useCategories, useServices, useServiceDetail } from "@/hooks/useApi";
 import type { UI_RelatedServiceEntry } from "@/hooks/useApi";
 import { useCart } from "@/lib/cart-context";
 import type { Service } from "@/lib/mock-data";
@@ -40,6 +49,7 @@ import { ServiceBanner } from "@/components/service/ServiceBanner";
 import { ErrorState } from "@/components/ErrorState";
 import { ServiceCard } from "@/components/ServiceCard";
 import { ServiceCardCompact } from "@/components/home/ServiceCardCompact";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatRupees } from "@/lib/currency";
 
 interface ServiceSheetProps {
@@ -53,7 +63,8 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
   const navigate = useNavigate();
   const { data: services, isLoading, isError, refetch } = useServices();
   const { data: categories } = useCategories();
-  const { data: related } = useServiceRelated(serviceId);
+  const { data: detail } = useServiceDetail(serviceId);
+  const related = detail?.related;
   const service = services?.find((s) => s.id === serviceId);
   const cart = useCart();
 
@@ -258,6 +269,17 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
                 </div>
               </div>
 
+              {/* SVC-341 scope clarity. Below the trust card rather than
+                  under the description: these arrive with the detail
+                  response, same as the rails, so landing here moves nothing
+                  already on screen — the variant picker never shifts under a
+                  finger mid-tap. Nothing renders while the query is loading
+                  or when the service has none. Keyed by service so a
+                  related-card swap re-opens it collapsed, like the variant
+                  reset above. */}
+              <StepsSection key={serviceId} steps={detail?.steps ?? []} />
+              <ExclusionsSection exclusions={detail?.exclusions ?? []} />
+
               {/* SVC-292 related surfaces. Section titles are human — the
                   ticket calls out "Hooks / Upsells / Related" as internal
                   terminology that must not bleed into UI. Empty sections
@@ -307,6 +329,77 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
         )}
       </motion.div>
     </>
+  );
+}
+
+/**
+ * "What's involved" — the service's steps, numbered, collapsed by default so
+ * the sheet stays scannable. The header carries a count hint so a collapsed
+ * section still says how much is behind it. Radix Collapsible unmounts the
+ * list while closed and animates nothing, so there is no inner overflow box
+ * for an Android WebView to trap the sheet's scroll in.
+ */
+function StepsSection({ steps }: { steps: string[] }) {
+  if (steps.length === 0) return null;
+  return (
+    <section className="px-4 pt-5">
+      <Collapsible className="rounded-xl border border-border bg-card">
+        <h4>
+          <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 p-4 text-left">
+            <span className="text-sm font-semibold text-foreground">
+              What's involved
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                {steps.length} {steps.length === 1 ? "step" : "steps"}
+              </span>
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+          </CollapsibleTrigger>
+        </h4>
+        <CollapsibleContent>
+          <ol className="flex flex-col gap-3 px-4 pb-4">
+            {steps.map((step, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-primary">
+                  {i + 1}
+                </span>
+                <span className="pt-0.5 text-sm text-foreground">{step}</span>
+              </li>
+            ))}
+          </ol>
+        </CollapsibleContent>
+      </Collapsible>
+    </section>
+  );
+}
+
+/**
+ * "Not included" — always open, because this is the list that heads off the
+ * "why wasn't this done?" dispute. Amber, not red: it is a heads-up, not an
+ * error. Same amber + dark: pairing InstallSheet and the download page use;
+ * the theme has no warning token of its own.
+ */
+function ExclusionsSection({ exclusions }: { exclusions: string[] }) {
+  if (exclusions.length === 0) return null;
+  return (
+    <section className="px-4 pt-5">
+      <div className="rounded-xl border border-amber-400/40 bg-amber-50 p-4 dark:bg-amber-950/40">
+        <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-100">Not included</h4>
+        <ul className="mt-3 flex flex-col gap-2">
+          {exclusions.map((item, i) => (
+            <li
+              key={i}
+              className="flex items-start gap-2 text-sm text-amber-900 dark:text-amber-100"
+            >
+              <CircleX
+                className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
+                aria-hidden
+              />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }
 
