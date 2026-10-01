@@ -385,6 +385,19 @@ interface API_ServiceDetail extends API_ServiceResponse {
     upsell?: API_RelatedEntry[];
     related?: API_RelatedEntry[];
   };
+  // SVC-340: detail-only, absent from GET /services. `null` when the service
+  // has none, and missing entirely on a backend from before SVC-340.
+  steps?: string[] | null;
+  exclusions?: string[] | null;
+}
+
+/** What the service sheet needs beyond the cached list entry (SVC-292,
+ *  SVC-341). `steps` / `exclusions` are always arrays — empty means "render
+ *  no section", whichever of null / [] / missing the backend sent. */
+export interface UI_ServiceDetail {
+  related: UI_RelatedServicesBucket;
+  steps: string[];
+  exclusions: string[];
 }
 
 const mapRelatedEntry = (e: API_RelatedEntry): UI_RelatedServiceEntry => ({
@@ -394,28 +407,36 @@ const mapRelatedEntry = (e: API_RelatedEntry): UI_RelatedServiceEntry => ({
   sortOrder: e.sort_order,
 });
 
-/** Fetch the related-services bucket for a service (SVC-292).
+const toTextList = (v: string[] | null | undefined): string[] =>
+  Array.isArray(v) ? v.filter((s) => typeof s === "string" && s.trim() !== "") : [];
+
+/** Fetch the sheet-only detail for a service: the related-services bucket
+ * (SVC-292) plus steps + exclusions (SVC-341). One request per sheet open.
  *
  * Kept separate from `useServices` on purpose: the list route is the app's
  * biggest single request (home page + every category page), and folding the
- * per-service related payload into it would multiply its cost for a payload
- * no rail on those pages renders. Sheet-detail pays for sheet-detail.
+ * per-service detail payload into it would multiply its cost for a payload
+ * nothing on those pages renders. Sheet-detail pays for sheet-detail.
  *
  * Base service data still comes from the cached `useServices` list — the
  * sheet paints its header and CTA from cache instantly, and this query fills
- * the three rails in when the response lands.
+ * in the sections below the trust card when the response lands.
  */
-export const useServiceRelated = (serviceId: string | undefined) => {
+export const useServiceDetail = (serviceId: string | undefined) => {
   return useQuery({
     enabled: !!serviceId,
-    queryKey: ["service", serviceId, "related"],
-    queryFn: async (): Promise<UI_RelatedServicesBucket> => {
+    queryKey: ["service", serviceId, "detail"],
+    queryFn: async (): Promise<UI_ServiceDetail> => {
       const data = await apiFetch<API_ServiceDetail>(`/services/${serviceId}`);
       const bucket = data.related ?? {};
       return {
-        hook: (bucket.hook ?? []).map(mapRelatedEntry),
-        upsell: (bucket.upsell ?? []).map(mapRelatedEntry),
-        related: (bucket.related ?? []).map(mapRelatedEntry),
+        related: {
+          hook: (bucket.hook ?? []).map(mapRelatedEntry),
+          upsell: (bucket.upsell ?? []).map(mapRelatedEntry),
+          related: (bucket.related ?? []).map(mapRelatedEntry),
+        },
+        steps: toTextList(data.steps),
+        exclusions: toTextList(data.exclusions),
       };
     },
   });
