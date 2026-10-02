@@ -71,4 +71,19 @@
     <!-- Declare camera as a soft feature (not all devices have one — don't block install) -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+    <!-- Android 11+ package visibility (RBI-mandated UPI Intent flow via
+         Razorpay WebView checkout, 2026-10). Without this, startActivity
+         for intent://scheme=upi URIs returns ActivityNotFoundException
+         even when GPay / PhonePe / Paytm are installed, because the
+         targetSdk 30+ app can't see other apps unless it declares what
+         it's looking for. See:
+         https://developer.android.com/guide/topics/manifest/queries-element
+         https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/webview/upi-intent-android/ -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" />
+        </intent>
+    </queries>
 </manifest>
