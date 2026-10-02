@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.eazyserv.app",
+      "sha256_cert_fingerprints": [
+        "47:5D:19:84:87:C1:33:75:41:D9:66:3B:A0:00:A7:00:C7:D8:A9:C6:0E:CC:1E:C6:25:12:EA:16:17:6D:1C:18"
+      ]
+    }
+  }
+]

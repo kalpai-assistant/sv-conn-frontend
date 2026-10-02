@@ -29,3 +29,12 @@
 
 /firebase-messaging-sw.js
   Cache-Control: no-cache
+
+# SVC-343: Android App Links verification file. Google's digital asset
+# links verifier does an exact-fetch and requires Content-Type:
+# application/json. Cloudflare auto-infers from the .json extension, but
+# pinning it here removes any dependency on that inference. Short cache
+# so a SHA rotation (keystore replacement) is picked up within an hour.
+/.well-known/assetlinks.json
+  Content-Type: application/json
+  Cache-Control: public, max-age=3600
