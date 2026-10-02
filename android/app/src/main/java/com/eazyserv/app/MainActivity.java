@@ -1,16 +1,21 @@
 package com.eazyserv.app;
 
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 
 import com.eazyserv.apkupdater.ApkUpdaterPlugin;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.BridgeWebViewClient;
 
 public class MainActivity extends BridgeActivity {
 
@@ -36,6 +41,53 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
 
         maybeClearWebViewCacheOnVersionChange();
+        installIntentUrlHandler();
+    }
+
+    // RBI's new rules (2026-10) deprecate the UPI Collect flow in Android
+    // WebView; Razorpay's Standard Checkout now generates intent:// and
+    // upi:// URLs that must be launched as Android intents so GPay / PhonePe
+    // / Paytm can handle them. Capacitor's default BridgeWebViewClient
+    // drops non-http(s) URLs silently, so without this override UPI payment
+    // apps never open and UPI vanishes from the checkout UI.
+    //
+    // We extend BridgeWebViewClient rather than replace it so every other
+    // Capacitor behaviour (allowed origins, bridge messaging, cookie
+    // forwarding) stays intact; only non-http(s) navigation is intercepted.
+    //
+    // The AndroidManifest <queries> block is the companion to this — on
+    // Android 11+ targetSdk 30+, the app cannot see UPI-handling packages
+    // without it, so startActivity would throw ActivityNotFoundException.
+    private void installIntentUrlHandler() {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (getBridge() == null) return;
+            WebView wv = getBridge().getWebView();
+            if (wv == null) return;
+            wv.setWebViewClient(new BridgeWebViewClient(getBridge()) {
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                    String url = request.getUrl().toString();
+                    boolean isWeb = url.startsWith("http://") || url.startsWith("https://");
+                    if (!isWeb) {
+                        try {
+                            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                            // FLAG_ACTIVITY_NEW_TASK so UPI apps start cleanly
+                            // outside our task stack and return via onNewIntent
+                            // when the user comes back.
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(intent);
+                            return true;
+                        } catch (ActivityNotFoundException e) {
+                            Log.w(TAG, "No app can handle " + url, e);
+                            // Let the WebView see the URL — it will show its
+                            // default error page rather than failing silently.
+                            return false;
+                        }
+                    }
+                    return super.shouldOverrideUrlLoading(view, request);
+                }
+            });
+        });
     }
 
     private void maybeClearWebViewCacheOnVersionChange() {

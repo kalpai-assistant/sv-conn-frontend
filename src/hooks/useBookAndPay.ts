@@ -135,6 +135,13 @@ export function useBookAndPay() {
           name: "EazyServ",
           description: "Payment for Service",
           order_id: order.razorpay_order_id,
+          // RBI (2026-10): UPI Collect is deprecated in Android WebView;
+          // UPI must now be surfaced via Intent. Without this flag, UPI
+          // simply does not appear as an option when checkout opens inside
+          // our Capacitor shell — reproducing the exact symptom users were
+          // reporting. Web is unaffected (browser handles intent:// as
+          // ordinary external navigation).
+          webview_intent: true,
           handler: (response: RazorpaySuccessResponse) => {
             void (async () => {
               try {
