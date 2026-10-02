@@ -18,6 +18,24 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- SVC-343: Android App Links for app.eazyserv.com. Scoped to
+                 the whole host (no pathPrefix) so SMS/share taps on any
+                 current or future path open the app directly instead of
+                 Chrome. autoVerify=true triggers Android to fetch
+                 https://app.eazyserv.com/.well-known/assetlinks.json at
+                 install/update time and confirm this package's signing
+                 cert matches. Separate filter from MAIN+LAUNCHER on
+                 purpose — Android treats each intent-filter as an
+                 independent match set, and merging VIEW into the launcher
+                 filter would make the home-screen icon disappear. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                      android:host="app.eazyserv.com" />
+            </intent-filter>
         </activity>
 
         <provider

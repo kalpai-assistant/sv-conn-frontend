@@ -7,4 +7,14 @@
 #
 # The `!` on the second column of the first line would exempt some paths
 # if we needed to; we don't — every path is a React route.
+#
+# SVC-343: /.well-known/* is served verbatim (passthrough), NOT rewritten
+# to index.html. Google's App Links verifier does an exact-fetch of
+# /.well-known/assetlinks.json and expects JSON — if the SPA catch-all
+# below rewrote it to HTML the verification would silently fail. Static
+# files take precedence over _redirects in Cloudflare Pages, so this
+# explicit rule is belt-and-suspenders, but documenting the intent at
+# the point of risk is cheap and matters more than one line of config.
+# Must come BEFORE the catch-all; Cloudflare evaluates rules top-down.
+/.well-known/*  /.well-known/:splat  200
 /*    /index.html   200
