@@ -17,6 +17,7 @@
     "format": "prettier --write .",
     "generate:api-types": "openapi-typescript svc_connect.json -o src/types/api.ts",
     "doctor": "bash scripts/doctor.sh",
+    "check:assets": "node scripts/check-public-asset-refs.mjs",
     "cap:sync": "npm run build:mobile && npx cap sync",
     "cap:android": "npm run build:mobile && npx cap sync && npx cap open android",
     "cap:ios": "npm run build:mobile && npx cap sync && npx cap open ios",
