@@ -33,6 +33,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Catches dead public-asset references (string literals in src/ that
+      # point at files missing from public/). Added after a four-week
+      # outage on the marketing landing page caused by exactly this —
+      # SVC-286 v2 deleted public/services/ while leaving the SERVICES
+      # array in MarketingHome.tsx untouched. The SPA catch-all in
+      # _redirects served index.html for the missing paths, so every
+      # <img> tried to render HTML and showed nothing with zero errors.
+      # Runs before lint so a dead-asset PR fails fast.
+      - name: Check public-asset references
+        run: npm run check:assets
+
       - name: Lint
         run: npm run lint
 
