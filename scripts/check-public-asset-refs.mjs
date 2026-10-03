@@ -81,7 +81,9 @@ for (const file of walk(SRC, /\.(tsx?|mts|cts)$/)) {
 }
 
 if (misses.length === 0) {
-  console.log(`✓ All public-asset references in ${scanned} src/ file${scanned === 1 ? "" : "s"} resolve.`);
+  console.log(
+    `✓ All public-asset references in ${scanned} src/ file${scanned === 1 ? "" : "s"} resolve.`,
+  );
   process.exit(0);
 }
 
