@@ -23,6 +23,7 @@ import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
 import { Route as AdminKycRouteImport } from './routes/admin.kyc'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminPayoutsRouteImport } from './routes/admin.payouts'
 import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 import { Route as ProviderIndexRouteImport } from './routes/provider/index'
@@ -107,6 +108,11 @@ const AdminKycRoute = AdminKycRouteImport.update({
   path: '/admin/kyc',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin/login',
+  path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
   id: '/admin/payouts',
   path: '/admin/payouts',
@@ -189,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/admin/bookings': typeof AdminBookingsRoute
   '/admin/kyc': typeof AdminKycRoute
+  '/admin/login': typeof AdminLoginRoute
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/provider/earnings': typeof ProviderEarningsRoute
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/admin/bookings': typeof AdminBookingsRoute
   '/admin/kyc': typeof AdminKycRoute
+  '/admin/login': typeof AdminLoginRoute
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/provider/earnings': typeof ProviderEarningsRoute
@@ -248,6 +256,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/admin/bookings': typeof AdminBookingsRoute
   '/admin/kyc': typeof AdminKycRoute
+  '/admin/login': typeof AdminLoginRoute
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/provider/earnings': typeof ProviderEarningsRoute
@@ -279,6 +288,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/bookings'
     | '/admin/kyc'
+    | '/admin/login'
     | '/admin/payouts'
     | '/category/$slug'
     | '/provider/earnings'
@@ -308,6 +318,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/bookings'
     | '/admin/kyc'
+    | '/admin/login'
     | '/admin/payouts'
     | '/category/$slug'
     | '/provider/earnings'
@@ -337,6 +348,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/bookings'
     | '/admin/kyc'
+    | '/admin/login'
     | '/admin/payouts'
     | '/category/$slug'
     | '/provider/earnings'
@@ -367,6 +379,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   AdminBookingsRoute: typeof AdminBookingsRoute
   AdminKycRoute: typeof AdminKycRoute
+  AdminLoginRoute: typeof AdminLoginRoute
   AdminPayoutsRoute: typeof AdminPayoutsRoute
   CategorySlugRoute: typeof CategorySlugRoute
   ProviderEarningsRoute: typeof ProviderEarningsRoute
@@ -482,6 +495,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminKycRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/payouts': {
       id: '/admin/payouts'
       path: '/admin/payouts'
@@ -591,6 +611,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   AdminBookingsRoute: AdminBookingsRoute,
   AdminKycRoute: AdminKycRoute,
+  AdminLoginRoute: AdminLoginRoute,
   AdminPayoutsRoute: AdminPayoutsRoute,
   CategorySlugRoute: CategorySlugRoute,
   ProviderEarningsRoute: ProviderEarningsRoute,

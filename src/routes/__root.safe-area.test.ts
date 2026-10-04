@@ -8,11 +8,12 @@
  * in; the nine sticky headers and the four provider screens with no header at
  * all are covered without being touched.
  *
- * That only holds while *every* branch carries it. `AppGate` returns from five
- * places — public routes, the restoring splash, the login flow, admin, and the
- * normal shell — and two of them are easy to overlook because they render no
- * header of their own. A branch added later without the class reintroduces the
- * bug on whichever screens route through it.
+ * That only holds while *every* branch carries it. `AppGate` returns from six
+ * places — public routes, the restoring splash, the admin login (SVC-345),
+ * the consumer/provider login flow, the admin shell, and the normal shell —
+ * and some are easy to overlook because they render no header of their own.
+ * A branch added later without the class reintroduces the bug on whichever
+ * screens route through it.
  *
  * Asserted against the source rather than by rendering, because reaching the
  * branches through the component means driving auth state, the router and the
@@ -53,11 +54,11 @@ function contentWrappers(): string[] {
 }
 
 describe("AppGate", () => {
-  it("returns from the five branches this rule covers", () => {
+  it("returns from the six branches this rule covers", () => {
     // A guard on the guard. If a branch is added or removed, the count moves
     // and this fails — so the next person reads the rule rather than finding
     // the new branch silently uncovered.
-    expect(contentWrappers()).toHaveLength(5);
+    expect(contentWrappers()).toHaveLength(6);
   });
 
   it("gives every full-height wrapper the top inset", () => {
