@@ -16,10 +16,11 @@ type AuthStep = "phone" | "otp";
 
 /**
  * The roles a signup can create. Derived from `UserRole` rather than spelled
- * out so the two cannot drift, but narrowed: `admin` is a real backend role and
- * a real value on `User`, yet `/auth/verify-otp` rejects it with a 422 — admins
- * sign in as consumers and are recognised from their stored role. Sending it
- * from here would be an instant, confusing failure.
+ * out so the two cannot drift, but narrowed: admins sign in through the
+ * dedicated /admin/login flow (SVC-345), not here. `/auth/verify-otp` rejects
+ * `role=admin` with a 422, and the backend's role gate on the consumer path
+ * refuses an admin phone with ROLE_MISMATCH — both deliberate, so this flow
+ * stays scoped to the consumer / provider role picker.
  */
 type SignupRole = Exclude<UserRole, "admin">;
 

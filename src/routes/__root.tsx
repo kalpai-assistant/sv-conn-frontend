@@ -68,6 +68,11 @@ function AppGate({ children }: { children: React.ReactNode }) {
   const pathname = routerState.location.pathname;
   const isProfileRoute = pathname.startsWith("/profile");
   const isAdminRoute = pathname.startsWith("/admin");
+  // SVC-345: /admin/login is the only /admin/* route reachable without auth.
+  // Kept separate from `isPublicRoute` because it is still role-aware — an
+  // already-signed-in admin arriving here hops to /admin/kyc rather than
+  // seeing a login screen they don't need.
+  const isAdminLoginRoute = pathname === "/admin/login";
   const isProviderRoute = pathname.startsWith("/provider");
   const isProviderOnboardingRoute = pathname.startsWith("/provider/onboarding");
   // The gate sends providers here for the full map + radius picker, so it must
@@ -162,18 +167,28 @@ function AppGate({ children }: { children: React.ReactNode }) {
     return <div className="safe-top mx-auto max-w-md min-h-screen bg-background" />;
   }
 
+  // SVC-345: admin login is its own entry point, handled before the consumer
+  // AuthFlow fallback below. An unauthenticated user hitting any other
+  // /admin/* route is redirected here (not into AuthFlow — that lands them on
+  // the consumer home after signin and never on the admin surface). An
+  // already-signed-in admin arriving here hops onto /admin/kyc, so a stale
+  // bookmark doesn't force a redundant login screen.
+  if (isAdminLoginRoute) {
+    if (isAuthenticated && role === "admin") {
+      return <Navigate to="/admin/kyc" replace />;
+    }
+    return <div className="safe-top min-h-screen bg-background">{children}</div>;
+  }
+  if (isAdminRoute && (!isAuthenticated || role !== "admin")) {
+    return <Navigate to="/admin/login" replace />;
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="safe-top mx-auto max-w-md min-h-screen bg-background relative">
         <AuthFlow onComplete={() => {}} />
       </div>
     );
-  }
-
-  // Admin routes (SVC-90 KYC review) require the admin role. Non-admins on
-  // /admin/* get bounced home; admins are free to visit any route.
-  if (isAdminRoute && role !== "admin") {
-    return <Navigate to="/" replace />;
   }
 
   // Role-based landing (SVC-41). Providers live under /provider/*; consumers
