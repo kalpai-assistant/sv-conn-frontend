@@ -58,6 +58,20 @@ describe("consumer", () => {
   });
 });
 
+describe("redirectTo override", () => {
+  it("lands on the custom route after sign-out", async () => {
+    // SVC-346: the admin shell passes `/admin/login` so an ex-admin doesn't
+    // get dumped into the consumer AuthFlow at `/`.
+    const user = userEvent.setup();
+    render(<LogoutButton redirectTo="/admin/login" />);
+
+    await user.click(screen.getByRole("button", { name: /logout/i }));
+
+    await waitFor(() => expect(logout).toHaveBeenCalled());
+    expect(navigate).toHaveBeenCalledWith({ to: "/admin/login", replace: true });
+  });
+});
+
 describe("provider — offline already", () => {
   it("signs out in one tap and skips the warning", async () => {
     const user = userEvent.setup();

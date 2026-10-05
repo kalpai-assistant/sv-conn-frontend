@@ -12,9 +12,9 @@
  * consumer-vs-provider don't apply here. Admins never sign up through the
  * app; they're created by scripts/create_admin.py.
  *
- * Guards live in __root.tsx: unauthenticated access to /admin/kyc etc.
- * redirects here, and an already-signed-in admin arriving here hops to
- * /admin/kyc.
+ * Guards live in __root.tsx: unauthenticated access to /admin/* redirects
+ * here, and an already-signed-in admin arriving here hops to /admin (the
+ * dashboard, SVC-346).
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -98,7 +98,9 @@ function AdminLoginPage() {
       userData.role = userData.role ?? "admin";
 
       login(tokenData.access_token, tokenData.refresh_token, userData, tokenData.is_new_user);
-      navigate({ to: "/admin/kyc", replace: true });
+      // SVC-346: land on the dashboard rather than deep-linking to KYC. The
+      // shell + top nav are the natural entry point now that one exists.
+      navigate({ to: "/admin", replace: true });
     } catch (e) {
       // 400 InvalidOTP (same wire shape as the consumer path) and 404
       // (admin was deactivated between send + verify) both read as

@@ -53,9 +53,19 @@ interface LogoutButtonProps {
    * call entirely, the second has nothing to change.
    */
   isOnline?: boolean;
+  /**
+   * Where to land after sign-out. Defaults to `/` — correct for consumer and
+   * provider, where the AppGate's unauth branch renders the consumer AuthFlow.
+   * The admin surface overrides with `/admin/login`: dropping an ex-admin into
+   * the consumer AuthFlow is a wrong-persona landing, not a sign-out.
+   *
+   * A prop rather than branching on role internally keeps this component dumb
+   * — role semantics stay in the caller that already knows them.
+   */
+  redirectTo?: string;
 }
 
-export function LogoutButton({ disabled = false, isOnline }: LogoutButtonProps) {
+export function LogoutButton({ disabled = false, isOnline, redirectTo = "/" }: LogoutButtonProps) {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const setOnlineStatus = useSetOnlineStatus();
@@ -88,11 +98,11 @@ export function LogoutButton({ disabled = false, isOnline }: LogoutButtonProps) 
       logout();
       // Replace: back after signing out must not return to a route that
       // expects a signed-in user.
-      navigate({ to: "/", replace: true });
+      navigate({ to: redirectTo, replace: true });
     } finally {
       setIsBusy(false);
     }
-  }, [isOnline, setOnlineStatus, logout, navigate]);
+  }, [isOnline, setOnlineStatus, logout, navigate, redirectTo]);
 
   const handleClick = useCallback(() => {
     // A provider mid-shift is about to stop receiving paid work, and nothing

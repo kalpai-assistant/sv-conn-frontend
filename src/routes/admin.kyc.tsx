@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { formatDistanceToNowStrict } from "date-fns";
 import { CheckCircle2, ChevronRight, Loader2, ShieldCheck, Sparkles, XCircle } from "lucide-react";
 import { z } from "zod";
+import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -86,77 +87,73 @@ function AdminKYCReviewPage() {
   const copy = tabCopy(activeTab);
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <header className="mb-6 flex items-center gap-3">
-        <ShieldCheck className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">KYC review queue</h1>
-          <p className="text-sm text-muted-foreground">{copy.subhead}</p>
-        </div>
-      </header>
+    <AdminShell>
+      <div className="mx-auto max-w-2xl p-6">
+        <header className="mb-6 flex items-center gap-3">
+          <ShieldCheck className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">KYC review queue</h1>
+            <p className="text-sm text-muted-foreground">{copy.subhead}</p>
+          </div>
+        </header>
 
-      <Tabs value={activeTab} onValueChange={(v) => setTab(v as TabKey)} className="mb-4">
-        <TabsList>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-          <TabsTrigger value="auto-approved">Auto-approved</TabsTrigger>
-        </TabsList>
-      </Tabs>
+        <Tabs value={activeTab} onValueChange={(v) => setTab(v as TabKey)} className="mb-4">
+          <TabsList>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected</TabsTrigger>
+            <TabsTrigger value="auto-approved">Auto-approved</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-      {isLoading && (
-        <div className="space-y-2">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-16 w-full" />
-        </div>
-      )}
+        {isLoading && (
+          <div className="space-y-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        )}
 
-      {isError && !isLoading && (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-destructive bg-destructive/5 p-6 text-center">
-          <p className="text-sm text-destructive">Couldn't load the review queue.</p>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            Try again
-          </Button>
-        </div>
-      )}
+        {isError && !isLoading && (
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-destructive bg-destructive/5 p-6 text-center">
+            <p className="text-sm text-destructive">Couldn't load the review queue.</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              Try again
+            </Button>
+          </div>
+        )}
 
-      {!isLoading && !isError && rows && rows.length === 0 && (
-        <div className="rounded-lg border border-border bg-secondary/30 p-8 text-center">
-          <p className="text-sm font-medium text-foreground">{copy.emptyHead}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{copy.emptyBody}</p>
-        </div>
-      )}
+        {!isLoading && !isError && rows && rows.length === 0 && (
+          <div className="rounded-lg border border-border bg-secondary/30 p-8 text-center">
+            <p className="text-sm font-medium text-foreground">{copy.emptyHead}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{copy.emptyBody}</p>
+          </div>
+        )}
 
-      {!isLoading && rows && rows.length > 0 && (
-        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-          {rows.map((row) => (
-            <li key={row.id}>
-              <button
-                type="button"
-                onClick={() => setSelectedUserId(row.id)}
-                className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-secondary/40"
-              >
-                <QueueRow row={row} variant={activeTab} />
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+        {!isLoading && rows && rows.length > 0 && (
+          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+            {rows.map((row) => (
+              <li key={row.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedUserId(row.id)}
+                  className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-secondary/40"
+                >
+                  <QueueRow row={row} variant={activeTab} />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
 
-      <div className="mt-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/" })}>
-          ← Back home
-        </Button>
+        <ReviewSheet
+          userId={selectedUserId}
+          readOnly={activeTab !== "pending"}
+          variant={activeTab}
+          onClose={() => setSelectedUserId(null)}
+        />
       </div>
-
-      <ReviewSheet
-        userId={selectedUserId}
-        readOnly={activeTab !== "pending"}
-        variant={activeTab}
-        onClose={() => setSelectedUserId(null)}
-      />
-    </div>
+    </AdminShell>
   );
 }
 

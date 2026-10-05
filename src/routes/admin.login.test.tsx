@@ -110,7 +110,9 @@ describe("admin login flow", () => {
     expect(apiFetch).not.toHaveBeenCalledWith("/auth/verify-otp", expect.anything());
 
     await waitFor(() => expect(login).toHaveBeenCalled());
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/admin/kyc", replace: true }));
+    // SVC-346: post-verify now lands on the admin dashboard, not the deep-link
+    // to KYC the SVC-345 implementation shipped with.
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/admin", replace: true }));
   });
 
   it("renders the 'not registered as admin' message on 404 from send-otp", async () => {
