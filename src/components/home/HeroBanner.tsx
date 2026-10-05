@@ -32,20 +32,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useCart } from "@/lib/cart-context";
-
-/**
- * Where tapping a hero banner takes the user. Discriminated union — each
- * ``kind`` restricts ``value`` to one thing semantically (a coupon code, an
- * in-app route, or an external URL), and the render branches below use the
- * ``kind`` directly instead of sniffing the string shape.
- *
- * Exported so adding a banner elsewhere gets autocomplete on the three
- * supported shapes rather than silently falling back to any-typed strings.
- */
-export type HeroBannerDestination =
-  | { kind: "coupon"; value: string }
-  | { kind: "route"; value: string }
-  | { kind: "external"; value: string };
+import type { BannerDestination } from "./banner-destination";
 
 export interface HeroBannerConfig {
   id: string;
@@ -69,7 +56,7 @@ export interface HeroBannerConfig {
   /** Omitted for decorative banners (festival greetings with no offer
    *  behind them). When set, the banner becomes tappable and the
    *  render branch for the ``kind`` drives where the tap goes. */
-  destination?: HeroBannerDestination;
+  destination?: BannerDestination;
 }
 
 const BANNERS: HeroBannerConfig[] = [
