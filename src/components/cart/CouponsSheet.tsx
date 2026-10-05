@@ -12,7 +12,7 @@
  * the actual booking-time discount is recomputed server-side on
  * ``POST /bookings/``, so a stale value here can never over-apply.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { motion } from "framer-motion";
 import { X, Ticket, Loader2 } from "lucide-react";
@@ -25,6 +25,14 @@ interface CouponsSheetProps {
   onApplied: (code: string, discountAmount: number) => void;
   onRemoved: () => void;
   onClose: () => void;
+  /**
+   * Pre-fill the typed input and auto-apply this code when the sheet opens.
+   * Set by callers that opened the sheet from somewhere already carrying a
+   * code (SVC-310: hero banner tap on Home) rather than the user typing it
+   * in by hand. Runs through the same validate mutation as the manual
+   * path — the eligibility check cannot drift between entry points.
+   */
+  initialCode?: string | null;
 }
 
 export function CouponsSheet({
@@ -33,13 +41,14 @@ export function CouponsSheet({
   onApplied,
   onRemoved,
   onClose,
+  initialCode,
 }: CouponsSheetProps) {
   // Sheets are mounted only while open, so locking on mount is the same as
   // locking on open. Without this the page scrolls behind the backdrop.
   useLockBodyScroll(true);
   const { data: available, isLoading } = useAvailableCoupons();
   const validate = useValidateCoupon();
-  const [typed, setTyped] = useState("");
+  const [typed, setTyped] = useState(() => (initialCode ?? "").toUpperCase());
   const [error, setError] = useState<string | null>(null);
 
   const applyCode = async (code: string) => {
@@ -62,6 +71,22 @@ export function CouponsSheet({
       setError(msg);
     }
   };
+
+  // Auto-apply the pre-filled code once per mount. StrictMode double-invokes
+  // effects, so guard with a ref — a second validate call would either
+  // double-charge the mutation or race the first onApplied → onClose and
+  // leave an orphaned request in flight.
+  const autoAppliedRef = useRef(false);
+  useEffect(() => {
+    if (autoAppliedRef.current) return;
+    const code = (initialCode ?? "").trim();
+    if (!code) return;
+    autoAppliedRef.current = true;
+    void applyCode(code);
+    // Only initialCode changes drive this effect; applyCode closes over
+    // mutation state that changes every render and is already guarded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCode]);
 
   return (
     <>
