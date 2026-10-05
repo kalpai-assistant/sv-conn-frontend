@@ -1,5 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { z } from "zod";
 import {
   ArrowLeft,
   MapPin,
@@ -26,6 +27,14 @@ import { SlotPickerSheet } from "@/components/cart/SlotPickerSheet";
 import { CouponsSheet } from "@/components/cart/CouponsSheet";
 import { formatRupees } from "@/lib/currency";
 
+// SVC-310: the hero banner's "coupon" destination hands off the code
+// through this param so the cart opens with the coupons sheet pre-filled.
+// Kept to a single optional string — anything beyond "a coupon to pre-fill"
+// belongs on the cart's own UI, not in the URL.
+const searchSchema = z.object({
+  coupon: z.string().optional(),
+});
+
 export const Route = createFileRoute("/cart")({
   head: () => ({
     meta: [
@@ -33,6 +42,7 @@ export const Route = createFileRoute("/cart")({
       { name: "description", content: "Review your services before booking." },
     ],
   }),
+  validateSearch: searchSchema,
   component: CartPage,
 });
 
@@ -63,6 +73,7 @@ function CartHeader({ name }: { name?: string | null }) {
 
 function CartPage() {
   const navigate = useNavigate();
+  const { coupon: couponFromUrl } = useSearch({ from: Route.fullPath });
   const { items, subtotal, updateQuantity, remove, clear } = useCart();
   // Only for the header avatar's initials.
   const { user } = useAuth();
@@ -80,8 +91,27 @@ function CartPage() {
 
   const [addressPickerOpen, setAddressPickerOpen] = useState(false);
   const [slotPickerOpen, setSlotPickerOpen] = useState(false);
-  const [couponsSheetOpen, setCouponsSheetOpen] = useState(false);
+  // SVC-310: open with the sheet already up when the hero banner handed us
+  // a coupon code — the banner only navigates here when it has one, so a
+  // user arriving via that path reads the pre-fill as "we remembered what
+  // you tapped" instead of landing on the cart with nothing happening.
+  const [couponsSheetOpen, setCouponsSheetOpen] = useState(() => Boolean(couponFromUrl));
+  // Hold the code separately so the search param can be dropped from the
+  // URL once consumed. Keeping it in the URL means a back nav or refresh
+  // would re-trigger the auto-apply even after the user cancelled.
+  const [pendingCouponCode, setPendingCouponCode] = useState<string | null>(couponFromUrl ?? null);
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">("online");
+
+  // Consume the ?coupon= handoff once, then scrub it from the URL. ``replace``
+  // so the pre-handoff URL doesn't live in the back stack as its own entry.
+  useEffect(() => {
+    if (couponFromUrl) {
+      void navigate({ to: "/cart", search: {}, replace: true });
+    }
+    // One-shot: fires on the mount that saw the param. Subsequent navigates
+    // land with search = {} and this effect is a no-op.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const bill = useMemo(() => {
     const discount = coupon ? Math.min(coupon.discount, subtotal) : 0;
@@ -391,9 +421,13 @@ function CartPage() {
           <CouponsSheet
             cartSubtotal={subtotal}
             currentCode={coupon?.code ?? null}
+            initialCode={pendingCouponCode}
             onApplied={(code, discountAmount) => setCoupon({ code, discount: discountAmount })}
             onRemoved={() => setCoupon(null)}
-            onClose={() => setCouponsSheetOpen(false)}
+            onClose={() => {
+              setCouponsSheetOpen(false);
+              setPendingCouponCode(null);
+            }}
           />
         )}
       </AnimatePresence>
