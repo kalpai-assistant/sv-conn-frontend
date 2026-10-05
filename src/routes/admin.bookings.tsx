@@ -21,7 +21,7 @@
  *
  * Auth: gated by admin role via the AppGate in __root.tsx.
  */
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -33,6 +33,7 @@ import {
   ShieldOff,
   XCircle,
 } from "lucide-react";
+import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -145,7 +146,6 @@ const totalCharged = (b: API_AdminBookingResponse) =>
   Math.max(0, b.service_amount - b.discount_amount + b.tip_amount);
 
 function AdminBookingsPage() {
-  const navigate = useNavigate();
   const [status, setStatus] = useState<BookingStatusFilter>("all");
   const [disputed, setDisputed] = useState(false);
   const [range, setRange] = useState<DateRange>("7d");
@@ -207,136 +207,132 @@ function AdminBookingsPage() {
   const hasMore = accumulated.rows.length < totalKnown;
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
-      <header className="mb-6 flex items-center gap-3">
-        <ClipboardList className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Bookings</h1>
-          <p className="text-sm text-muted-foreground">
-            Every booking on the platform. Tap a row to open the details and cancel if needed.
-          </p>
-        </div>
-      </header>
+    <AdminShell>
+      <div className="mx-auto max-w-6xl p-6">
+        <header className="mb-6 flex items-center gap-3">
+          <ClipboardList className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">Bookings</h1>
+            <p className="text-sm text-muted-foreground">
+              Every booking on the platform. Tap a row to open the details and cancel if needed.
+            </p>
+          </div>
+        </header>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
-        <div className="flex items-center gap-2">
-          <label htmlFor="status-filter" className="text-xs font-medium text-muted-foreground">
-            Status
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center gap-2">
+            <label htmlFor="status-filter" className="text-xs font-medium text-muted-foreground">
+              Status
+            </label>
+            <Select value={status} onValueChange={(v) => changeStatus(v as BookingStatusFilter)}>
+              <SelectTrigger id="status-filter" className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label htmlFor="range-filter" className="text-xs font-medium text-muted-foreground">
+              Range
+            </label>
+            <Select value={range} onValueChange={(v) => setRange(v as DateRange)}>
+              <SelectTrigger id="range-filter" className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DATE_RANGE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <label className="ml-auto flex items-center gap-2 text-sm text-foreground">
+            <Switch checked={disputed} onCheckedChange={changeDisputed} />
+            Disputed only
           </label>
-          <Select value={status} onValueChange={(v) => changeStatus(v as BookingStatusFilter)}>
-            <SelectTrigger id="status-filter" className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label htmlFor="range-filter" className="text-xs font-medium text-muted-foreground">
-            Range
-          </label>
-          <Select value={range} onValueChange={(v) => setRange(v as DateRange)}>
-            <SelectTrigger id="range-filter" className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {DATE_RANGE_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <label className="ml-auto flex items-center gap-2 text-sm text-foreground">
-          <Switch checked={disputed} onCheckedChange={changeDisputed} />
-          Disputed only
-        </label>
-      </div>
-
-      {query.isLoading && accumulated.rows.length === 0 && (
-        <div className="space-y-2">
-          <Skeleton className="h-14 w-full" />
-          <Skeleton className="h-14 w-full" />
-          <Skeleton className="h-14 w-full" />
-        </div>
-      )}
-
-      {query.isError && (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-destructive bg-destructive/5 p-6 text-center">
-          <p className="text-sm text-destructive">
-            {query.error instanceof Error ? query.error.message : "Couldn't load bookings."}
-          </p>
-          <Button variant="outline" size="sm" onClick={() => query.refetch()}>
-            Try again
-          </Button>
-        </div>
-      )}
-
-      {!query.isLoading && !query.isError && visibleRows.length === 0 && (
-        <div className="rounded-lg border border-border bg-secondary/30 p-8 text-center">
-          <p className="text-sm font-medium text-foreground">No bookings match these filters.</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Widen the range or clear the status filter to see more.
-          </p>
-        </div>
-      )}
-
-      {visibleRows.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-secondary/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 font-medium">Booking</th>
-                <th className="px-3 py-2 font-medium">Service</th>
-                <th className="px-3 py-2 font-medium">Consumer</th>
-                <th className="px-3 py-2 font-medium">Provider</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Created</th>
-                <th className="px-3 py-2 text-right font-medium">Total</th>
-                <th className="px-3 py-2" aria-hidden="true" />
-              </tr>
-            </thead>
-            <tbody>
-              {visibleRows.map((b) => (
-                <BookingRow key={b.id} booking={b} onOpen={() => setSelectedId(b.id)} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-        <span>
-          Showing {visibleRows.length} of {totalKnown}
-        </span>
-        {hasMore && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={query.isFetching}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            {query.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load more"}
-          </Button>
+        {query.isLoading && accumulated.rows.length === 0 && (
+          <div className="space-y-2">
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+          </div>
         )}
-      </div>
 
-      <div className="mt-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/" })}>
-          ← Back home
-        </Button>
-      </div>
+        {query.isError && (
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-destructive bg-destructive/5 p-6 text-center">
+            <p className="text-sm text-destructive">
+              {query.error instanceof Error ? query.error.message : "Couldn't load bookings."}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => query.refetch()}>
+              Try again
+            </Button>
+          </div>
+        )}
 
-      <DetailSheet bookingId={selectedId} onClose={() => setSelectedId(null)} />
-    </div>
+        {!query.isLoading && !query.isError && visibleRows.length === 0 && (
+          <div className="rounded-lg border border-border bg-secondary/30 p-8 text-center">
+            <p className="text-sm font-medium text-foreground">No bookings match these filters.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Widen the range or clear the status filter to see more.
+            </p>
+          </div>
+        )}
+
+        {visibleRows.length > 0 && (
+          <div className="overflow-hidden rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Booking</th>
+                  <th className="px-3 py-2 font-medium">Service</th>
+                  <th className="px-3 py-2 font-medium">Consumer</th>
+                  <th className="px-3 py-2 font-medium">Provider</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium">Created</th>
+                  <th className="px-3 py-2 text-right font-medium">Total</th>
+                  <th className="px-3 py-2" aria-hidden="true" />
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRows.map((b) => (
+                  <BookingRow key={b.id} booking={b} onOpen={() => setSelectedId(b.id)} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+          <span>
+            Showing {visibleRows.length} of {totalKnown}
+          </span>
+          {hasMore && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={query.isFetching}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              {query.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load more"}
+            </Button>
+          )}
+        </div>
+
+        <DetailSheet bookingId={selectedId} onClose={() => setSelectedId(null)} />
+      </div>
+    </AdminShell>
   );
 }
 

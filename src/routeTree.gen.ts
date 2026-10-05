@@ -21,6 +21,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RefundRouteImport } from './routes/refund'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
 import { Route as AdminKycRouteImport } from './routes/admin.kyc'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
@@ -96,6 +97,11 @@ const SupportRoute = SupportRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminBookingsRoute = AdminBookingsRouteImport.update({
@@ -206,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/provider/': typeof ProviderIndexRoute
   '/provider/bookings/$bookingId': typeof ProviderBookingsBookingIdRoute
   '/provider/bookings/': typeof ProviderBookingsIndexRoute
@@ -236,6 +243,7 @@ export interface FileRoutesByTo {
   '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
+  '/admin': typeof AdminIndexRoute
   '/provider': typeof ProviderIndexRoute
   '/provider/bookings/$bookingId': typeof ProviderBookingsBookingIdRoute
   '/provider/bookings': typeof ProviderBookingsIndexRoute
@@ -267,6 +275,7 @@ export interface FileRoutesById {
   '/provider/profile': typeof ProviderProfileRoute
   '/service/$serviceId': typeof ServiceServiceIdRoute
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/provider/': typeof ProviderIndexRoute
   '/provider/bookings/$bookingId': typeof ProviderBookingsBookingIdRoute
   '/provider/bookings/': typeof ProviderBookingsIndexRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
     | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
+    | '/admin/'
     | '/provider/'
     | '/provider/bookings/$bookingId'
     | '/provider/bookings/'
@@ -329,6 +339,7 @@ export interface FileRouteTypes {
     | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
+    | '/admin'
     | '/provider'
     | '/provider/bookings/$bookingId'
     | '/provider/bookings'
@@ -359,6 +370,7 @@ export interface FileRouteTypes {
     | '/provider/profile'
     | '/service/$serviceId'
     | '/tracking/$bookingId'
+    | '/admin/'
     | '/provider/'
     | '/provider/bookings/$bookingId'
     | '/provider/bookings/'
@@ -390,6 +402,7 @@ export interface RootRouteChildren {
   ProviderProfileRoute: typeof ProviderProfileRoute
   ServiceServiceIdRoute: typeof ServiceServiceIdRoute
   TrackingBookingIdRoute: typeof TrackingBookingIdRoute
+  AdminIndexRoute: typeof AdminIndexRoute
   ProviderIndexRoute: typeof ProviderIndexRoute
   ProviderBookingsBookingIdRoute: typeof ProviderBookingsBookingIdRoute
   ProviderBookingsIndexRoute: typeof ProviderBookingsIndexRoute
@@ -479,6 +492,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/bookings': {
@@ -622,6 +642,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProviderProfileRoute: ProviderProfileRoute,
   ServiceServiceIdRoute: ServiceServiceIdRoute,
   TrackingBookingIdRoute: TrackingBookingIdRoute,
+  AdminIndexRoute: AdminIndexRoute,
   ProviderIndexRoute: ProviderIndexRoute,
   ProviderBookingsBookingIdRoute: ProviderBookingsBookingIdRoute,
   ProviderBookingsIndexRoute: ProviderBookingsIndexRoute,
@@ -629,12 +650,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

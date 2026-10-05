@@ -70,8 +70,8 @@ function AppGate({ children }: { children: React.ReactNode }) {
   const isAdminRoute = pathname.startsWith("/admin");
   // SVC-345: /admin/login is the only /admin/* route reachable without auth.
   // Kept separate from `isPublicRoute` because it is still role-aware — an
-  // already-signed-in admin arriving here hops to /admin/kyc rather than
-  // seeing a login screen they don't need.
+  // already-signed-in admin arriving here hops to /admin (the SVC-346
+  // dashboard) rather than seeing a login screen they don't need.
   const isAdminLoginRoute = pathname === "/admin/login";
   const isProviderRoute = pathname.startsWith("/provider");
   const isProviderOnboardingRoute = pathname.startsWith("/provider/onboarding");
@@ -171,11 +171,11 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // AuthFlow fallback below. An unauthenticated user hitting any other
   // /admin/* route is redirected here (not into AuthFlow — that lands them on
   // the consumer home after signin and never on the admin surface). An
-  // already-signed-in admin arriving here hops onto /admin/kyc, so a stale
-  // bookmark doesn't force a redundant login screen.
+  // already-signed-in admin arriving here hops onto /admin (the SVC-346
+  // dashboard), so a stale bookmark doesn't force a redundant login screen.
   if (isAdminLoginRoute) {
     if (isAuthenticated && role === "admin") {
-      return <Navigate to="/admin/kyc" replace />;
+      return <Navigate to="/admin" replace />;
     }
     return <div className="safe-top min-h-screen bg-background">{children}</div>;
   }
