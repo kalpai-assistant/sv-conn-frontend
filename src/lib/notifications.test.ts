@@ -5,14 +5,27 @@
  * target against the generated route tree, so a renamed route fails here
  * rather than on a phone.
  */
-import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
 
 // The module imports the router and auth context for its hook; the pure
 // function under test needs neither.
-vi.mock("@tanstack/react-router", () => ({ useNavigate: () => vi.fn() }));
-vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: null }) }));
+const { navigate, auth } = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  auth: { user: null as { role: string } | null },
+}));
+vi.mock("@tanstack/react-router", () => ({ useNavigate: () => navigate }));
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => auth }));
 
-import { routeForPayload, type ViewerRole } from "@/lib/notifications";
+import {
+  PUSH_BOOKING_PARAM,
+  PUSH_EVENT_PARAM,
+  readPushLink,
+  routeForPayload,
+  useNotificationRouter,
+  type ViewerRole,
+} from "@/lib/notifications";
 
 const ID = "bf1444b2-0000-0000-0000-000000000000";
 const route = (event: string, role: ViewerRole) => routeForPayload({ event, booking_id: ID }, role);
@@ -101,5 +114,76 @@ describe("every target is a real route", () => {
       const exists = fullPaths.has(target) || fullPaths.has(`${target}/`);
       expect(exists, `${target} is not a route`).toBe(true);
     }
+  });
+});
+
+describe("web push (PWA)", () => {
+  // The service worker can't know who is signed in, so it opens
+  // /?push_event=…&push_booking_id=… and the app routes it by role.
+  const openFromPush = (event: string) =>
+    window.history.replaceState(
+      null,
+      "",
+      `/?${PUSH_EVENT_PARAM}=${event}&${PUSH_BOOKING_PARAM}=${ID}`,
+    );
+
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+    navigate.mockReset();
+    auth.user = null;
+  });
+
+  it("reads the payload from the URL", () => {
+    expect(readPushLink(`?push_event=cancelled&push_booking_id=${ID}`)).toEqual({
+      event: "cancelled",
+      booking_id: ID,
+    });
+    expect(readPushLink("?foo=1")).toBeNull();
+  });
+
+  it("sends a provider to their job, not to /tracking", () => {
+    openFromPush("cancelled");
+    auth.user = { role: "provider" };
+    renderHook(() => useNotificationRouter());
+    expect(navigate).toHaveBeenCalledExactlyOnceWith({
+      to: `/provider/bookings/${ID}`,
+      replace: true,
+    });
+  });
+
+  it("keeps new_request opening the Incoming Request Card on the PWA", () => {
+    openFromPush("new_request");
+    auth.user = { role: "provider" };
+    renderHook(() => useNotificationRouter());
+    expect(navigate).toHaveBeenCalledWith({
+      to: `/provider?incomingBookingId=${ID}`,
+      replace: true,
+    });
+  });
+
+  it("waits for the role, then routes once", () => {
+    openFromPush("reopened");
+    const { rerender } = renderHook(() => useNotificationRouter());
+    expect(navigate).not.toHaveBeenCalled();
+
+    auth.user = { role: "consumer" };
+    rerender();
+    rerender();
+    expect(navigate).toHaveBeenCalledExactlyOnceWith({ to: `/tracking/${ID}`, replace: true });
+  });
+
+  it("does nothing without a push in the URL", () => {
+    auth.user = { role: "consumer" };
+    renderHook(() => useNotificationRouter());
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("uses the same parameter names as the service worker", () => {
+    const sw = readFileSync("public/firebase-messaging-sw.js", "utf-8");
+    expect(sw).toContain(`params.set("${PUSH_EVENT_PARAM}"`);
+    expect(sw).toContain(`params.set("${PUSH_BOOKING_PARAM}"`);
+    // The role-blind route it used to build for everyone (its comments may
+    // still name it, so match the template literal, not the words).
+    expect(sw).not.toContain("`/tracking/");
   });
 });

@@ -12,12 +12,13 @@
  *
  * 2. `useNotificationRouter()` — a React hook that wires the Capacitor
  *    PushNotifications listeners and routes via TanStack Router. Foreground
- *    + background + killed-state taps all funnel through this.
+ *    + background + killed-state taps all funnel through this. A web-push tap
+ *    (PWA) arrives as a URL from the service worker and is routed here too.
  *
  * Out of scope (deferred): Universal Links / App Links (web URL → app), FCM
  * token registration (that's SC-16 / junior's work).
  */
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Capacitor } from "@capacitor/core";
 import type { PluginListenerHandle } from "@capacitor/core";
@@ -130,10 +131,42 @@ function shouldAutoRouteForeground(data: NotificationPayload, role: ViewerRole):
   return data.event === "new_request" && role === "provider";
 }
 
+/**
+ * A web-push tap arrives as a URL (`/?push_event=…&push_booking_id=…`) built by
+ * `public/firebase-messaging-sw.js`, which can't know the viewer's role. Keep
+ * these names in step with that file.
+ */
+export const PUSH_EVENT_PARAM = "push_event";
+export const PUSH_BOOKING_PARAM = "push_booking_id";
+
+/** The push payload carried in a URL's query string, or null if none. */
+export function readPushLink(search: string): NotificationPayload | null {
+  const params = new URLSearchParams(search);
+  const event = params.get(PUSH_EVENT_PARAM);
+  if (!event) return null;
+  return { event, booking_id: params.get(PUSH_BOOKING_PARAM) ?? undefined };
+}
+
 export function useNotificationRouter(): void {
   const { user } = useAuth();
   const navigate = useNavigate();
   const role: ViewerRole = (user as UserWithMaybeRole | null)?.role ?? null;
+
+  // Web push (PWA). Read once, on the first render: that runs before any
+  // child's effect, and __root's role redirects (a provider landing on "/" is
+  // sent to /provider) would otherwise drop the query string first. Resolved
+  // once the role is known, which is after the session restore, or after login
+  // when the tap opened a signed-out app.
+  const [pushLink] = useState(() =>
+    typeof window === "undefined" ? null : readPushLink(window.location.search),
+  );
+  const pushLinkHandled = useRef(false);
+  useEffect(() => {
+    if (!pushLink || pushLinkHandled.current || role === null) return;
+    pushLinkHandled.current = true;
+    const target = routeForPayload(pushLink, role);
+    if (target) navigate({ to: target, replace: true });
+  }, [pushLink, role, navigate]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
