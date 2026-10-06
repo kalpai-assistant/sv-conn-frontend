@@ -14,6 +14,8 @@ import { motion } from "framer-motion";
 import { Clock, MapPin, Navigation } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TeamPicker } from "@/components/provider/TeamPicker";
+import type { TeamPickPro } from "@/hooks/useTeam";
 import { formatRupees } from "@/lib/currency";
 import {
   dismissReasonForOfferError,
@@ -84,6 +86,9 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
   const { data: offer, error, isLoading } = useBookingOffer(bookingId);
   const acceptOffer = useAcceptOffer();
   const [acceptError, setAcceptError] = useState<string | null>(null);
+  // SVC-321: set when accept answered 202 — this SP has a team and must pick
+  // who does the job. Null is the ordinary offer view.
+  const [pickPros, setPickPros] = useState<TeamPickPro[] | null>(null);
 
   // `readSecondsRemaining` returns null when the deployed backend predates
   // SVC-166 and omits the field — the timer is then hidden, not guessed.
@@ -103,8 +108,11 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
     setAcceptError(null);
     acceptOffer.mutate(bookingId, {
       // Won or lost, the card closes without error UI; the host decides what
-      // is worth logging.
-      onSuccess: (outcome) => onDismiss(outcome),
+      // is worth logging. A team SP's accept instead opens the picker in place.
+      onSuccess: (result) => {
+        if (result.outcome === "pick") setPickPros(result.pros);
+        else onDismiss(result.outcome);
+      },
       onError: (err) =>
         setAcceptError(err instanceof Error ? err.message : "Could not accept this job."),
     });
@@ -145,42 +153,53 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
           )}
         </div>
 
-        <div className="space-y-4 px-5 py-5">
-          <div>
-            <h2 id="incoming-request-title" className="text-xl font-bold text-foreground">
-              {offer.service_name}
-            </h2>
-            {/* `service_amount` is plain rupees (not paise); formatRupees
+        {pickPros ? (
+          <div className="px-5 py-5">
+            <TeamPicker
+              bookingId={bookingId}
+              pros={pickPros}
+              expired={hasExpired}
+              onBack={() => setPickPros(null)}
+              onDismiss={onDismiss}
+            />
+          </div>
+        ) : (
+          <div className="space-y-4 px-5 py-5">
+            <div>
+              <h2 id="incoming-request-title" className="text-xl font-bold text-foreground">
+                {offer.service_name}
+              </h2>
+              {/* `service_amount` is plain rupees (not paise); formatRupees
                   applies Indian digit grouping — ₹10,00,000, not ₹1,000,000. */}
-            <p className="mt-1 text-2xl font-bold text-primary">
-              {formatRupees(offer.service_amount)}
-            </p>
-          </div>
+              <p className="mt-1 text-2xl font-bold text-primary">
+                {formatRupees(offer.service_amount)}
+              </p>
+            </div>
 
-          <div className="space-y-2 rounded-xl bg-muted/50 p-3 text-sm">
-            <p className="flex items-start gap-2 text-foreground">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-              <span>{offer.full_address}</span>
-            </p>
-            <p className="flex items-center gap-2 text-muted-foreground">
-              <Navigation className="h-4 w-4 shrink-0" />
-              {offer.distance_km.toFixed(1)} km away
-            </p>
-          </div>
+            <div className="space-y-2 rounded-xl bg-muted/50 p-3 text-sm">
+              <p className="flex items-start gap-2 text-foreground">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <span>{offer.full_address}</span>
+              </p>
+              <p className="flex items-center gap-2 text-muted-foreground">
+                <Navigation className="h-4 w-4 shrink-0" />
+                {offer.distance_km.toFixed(1)} km away
+              </p>
+            </div>
 
-          {hasExpired && (
-            <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-              This request has expired.
-            </p>
-          )}
+            {hasExpired && (
+              <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+                This request has expired.
+              </p>
+            )}
 
-          {acceptError && (
-            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {acceptError}
-            </p>
-          )}
+            {acceptError && (
+              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {acceptError}
+              </p>
+            )}
 
-          {/* Accept above, Ignore below — not side by side (SVC-295).
+            {/* Accept above, Ignore below — not side by side (SVC-295).
 
               These used to be two equal-width buttons in one row, with Ignore
               immediately left of Accept. Reported as "tapping outside Accept
@@ -195,24 +214,25 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
               (LocationGate, PayoutStep). Ignore stays full-width and a real
               button rather than a text link: this makes it harder to hit by
               *accident*, not harder to hit on purpose. */}
-          <div className="flex flex-col gap-2 pt-1">
-            <Button className="w-full" onClick={handleAccept} disabled={acceptDisabled}>
-              {acceptOffer.isPending ? "Accepting…" : hasExpired ? "Expired" : "Accept"}
-            </Button>
-            {/* Records a refusal server-side — but not immediately. The host
+            <div className="flex flex-col gap-2 pt-1">
+              <Button className="w-full" onClick={handleAccept} disabled={acceptDisabled}>
+                {acceptOffer.isPending ? "Accepting…" : hasExpired ? "Expired" : "Accept"}
+              </Button>
+              {/* Records a refusal server-side — but not immediately. The host
                 holds the decline for a few seconds behind an Undo, because
                 `decline_offer` is write-once and nothing can clear it. See
                 IncomingRequestHost. */}
-            <Button
-              variant="ghost"
-              className="w-full"
-              onClick={() => onDismiss("ignored")}
-              disabled={acceptOffer.isPending}
-            >
-              Ignore
-            </Button>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => onDismiss("ignored")}
+                disabled={acceptOffer.isPending}
+              >
+                Ignore
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </motion.div>
     </motion.div>
   );

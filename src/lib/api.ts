@@ -124,6 +124,19 @@ async function refreshAccessToken(): Promise<boolean> {
 }
 
 export async function apiFetch<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
+  return (await apiFetchWithStatus<T>(path, options)).data;
+}
+
+/**
+ * `apiFetch`, keeping the success status. For the few endpoints where two 2xx
+ * codes mean different things — `PATCH /bookings/{id}/accept` answers 200 for
+ * "claimed" and 202 for "pick a Pro first" (SVC-321) — so a caller can branch
+ * on the code the backend chose instead of guessing from the body's shape.
+ */
+export async function apiFetchWithStatus<T = unknown>(
+  path: string,
+  options: RequestInit = {},
+): Promise<{ status: number; data: T }> {
   // For FormData (file uploads — provider KYC docs / selfie / profile photo)
   // let the browser set Content-Type so the multipart boundary lands
   // correctly. Forcing application/json here would corrupt the request.
@@ -201,8 +214,8 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
 
   // 204 No Content — return undefined without trying to parse JSON.
   if (res.status === 204) {
-    return undefined as T;
+    return { status: res.status, data: undefined as T };
   }
 
-  return res.json();
+  return { status: res.status, data: await res.json() };
 }

@@ -37,6 +37,8 @@ import { Route as ServiceServiceIdRouteImport } from './routes/service.$serviceI
 import { Route as TrackingBookingIdRouteImport } from './routes/tracking.$bookingId'
 import { Route as ProviderBookingsIndexRouteImport } from './routes/provider/bookings/index'
 import { Route as ProviderBookingsBookingIdRouteImport } from './routes/provider/bookings/$bookingId'
+import { Route as ProviderTeamIndexRouteImport } from './routes/provider/team/index'
+import { Route as ProviderTeamInviteRouteImport } from './routes/provider/team/invite'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -179,6 +181,16 @@ const ProviderBookingsBookingIdRoute =
     path: '/provider/bookings/$bookingId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ProviderTeamIndexRoute = ProviderTeamIndexRouteImport.update({
+  id: '/provider/team/',
+  path: '/provider/team/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProviderTeamInviteRoute = ProviderTeamInviteRouteImport.update({
+  id: '/provider/team/invite',
+  path: '/provider/team/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -208,7 +220,9 @@ export interface FileRoutesByFullPath {
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
   '/provider/': typeof ProviderIndexRoute
   '/provider/bookings/$bookingId': typeof ProviderBookingsBookingIdRoute
+  '/provider/team/invite': typeof ProviderTeamInviteRoute
   '/provider/bookings/': typeof ProviderBookingsIndexRoute
+  '/provider/team/': typeof ProviderTeamIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -238,7 +252,9 @@ export interface FileRoutesByTo {
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
   '/provider': typeof ProviderIndexRoute
   '/provider/bookings/$bookingId': typeof ProviderBookingsBookingIdRoute
+  '/provider/team/invite': typeof ProviderTeamInviteRoute
   '/provider/bookings': typeof ProviderBookingsIndexRoute
+  '/provider/team': typeof ProviderTeamIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -269,7 +285,9 @@ export interface FileRoutesById {
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
   '/provider/': typeof ProviderIndexRoute
   '/provider/bookings/$bookingId': typeof ProviderBookingsBookingIdRoute
+  '/provider/team/invite': typeof ProviderTeamInviteRoute
   '/provider/bookings/': typeof ProviderBookingsIndexRoute
+  '/provider/team/': typeof ProviderTeamIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -301,7 +319,9 @@ export interface FileRouteTypes {
     | '/tracking/$bookingId'
     | '/provider/'
     | '/provider/bookings/$bookingId'
+    | '/provider/team/invite'
     | '/provider/bookings/'
+    | '/provider/team/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -331,7 +351,9 @@ export interface FileRouteTypes {
     | '/tracking/$bookingId'
     | '/provider'
     | '/provider/bookings/$bookingId'
+    | '/provider/team/invite'
     | '/provider/bookings'
+    | '/provider/team'
   id:
     | '__root__'
     | '/'
@@ -361,7 +383,9 @@ export interface FileRouteTypes {
     | '/tracking/$bookingId'
     | '/provider/'
     | '/provider/bookings/$bookingId'
+    | '/provider/team/invite'
     | '/provider/bookings/'
+    | '/provider/team/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -392,7 +416,9 @@ export interface RootRouteChildren {
   TrackingBookingIdRoute: typeof TrackingBookingIdRoute
   ProviderIndexRoute: typeof ProviderIndexRoute
   ProviderBookingsBookingIdRoute: typeof ProviderBookingsBookingIdRoute
+  ProviderTeamInviteRoute: typeof ProviderTeamInviteRoute
   ProviderBookingsIndexRoute: typeof ProviderBookingsIndexRoute
+  ProviderTeamIndexRoute: typeof ProviderTeamIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -593,6 +619,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProviderBookingsBookingIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/provider/team/': {
+      id: '/provider/team/'
+      path: '/provider/team'
+      fullPath: '/provider/team/'
+      preLoaderRoute: typeof ProviderTeamIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/provider/team/invite': {
+      id: '/provider/team/invite'
+      path: '/provider/team/invite'
+      fullPath: '/provider/team/invite'
+      preLoaderRoute: typeof ProviderTeamInviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -624,7 +664,9 @@ const rootRouteChildren: RootRouteChildren = {
   TrackingBookingIdRoute: TrackingBookingIdRoute,
   ProviderIndexRoute: ProviderIndexRoute,
   ProviderBookingsBookingIdRoute: ProviderBookingsBookingIdRoute,
+  ProviderTeamInviteRoute: ProviderTeamInviteRoute,
   ProviderBookingsIndexRoute: ProviderBookingsIndexRoute,
+  ProviderTeamIndexRoute: ProviderTeamIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
