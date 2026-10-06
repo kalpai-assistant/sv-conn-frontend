@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { JobAddress } from "@/components/provider/JobAddress";
 import { ApiError } from "@/lib/api";
-import { useBooking } from "@/hooks/useApi";
+import { isBookingGone, useBooking } from "@/hooks/useApi";
 // The per-status actions live beside the job rather than inside this route,
 // because Provider Home renders the same ones inline (SVC-274). One
 // implementation, so the guard on completion cannot exist on one screen only.
@@ -46,7 +46,19 @@ function ProviderJobPage() {
         </div>
       )}
 
-      {isError && (
+      {/* 403/404 is not a failure to show in red: the job was given back,
+          reassigned or never this provider's, and polling has stopped. */}
+      {isError && isBookingGone(error) && (
+        <div className="mt-6 rounded-lg bg-muted p-4 text-sm">
+          <p className="font-medium text-foreground">This job is no longer yours</p>
+          <p className="mt-1 text-muted-foreground">There’s nothing left to do here.</p>
+          <Button asChild variant="outline" size="sm" className="mt-3">
+            <Link to="/provider/bookings">Back to your jobs</Link>
+          </Button>
+        </div>
+      )}
+
+      {isError && !isBookingGone(error) && (
         <p className="mt-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
           {error instanceof Error ? error.message : "Couldn’t load this job."}
         </p>

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import type { components } from "@/types/api";
 
 // UI-shape types (from mock-data) used to keep the existing components typed
@@ -616,6 +616,21 @@ export const useReviews = (providerId?: string) => {
   });
 };
 
+/**
+ * 403/404 on `GET /bookings/{id}`: this viewer can't see the booking, e.g. a
+ * provider whose job was given back or reassigned. Asking again can't change
+ * that, so it is neither retried nor polled.
+ */
+export function isBookingGone(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 403 || error.status === 404);
+}
+
+/** `useBooking`'s poll: every 4s while the booking is live, never once it's gone. */
+export const BOOKING_POLL_MS = 4000;
+export function bookingPollInterval(error: unknown): number | false {
+  return isBookingGone(error) ? false : BOOKING_POLL_MS;
+}
+
 export const useBooking = (bookingId?: string) => {
   const servicesQuery = useServices(); // leverage cached services
   const services = servicesQuery.data;
@@ -628,7 +643,8 @@ export const useBooking = (bookingId?: string) => {
       return mapBooking(b, services);
     },
     enabled: !!bookingId && services !== undefined,
-    refetchInterval: 4000,
+    refetchInterval: (query) => bookingPollInterval(query.state.error),
+    retry: (failureCount, error) => !isBookingGone(error) && failureCount < 3,
   });
 
   // Gated on services, which is itself gated on categories — so a single
