@@ -14,7 +14,7 @@
  * should be reading `refund_processing` off their own booking.
  */
 import { describe, expect, it } from "vitest";
-import { paymentStatusLabel, paymentStatusTone } from "@/lib/payment-status";
+import { cancelledPaymentLine, paymentStatusLabel, paymentStatusTone } from "@/lib/payment-status";
 
 const ALL_STATUSES = [
   "pending",
@@ -76,5 +76,39 @@ describe("tone", () => {
 
   it("does not paint an expired booking green", () => {
     expect(paymentStatusTone("expired")).not.toContain("success");
+  });
+});
+
+describe("cancelled-booking money line", () => {
+  // It used to say "You have not been charged" for every cancellation, which
+  // is false for a paid booking refunded by the SVC-344 no-taker sweep.
+  it.each(["pending", "expired"])("says not charged for an online booking that was %s", (s) => {
+    expect(cancelledPaymentLine(s, "online")).toBe("You have not been charged.");
+  });
+
+  it.each(ALL_STATUSES)("says not charged for cash, whatever the status (%s)", (s) => {
+    expect(cancelledPaymentLine(s, "cash")).toBe("You have not been charged.");
+  });
+
+  it("reports a refund in progress or done, never 'not charged'", () => {
+    expect(cancelledPaymentLine("refund_processing", "online")).toMatch(/refund has been started/);
+    expect(cancelledPaymentLine("refunded", "online")).toMatch(/refund has been issued/);
+    expect(cancelledPaymentLine("refund_failed", "online")).toMatch(/delayed/);
+  });
+
+  it("stays neutral for a paid booking whose refund hasn't started", () => {
+    expect(cancelledPaymentLine("paid", "online")).toMatch(/payment details below/);
+  });
+
+  it("never states an amount or calls a refund full", () => {
+    // The payload has no refund amount, and a post-accept cancel keeps a fee.
+    for (const s of [...ALL_STATUSES, "something_new"]) {
+      const line = cancelledPaymentLine(s, "online");
+      expect(line).not.toMatch(/₹|\d|full/i);
+    }
+  });
+
+  it("does not claim 'not charged' for a status it doesn't know", () => {
+    expect(cancelledPaymentLine("something_new", "online")).not.toMatch(/not been charged/);
   });
 });
