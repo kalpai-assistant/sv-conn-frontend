@@ -3,11 +3,11 @@
  *
  * ## Why Home, when there is a Jobs tab
  *
- * Providers do not browse to a job — they are pushed to one. `routeForPayload`
- * sends `accepted` and `en_route` pushes into the app, and every one of those
- * sessions starts at Home. So Home is the landing surface, not an alternative
- * route to the same place, and until now it showed a readiness checklist
- * confirming they are eligible for work they already have.
+ * Providers do not browse to a job. A push tap goes straight to the job screen
+ * (`routeForPayload` → `/provider/bookings/{id}`); every other session starts
+ * at Home. So Home is the landing surface, not an alternative route to the same
+ * place, and until now it showed a readiness checklist confirming they are
+ * eligible for work they already have.
  *
  * ## Why one card and a queue, rather than a list
  *

@@ -30,7 +30,12 @@ export type NotificationEvent =
   | "in_progress"
   | "completed"
   | "cancelled"
-  | "expired";
+  | "expired"
+  // SVC-320 two-level dispatch (backend notification_tasks.py).
+  | "pro_declined" // to the SP: a team Pro turned the job down, pick someone else
+  | "reopened" // to the consumer: their provider dropped out, searching again
+  | "no_taker_refunded" // to the consumer: nobody took a paid booking (SVC-344)
+  | "assigned"; // to a team Pro: the SP gave them this job
 
 export interface NotificationPayload {
   event: NotificationEvent | string;
@@ -54,10 +59,14 @@ type UserWithMaybeRole = { role?: "consumer" | "provider" | "admin" };
  * booking_id, or a role mismatch (e.g. a `new_request` push reaching a
  * consumer, which shouldn't happen but we guard anyway).
  *
- * Routes returned here may not exist yet at the time of writing (e.g.
- * `/provider/job/{id}` lands with SC-19/SC-20). TanStack Router shows the
- * NotFound boundary if so — fine for partial rollouts.
+ * Every route returned here must exist. This used to send providers to
+ * `/provider/job/{id}`, written ahead of a route that ended up at
+ * `/provider/bookings/{id}`, on the reasoning that NotFound was fine "for
+ * partial rollouts". It shipped that way and every provider push tap opened a
+ * 404 (found on device, SVC-321). `notifications.test.ts` now pins each target.
  */
+const providerJob = (bookingId: string) => `/provider/bookings/${bookingId}`;
+
 export function routeForPayload(data: NotificationPayload, role: ViewerRole): string | null {
   const event = data.event;
   const bookingId = data.booking_id;
@@ -79,11 +88,28 @@ export function routeForPayload(data: NotificationPayload, role: ViewerRole): st
     case "completed":
     case "cancelled":
     case "expired":
-      // Booking lifecycle events go to the tracking screen, which differs by
-      // role. Consumer watches /tracking/{id}; provider works the job from
-      // /provider/job/{id}.
-      if (role === "provider") return `/provider/job/${bookingId}`;
+      // Booking lifecycle events open the booking, on the screen for the
+      // viewer's role: the consumer watches /tracking/{id}, the provider works
+      // the job from /provider/bookings/{id}.
+      if (role === "provider") return providerJob(bookingId);
       if (role === "consumer") return `/tracking/${bookingId}`;
+      return null;
+
+    case "pro_declined":
+      // The SP still holds the job, now with nobody on it. Their job screen is
+      // where they act on it.
+      return role === "provider" ? providerJob(bookingId) : null;
+
+    case "reopened":
+    case "no_taker_refunded":
+      // Consumer-only. The booking is searching again (REQUESTED) or was
+      // cancelled with a refund; /tracking renders both.
+      return role === "consumer" ? `/tracking/${bookingId}` : null;
+
+    case "assigned":
+      // Goes to a team Pro, whose account is consumer-role, so /tracking would
+      // show them a customer's screen. Their job view is the Pro app's
+      // (SVC-322); route it there once it exists.
       return null;
 
     default:
