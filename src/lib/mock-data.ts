@@ -162,6 +162,18 @@ export interface Booking {
   createdAt: string;
   // Oldest first. See BookingStatusEvent — may legitimately be empty.
   statusHistory: BookingStatusEvent[];
+  // Who is doing the job (SVC-324). `null` means nobody: on an ACCEPTED job,
+  // a team Pro declined and the SP has to pick someone else. `undefined` means
+  // a backend that doesn't send the field yet. Never treat the two alike.
+  professional?: BookingProfessional | null;
+}
+
+export interface BookingProfessional {
+  id: string;
+  displayName: string;
+  photoUrl: string | null;
+  /** The SP's own Pro-for-self: the provider is doing it themselves. */
+  isSelf: boolean;
 }
 
 // Nothing imports this as a value — every consumer of this module uses

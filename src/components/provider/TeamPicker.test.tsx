@@ -195,3 +195,25 @@ describe("KYC (backend #196)", () => {
     expect(row("Asha")).toHaveTextContent("KYC pending");
   });
 });
+
+describe("re-pick mode (SVC-324)", () => {
+  it("changes who goes without leaving the job screen", () => {
+    assignMutate.mockImplementationOnce((_vars, opts) => opts.onSuccess());
+    render(
+      <TeamPicker
+        mode="repick"
+        bookingId="b1"
+        pros={PROS}
+        expired={false}
+        onBack={onBack}
+        onDismiss={onDismiss}
+      />,
+    );
+    expect(screen.getByText(/the job stays yours/i)).toBeInTheDocument();
+    pickAndAssign("Asha");
+
+    expect(toast.success).toHaveBeenCalledWith("Asha is doing this job");
+    expect(onDismiss).toHaveBeenCalledWith("accepted");
+    expect(navigate).not.toHaveBeenCalled();
+  });
+});

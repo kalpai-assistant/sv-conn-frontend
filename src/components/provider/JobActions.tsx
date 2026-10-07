@@ -27,8 +27,8 @@
  *   button with no ceremony.
  * - **Giving the job back** (from ACCEPTED, see `GiveBackJob`) can't be undone:
  *   the job goes to other providers and this one is never offered it again. So
- *   it is a quiet link behind a confirmation, never a button beside "I'm on my
- *   way".
+ *   it is a link (red, so it reads as a way out) behind a confirmation, never
+ *   a button beside "I'm on my way".
  * - **The PIN** is self-verifying: the customer's four digits *are* the
  *   confirmation, and a wrong one is a 400. No guard can improve on that.
  * - **Complete** pushes a notification to the customer, queues
@@ -172,7 +172,7 @@ export function GiveBackJob({ bookingId }: { bookingId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-3 w-full text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
+        className="mt-3 w-full text-center text-sm font-medium text-destructive underline-offset-4 hover:underline"
       >
         Can’t make it?
       </button>
@@ -193,7 +193,6 @@ export function GiveBackJob({ bookingId }: { bookingId: string }) {
                 giveBack();
               }}
               disabled={cancel.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {cancel.isPending ? "Giving back…" : "Give it back"}
             </AlertDialogAction>

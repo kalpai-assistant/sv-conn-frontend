@@ -124,9 +124,11 @@ export function useAssignPro() {
         method: "POST",
         body: JSON.stringify({ professional_id: professionalId }),
       }),
-    onSuccess: () => {
+    onSuccess: (_data, { bookingId }) => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["provider-bookings"] });
+      // The job screen, so a re-pick shows the new Pro without waiting a poll.
+      queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["provider-offers"] });
