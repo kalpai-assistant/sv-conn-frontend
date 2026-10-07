@@ -59,6 +59,12 @@ interface TeamPickerProps {
   expired: boolean;
   onBack: () => void;
   onDismiss: (reason: DismissReason) => void;
+  /**
+   * `claim` (default): the accept flow, where nothing is the SP's until they
+   * pick. `repick` (SVC-324): an ACCEPTED job the SP already holds gets a new
+   * Pro, from its own job screen, which stays put.
+   */
+  mode?: "claim" | "repick";
 }
 
 export function TeamPicker({
@@ -67,7 +73,9 @@ export function TeamPicker({
   expired,
   onBack,
   onDismiss,
+  mode = "claim",
 }: TeamPickerProps) {
+  const repick = mode === "repick";
   const navigate = useNavigate();
   const team = useTeam();
   const assign = useAssignPro();
@@ -103,6 +111,13 @@ export function TeamPicker({
       { bookingId, professionalId: pro.id },
       {
         onSuccess: () => {
+          if (repick) {
+            toast.success(
+              pro.is_self ? "You're doing this job" : `${pro.display_name} is doing this job`,
+            );
+            onDismiss("accepted");
+            return;
+          }
           toast.success(pro.is_self ? "Job accepted" : `Job assigned to ${pro.display_name}`);
           onDismiss("accepted");
           navigate({ to: "/provider/bookings/$bookingId", params: { bookingId } });
@@ -135,7 +150,9 @@ export function TeamPicker({
           Who's doing this job?
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          The job isn't yours until you assign it.
+          {repick
+            ? "The job stays yours. This changes who goes."
+            : "The job isn't yours until you assign it."}
         </p>
       </div>
 
@@ -202,8 +219,8 @@ export function TeamPicker({
               : "Pick someone"}
         </Button>
         <Button variant="ghost" className="w-full" onClick={onBack} disabled={assign.isPending}>
-          <ArrowLeft className="h-4 w-4" />
-          Back
+          {!repick && <ArrowLeft className="h-4 w-4" />}
+          {repick ? "Cancel" : "Back"}
         </Button>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { JobAddress } from "@/components/provider/JobAddress";
+import { AssignedPro } from "@/components/provider/AssignedPro";
 import { ApiError } from "@/lib/api";
 import { isBookingGone, useBooking } from "@/hooks/useApi";
 // The per-status actions live beside the job rather than inside this route,
@@ -97,6 +98,10 @@ function JobBody({ booking }: { booking: Booking }) {
       <div className="mt-4">
         <JobAddress address={booking.address} showNavigate={travelling(booking.status)} />
       </div>
+
+      {/* Who is on the job, and a way to change it (SVC-324). Renders nothing
+          for a solo SP. */}
+      <AssignedPro booking={booking} />
 
       <div className="mt-6">
         {booking.status === "ACCEPTED" && <EnRouteStep bookingId={booking.id} />}

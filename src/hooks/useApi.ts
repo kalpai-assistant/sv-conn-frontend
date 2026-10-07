@@ -174,6 +174,32 @@ const mapService = (
 // `service` we hand back is the FIRST item, kept as a convenience for
 // screens (bookings list, tracking header) that only want a one-line
 // summary. Everywhere that renders the whole cart reads `items`.
+/**
+ * `professional` (SVC-324, backend #197) isn't in the generated types yet.
+ * Keeps "the field is absent" (an older backend: `undefined`) apart from "the
+ * field says nobody" (`null`), since only the second means "pick someone".
+ */
+export const mapProfessional = (b: object): UI_Booking["professional"] => {
+  if (!("professional" in b)) return undefined;
+  const pro = (
+    b as {
+      professional: {
+        id: string;
+        display_name: string;
+        profile_photo_url: string | null;
+        is_self: boolean;
+      } | null;
+    }
+  ).professional;
+  if (!pro) return null;
+  return {
+    id: pro.id,
+    displayName: pro.display_name,
+    photoUrl: pro.profile_photo_url,
+    isSelf: pro.is_self,
+  };
+};
+
 const mapBooking = (
   b: API_BookingResponse & {
     // The generated OpenAPI type may not yet include these fields — cast
@@ -290,6 +316,7 @@ const mapBooking = (
       at: e.created_at,
     })),
     otp: b.doorstep_otp || undefined,
+    professional: mapProfessional(b),
     service: b.provider_id
       ? {
           ...primaryService,

@@ -23,6 +23,7 @@ vi.mock("@tanstack/react-router", () => ({
 
 // Stubbed: what matters here is which branch renders, not the steps' internals.
 vi.mock("@/components/provider/JobAddress", () => ({ JobAddress: () => <div /> }));
+vi.mock("@/components/provider/AssignedPro", () => ({ AssignedPro: () => <div /> }));
 vi.mock("@/components/provider/JobActions", () => ({
   EnRouteStep: () => <button type="button">I’m on my way</button>,
   DoorstepOtpStep: () => <div />,
