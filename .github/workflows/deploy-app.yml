@@ -160,6 +160,32 @@ jobs:
             exit 1
           fi
 
+      # The web needs the push service worker; the APK must not have it.
+      #
+      # vite.mobile.config.ts strips public/firebase-messaging-sw.js out of
+      # dist-mobile (SVC-314, #170), which is right for the APK: a dormant SW at
+      # https://localhost is the white-screen trigger SVC-313 found. But this
+      # workflow ships the same dist-mobile to app.eazyserv.com, so from
+      # 2026-09-23 the site served the SPA fallback (index.html, text/html) at
+      # /firebase-messaging-sw.js. A fresh browser then could not register for
+      # web push at all, and browsers registered earlier were stuck on the old
+      # worker. #170 meant to keep it on the web ("Web PWA build … still ships
+      # the file"), but assumed the site deploys dist/client.
+      #
+      # So it goes back here, for the web deploy only, and the guard checks it
+      # is the real worker (notification handling + role-aware routing), not
+      # merely a file with the right name.
+      - name: Restore the web push service worker
+        run: |
+          set -euo pipefail
+          cp public/firebase-messaging-sw.js dist-mobile/firebase-messaging-sw.js
+          for marker in notificationclick push_event; do
+            if ! grep -q "$marker" dist-mobile/firebase-messaging-sw.js; then
+              echo "::error::dist-mobile/firebase-messaging-sw.js lacks '$marker': web push would ship broken"
+              exit 1
+            fi
+          done
+
       # Wrangler action handles auth + `wrangler pages deploy`. `--branch=main`
       # promotes the deploy to production on the Pages project; any other
       # branch value produces a preview deploy on a *.pages.dev URL.
@@ -169,3 +195,23 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist-mobile --project-name=sv-conn-frontend --branch=main
+
+      # The SW went missing once without anyone noticing, because a missing
+      # file is still a 200: _redirects' `/* /index.html 200` catch-all serves
+      # the SPA in its place. So check what production actually serves. Retries
+      # cover the few seconds before a new deployment is live at the edge.
+      - name: Smoke-check the live push service worker
+        run: |
+          set -euo pipefail
+          url="https://app.eazyserv.com/firebase-messaging-sw.js"
+          for attempt in $(seq 1 10); do
+            type=$(curl -s -o sw.js -w '%{content_type}' "$url?deploy=${GITHUB_SHA}" || true)
+            if [[ "$type" == *javascript* ]] && grep -q push_event sw.js; then
+              echo "Live SW OK ($type) on attempt $attempt"
+              exit 0
+            fi
+            echo "Attempt $attempt: content-type '$type', not the worker yet; retrying"
+            sleep 15
+          done
+          echo "::error::$url is not the push service worker (got '$type'). Web push is broken in production."
+          exit 1
