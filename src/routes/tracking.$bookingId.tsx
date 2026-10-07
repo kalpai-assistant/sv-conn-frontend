@@ -13,7 +13,7 @@ import {
   useCreatePaymentOrder,
   useVerifyPayment,
 } from "@/hooks/useApi";
-import { paymentStatusLabel, paymentStatusTone } from "@/lib/payment-status";
+import { cancelledPaymentLine, paymentStatusLabel, paymentStatusTone } from "@/lib/payment-status";
 import type { RazorpayCheckoutOptions, RazorpaySuccessResponse } from "@/types/razorpay";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
@@ -254,7 +254,8 @@ function TrackingPage() {
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-1">Booking cancelled</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              This booking was cancelled. You have not been charged.
+              This booking was cancelled.{" "}
+              {cancelledPaymentLine(booking.paymentStatus, booking.paymentMethod)}
             </p>
             <button
               onClick={() => navigate({ to: "/" })}

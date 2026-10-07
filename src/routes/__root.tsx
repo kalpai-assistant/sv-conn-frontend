@@ -121,8 +121,9 @@ function AppGate({ children }: { children: React.ReactNode }) {
     isError: addressesError,
   } = useAddresses(isAuthenticated && !isProvider);
 
-  // Wire FCM tap → in-app navigation. No-op on web; lazy-loads the Capacitor
-  // plugin so the web bundle stays clean. Must live inside <AuthProvider/> for
+  // Wire push taps → in-app navigation: native taps through the Capacitor
+  // plugin (lazy-loaded so the web bundle stays clean), web-push taps through
+  // the URL the service worker opens. Must live inside <AuthProvider/> for
   // `useAuth()` access — that's why it sits here, not in main.mobile.tsx.
   useNotificationRouter();
 

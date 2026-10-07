@@ -12,12 +12,13 @@
  *
  * 2. `useNotificationRouter()` — a React hook that wires the Capacitor
  *    PushNotifications listeners and routes via TanStack Router. Foreground
- *    + background + killed-state taps all funnel through this.
+ *    + background + killed-state taps all funnel through this. A web-push tap
+ *    (PWA) arrives as a URL from the service worker and is routed here too.
  *
  * Out of scope (deferred): Universal Links / App Links (web URL → app), FCM
  * token registration (that's SC-16 / junior's work).
  */
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Capacitor } from "@capacitor/core";
 import type { PluginListenerHandle } from "@capacitor/core";
@@ -30,7 +31,12 @@ export type NotificationEvent =
   | "in_progress"
   | "completed"
   | "cancelled"
-  | "expired";
+  | "expired"
+  // SVC-320 two-level dispatch (backend notification_tasks.py).
+  | "pro_declined" // to the SP: a team Pro turned the job down, pick someone else
+  | "reopened" // to the consumer: their provider dropped out, searching again
+  | "no_taker_refunded" // to the consumer: nobody took a paid booking (SVC-344)
+  | "assigned"; // to a team Pro: the SP gave them this job
 
 export interface NotificationPayload {
   event: NotificationEvent | string;
@@ -54,10 +60,14 @@ type UserWithMaybeRole = { role?: "consumer" | "provider" | "admin" };
  * booking_id, or a role mismatch (e.g. a `new_request` push reaching a
  * consumer, which shouldn't happen but we guard anyway).
  *
- * Routes returned here may not exist yet at the time of writing (e.g.
- * `/provider/job/{id}` lands with SC-19/SC-20). TanStack Router shows the
- * NotFound boundary if so — fine for partial rollouts.
+ * Every route returned here must exist. This used to send providers to
+ * `/provider/job/{id}`, written ahead of a route that ended up at
+ * `/provider/bookings/{id}`, on the reasoning that NotFound was fine "for
+ * partial rollouts". It shipped that way and every provider push tap opened a
+ * 404 (found on device, SVC-321). `notifications.test.ts` now pins each target.
  */
+const providerJob = (bookingId: string) => `/provider/bookings/${bookingId}`;
+
 export function routeForPayload(data: NotificationPayload, role: ViewerRole): string | null {
   const event = data.event;
   const bookingId = data.booking_id;
@@ -79,11 +89,28 @@ export function routeForPayload(data: NotificationPayload, role: ViewerRole): st
     case "completed":
     case "cancelled":
     case "expired":
-      // Booking lifecycle events go to the tracking screen, which differs by
-      // role. Consumer watches /tracking/{id}; provider works the job from
-      // /provider/job/{id}.
-      if (role === "provider") return `/provider/job/${bookingId}`;
+      // Booking lifecycle events open the booking, on the screen for the
+      // viewer's role: the consumer watches /tracking/{id}, the provider works
+      // the job from /provider/bookings/{id}.
+      if (role === "provider") return providerJob(bookingId);
       if (role === "consumer") return `/tracking/${bookingId}`;
+      return null;
+
+    case "pro_declined":
+      // The SP still holds the job, now with nobody on it. Their job screen is
+      // where they act on it.
+      return role === "provider" ? providerJob(bookingId) : null;
+
+    case "reopened":
+    case "no_taker_refunded":
+      // Consumer-only. The booking is searching again (REQUESTED) or was
+      // cancelled with a refund; /tracking renders both.
+      return role === "consumer" ? `/tracking/${bookingId}` : null;
+
+    case "assigned":
+      // Goes to a team Pro, whose account is consumer-role, so /tracking would
+      // show them a customer's screen. Their job view is the Pro app's
+      // (SVC-322); route it there once it exists.
       return null;
 
     default:
@@ -104,10 +131,42 @@ function shouldAutoRouteForeground(data: NotificationPayload, role: ViewerRole):
   return data.event === "new_request" && role === "provider";
 }
 
+/**
+ * A web-push tap arrives as a URL (`/?push_event=…&push_booking_id=…`) built by
+ * `public/firebase-messaging-sw.js`, which can't know the viewer's role. Keep
+ * these names in step with that file.
+ */
+export const PUSH_EVENT_PARAM = "push_event";
+export const PUSH_BOOKING_PARAM = "push_booking_id";
+
+/** The push payload carried in a URL's query string, or null if none. */
+export function readPushLink(search: string): NotificationPayload | null {
+  const params = new URLSearchParams(search);
+  const event = params.get(PUSH_EVENT_PARAM);
+  if (!event) return null;
+  return { event, booking_id: params.get(PUSH_BOOKING_PARAM) ?? undefined };
+}
+
 export function useNotificationRouter(): void {
   const { user } = useAuth();
   const navigate = useNavigate();
   const role: ViewerRole = (user as UserWithMaybeRole | null)?.role ?? null;
+
+  // Web push (PWA). Read once, on the first render: that runs before any
+  // child's effect, and __root's role redirects (a provider landing on "/" is
+  // sent to /provider) would otherwise drop the query string first. Resolved
+  // once the role is known, which is after the session restore, or after login
+  // when the tap opened a signed-out app.
+  const [pushLink] = useState(() =>
+    typeof window === "undefined" ? null : readPushLink(window.location.search),
+  );
+  const pushLinkHandled = useRef(false);
+  useEffect(() => {
+    if (!pushLink || pushLinkHandled.current || role === null) return;
+    pushLinkHandled.current = true;
+    const target = routeForPayload(pushLink, role);
+    if (target) navigate({ to: target, replace: true });
+  }, [pushLink, role, navigate]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;

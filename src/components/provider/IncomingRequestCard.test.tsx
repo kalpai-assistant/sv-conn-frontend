@@ -11,7 +11,7 @@
  * put the two controls back side by side.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 
 const offer = vi.fn();
 const acceptMutate = vi.fn();
@@ -30,6 +30,16 @@ vi.mock("framer-motion", () => ({
       <div {...props}>{children}</div>
     ),
   },
+}));
+
+// Stubbed: the picker has its own tests. Here what matters is that the card
+// shows it instead of closing.
+vi.mock("@/components/provider/TeamPicker", () => ({
+  TeamPicker: ({ onBack }: { onBack: () => void }) => (
+    <button type="button" onClick={onBack}>
+      team-picker
+    </button>
+  ),
 }));
 
 import { IncomingRequestCard } from "@/components/provider/IncomingRequestCard";
@@ -115,5 +125,33 @@ describe("what each control still does", () => {
 
     expect(acceptMutate).toHaveBeenCalled();
     expect(onDismiss).not.toHaveBeenCalled();
+  });
+});
+
+describe("a team SP's accept (SVC-321)", () => {
+  it("opens the picker in the card instead of closing it", () => {
+    acceptMutate.mockImplementationOnce((_id, opts) =>
+      opts.onSuccess({ outcome: "pick", pros: [] }),
+    );
+    const onDismiss = vi.fn();
+    render(<IncomingRequestCard bookingId="b1" onDismiss={onDismiss} />);
+
+    act(() => buttons().accept.click());
+
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "team-picker" })).toBeInTheDocument();
+    // Back from the picker is the offer again: nothing was claimed.
+    act(() => screen.getByRole("button", { name: "team-picker" }).click());
+    expect(buttons().accept).toBeInTheDocument();
+  });
+
+  it("still closes the card on a solo SP's claim", () => {
+    acceptMutate.mockImplementationOnce((_id, opts) => opts.onSuccess({ outcome: "accepted" }));
+    const onDismiss = vi.fn();
+    render(<IncomingRequestCard bookingId="b1" onDismiss={onDismiss} />);
+
+    act(() => buttons().accept.click());
+
+    expect(onDismiss).toHaveBeenCalledExactlyOnceWith("accepted");
   });
 });

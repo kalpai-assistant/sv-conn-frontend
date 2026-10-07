@@ -47,7 +47,8 @@
  * in, and it self-corrects once the backend is current.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiError, apiFetch } from "@/lib/api";
+import { ApiError, apiFetch, apiFetchWithStatus } from "@/lib/api";
+import type { TeamPickPro, TeamPickResponse } from "@/hooks/useTeam";
 import type { components } from "@/types/api";
 
 type Schema<K extends keyof components["schemas"]> = components["schemas"][K];
@@ -229,6 +230,15 @@ export function useDeclineOffer() {
   });
 }
 
+export type AcceptResult =
+  | { outcome: Extract<DismissReason, "accepted" | "taken" | "unavailable"> }
+  // SVC-321: a team SP's accept claims nothing yet. Show the picker; the claim
+  // is `POST /bookings/{id}/assign`.
+  | { outcome: "pick"; pros: TeamPickPro[] };
+
+/** 202 from accept with `X-Team-Pick: 1`: the SP has a team, pick a Pro. */
+const PICK_A_PRO = 202;
+
 /**
  * Claim the booking. First provider to accept wins.
  *
@@ -239,6 +249,9 @@ export function useDeclineOffer() {
  * Anything else (409, 5xx, network) rejects and surfaces as a real error the
  * provider can retry.
  *
+ * `"pick"` (SVC-321) is the one outcome that does not close the card: the SP
+ * has a team, nothing is claimed yet, and the card switches to its picker.
+ *
  * Accept is idempotent server-side: re-accepting a booking you already hold
  * returns 200 with no second push to the consumer (SVC-154), so a retry after a
  * lost response is safe.
@@ -246,23 +259,33 @@ export function useDeclineOffer() {
 export function useAcceptOffer() {
   const queryClient = useQueryClient();
 
-  return useMutation<Extract<DismissReason, "accepted" | "taken" | "unavailable">, Error, string>({
+  return useMutation<AcceptResult, Error, string>({
     mutationFn: async (bookingId: string) => {
       try {
-        await apiFetch<Schema<"BookingResponse">>(`/bookings/${bookingId}/accept`, {
+        // Always opt in to the pick step: the backend decides solo vs team.
+        // A solo SP gets the same 200 claim as without the header.
+        const { status, data } = await apiFetchWithStatus<
+          Schema<"BookingResponse"> | TeamPickResponse
+        >(`/bookings/${bookingId}/accept`, {
           method: "PATCH",
+          headers: { "X-Team-Pick": "1" },
         });
-        return "accepted";
+        if (status === PICK_A_PRO) {
+          return { outcome: "pick", pros: (data as TeamPickResponse).pros };
+        }
+        return { outcome: "accepted" };
       } catch (error) {
         // The offer can be claimed in the seconds between the card rendering
         // and the provider tapping Accept. That race is lost regularly, and
         // arrives here as the same 410 the load path gets.
         const reason = dismissReasonForOfferError(error);
-        if (reason === "taken" || reason === "unavailable") return reason;
+        if (reason === "taken" || reason === "unavailable") return { outcome: reason };
         throw error;
       }
     },
-    onSuccess: (outcome) => {
+    onSuccess: ({ outcome }) => {
+      // Nothing was claimed; the booking is still open to everyone.
+      if (outcome === "pick") return;
       // Won or lost, this provider's job list may have changed.
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       // Either outcome takes this booking off the open-offer list (SVC-254) —

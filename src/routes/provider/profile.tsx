@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, MapPin, WalletCards } from "lucide-react";
+import { ChevronRight, MapPin, Users, WalletCards } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationsRow } from "@/components/NotificationsRow";
 import { BusinessSection } from "@/components/provider/BusinessSection";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
 import { useProviderProfile } from "@/hooks/useApi";
+import { useTeam } from "@/hooks/useTeam";
 import { APP_VERSION } from "@/lib/version";
 
 export const Route = createFileRoute("/provider/profile")({
@@ -14,6 +15,8 @@ export const Route = createFileRoute("/provider/profile")({
 
 function ProviderProfilePage() {
   const { data: profile } = useProviderProfile();
+  const { data: team } = useTeam();
+  const teamSize = team?.filter((member) => !member.is_self).length ?? 0;
 
   return (
     <div className="min-h-screen p-6 pb-24">
@@ -72,6 +75,26 @@ function ProviderProfilePage() {
               {profile?.service_area_lat != null && profile?.service_area_lng != null
                 ? `Within ${profile.service_area_radius_km ?? 10} km of your centre`
                 : "Not set — you won't receive jobs"}
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </Link>
+
+      {/* My Team (SVC-321). Here and not on Home: almost every SP works alone
+          and never invites anyone, so it stays one tap deep. */}
+      <Link
+        to="/provider/team"
+        className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-secondary/50"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <Users className="h-5 w-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">My Team</p>
+            <p className="truncate text-sm text-muted-foreground">
+              {teamSize > 0
+                ? `${teamSize} ${teamSize === 1 ? "member" : "members"} besides you`
+                : "Invite people who work with you"}
             </p>
           </div>
         </div>

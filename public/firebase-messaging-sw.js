@@ -45,12 +45,25 @@ messaging.onBackgroundMessage((payload) => {
   });
 });
 
-// Notification click → focus / open the app at the right route.
+// Notification click → open the app and let it decide where to go.
+//
+// The right screen depends on who is signed in (a provider's job screen, a
+// consumer's tracking screen), and this worker can't know that: no
+// localStorage, no auth state. It used to send everyone to /tracking/{id},
+// which bounced providers to /provider and lost the job. So it hands the
+// payload over in the URL, and the app resolves it with the same
+// `routeForPayload` the native tap uses (`useNotificationRouter`,
+// src/lib/notifications.ts). The parameter names are that file's
+// PUSH_EVENT_PARAM / PUSH_BOOKING_PARAM; notifications.test.ts checks they match.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const bookingId = event.notification.data?.booking_id;
-  const targetUrl = bookingId ? `/tracking/${bookingId}` : "/";
+  const data = event.notification.data || {};
+  const params = new URLSearchParams();
+  if (data.event) params.set("push_event", data.event);
+  if (data.booking_id) params.set("push_booking_id", data.booking_id);
+  const query = params.toString();
+  const targetUrl = query ? `/?${query}` : "/";
 
   event.waitUntil(
     self.clients.matchAll({ type: "window" }).then((clients) => {

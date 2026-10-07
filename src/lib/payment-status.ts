@@ -49,3 +49,35 @@ export function paymentStatusTone(status: string): string {
   if (status === "refund_failed") return "text-destructive";
   return "text-muted-foreground";
 }
+
+/**
+ * The money line under "Booking cancelled" on the tracking screen.
+ *
+ * It used to say "You have not been charged" for every cancellation. That is
+ * false for a paid booking: SVC-344 cancels a paid booking nobody took and
+ * refunds it, and a consumer cancelling after acceptance is refunded minus a
+ * fee (SVC-178). The payload carries neither the refund amount nor the fee, so
+ * nothing here states an amount or calls a refund "full": a claim this screen
+ * can't check is worse than a plain one. The payment row below the banner
+ * carries the status label.
+ */
+export function cancelledPaymentLine(status: string, method: "online" | "cash"): string {
+  // Cash is collected at the door, so a job that never happened took nothing.
+  if (method === "cash") return "You have not been charged.";
+  switch (status) {
+    case "pending":
+    case "expired":
+      return "You have not been charged.";
+    case "refund_processing":
+      return "Your refund has been started.";
+    case "refunded":
+      return "Your refund has been issued.";
+    case "refund_failed":
+      // Same stance as the label: ours to chase, not theirs.
+      return "Your refund is delayed. We're sorting it out.";
+    default:
+      // "paid" (cancelled, refund not started yet) and anything newer: say
+      // nothing we can't stand behind.
+      return "Any refund due will show in the payment details below.";
+  }
+}
