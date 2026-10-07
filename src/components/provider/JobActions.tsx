@@ -25,6 +25,10 @@
  *
  * - **En route** is a status and nothing else. Reversible in effect, so a plain
  *   button with no ceremony.
+ * - **Giving the job back** (from ACCEPTED, see `GiveBackJob`) can't be undone:
+ *   the job goes to other providers and this one is never offered it again. So
+ *   it is a quiet link behind a confirmation, never a button beside "I'm on my
+ *   way".
  * - **The PIN** is self-verifying: the customer's four digits *are* the
  *   confirmation, and a wrong one is a 400. No guard can improve on that.
  * - **Complete** pushes a notification to the customer, queues
@@ -33,14 +37,30 @@
  *   recalled, so it is held behind an undo window — see `CompleteStep`.
  */
 import { useState } from "react";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { toast } from "sonner";
 import { CheckCircle2, Loader2, Navigation } from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { ApiError } from "@/lib/api";
-import { useMarkEnRoute, useStartBooking, useCompleteBooking } from "@/hooks/useApi";
+import {
+  useCancelBooking,
+  useMarkEnRoute,
+  useStartBooking,
+  useCompleteBooking,
+} from "@/hooks/useApi";
 import { usePendingAction, UNDO_WINDOW_MS } from "@/hooks/usePendingAction";
 
 /**
@@ -94,7 +114,93 @@ export function EnRouteStep({
         )}
         I’m on my way
       </Button>
+      <GiveBackJob bookingId={bookingId} />
     </div>
+  );
+}
+
+/**
+ * The provider's way out of a job they accepted but can't do (SVC-318 gap).
+ *
+ * There was none: a provider who couldn't make it either didn't show up or
+ * called support, while the customer kept seeing "Booking confirmed". The
+ * backend has had the path since SVC-344: the provider's `PATCH /cancel` while
+ * ACCEPTED *reopens* the job rather than cancelling it on the customer. It goes
+ * back to other providers, the customer is told we're finding someone else, no
+ * fee is charged to anyone, and this provider is never offered it again. That
+ * one route covers a solo provider and a team alike (`/release` is the
+ * team-only twin).
+ *
+ * Only offered while ACCEPTED, because that is where `EnRouteStep` renders it.
+ * Once on the way the backend answers 409 `PROVIDER_EN_ROUTE`: that needs
+ * support, not a button.
+ */
+export const GIVE_BACK_REASON = "Provider can't make it (given back from the app)";
+
+export function GiveBackJob({ bookingId }: { bookingId: string }) {
+  const [open, setOpen] = useState(false);
+  const cancel = useCancelBooking();
+  const navigate = useNavigate();
+  // On the job screen the job is about to stop being theirs (a 403 on the next
+  // poll), so leave it. On Home the card simply drops out of the list.
+  const onJobScreen = useRouterState({
+    select: (state) => state.location.pathname.startsWith("/provider/bookings/"),
+  });
+
+  const giveBack = () =>
+    cancel.mutate(
+      { bookingId, reason: GIVE_BACK_REASON },
+      {
+        onSuccess: () => {
+          setOpen(false);
+          toast.success("Job given back. We’ll find the customer someone else.");
+          if (onJobScreen) navigate({ to: "/provider/bookings" });
+        },
+        onError: (err) => {
+          setOpen(false);
+          toast.error(
+            err instanceof ApiError && err.code === "PROVIDER_EN_ROUTE"
+              ? "You’re already on your way, so this needs support to cancel."
+              : transitionMessage(err, "Couldn’t give the job back. Please try again."),
+          );
+        },
+      },
+    );
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-3 w-full text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
+      >
+        Can’t make it?
+      </button>
+      <AlertDialog open={open} onOpenChange={(next) => !cancel.isPending && setOpen(next)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Give this job back?</AlertDialogTitle>
+            <AlertDialogDescription>
+              We’ll offer it to other providers and tell the customer we’re finding someone else. No
+              fee is charged, but you won’t be offered this job again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancel.isPending}>Keep the job</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                giveBack();
+              }}
+              disabled={cancel.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancel.isPending ? "Giving back…" : "Give it back"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
