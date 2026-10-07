@@ -68,7 +68,11 @@ function ProviderJobPage() {
         <p className="mt-6 text-sm text-muted-foreground">This job no longer exists.</p>
       )}
 
-      {booking && <JobBody booking={booking} />}
+      {/* React Query keeps the last good data after a later fetch fails, so a
+          job that was given back would otherwise still render its steps, "I'm
+          on my way" included, under the message above (found on device). A
+          gone job shows no body; other errors keep the last state on screen. */}
+      {booking && !(isError && isBookingGone(error)) && <JobBody booking={booking} />}
     </div>
   );
 }
