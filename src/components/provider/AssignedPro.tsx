@@ -96,7 +96,7 @@ export function AssignedPro({ booking }: { booking: Booking }) {
             </p>
           </div>
           {canChange && (
-            <Button variant="outline" size="sm" onClick={() => setPicking(true)}>
+            <Button size="sm" onClick={() => setPicking(true)}>
               Change
             </Button>
           )}
