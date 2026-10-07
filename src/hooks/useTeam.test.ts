@@ -9,6 +9,8 @@ describe("assignOutcomeForError", () => {
   it.each([
     [409, "PRO_BUSY", "repick"],
     [409, "PRO_OFFLINE", "repick"],
+    // The team Pro's own KYC isn't verified (backend #196).
+    [409, "PRO_KYC_INCOMPLETE", "repick"],
     // The Pro was removed while the picker was open; the booking is still live.
     [404, "PRO_NOT_FOUND", "repick"],
     [410, undefined, "taken"],

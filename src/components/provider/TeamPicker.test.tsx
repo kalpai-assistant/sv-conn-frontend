@@ -39,7 +39,11 @@ const pro = (id: string, over: Record<string, unknown> = {}) => ({
   busy: false,
   ...over,
 });
-const member = (id: string, is_online: boolean) => ({ id, is_online });
+const member = (id: string, is_online: boolean, kyc_status = "verified") => ({
+  id,
+  is_online,
+  kyc_status,
+});
 
 const PROS = [
   pro("Me", { is_self: true }),
@@ -165,4 +169,29 @@ it("Back returns to the offer without assigning", () => {
   fireEvent.click(screen.getByRole("button", { name: /back/i }));
   expect(onBack).toHaveBeenCalled();
   expect(assignMutate).not.toHaveBeenCalled();
+});
+
+describe("KYC (backend #196)", () => {
+  it("disables a team Pro whose KYC isn't verified, even when online", () => {
+    teamQuery.mockReturnValue({
+      data: [member("Me", false, "pending"), member("Asha", true, "submitted")],
+    });
+    renderPicker();
+    expect(row("Asha")).toBeDisabled();
+    expect(row("Asha")).toHaveTextContent("KYC pending");
+    // The SP's own row follows the SP's KYC, which made them eligible.
+    expect(row("Me")).toBeEnabled();
+  });
+
+  it("keeps the picker open and marks the Pro on PRO_KYC_INCOMPLETE", () => {
+    // The team fetch failed, so the row was pickable: /assign is the gate.
+    teamQuery.mockReturnValue({ data: undefined, isError: true });
+    assignFails(new ApiError(409, "x", undefined, "PRO_KYC_INCOMPLETE"));
+    renderPicker();
+    pickAndAssign("Asha");
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/KYC/));
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(row("Asha")).toBeDisabled();
+    expect(row("Asha")).toHaveTextContent("KYC pending");
+  });
 });

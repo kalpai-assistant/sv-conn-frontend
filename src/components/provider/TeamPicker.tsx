@@ -13,9 +13,10 @@
  *
  * Availability comes from two places. `busy` is in the 202 itself. Online
  * state is not — `TeamPickPro` has no such field — so it is joined from
- * `GET /providers/me/team`. If that side fetch fails, rows show no state rather
- * than all reading offline: /assign's PRO_OFFLINE is the real gate, and a
- * failed extra request must never stop the SP picking.
+ * `GET /providers/me/team`, and so is KYC: a team Pro can't be assigned until
+ * their own KYC is verified (409 PRO_KYC_INCOMPLETE). If that side fetch fails,
+ * rows show no state rather than all reading offline or unverified: /assign is
+ * the real gate, and a failed extra request must never stop the SP picking.
  */
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
@@ -35,18 +36,20 @@ import {
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-type Availability = "available" | "busy" | "offline" | "unknown";
+type Availability = "available" | "busy" | "offline" | "kyc" | "unknown";
 
 const LABEL: Record<Exclude<Availability, "unknown">, string> = {
   available: "Available",
   busy: "On a job",
   offline: "Offline",
+  kyc: "KYC pending",
 };
 
 const DOT: Record<Exclude<Availability, "unknown">, string> = {
   available: "bg-emerald-500",
   busy: "bg-amber-500",
   offline: "bg-muted-foreground/40",
+  kyc: "bg-muted-foreground/40",
 };
 
 interface TeamPickerProps {
@@ -71,17 +74,19 @@ export function TeamPicker({
   const [pros, setPros] = useState(initialPros);
   // Learned from a 409 since the list loaded. Overrides what the 202 and the
   // team fetch said, which are both snapshots.
-  const [learned, setLearned] = useState<Record<string, "busy" | "offline">>({});
+  const [learned, setLearned] = useState<Record<string, "busy" | "offline" | "kyc">>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const availability = (pro: TeamPickPro): Availability => {
     if (learned[pro.id]) return learned[pro.id];
     if (pro.busy) return "busy";
-    // The SP's own toggle covers the Pro-for-self, and they are online — they
-    // were just offered this job.
+    // The SP's own toggle and KYC cover the Pro-for-self, and both are good:
+    // they were just offered this job.
     if (pro.is_self) return "available";
     const member = team.data?.find((m) => m.id === pro.id);
     if (!member) return "unknown";
+    // Same order as /assign checks them.
+    if (member.kyc_status !== "verified") return "kyc";
     return member.is_online ? "available" : "offline";
   };
 
@@ -115,6 +120,7 @@ export function TeamPicker({
           const code = error instanceof ApiError ? error.code : undefined;
           if (code === "PRO_BUSY") setLearned((l) => ({ ...l, [pro.id]: "busy" }));
           if (code === "PRO_OFFLINE") setLearned((l) => ({ ...l, [pro.id]: "offline" }));
+          if (code === "PRO_KYC_INCOMPLETE") setLearned((l) => ({ ...l, [pro.id]: "kyc" }));
           // Removed from the team while the picker was open.
           if (code === "PRO_NOT_FOUND") setPros((list) => list.filter((p) => p.id !== pro.id));
         },

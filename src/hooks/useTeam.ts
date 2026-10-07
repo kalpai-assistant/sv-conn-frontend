@@ -137,14 +137,15 @@ export function useAssignPro() {
 }
 
 /** Pro-level refusals: the booking is still live, only this pick failed. */
-const REPICK_CODES = new Set(["PRO_BUSY", "PRO_OFFLINE", "PRO_NOT_FOUND"]);
+const REPICK_CODES = new Set(["PRO_BUSY", "PRO_OFFLINE", "PRO_KYC_INCOMPLETE", "PRO_NOT_FOUND"]);
 
 /**
  * What a failed `/assign` means for the open picker. Branches on the CODE
  * first, because the status alone mixes booking-level and Pro-level answers:
  *
- * - `repick` — PRO_BUSY / PRO_OFFLINE (409) or PRO_NOT_FOUND (404, the Pro
- *   was removed while the picker was open). Toast, refresh, keep picking.
+ * - `repick` — PRO_BUSY / PRO_OFFLINE / PRO_KYC_INCOMPLETE (409) or
+ *   PRO_NOT_FOUND (404, the Pro was removed while the picker was open).
+ *   Toast, refresh, keep picking.
  * - `taken` — 410: claimed by another SP, cancelled or expired. Quiet dismiss.
  * - `unavailable` — 403, a code-less 404 (no such booking) or a code-less 409
  *   (`InvalidStateTransition`, the booking moved on). Dismiss.
@@ -170,6 +171,8 @@ export function teamErrorMessage(error: unknown): string {
       return "They're on another job right now. Pick someone else.";
     case "PRO_OFFLINE":
       return "They've gone offline. Pick someone else.";
+    case "PRO_KYC_INCOMPLETE":
+      return "They haven't finished KYC yet, so they can't take jobs. Pick someone else.";
     case "PRO_NOT_FOUND":
       return "That person is no longer on your team.";
     case "INVITER_PAYOUT_KYC_INCOMPLETE":
