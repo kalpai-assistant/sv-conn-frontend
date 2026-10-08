@@ -77,6 +77,11 @@ describe("when the launch landing is used up", () => {
     expect(consumesLanding("/", "loading")).toBe(false);
   });
 
+  it("not on an error, so a Pro who opened the app offline still lands later", () => {
+    expect(consumesLanding("/", "error")).toBe(false);
+    expect(consumesLanding("/pro", "error")).toBe(false);
+  });
+
   it("not on a screen the Pro passed through first", () => {
     // A new invitee is sent to /profile for their name; reaching / afterwards
     // must still land them in the Pro app.

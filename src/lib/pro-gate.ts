@@ -63,8 +63,12 @@ export function proGateVerdict({
  * Only "/" and the Pro app count. A Pro whose first screen is something else —
  * the name setup on /profile, a tracking push — has not been offered the Pro
  * app yet, so their first arrival on "/" still lands them there.
+ *
+ * An error does not count either: it was no answer. A Pro who opened the app
+ * offline is let through to the consumer home, and is landed in the Pro app
+ * once a later refetch (on focus) says who they are.
  */
 export function consumesLanding(pathname: string, proState: ProState): boolean {
-  if (proState === "loading") return false;
+  if (proState === "loading" || proState === "error") return false;
   return pathname === "/" || isProRoute(pathname);
 }

@@ -86,6 +86,13 @@ export function useProMe(userId: string | null | undefined, enabled = true) {
       }
     },
     enabled: enabled && !!userId,
+    // No retries. The root gate holds "/" on a spinner while this is pending,
+    // and the app-wide default (3 retries, 1+2+4 s backoff) would hold every
+    // customer there for ~7 s whenever the backend is slow or the phone is
+    // offline — a regression for the many to serve the few. A failure
+    // resolves at once to an error, which the gate passes through, and the
+    // next focus refetch asks again.
+    retry: false,
     // Membership changes rarely (an accept, or the SP removing them), and
     // every screen reads it. Refetched on focus anyway, which is when a
     // removal is most likely to have happened.
