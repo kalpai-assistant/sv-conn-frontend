@@ -35,6 +35,15 @@
  *   `process_cash_payment` on cash bookings, and flips the column the payout
  *   query gates on. A push cannot be unsent and a queued task cannot be
  *   recalled, so it is held behind an undo window — see `CompleteStep`.
+ *
+ * ## Who is acting
+ *
+ * A team Pro does the same three steps from the Pro app (SVC-322), through
+ * their own endpoints (`POST /pros/me/jobs/{id}/…`) rather than the SP's
+ * (`PATCH /bookings/{id}/…`). `actor` picks which; everything else — the undo
+ * window, the PIN entry, the wrong-PIN copy — is shared, for the same reason
+ * these were lifted out of the job screen in the first place. The Pro's way
+ * out is `DeclineProJob` (their SP re-picks) instead of `GiveBackJob`.
  */
 import { useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
@@ -62,6 +71,11 @@ import {
   useCompleteBooking,
 } from "@/hooks/useApi";
 import { usePendingAction, UNDO_WINDOW_MS } from "@/hooks/usePendingAction";
+import { useProComplete, useProEnRoute, useProStart } from "@/hooks/usePro";
+import { DeclineProJob } from "@/components/pro/DeclineProJob";
+
+/** Whose endpoints a step calls: the SP's own, or a team Pro's (SVC-322). */
+export type JobActor = "provider" | "pro";
 
 /**
  * The wording SVC-71 asks for, verbatim. It is the only message a provider
@@ -81,11 +95,16 @@ export function transitionMessage(err: unknown, fallback: string) {
 export function EnRouteStep({
   bookingId,
   compact = false,
+  actor = "provider",
 }: {
   bookingId: string;
   compact?: boolean;
+  actor?: JobActor;
 }) {
-  const markEnRoute = useMarkEnRoute();
+  // Picked once from `actor`, which is fixed for a mounted step — every caller
+  // passes a literal — so the hook order never changes between renders.
+  const useEnRoute = actor === "pro" ? useProEnRoute : useMarkEnRoute;
+  const markEnRoute = useEnRoute();
 
   return (
     <div>
@@ -114,7 +133,11 @@ export function EnRouteStep({
         )}
         I’m on my way
       </Button>
-      <GiveBackJob bookingId={bookingId} />
+      {actor === "pro" ? (
+        <DeclineProJob bookingId={bookingId} />
+      ) : (
+        <GiveBackJob bookingId={bookingId} />
+      )}
     </div>
   );
 }
@@ -214,13 +237,16 @@ export function GiveBackJob({ bookingId }: { bookingId: string }) {
 export function DoorstepOtpStep({
   bookingId,
   compact = false,
+  actor = "provider",
 }: {
   bookingId: string;
   compact?: boolean;
+  actor?: JobActor;
 }) {
   const [otp, setOtp] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const startBooking = useStartBooking();
+  const useStart = actor === "pro" ? useProStart : useStartBooking;
+  const startBooking = useStart();
 
   const submit = (value: string) => {
     if (startBooking.isPending) return;
@@ -319,11 +345,14 @@ export function DoorstepOtpStep({
 export function CompleteStep({
   bookingId,
   compact = false,
+  actor = "provider",
 }: {
   bookingId: string;
   compact?: boolean;
+  actor?: JobActor;
 }) {
-  const completeBooking = useCompleteBooking();
+  const useComplete = actor === "pro" ? useProComplete : useCompleteBooking;
+  const completeBooking = useComplete();
   const pending = usePendingAction();
   // Local, because the row has to *look* finished the moment it is tapped even
   // though nothing has been sent. Pretending otherwise — leaving the button live

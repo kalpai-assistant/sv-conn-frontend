@@ -20,7 +20,9 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Capacitor } from "@capacitor/core";
+import { toast } from "sonner";
 import type { PluginListenerHandle } from "@capacitor/core";
 import { useAuth } from "@/lib/auth-context";
 
@@ -67,6 +69,7 @@ type UserWithMaybeRole = { role?: "consumer" | "provider" | "admin" };
  * 404 (found on device, SVC-321). `notifications.test.ts` now pins each target.
  */
 const providerJob = (bookingId: string) => `/provider/bookings/${bookingId}`;
+const proJob = (bookingId: string) => `/pro/jobs/${bookingId}`;
 
 export function routeForPayload(data: NotificationPayload, role: ViewerRole): string | null {
   const event = data.event;
@@ -108,10 +111,12 @@ export function routeForPayload(data: NotificationPayload, role: ViewerRole): st
       return role === "consumer" ? `/tracking/${bookingId}` : null;
 
     case "assigned":
-      // Goes to a team Pro, whose account is consumer-role, so /tracking would
-      // show them a customer's screen. Their job view is the Pro app's
-      // (SVC-322); route it there once it exists.
-      return null;
+      // Goes to a team Pro, whose account is consumer-role, so the role cannot
+      // pick the screen — /tracking would show them a customer's view. Their
+      // job view is the Pro app's (SVC-322). If the recipient somehow is not a
+      // Pro, the root gate sends them home from there. Never to a provider:
+      // the backend doesn't tell an SP who picked themselves.
+      return role === "consumer" ? proJob(bookingId) : null;
 
     default:
       // Unknown event — log somewhere observable once Sentry lands (SC-46).
@@ -150,6 +155,7 @@ export function readPushLink(search: string): NotificationPayload | null {
 export function useNotificationRouter(): void {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const role: ViewerRole = (user as UserWithMaybeRole | null)?.role ?? null;
 
   // Web push (PWA). Read once, on the first render: that runs before any
@@ -198,6 +204,20 @@ export function useNotificationRouter(): void {
         "pushNotificationReceived",
         (notification) => {
           const data = notification.data as NotificationPayload;
+          // A job assigned while the Pro has the app open (SVC-322). Android
+          // shows no notification in the foreground, so without this nothing
+          // happened at all: found on device, Pro Home kept saying "No job
+          // right now". Refresh, and offer the job rather than yanking them
+          // off whatever they are doing — possibly typing a PIN at a door.
+          if (data.event === "assigned" && role === "consumer" && data.booking_id) {
+            const target = proJob(data.booking_id);
+            void queryClient.invalidateQueries({ queryKey: ["pro-jobs"] });
+            toast("New job assigned", {
+              description: "Your team gave you a job.",
+              action: { label: "Open", onClick: () => navigate({ to: target }) },
+            });
+            return;
+          }
           if (!shouldAutoRouteForeground(data, role)) return;
           const target = routeForPayload(data, role);
           if (target) navigate({ to: target });
@@ -214,5 +234,5 @@ export function useNotificationRouter(): void {
       cancelled = true;
       handles.forEach((h) => h.remove());
     };
-  }, [role, navigate]);
+  }, [role, navigate, queryClient]);
 }

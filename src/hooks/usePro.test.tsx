@@ -22,7 +22,19 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   apiFetch: (...args: unknown[]) => apiFetch(...args),
 }));
 
-import { isTeamPro, useProMe, type ProMe } from "@/hooks/usePro";
+import {
+  PRO_JOBS_POLL_MS,
+  isTeamPro,
+  sendProLocation,
+  useDeclineProJob,
+  useProComplete,
+  useProEnRoute,
+  useProJobs,
+  useProMe,
+  useProStart,
+  useSubmitProKyc,
+  type ProMe,
+} from "@/hooks/usePro";
 
 const PRO: ProMe = {
   id: "pro-1",
@@ -141,5 +153,94 @@ describe("isTeamPro", () => {
     expect(isTeamPro({ ...PRO, is_self: true })).toBe(false);
     expect(isTeamPro(null)).toBe(false);
     expect(isTeamPro(undefined)).toBe(false);
+  });
+});
+
+describe("the Pro's job actions (part 2)", () => {
+  it("en-route POSTs to the Pro's own endpoint", async () => {
+    apiFetch.mockResolvedValue({});
+    const { result } = renderHook(() => useProEnRoute(), { wrapper });
+    await result.current.mutateAsync({ bookingId: "b1" });
+    expect(apiFetch).toHaveBeenCalledWith("/pros/me/jobs/b1/en-route", { method: "POST" });
+  });
+
+  it("start POSTs the doorstep PIN to the Pro's own endpoint", async () => {
+    apiFetch.mockResolvedValue({});
+    const { result } = renderHook(() => useProStart(), { wrapper });
+    await result.current.mutateAsync({ bookingId: "b1", otp: "1234" });
+    expect(apiFetch).toHaveBeenCalledWith("/pros/me/jobs/b1/start", {
+      method: "POST",
+      body: JSON.stringify({ otp: "1234" }),
+    });
+  });
+
+  it("complete POSTs to the Pro's own endpoint", async () => {
+    apiFetch.mockResolvedValue({});
+    const { result } = renderHook(() => useProComplete(), { wrapper });
+    await result.current.mutateAsync({ bookingId: "b1" });
+    expect(apiFetch).toHaveBeenCalledWith("/pros/me/jobs/b1/complete", { method: "POST" });
+  });
+
+  it("refreshes the job and the Pro's lists after a step", async () => {
+    apiFetch.mockResolvedValue({});
+    const spy = vi.spyOn(client, "invalidateQueries");
+    const { result } = renderHook(() => useProEnRoute(), { wrapper });
+    await result.current.mutateAsync({ bookingId: "b1" });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["booking", "b1"] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["pro-jobs"] });
+  });
+
+  it("declines through the Pro's decline", async () => {
+    apiFetch.mockResolvedValue({ booking_id: "b1", outcome: "awaiting_repick" });
+    const { result } = renderHook(() => useDeclineProJob(), { wrapper });
+    expect(await result.current.mutateAsync("b1")).toEqual({
+      booking_id: "b1",
+      outcome: "awaiting_repick",
+    });
+    expect(apiFetch).toHaveBeenCalledWith("/pros/me/jobs/b1/decline", { method: "POST" });
+  });
+
+  it("sends the heartbeat as lat/lng", async () => {
+    apiFetch.mockResolvedValue({});
+    await sendProLocation({ lat: 18.5, lng: 73.8 });
+    expect(apiFetch).toHaveBeenCalledWith("/pros/me/location", {
+      method: "POST",
+      body: JSON.stringify({ lat: 18.5, lng: 73.8 }),
+    });
+  });
+
+  it("sends KYC as the three images the backend names", async () => {
+    apiFetch.mockResolvedValue({});
+    const { result } = renderHook(() => useSubmitProKyc(), { wrapper });
+    const img = new Blob(["x"], { type: "image/jpeg" });
+    await result.current.mutateAsync({ aadhaarFront: img, aadhaarBack: img, selfie: img });
+
+    const [path, init] = apiFetch.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe("/pros/me/kyc");
+    const form = init.body as FormData;
+    expect([...form.keys()]).toEqual(["aadhaar_front", "aadhaar_back", "selfie"]);
+  });
+});
+
+describe("useProJobs", () => {
+  it("re-asks the active jobs every 30 s, so an assignment shows up (found on device)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      apiFetch.mockResolvedValue({ bookings: [], total: 0 });
+      renderHook(() => useProJobs("active"), { wrapper });
+      await vi.waitFor(() =>
+        expect(
+          apiFetch.mock.calls.filter(([p]) => String(p).startsWith("/pros/me/jobs")),
+        ).toHaveLength(1),
+      );
+      await vi.advanceTimersByTimeAsync(PRO_JOBS_POLL_MS);
+      await vi.waitFor(() =>
+        expect(
+          apiFetch.mock.calls.filter(([p]) => String(p).startsWith("/pros/me/jobs")),
+        ).toHaveLength(2),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

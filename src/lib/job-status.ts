@@ -38,6 +38,16 @@ export const statusLabel: Partial<Record<BookingStatus, string>> = {
   EXPIRED: "Expired",
 };
 
+/**
+ * The same labels as a team Pro reads them (SVC-322). "Accepted" is the SP's
+ * word — the SP accepted the job, then gave it to the Pro — so to the Pro it
+ * is a job assigned to them. Everything after reads the same to both.
+ */
+export const proStatusLabel: Partial<Record<BookingStatus, string>> = {
+  ...statusLabel,
+  ACCEPTED: "Assigned to you",
+};
+
 export function isActive(job: Booking): boolean {
   return activeStatuses.includes(job.status as BookingStatus);
 }

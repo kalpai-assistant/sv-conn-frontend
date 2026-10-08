@@ -135,6 +135,111 @@ export function useProJobs(scope: "active" | "past", enabled = true) {
       return { jobs: data.bookings.map((b) => mapBooking(b, services)), total: data.total };
     },
     enabled,
+    // Active jobs are re-asked every 30 s while a screen shows them. Found on
+    // device: a Pro sitting on Home kept seeing "No job right now" after their
+    // SP assigned one, because nothing refetched until a tab switch. The
+    // "assigned" push refreshes it too (notifications.ts), but a push can be
+    // missed or arrive late; this is the floor. Past jobs don't change.
+    refetchInterval: scope === "active" ? PRO_JOBS_POLL_MS : false,
+  });
+}
+
+export const PRO_JOBS_POLL_MS = 30_000;
+
+/** Refresh everything a job transition can change, for the Pro's screens. */
+function invalidateProJob(queryClient: ReturnType<typeof useQueryClient>, bookingId: string) {
+  queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+  queryClient.invalidateQueries({ queryKey: PRO_JOBS_QUERY_KEY });
+}
+
+/**
+ * The Pro's three legs of a job: `POST /pros/me/jobs/{id}/en-route | start |
+ * complete`. Same variable shapes as the SP's `useMarkEnRoute` /
+ * `useStartBooking` / `useCompleteBooking`, so `JobActions` can drive either.
+ * A wrong PIN is a 400; a stale step is a 409; a job that is no longer this
+ * Pro's is a 404 `JOB_NOT_FOUND`.
+ */
+const useProJobTransition = <V extends { bookingId: string }>(
+  leg: (vars: V) => { path: string; body?: string },
+) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: V) => {
+      const { path, body } = leg(vars);
+      return apiFetch<API_BookingResponse>(`/pros/me/jobs/${vars.bookingId}/${path}`, {
+        method: "POST",
+        ...(body ? { body } : {}),
+      });
+    },
+    onSuccess: (_, { bookingId }) => invalidateProJob(queryClient, bookingId),
+  });
+};
+
+export const useProEnRoute = () =>
+  useProJobTransition<{ bookingId: string }>(() => ({ path: "en-route" }));
+
+export const useProStart = () =>
+  useProJobTransition<{ bookingId: string; otp: string }>(({ otp }) => ({
+    path: "start",
+    body: JSON.stringify({ otp }),
+  }));
+
+export const useProComplete = () =>
+  useProJobTransition<{ bookingId: string }>(() => ({ path: "complete" }));
+
+/** `DeclineJobResponse`: who the job went to after this Pro said no. */
+export interface DeclineJobResult {
+  booking_id: string;
+  /** awaiting_repick: the SP has someone else and was asked to pick.
+   *  reopened: nobody else on the team, so it went back to the broadcast. */
+  outcome: "awaiting_repick" | "reopened";
+}
+
+/** Turn down an assigned job, before setting off. 409 once en route. */
+export function useDeclineProJob() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (bookingId: string) =>
+      apiFetch<DeclineJobResult>(`/pros/me/jobs/${bookingId}/decline`, { method: "POST" }),
+    onSuccess: (_, bookingId) => invalidateProJob(queryClient, bookingId),
+  });
+}
+
+/**
+ * The location heartbeat. Rate-limited to 10 a minute; the 30 s cadence is 2.
+ * Stored on the Pro row only — it does not feed dispatch or live tracking yet.
+ */
+export function sendProLocation(coords: { lat: number; lng: number }) {
+  return apiFetch<ProStatus>("/pros/me/location", {
+    method: "POST",
+    body: JSON.stringify(coords),
+  });
+}
+
+/**
+ * My Aadhaar identity KYC (SVC-327): front, back and a live selfie, the same
+ * three images an SP sends. Payout KYC stays with the SP. A Pro-for-self gets
+ * 409 SELF_PRO_KYC_IS_SP_KYC, which the Pro app never reaches.
+ */
+export function useSubmitProKyc() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      aadhaarFront,
+      aadhaarBack,
+      selfie,
+    }: {
+      aadhaarFront: Blob;
+      aadhaarBack: Blob;
+      selfie: Blob;
+    }) => {
+      const form = new FormData();
+      form.append("aadhaar_front", aadhaarFront, "aadhaar-front.jpg");
+      form.append("aadhaar_back", aadhaarBack, "aadhaar-back.jpg");
+      form.append("selfie", selfie, "selfie.jpg");
+      return apiFetch<unknown>("/pros/me/kyc", { method: "POST", body: form });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PRO_ME_QUERY_KEY }),
   });
 }
 
