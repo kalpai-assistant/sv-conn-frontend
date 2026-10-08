@@ -27,6 +27,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminPayoutsRouteImport } from './routes/admin.payouts'
 import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 import { Route as ProIndexRouteImport } from './routes/pro/index'
+import { Route as ProKycRouteImport } from './routes/pro/kyc'
 import { Route as ProviderIndexRouteImport } from './routes/provider/index'
 import { Route as ProviderEarningsRouteImport } from './routes/provider/earnings'
 import { Route as ProviderLocationRouteImport } from './routes/provider/location'
@@ -133,6 +134,11 @@ const ProIndexRoute = ProIndexRouteImport.update({
   path: '/pro/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProKycRoute = ProKycRouteImport.update({
+  id: '/pro/kyc',
+  path: '/pro/kyc',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProviderIndexRoute = ProviderIndexRouteImport.update({
   id: '/provider/',
   path: '/provider/',
@@ -228,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/pro/kyc': typeof ProKycRoute
   '/provider/earnings': typeof ProviderEarningsRoute
   '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
@@ -263,6 +270,7 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/pro/kyc': typeof ProKycRoute
   '/provider/earnings': typeof ProviderEarningsRoute
   '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
@@ -299,6 +307,7 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/admin/payouts': typeof AdminPayoutsRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/pro/kyc': typeof ProKycRoute
   '/provider/earnings': typeof ProviderEarningsRoute
   '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
@@ -336,6 +345,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/payouts'
     | '/category/$slug'
+    | '/pro/kyc'
     | '/provider/earnings'
     | '/provider/location'
     | '/provider/onboarding'
@@ -371,6 +381,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/payouts'
     | '/category/$slug'
+    | '/pro/kyc'
     | '/provider/earnings'
     | '/provider/location'
     | '/provider/onboarding'
@@ -406,6 +417,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/payouts'
     | '/category/$slug'
+    | '/pro/kyc'
     | '/provider/earnings'
     | '/provider/location'
     | '/provider/onboarding'
@@ -442,6 +454,7 @@ export interface RootRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminPayoutsRoute: typeof AdminPayoutsRoute
   CategorySlugRoute: typeof CategorySlugRoute
+  ProKycRoute: typeof ProKycRoute
   ProviderEarningsRoute: typeof ProviderEarningsRoute
   ProviderLocationRoute: typeof ProviderLocationRoute
   ProviderOnboardingRoute: typeof ProviderOnboardingRoute
@@ -588,6 +601,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pro/kyc': {
+      id: '/pro/kyc'
+      path: '/pro/kyc'
+      fullPath: '/pro/kyc'
+      preLoaderRoute: typeof ProKycRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/provider/': {
       id: '/provider/'
       path: '/provider'
@@ -714,6 +734,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminPayoutsRoute: AdminPayoutsRoute,
   CategorySlugRoute: CategorySlugRoute,
+  ProKycRoute: ProKycRoute,
   ProviderEarningsRoute: ProviderEarningsRoute,
   ProviderLocationRoute: ProviderLocationRoute,
   ProviderOnboardingRoute: ProviderOnboardingRoute,

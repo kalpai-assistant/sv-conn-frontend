@@ -9,6 +9,7 @@ import { useNotificationRouter } from "@/lib/notifications";
 import { useFcmRegistration } from "@/lib/fcm";
 import { useAddresses, useProviderProfile } from "@/hooks/useApi";
 import { isTeamPro, useProMe } from "@/hooks/usePro";
+import { useProHeartbeatHost } from "@/hooks/useProHeartbeat";
 import { consumesLanding, proGateVerdict, skipsLocationGate, type ProState } from "@/lib/pro-gate";
 import { BottomNav } from "@/components/BottomNav";
 import { CartFab } from "@/components/cart/CartFab";
@@ -143,6 +144,10 @@ function AppGate({ children }: { children: React.ReactNode }) {
         : isTeamPro(proMe)
           ? "pro"
           : "not-pro";
+  // SVC-322: an online team Pro sends their location every 30 s, on whatever
+  // screen they are on — so it runs here, not on Pro Home.
+  useProHeartbeatHost(isTeamPro(proMe) && proMe.is_online);
+
   // Which sign-in has had its launch landing in the Pro app. A ref keyed by
   // user rather than a boolean, so signing out and in as someone else lands
   // them afresh.

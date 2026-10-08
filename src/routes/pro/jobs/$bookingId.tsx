@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JobAddress } from "@/components/provider/JobAddress";
 import { isBookingGone, useBooking } from "@/hooks/useApi";
-import { statusLabel } from "@/lib/job-status";
+import { proStatusLabel } from "@/lib/job-status";
+import { CompleteStep, DoorstepOtpStep, EnRouteStep } from "@/components/provider/JobActions";
 import { formatRupees } from "@/lib/currency";
 import type { Booking } from "@/lib/mock-data";
 
@@ -12,7 +13,8 @@ export const Route = createFileRoute("/pro/jobs/$bookingId")({
   component: ProJobPage,
 });
 
-// SVC-322 — one job, as the Pro sees it. Read through `GET /bookings/{id}`,
+// SVC-322 — one job, as the Pro sees it, and where they work it: en route,
+// the customer's PIN at the door, complete — or decline before setting off. Read through `GET /bookings/{id}`,
 // which admits the job's assigned Pro (there is no `/pros/me/jobs/{id}`), and
 // polled every 4s like the provider's job screen, so a cancellation or a
 // re-pick lands here without a refresh.
@@ -74,7 +76,7 @@ function JobBody({ booking }: { booking: Booking }) {
       {/* Same line as the provider's job screen: whether there is cash to take
           at the door is the part a Pro needs. */}
       <p className="mt-1 text-sm text-muted-foreground">
-        {statusLabel[booking.status] ?? booking.status} · {formatRupees(booking.totalAmount)} ·{" "}
+        {proStatusLabel[booking.status] ?? booking.status} · {formatRupees(booking.totalAmount)} ·{" "}
         {booking.paymentMethod === "cash" ? "Cash on completion" : "Paid online"}
       </p>
 
@@ -82,7 +84,12 @@ function JobBody({ booking }: { booking: Booking }) {
         <JobAddress address={booking.address} showNavigate={travelling(booking.status)} />
       </div>
 
+      {/* The same steps the SP's job screen shows, through the Pro's own
+          endpoints (SVC-322). Decline sits under "I'm on my way". */}
       <div className="mt-6">
+        {booking.status === "ACCEPTED" && <EnRouteStep bookingId={booking.id} actor="pro" />}
+        {booking.status === "EN_ROUTE" && <DoorstepOtpStep bookingId={booking.id} actor="pro" />}
+        {booking.status === "IN_PROGRESS" && <CompleteStep bookingId={booking.id} actor="pro" />}
         {booking.status === "COMPLETED" && (
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <CheckCircle2 className="h-5 w-5 text-green-600" />

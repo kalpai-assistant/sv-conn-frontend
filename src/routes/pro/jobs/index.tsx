@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { PRO_JOBS_PER_PAGE, useProJobs } from "@/hooks/usePro";
-import { dueIn, endedAt, statusLabel, statusStyle } from "@/lib/job-status";
+import { dueIn, endedAt, proStatusLabel, statusStyle } from "@/lib/job-status";
 
 export const Route = createFileRoute("/pro/jobs/")({
   component: ProJobsPage,
@@ -104,7 +104,7 @@ function ProJobsPage() {
                     statusStyle[job.status] ?? "bg-gray-100 text-gray-700"
                   }`}
                 >
-                  {statusLabel[job.status] ?? job.status}
+                  {proStatusLabel[job.status] ?? job.status}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {tab === "past" ? endedAt(job) : dueIn(job)}

@@ -7,7 +7,9 @@
  */
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createElement, type ReactNode } from "react";
 import { renderHook } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // The module imports the router and auth context for its hook; the pure
 // function under test needs neither.
@@ -70,9 +72,11 @@ describe("two-level dispatch events (SVC-320)", () => {
     },
   );
 
-  it("assigned goes nowhere until the Pro app has a job view (SVC-322)", () => {
-    // A team Pro's account is consumer-role: /tracking would be the wrong screen.
-    expect(route("assigned", "consumer")).toBeNull();
+  it("assigned opens the Pro app's job screen (SVC-322)", () => {
+    // A team Pro's account is consumer-role, so the role alone would have sent
+    // them to /tracking — a customer's view of their own job.
+    expect(route("assigned", "consumer")).toBe(`/pro/jobs/${ID}`);
+    // The backend never tells an SP who picked themselves.
     expect(route("assigned", "provider")).toBeNull();
   });
 });
@@ -97,7 +101,14 @@ describe("every target is a real route", () => {
     const source = (await import("@/routeTree.gen?raw")).default as unknown as string;
     const fullPaths = new Set([...source.matchAll(/fullPath: '([^']+)'/g)].map((m) => m[1]));
 
-    const events = [...LIFECYCLE, "new_request", "pro_declined", "reopened", "no_taker_refunded"];
+    const events = [
+      ...LIFECYCLE,
+      "new_request",
+      "pro_declined",
+      "reopened",
+      "no_taker_refunded",
+      "assigned",
+    ];
     const targets = new Set<string>();
     for (const event of events) {
       for (const role of ["consumer", "provider"] as const) {
@@ -107,7 +118,12 @@ describe("every target is a real route", () => {
     }
 
     expect(targets).toEqual(
-      new Set(["/provider", "/provider/bookings/$bookingId", "/tracking/$bookingId"]),
+      new Set([
+        "/provider",
+        "/provider/bookings/$bookingId",
+        "/tracking/$bookingId",
+        "/pro/jobs/$bookingId",
+      ]),
     );
     for (const target of targets) {
       // The tree spells an index route with a trailing slash ("/provider/").
@@ -116,6 +132,11 @@ describe("every target is a real route", () => {
     }
   });
 });
+
+// The router refreshes the Pro's jobs when an "assigned" push arrives, so it
+// needs a QueryClient, as it has in the app.
+const wrapper = ({ children }: { children: ReactNode }) =>
+  createElement(QueryClientProvider, { client: new QueryClient() }, children);
 
 describe("web push (PWA)", () => {
   // The service worker can't know who is signed in, so it opens
@@ -144,7 +165,7 @@ describe("web push (PWA)", () => {
   it("sends a provider to their job, not to /tracking", () => {
     openFromPush("cancelled");
     auth.user = { role: "provider" };
-    renderHook(() => useNotificationRouter());
+    renderHook(() => useNotificationRouter(), { wrapper });
     expect(navigate).toHaveBeenCalledExactlyOnceWith({
       to: `/provider/bookings/${ID}`,
       replace: true,
@@ -154,7 +175,7 @@ describe("web push (PWA)", () => {
   it("keeps new_request opening the Incoming Request Card on the PWA", () => {
     openFromPush("new_request");
     auth.user = { role: "provider" };
-    renderHook(() => useNotificationRouter());
+    renderHook(() => useNotificationRouter(), { wrapper });
     expect(navigate).toHaveBeenCalledWith({
       to: `/provider?incomingBookingId=${ID}`,
       replace: true,
@@ -163,7 +184,7 @@ describe("web push (PWA)", () => {
 
   it("waits for the role, then routes once", () => {
     openFromPush("reopened");
-    const { rerender } = renderHook(() => useNotificationRouter());
+    const { rerender } = renderHook(() => useNotificationRouter(), { wrapper });
     expect(navigate).not.toHaveBeenCalled();
 
     auth.user = { role: "consumer" };
@@ -174,7 +195,7 @@ describe("web push (PWA)", () => {
 
   it("does nothing without a push in the URL", () => {
     auth.user = { role: "consumer" };
-    renderHook(() => useNotificationRouter());
+    renderHook(() => useNotificationRouter(), { wrapper });
     expect(navigate).not.toHaveBeenCalled();
   });
 
