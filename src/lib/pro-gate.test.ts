@@ -104,6 +104,11 @@ describe("the consumer location gate", () => {
     expect(skipsLocationGate("/pro/jobs/abc", "loading")).toBe(true);
   });
 
+  it("does not cover /invite: the invitee isn't a Pro yet and has no address", () => {
+    expect(skipsLocationGate("/invite", "not-pro")).toBe(true);
+    expect(skipsLocationGate("/invite", "loading")).toBe(true);
+  });
+
   it("does not cover Profile for a Pro (found on device)", () => {
     // The Pro Home avatar opens /profile. A new invitee has no saved address,
     // so the gate there left them no way to sign out.

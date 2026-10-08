@@ -10,6 +10,7 @@ import { useFcmRegistration } from "@/lib/fcm";
 import { useAddresses, useProviderProfile } from "@/hooks/useApi";
 import { isTeamPro, useProMe } from "@/hooks/usePro";
 import { useProHeartbeatHost } from "@/hooks/useProHeartbeat";
+import { rememberPendingInvite } from "@/lib/invite";
 import { consumesLanding, proGateVerdict, skipsLocationGate, type ProState } from "@/lib/pro-gate";
 import { BottomNav } from "@/components/BottomNav";
 import { CartFab } from "@/components/cart/CartFab";
@@ -144,6 +145,14 @@ function AppGate({ children }: { children: React.ReactNode }) {
         : isTeamPro(proMe)
           ? "pro"
           : "not-pro";
+  // SVC-322: someone who opened /invite came to join a team. Remembered for the
+  // session, because a new invitee is sent to name setup first and saving it
+  // would otherwise drop them on "/" — see `src/lib/invite.ts`.
+  const isInviteRoute = pathname === "/invite";
+  useEffect(() => {
+    if (isInviteRoute) rememberPendingInvite();
+  }, [isInviteRoute]);
+
   // SVC-322: an online team Pro sends their location every 30 s, on whatever
   // screen they are on — so it runs here, not on Pro Home.
   useProHeartbeatHost(isTeamPro(proMe) && proMe.is_online);
@@ -235,7 +244,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) {
     return (
       <div className="safe-top mx-auto max-w-md min-h-screen bg-background relative">
-        <AuthFlow onComplete={() => {}} />
+        <AuthFlow onComplete={() => {}} invite={isInviteRoute} />
       </div>
     );
   }

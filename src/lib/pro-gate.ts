@@ -69,6 +69,9 @@ export function proGateVerdict({
  */
 export function skipsLocationGate(pathname: string, proState: ProState): boolean {
   if (isProRoute(pathname)) return true;
+  // Joining a team (SVC-322 part 3): the invitee is not a Pro yet, has no
+  // saved address, and is not booking anything.
+  if (pathname === "/invite") return true;
   return proState === "pro" && (pathname === "/profile" || pathname.startsWith("/profile/"));
 }
 

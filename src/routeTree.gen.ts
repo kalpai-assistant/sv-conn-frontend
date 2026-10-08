@@ -16,6 +16,7 @@ import { Route as AddressesRouteImport } from './routes/addresses'
 import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as DownloadRouteImport } from './routes/download'
+import { Route as InviteRouteImport } from './routes/invite'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RefundRouteImport } from './routes/refund'
@@ -77,6 +78,11 @@ const CartRoute = CartRouteImport.update({
 const DownloadRoute = DownloadRouteImport.update({
   id: '/download',
   path: '/download',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InviteRoute = InviteRouteImport.update({
+  id: '/invite',
+  path: '/invite',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -224,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/bookings': typeof BookingsRoute
   '/cart': typeof CartRoute
   '/download': typeof DownloadRoute
+  '/invite': typeof InviteRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
@@ -260,6 +267,7 @@ export interface FileRoutesByTo {
   '/bookings': typeof BookingsRoute
   '/cart': typeof CartRoute
   '/download': typeof DownloadRoute
+  '/invite': typeof InviteRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
@@ -297,6 +305,7 @@ export interface FileRoutesById {
   '/bookings': typeof BookingsRoute
   '/cart': typeof CartRoute
   '/download': typeof DownloadRoute
+  '/invite': typeof InviteRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
@@ -335,6 +344,7 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/cart'
     | '/download'
+    | '/invite'
     | '/privacy'
     | '/profile'
     | '/refund'
@@ -371,6 +381,7 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/cart'
     | '/download'
+    | '/invite'
     | '/privacy'
     | '/profile'
     | '/refund'
@@ -407,6 +418,7 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/cart'
     | '/download'
+    | '/invite'
     | '/privacy'
     | '/profile'
     | '/refund'
@@ -444,6 +456,7 @@ export interface RootRouteChildren {
   BookingsRoute: typeof BookingsRoute
   CartRoute: typeof CartRoute
   DownloadRoute: typeof DownloadRoute
+  InviteRoute: typeof InviteRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   RefundRoute: typeof RefundRoute
@@ -522,6 +535,13 @@ declare module '@tanstack/react-router' {
       path: '/download'
       fullPath: '/download'
       preLoaderRoute: typeof DownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invite': {
+      id: '/invite'
+      path: '/invite'
+      fullPath: '/invite'
+      preLoaderRoute: typeof InviteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -724,6 +744,7 @@ const rootRouteChildren: RootRouteChildren = {
   BookingsRoute: BookingsRoute,
   CartRoute: CartRoute,
   DownloadRoute: DownloadRoute,
+  InviteRoute: InviteRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   RefundRoute: RefundRoute,

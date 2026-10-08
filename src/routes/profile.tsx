@@ -5,6 +5,7 @@ import {
   AlertCircle,
   Briefcase,
   MapPin,
+  Users,
   HelpCircle,
   Info,
   ChevronRight,
@@ -18,6 +19,7 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { toast } from "sonner";
 import { useAddresses } from "@/hooks/useApi";
 import { isTeamPro, useProMe } from "@/hooks/usePro";
+import { hasPendingInvite } from "@/lib/invite";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import { apiFetch } from "@/lib/api";
 import type { components } from "@/types/api";
@@ -111,7 +113,12 @@ function ProfilePage() {
       if (isSetupMode) {
         // Replace: setup is a one-time gate the user has just cleared, so it
         // shouldn't sit under home as somewhere back returns to.
-        navigate({ to: "/", replace: true });
+        //
+        // Back to /invite if that is what they came for (SVC-322): a new
+        // invitee is sent here for their name before they can join, and the
+        // name matters — the backend takes the Pro's display name from it at
+        // the moment they accept.
+        navigate({ to: hasPendingInvite() ? "/invite" : "/", replace: true });
       }
     } catch (e) {
       console.error(e);
@@ -253,6 +260,28 @@ function ProfilePage() {
                   <p className="text-sm font-medium text-foreground">Open Pro app</p>
                   <p className="truncate text-xs text-muted-foreground">
                     Your jobs with {proMe.service_provider.business_name?.trim() || "your team"}
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </Link>
+            </div>
+          )}
+
+          {/* The way onto a team for someone holding an invite code
+              (SVC-322). The SMS link opens /invite directly where App Links
+              work; this is the way in where they don't, or after the SMS is
+              gone. Not shown to a Pro: they are on a team already. */}
+          {proMe === null && (
+            <div className="px-4 pt-4">
+              <Link
+                to="/invite"
+                className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:bg-secondary/50"
+              >
+                <Users className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground">Have an invite code?</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    Join a service provider’s team
                   </p>
                 </div>
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
