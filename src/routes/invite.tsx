@@ -15,21 +15,15 @@ import {
   inviteErrorMessage,
   isAlreadyOnThisTeam,
 } from "@/lib/invite";
+import {
+  canPasteFromClipboard,
+  readClipboardOnLoad,
+  readClipboardOnTap,
+} from "@/lib/invite-clipboard";
 
 export const Route = createFileRoute("/invite")({
   component: InvitePage,
 });
-
-/** The clipboard, if the WebView lets us read it; null otherwise, silently. */
-async function readClipboard(): Promise<string | null> {
-  try {
-    return (await navigator.clipboard?.readText?.()) ?? null;
-  } catch {
-    // Not allowed without a gesture, or not supported. The input still takes a
-    // long-press paste, and the Paste button is a gesture.
-    return null;
-  }
-}
 
 // SVC-322 part 3 — joining a team with the code from the invite SMS.
 //
@@ -45,12 +39,13 @@ function InvitePage() {
   const [error, setError] = useState("");
 
   // Android's Messages app offers "Copy code" for a 4–6 digit number; if they
-  // tapped it, this makes joining one tap. Only a 6-digit clipboard counts, and
-  // nothing is submitted for them: a wrong pre-fill should cost a glance, not
-  // one of their 10 attempts an hour.
+  // tapped it, this makes joining one tap. Only where the browser already
+  // allows the read (see invite-clipboard.ts), only a 6-digit clipboard counts,
+  // and nothing is submitted for them: a wrong pre-fill should cost a glance,
+  // not one of their 10 attempts an hour.
   useEffect(() => {
     let cancelled = false;
-    void readClipboard().then((text) => {
+    void readClipboardOnLoad().then((text) => {
       const found = inviteCodeFromClipboard(text);
       if (found && !cancelled) setCode((current) => current || found);
     });
@@ -66,7 +61,13 @@ function InvitePage() {
   }, [alreadyPro]);
 
   const paste = async () => {
-    const found = inviteCodeFromClipboard(await readClipboard());
+    const read = await readClipboardOnTap();
+    if (!read.ok) {
+      // The browser said no — which is not the same as "nothing there".
+      toast("Couldn’t read the clipboard. Long-press the boxes to paste, or type the code.");
+      return;
+    }
+    const found = inviteCodeFromClipboard(read.text);
     if (found) {
       setCode(found);
       setError("");
@@ -150,14 +151,19 @@ function InvitePage() {
         </InputOTP>
       </div>
 
-      <button
-        type="button"
-        onClick={paste}
-        className="mx-auto mt-3 flex items-center gap-1.5 text-sm font-medium text-primary"
-      >
-        <ClipboardPaste className="h-4 w-4" />
-        Paste code
-      </button>
+      {/* Browsers only. In the native app the WebView refuses every clipboard
+          read (measured), so a Paste button there could only ever fail; the
+          keyboard's suggestion and long-press paste cover it. */}
+      {canPasteFromClipboard() && (
+        <button
+          type="button"
+          onClick={paste}
+          className="mx-auto mt-3 flex items-center gap-1.5 text-sm font-medium text-primary"
+        >
+          <ClipboardPaste className="h-4 w-4" />
+          Paste code
+        </button>
+      )}
 
       {error && (
         <p role="alert" className="mt-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">

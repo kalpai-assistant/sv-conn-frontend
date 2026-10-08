@@ -35,7 +35,10 @@ import { Route } from "@/routes/invite";
 
 const InvitePage = (Route as unknown as { component: () => React.ReactElement }).component;
 
-function setClipboard(text: string | { reject: unknown }) {
+function setClipboard(
+  text: string | { reject: unknown },
+  permission: PermissionState | "unsupported" = "granted",
+) {
   Object.defineProperty(navigator, "clipboard", {
     configurable: true,
     value: {
@@ -43,6 +46,15 @@ function setClipboard(text: string | { reject: unknown }) {
         typeof text === "string"
           ? vi.fn().mockResolvedValue(text)
           : vi.fn().mockRejectedValue(text.reject),
+    },
+  });
+  Object.defineProperty(navigator, "permissions", {
+    configurable: true,
+    value: {
+      query:
+        permission === "unsupported"
+          ? vi.fn().mockRejectedValue(new TypeError("unknown permission"))
+          : vi.fn().mockResolvedValue({ state: permission }),
     },
   });
 }
@@ -79,6 +91,37 @@ describe("entering the code", () => {
     render(<InvitePage />);
     await act(async () => {});
     expect(codeInput().value).toBe("");
+  });
+
+  it("doesn't read on load unless the browser already allows it (no prompt on open)", async () => {
+    setClipboard("482913", "prompt");
+    render(<InvitePage />);
+    await act(async () => {});
+    expect(codeInput().value).toBe("");
+    expect(navigator.clipboard.readText).not.toHaveBeenCalled();
+  });
+
+  it("doesn't read on load in Safari, which has no clipboard permission to ask about", async () => {
+    setClipboard("482913", "unsupported");
+    render(<InvitePage />);
+    await act(async () => {});
+    expect(codeInput().value).toBe("");
+  });
+
+  it("pastes from a tap on Paste code", async () => {
+    setClipboard("482913", "prompt");
+    render(<InvitePage />);
+    fireEvent.click(screen.getByRole("button", { name: /paste code/i }));
+    await waitFor(() => expect(codeInput().value).toBe("482913"));
+  });
+
+  it("says the clipboard was refused, not that it was empty (found on device)", async () => {
+    setClipboard({ reject: new DOMException("denied", "NotAllowedError") }, "prompt");
+    render(<InvitePage />);
+    fireEvent.click(screen.getByRole("button", { name: /paste code/i }));
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith(expect.stringMatching(/couldn’t read the clipboard/i)),
+    );
   });
 
   it("carries on quietly when the WebView won't let us read the clipboard", async () => {
