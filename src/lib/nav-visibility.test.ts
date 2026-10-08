@@ -8,7 +8,7 @@
  * thing that reads as a glitch and is never filed as a bug.
  */
 import { describe, expect, it } from "vitest";
-import { isBottomNavHidden, isProviderRoute, showsCartFab } from "@/lib/nav-visibility";
+import { isBottomNavHidden, isProRoute, isProviderRoute, showsCartFab } from "@/lib/nav-visibility";
 
 describe("telling the two apps apart", () => {
   it("claims the provider root and everything under it", () => {
@@ -28,6 +28,22 @@ describe("telling the two apps apart", () => {
     // `startsWith("/provider")` alone would claim this. No such route exists
     // today, which is precisely why it would be missed later.
     expect(isProviderRoute("/providers-faq")).toBe(false);
+  });
+});
+
+describe("the Pro app's routes (SVC-322)", () => {
+  it("claims /pro and everything under it", () => {
+    expect(isProRoute("/pro")).toBe(true);
+    expect(isProRoute("/pro/jobs")).toBe(true);
+    expect(isProRoute("/pro/jobs/abc-123")).toBe(true);
+  });
+
+  it("does not claim /profile or /provider, its nearest neighbours", () => {
+    // `startsWith("/pro")` would claim both, and that is a real route each.
+    expect(isProRoute("/profile")).toBe(false);
+    expect(isProRoute("/provider")).toBe(false);
+    expect(isProRoute("/provider/bookings")).toBe(false);
+    expect(isProRoute("/")).toBe(false);
   });
 });
 

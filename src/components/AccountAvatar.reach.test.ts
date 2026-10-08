@@ -26,6 +26,10 @@ const TAB_SCREENS: Array<{ file: string; to: string }> = [
   { file: "@/components/provider/ProviderHeader?raw", to: "/provider/profile" },
   { file: "@/routes/provider/bookings/index?raw", to: "/provider/profile" },
   { file: "@/routes/provider/earnings?raw", to: "/provider/profile" },
+  // Pro (SVC-322). A Pro's account is a consumer account, so its Profile is
+  // the consumer one. Home's avatar comes via ProHeader.
+  { file: "@/components/pro/ProHeader?raw", to: "/profile" },
+  { file: "@/routes/pro/jobs/index?raw", to: "/profile" },
 ];
 
 describe("every tab offers a way to Profile", () => {

@@ -200,7 +200,7 @@ export const mapProfessional = (b: object): UI_Booking["professional"] => {
   };
 };
 
-const mapBooking = (
+export const mapBooking = (
   b: API_BookingResponse & {
     // The generated OpenAPI type may not yet include these fields — cast
     // through a widening type so TypeScript doesn't refuse the read while

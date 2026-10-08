@@ -2,7 +2,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { Home, CalendarDays, Clock, User, IndianRupee, ShoppingCart } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
-import { isBottomNavHidden } from "@/lib/nav-visibility";
+import { isBottomNavHidden, isProRoute } from "@/lib/nav-visibility";
 
 // Two tab sets — the app is single-APK, role-gated (SVC-41). Selected in the
 // render based on user.role. Cart is a consumer tab only; providers have no
@@ -26,6 +26,14 @@ const providerTabs = [
   { to: "/provider/earnings", icon: IndianRupee, label: "Earnings" },
 ] as const;
 
+// The Pro app (SVC-322). Chosen by route, not role: a Pro's role is consumer,
+// and the same person gets the consumer tabs when they step out to book a
+// service. No earnings tab — a team Pro's pay goes to their SP.
+const proTabs = [
+  { to: "/pro", icon: Home, label: "Home" },
+  { to: "/pro/jobs", icon: CalendarDays, label: "Jobs" },
+] as const;
+
 export function BottomNav() {
   const location = useLocation();
   const { user } = useAuth();
@@ -39,7 +47,12 @@ export function BottomNav() {
     return null;
   }
 
-  const tabs = user?.role === "provider" ? providerTabs : consumerTabs;
+  const tabs =
+    user?.role === "provider"
+      ? providerTabs
+      : isProRoute(location.pathname)
+        ? proTabs
+        : consumerTabs;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card safe-bottom">
@@ -49,7 +62,7 @@ export function BottomNav() {
           // exactly so nested paths don't keep the Home tab lit while
           // the user is on e.g. /provider/bookings/xyz. Non-home tabs
           // match by prefix.
-          const isHome = to === "/" || to === "/provider";
+          const isHome = to === "/" || to === "/provider" || to === "/pro";
           const active = isHome ? location.pathname === to : location.pathname.startsWith(to);
           const cartCount = to === "/cart" ? totalQuantity : 0;
           return (

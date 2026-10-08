@@ -53,6 +53,20 @@ export function isProviderRoute(pathname: string): boolean {
 }
 
 /**
+ * Is this a Pro app screen (SVC-322)?
+ *
+ * Exact-or-slash on purpose, not `startsWith("/pro")`: that would also match
+ * `/profile` and `/provider`, the two routes it sits nearest to.
+ *
+ * A pathname test for the same reason as `isProviderRoute` — the back handler
+ * in `main.mobile.tsx` has no auth context. And it is the honest signal: the
+ * root gate moves anyone who is not a Pro off these routes.
+ */
+export function isProRoute(pathname: string): boolean {
+  return pathname === "/pro" || pathname.startsWith("/pro/");
+}
+
+/**
  * Where the floating cart bar shows.
  *
  * It exists to carry the cart signal where the nav's Cart tab cannot. Service
