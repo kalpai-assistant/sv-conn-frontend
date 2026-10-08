@@ -1,4 +1,5 @@
 import { Outlet, Link, createRootRoute, useRouterState, Navigate } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { CartProvider } from "@/lib/cart-context";
@@ -7,6 +8,9 @@ import { ServiceSheetProvider } from "@/lib/service-sheet-context";
 import { useNotificationRouter } from "@/lib/notifications";
 import { useFcmRegistration } from "@/lib/fcm";
 import { useAddresses, useProviderProfile } from "@/hooks/useApi";
+import { isTeamPro, useProMe } from "@/hooks/usePro";
+import { consumesLanding, proGateVerdict, type ProState } from "@/lib/pro-gate";
+import { isProRoute } from "@/lib/nav-visibility";
 import { BottomNav } from "@/components/BottomNav";
 import { CartFab } from "@/components/cart/CartFab";
 import { SplashGate } from "@/components/SplashGate";
@@ -120,6 +124,34 @@ function AppGate({ children }: { children: React.ReactNode }) {
     isPending: addressesPending,
     isError: addressesError,
   } = useAddresses(isAuthenticated && !isProvider);
+
+  // SVC-322: is this consumer also a Pro? Team Pros sign up as consumers, so
+  // the role cannot say; `/pros/me` can. Asked only of consumer-role users —
+  // a provider's Pro row is their Pro-for-self, and they stay in the provider
+  // app. See `pro-gate.ts` for what the answer decides.
+  const isConsumer = isAuthenticated && role !== "provider" && role !== "admin";
+  const {
+    data: proMe,
+    isPending: proMePending,
+    isError: proMeError,
+  } = useProMe(user?.id, isConsumer);
+  const proState: ProState = !isConsumer
+    ? "not-pro"
+    : proMeError
+      ? "error"
+      : proMePending
+        ? "loading"
+        : isTeamPro(proMe)
+          ? "pro"
+          : "not-pro";
+  // Which sign-in has had its launch landing in the Pro app. A ref keyed by
+  // user rather than a boolean, so signing out and in as someone else lands
+  // them afresh.
+  const landedFor = useRef<string | null>(null);
+  const landed = !!user?.id && landedFor.current === user.id;
+  useEffect(() => {
+    if (user?.id && consumesLanding(pathname, proState)) landedFor.current = user.id;
+  }, [user?.id, pathname, proState]);
 
   // Wire push taps → in-app navigation: native taps through the Capacitor
   // plugin (lazy-loaded so the web bundle stays clean), web-push taps through
@@ -274,6 +306,25 @@ function AppGate({ children }: { children: React.ReactNode }) {
       return <Navigate to="/profile" replace />;
     }
 
+    // SVC-322: the Pro app lives inside the consumer role. Before the location
+    // gate, deliberately: a Pro is not booking anything, and an invitee with
+    // no saved address would otherwise be stopped by a "where are you?" screen
+    // before ever reaching their jobs.
+    const proVerdict = proGateVerdict({ pathname, proState, landed });
+    if (proVerdict === "wait") {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+    if (proVerdict === "to-pro") {
+      return <Navigate to="/pro" replace />;
+    }
+    if (proVerdict === "to-home") {
+      return <Navigate to="/" replace />;
+    }
+
     // SVC-281: ask for a location only when we cannot determine one.
     //
     // This used to fire on every launch, on the theory that the costly failure
@@ -285,7 +336,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
     //
     // So the gate now appears only when we genuinely do not know where they
     // are, or they have no address to book against at all.
-    if (isAuthenticated) {
+    if (isAuthenticated && !isProRoute(pathname)) {
       const verdict = shouldGateLocation({
         confirmed: locationConfirmed,
         blocked: availability.isResolving ? null : availability.blocked,

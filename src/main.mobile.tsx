@@ -23,7 +23,7 @@ import { getRouter } from "./router";
 import { initSentry } from "./lib/sentry";
 import { APP_VERSION } from "./lib/version";
 import { runBackInterceptors } from "./lib/back-interceptor";
-import { isProviderRoute } from "./lib/nav-visibility";
+import { isProRoute, isProviderRoute } from "./lib/nav-visibility";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles.css";
 
@@ -114,8 +114,12 @@ async function initNative(router: ReturnType<typeof getRouter>) {
     // consumer screen to a provider. Since the provider app lost its tab bar,
     // back is now the primary way off Jobs and Profile, so this path runs
     // often enough to be worth getting right rather than leaning on the guard.
-    const home = isProviderRoute(router.state.location.pathname) ? "/provider" : "/";
-    if (router.state.location.pathname !== home) {
+    //
+    // The Pro app (SVC-322) has its own root for the same reason: "/" would
+    // drop a Pro into the consumer app, which they reach only on purpose.
+    const pathname = router.state.location.pathname;
+    const home = isProviderRoute(pathname) ? "/provider" : isProRoute(pathname) ? "/pro" : "/";
+    if (pathname !== home) {
       router.navigate({ to: home, replace: true });
       return;
     }

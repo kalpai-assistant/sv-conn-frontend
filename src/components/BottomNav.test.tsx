@@ -126,6 +126,41 @@ describe("a consumer", () => {
   });
 });
 
+describe("a Pro (SVC-322)", () => {
+  // A team Pro's role is consumer, so the Pro tabs follow the route.
+
+  it("gets Home and Jobs in the Pro app, and no Earnings", () => {
+    // Earnings is absent on purpose: a team Pro's pay goes to their SP.
+    at("/pro", "consumer");
+
+    render(<BottomNav />);
+
+    expect(labels()).toEqual(["Home", "Jobs"]);
+    expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual([
+      "/pro",
+      "/pro/jobs",
+    ]);
+  });
+
+  it("keeps the Pro tabs on a nested job screen, with Jobs lit", () => {
+    at("/pro/jobs/abc-123", "consumer");
+
+    render(<BottomNav />);
+
+    expect(labels()).toEqual(["Home", "Jobs"]);
+    expect(screen.getByText("Jobs").closest("a")?.className).toContain("text-primary");
+    expect(screen.getByText("Home").closest("a")?.className).not.toContain("text-primary");
+  });
+
+  it("gets the consumer tabs back on /profile, which starts with the same letters", () => {
+    at("/profile", "consumer");
+
+    render(<BottomNav />);
+
+    expect(labels()).toEqual(["Home", "Bookings", "Cart", "Activity"]);
+  });
+});
+
 describe("which tab is lit", () => {
   it("keeps Jobs lit on a nested job screen, not Home", () => {
     // "/provider" is a home root and matches exactly; everything else matches

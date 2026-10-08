@@ -3,6 +3,7 @@ import { BackButton } from "@/components/BackButton";
 import { useAuth } from "@/lib/auth-context";
 import {
   AlertCircle,
+  Briefcase,
   MapPin,
   HelpCircle,
   Info,
@@ -16,6 +17,7 @@ import {
 import { LogoutButton } from "@/components/LogoutButton";
 import { toast } from "sonner";
 import { useAddresses } from "@/hooks/useApi";
+import { isTeamPro, useProMe } from "@/hooks/usePro";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import { apiFetch } from "@/lib/api";
 import type { components } from "@/types/api";
@@ -68,6 +70,9 @@ function ProfilePage() {
   const { selected } = useSelectedAddress();
   const addressCount = savedAddresses?.length ?? 0;
   const navigate = useNavigate();
+  // SVC-322: a Pro's account is a consumer account, and this is the screen
+  // both apps share. Already cached by the root gate.
+  const { data: proMe } = useProMe(user?.id);
 
   // Enforce setup mode if user name is not set. `!!` coerces the `user && ...`
   // short-circuit result (which is `undefined | boolean`) to a plain boolean so
@@ -232,6 +237,29 @@ function ProfilePage() {
 
       {!isSetupMode && (
         <>
+          {/* The way back into the Pro app (SVC-322). The gate lands a Pro
+              there once per sign-in and then leaves them in whichever app
+              they choose; this row is the consumer side's half of that pair,
+              opposite "Book a service" on Pro Home. First, because for a Pro
+              it is the reason they opened Profile. */}
+          {isTeamPro(proMe) && (
+            <div className="px-4 pt-4">
+              <Link
+                to="/pro"
+                className="flex items-center gap-3 rounded-xl border border-primary/40 bg-primary/5 p-3 transition-colors hover:bg-primary/10"
+              >
+                <Briefcase className="h-5 w-5 shrink-0 text-primary" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground">Open Pro app</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    Your jobs with {proMe.service_provider.business_name?.trim() || "your team"}
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </Link>
+            </div>
+          )}
+
           {/* Saved addresses (SVC-287).
 
               The list used to be inline here, with Edit and Delete as icon
