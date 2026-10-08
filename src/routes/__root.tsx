@@ -9,8 +9,7 @@ import { useNotificationRouter } from "@/lib/notifications";
 import { useFcmRegistration } from "@/lib/fcm";
 import { useAddresses, useProviderProfile } from "@/hooks/useApi";
 import { isTeamPro, useProMe } from "@/hooks/usePro";
-import { consumesLanding, proGateVerdict, type ProState } from "@/lib/pro-gate";
-import { isProRoute } from "@/lib/nav-visibility";
+import { consumesLanding, proGateVerdict, skipsLocationGate, type ProState } from "@/lib/pro-gate";
 import { BottomNav } from "@/components/BottomNav";
 import { CartFab } from "@/components/cart/CartFab";
 import { SplashGate } from "@/components/SplashGate";
@@ -348,7 +347,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
     //
     // So the gate now appears only when we genuinely do not know where they
     // are, or they have no address to book against at all.
-    if (isAuthenticated && !isProRoute(pathname)) {
+    if (isAuthenticated && !skipsLocationGate(pathname, proState)) {
       const verdict = shouldGateLocation({
         confirmed: locationConfirmed,
         blocked: availability.isResolving ? null : availability.blocked,

@@ -6,7 +6,7 @@
  * consumer let into it, or anyone sent somewhere on a network error.
  */
 import { describe, expect, it } from "vitest";
-import { consumesLanding, proGateVerdict } from "@/lib/pro-gate";
+import { consumesLanding, proGateVerdict, skipsLocationGate } from "@/lib/pro-gate";
 
 describe("the Pro app's routes", () => {
   it("let a Pro in", () => {
@@ -95,5 +95,32 @@ describe("when the launch landing is used up", () => {
     // must still land them in the Pro app.
     expect(consumesLanding("/profile", "pro", true)).toBe(false);
     expect(consumesLanding("/tracking/abc", "pro", true)).toBe(false);
+  });
+});
+
+describe("the consumer location gate", () => {
+  it("never covers the Pro app", () => {
+    expect(skipsLocationGate("/pro", "pro")).toBe(true);
+    expect(skipsLocationGate("/pro/jobs/abc", "loading")).toBe(true);
+  });
+
+  it("does not cover Profile for a Pro (found on device)", () => {
+    // The Pro Home avatar opens /profile. A new invitee has no saved address,
+    // so the gate there left them no way to sign out.
+    expect(skipsLocationGate("/profile", "pro")).toBe(true);
+  });
+
+  it("still covers Profile for a customer, as before", () => {
+    expect(skipsLocationGate("/profile", "not-pro")).toBe(false);
+    expect(skipsLocationGate("/profile", "error")).toBe(false);
+  });
+
+  it("still covers booking screens for a Pro: booking needs an address", () => {
+    expect(skipsLocationGate("/", "pro")).toBe(false);
+    expect(skipsLocationGate("/cart", "pro")).toBe(false);
+  });
+
+  it("does not mistake /provider or /profile-like paths for the Pro app", () => {
+    expect(skipsLocationGate("/profiles", "pro")).toBe(false);
   });
 });

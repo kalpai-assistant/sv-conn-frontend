@@ -58,6 +58,21 @@ export function proGateVerdict({
 }
 
 /**
+ * Whether the consumer location gate ("Where are you?") stays out of the way.
+ *
+ * That gate exists so a customer has an address to book against, and fires for
+ * anyone with no saved address — which is every new invitee. So it never covers
+ * the Pro app, and for a Pro it does not cover Profile either: found on device,
+ * the Pro Home avatar led to "Where are you?", leaving a Pro with no address no
+ * way to sign out or rename themselves. Booking screens keep the gate, Pro or
+ * not: that is where an address is genuinely needed.
+ */
+export function skipsLocationGate(pathname: string, proState: ProState): boolean {
+  if (isProRoute(pathname)) return true;
+  return proState === "pro" && (pathname === "/profile" || pathname.startsWith("/profile/"));
+}
+
+/**
  * Whether evaluating this route used up the launch landing.
  *
  * Only "/" and the Pro app count. A Pro whose first screen is something else —
