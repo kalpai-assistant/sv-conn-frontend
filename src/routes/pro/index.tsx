@@ -8,7 +8,7 @@ import { ProHeader } from "@/components/pro/ProHeader";
 import { useAuth } from "@/lib/auth-context";
 import { useProJobs, useProMe, useSetProOnline, type ProMe } from "@/hooks/usePro";
 import { currentJob, dueIn, statusLabel, statusStyle } from "@/lib/job-status";
-import { proKycCopy } from "@/lib/pro-kyc";
+import { proKycCopy, proOnlineSwitch } from "@/lib/pro-kyc";
 import type { Booking } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/pro/")({
@@ -65,9 +65,8 @@ function ProHomePage() {
 }
 
 /**
- * The online switch. Disabled below "verified": the SP cannot give an
- * unverified Pro a job (`/assign` answers PRO_KYC_INCOMPLETE), so an enabled
- * switch would promise work that cannot come.
+ * The online switch. An unverified Pro can switch off but not on; the rule
+ * and why are in `proOnlineSwitch`.
  */
 function OnlineCard({ me }: { me: ProMe }) {
   const setOnline = useSetProOnline();
@@ -75,7 +74,10 @@ function OnlineCard({ me }: { me: ProMe }) {
   // which is also what reverts a failed toggle (same rule as Provider Home).
   const [pending, setPending] = useState<boolean | null>(null);
   const isOnline = pending ?? me.is_online;
-  const isVerified = me.kyc_status === "verified";
+  const { canToggle, detail } = proOnlineSwitch({
+    isOnline,
+    isVerified: me.kyc_status === "verified",
+  });
 
   // Driven by the switch and nothing else. Online means "give me jobs", not
   // "the app is open" (SVC-155 AC 3).
@@ -98,16 +100,12 @@ function OnlineCard({ me }: { me: ProMe }) {
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <p className="font-medium text-foreground">{isOnline ? "You're online" : "Offline"}</p>
-          <p className="text-sm text-muted-foreground">
-            {isVerified
-              ? "Your team can only give you jobs while this is on."
-              : "You can go online once your identity is verified."}
-          </p>
+          <p className="text-sm text-muted-foreground">{detail}</p>
         </div>
         <Switch
           checked={isOnline}
           onCheckedChange={handleToggle}
-          disabled={!isVerified || setOnline.isPending}
+          disabled={!canToggle || setOnline.isPending}
           aria-label="Available for jobs"
         />
       </div>

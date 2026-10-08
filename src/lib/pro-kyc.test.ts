@@ -4,7 +4,7 @@
  * and say the right thing.
  */
 import { describe, expect, it } from "vitest";
-import { proKycCopy } from "@/lib/pro-kyc";
+import { proKycCopy, proOnlineSwitch } from "@/lib/pro-kyc";
 
 describe("proKycCopy", () => {
   it("says nothing once verified", () => {
@@ -30,5 +30,25 @@ describe("proKycCopy", () => {
   it("still asks for a resubmission when the reason is missing", () => {
     const copy = proKycCopy({ kyc_status: "rejected", kyc_rejection_reason: null });
     expect(copy?.detail).toBe("Please submit your documents again.");
+  });
+});
+
+describe("proOnlineSwitch", () => {
+  it("lets a verified Pro switch either way", () => {
+    expect(proOnlineSwitch({ isOnline: false, isVerified: true }).canToggle).toBe(true);
+    expect(proOnlineSwitch({ isOnline: true, isVerified: true }).canToggle).toBe(true);
+  });
+
+  it("keeps an unverified, offline Pro from going online", () => {
+    const sw = proOnlineSwitch({ isOnline: false, isVerified: false });
+    expect(sw.canToggle).toBe(false);
+    expect(sw.detail).toMatch(/once your identity is verified/);
+  });
+
+  it("lets an unverified Pro who is online go offline (found on device)", () => {
+    // KYC rejected after going online: the switch sat at "online", greyed out.
+    const sw = proOnlineSwitch({ isOnline: true, isVerified: false });
+    expect(sw.canToggle).toBe(true);
+    expect(sw.detail).toMatch(/can't give you jobs until/);
   });
 });

@@ -37,3 +37,32 @@ export function proKycCopy(me: Pick<ProMe, "kyc_status" | "kyc_rejection_reason"
       };
   }
 }
+
+/**
+ * The online switch for a Pro, given their KYC (SVC-322).
+ *
+ * Going *on* waits for "verified": the SP cannot give an unverified Pro a job
+ * (`/assign` answers PRO_KYC_INCOMPLETE), so an enabled switch would promise
+ * work that cannot come. Going *off* is always allowed. The backend lets a
+ * team Pro be online whatever their KYC, and one whose KYC is rejected later
+ * stays online — found on device, the switch then sat at "You're online",
+ * greyed out, with no way to turn it off.
+ */
+export function proOnlineSwitch({
+  isOnline,
+  isVerified,
+}: {
+  isOnline: boolean;
+  isVerified: boolean;
+}): { canToggle: boolean; detail: string } {
+  if (isVerified) {
+    return { canToggle: true, detail: "Your team can only give you jobs while this is on." };
+  }
+  if (isOnline) {
+    return {
+      canToggle: true,
+      detail: "Your team can't give you jobs until your identity is verified.",
+    };
+  }
+  return { canToggle: false, detail: "You can go online once your identity is verified." };
+}
