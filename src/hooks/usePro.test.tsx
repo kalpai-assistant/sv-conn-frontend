@@ -90,6 +90,31 @@ describe("useProMe", () => {
     expect(apiFetch).toHaveBeenCalledTimes(1);
   });
 
+  it("asks again when the network comes back after a failure (found on device)", async () => {
+    // React Query's reconnect refetch misses an app launched offline: its
+    // online manager assumes "online" from the start, so it sees no change.
+    apiFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const { result } = renderHook(() => useProMe("user-1"), { wrapper });
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 500 });
+
+    apiFetch.mockResolvedValueOnce(PRO);
+    window.dispatchEvent(new Event("online"));
+
+    await waitFor(() => expect(result.current.data).toEqual(PRO));
+    expect(apiFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not ask again on reconnect when it already has an answer", async () => {
+    apiFetch.mockResolvedValueOnce(PRO);
+    const { result } = renderHook(() => useProMe("user-1"), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    window.dispatchEvent(new Event("online"));
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+  });
+
   it("does not ask before there is a user", () => {
     renderHook(() => useProMe(undefined), { wrapper });
     expect(apiFetch).not.toHaveBeenCalled();

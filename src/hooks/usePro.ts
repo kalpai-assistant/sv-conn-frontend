@@ -18,6 +18,7 @@
  * works from the provider app, where the Pro actions are folded into their own
  * job screen, so they are not a Pro *for the Pro app*. `isTeamPro` is the test.
  */
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
 import { mapBooking, useServices, type API_BookingResponse, type KycStatus } from "@/hooks/useApi";
@@ -72,7 +73,7 @@ export function isTeamPro(me: ProMe | null | undefined): me is ProMe {
  * quietly told they are a consumer.
  */
 export function useProMe(userId: string | null | undefined, enabled = true) {
-  return useQuery({
+  const query = useQuery({
     // Keyed by user: nothing clears the query cache on logout, so a second
     // account signing in on the same phone must not read the first one's
     // answer.
@@ -91,13 +92,30 @@ export function useProMe(userId: string | null | undefined, enabled = true) {
     // customer there for ~7 s whenever the backend is slow or the phone is
     // offline — a regression for the many to serve the few. A failure
     // resolves at once to an error, which the gate passes through, and the
-    // next focus refetch asks again.
+    // next focus refetch — or the network returning, below — asks again.
     retry: false,
     // Membership changes rarely (an accept, or the SP removing them), and
     // every screen reads it. Refetched on focus anyway, which is when a
     // removal is most likely to have happened.
     staleTime: 60_000,
   });
+
+  // Ask again when the network comes back, if the last answer was a failure.
+  // React Query's own reconnect refetch does not cover this: its online
+  // manager starts out assuming "online" and never reads the real state, so an
+  // app *launched* offline sees no offline → online change and the `online`
+  // event is a no-op. Found on device — a Pro who opened the app with no
+  // signal stayed on the consumer home after it returned, until they left the
+  // app and came back.
+  const { isError, refetch } = query;
+  useEffect(() => {
+    if (!isError || typeof window === "undefined") return;
+    const onOnline = () => void refetch();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [isError, refetch]);
+
+  return query;
 }
 
 /**
