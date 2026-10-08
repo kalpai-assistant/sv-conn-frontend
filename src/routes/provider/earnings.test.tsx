@@ -14,7 +14,7 @@
  * carries no figure.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (opts: unknown) => opts,
@@ -43,6 +43,11 @@ const useEarnings = vi.fn();
 vi.mock("@/hooks/useApi", () => ({
   useEarningsSummary: () => useEarningsSummary(),
   useEarnings: (range: string) => useEarnings(range),
+}));
+const useEarningsByPro = vi.fn();
+vi.mock("@/hooks/useProEarnings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/hooks/useProEarnings")>()),
+  useEarningsByPro: (range: string) => useEarningsByPro(range),
 }));
 
 import { Route } from "@/routes/provider/earnings";
@@ -74,10 +79,34 @@ const windowLoaded = (total_payout: number, bookings: ReturnType<typeof job>[]) 
 
 const failed = { data: undefined, isLoading: false, isError: true, refetch: vi.fn() };
 
+const pro = (id: string | null, over: Record<string, unknown> = {}) => ({
+  professional_id: id,
+  display_name: id ?? "Not assigned",
+  profile_photo_url: null,
+  is_self: false,
+  is_active: id !== null,
+  payout: 0,
+  completed_count: 0,
+  ...over,
+});
+const SELF_PRO = pro("p-self", { display_name: "Tush", is_self: true });
+
+const byProLoaded = (range: string, pros: ReturnType<typeof pro>[]) => ({
+  data: {
+    range,
+    total_payout: pros.reduce((s, p) => s + p.payout, 0),
+    completed_count: pros.reduce((s, p) => s + p.completed_count, 0),
+    pros,
+  },
+  isLoading: false,
+  isError: false,
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
   useEarningsSummary.mockReturnValue(summaryLoaded(48250, 137));
   useEarnings.mockReturnValue(windowLoaded(3480, [job()]));
+  useEarningsByPro.mockReturnValue(byProLoaded("week", [SELF_PRO]));
 });
 
 describe("the lifetime hero", () => {
@@ -253,5 +282,116 @@ describe("the week chart", () => {
 
     expect(screen.queryByTestId("week-chart")).not.toBeInTheDocument();
     expect(screen.queryByTestId("month-chart")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * SVC-323. A team SP sees who did each job and a by-Pro split; a solo SP —
+ * nearly all of them — sees the tab exactly as before, because every job is
+ * theirs and the split would be one row repeating the total.
+ */
+describe("per-Pro earnings", () => {
+  const TEAM = [
+    pro("p-self", { display_name: "Tush", is_self: true, payout: 1000, completed_count: 2 }),
+    pro("p-ravi", { display_name: "Ravi", payout: 2000, completed_count: 3 }),
+    pro("p-asha", { display_name: "Asha", is_active: false, payout: 280, completed_count: 1 }),
+    pro("p-new", { display_name: "Test Pro Seven" }),
+    pro(null, { payout: 200, completed_count: 1 }),
+  ];
+  const teamJobs = [
+    job({ booking_id: "b1", professional: { id: "p-ravi", display_name: "Ravi", is_self: false } }),
+    job({ booking_id: "b2", professional: { id: "p-self", display_name: "Tush", is_self: true } }),
+    job({ booking_id: "b3", professional: null }),
+  ];
+
+  it("shows a solo SP no by-line and no breakdown", () => {
+    useEarnings.mockReturnValue(
+      windowLoaded(349, [
+        job({ professional: { id: "p-self", display_name: "Tush", is_self: true } }),
+      ]),
+    );
+    render(<Page />);
+
+    expect(screen.queryByText(/by you/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/by team member/i)).not.toBeInTheDocument();
+  });
+
+  it("stays solo-shaped while the split is loading or failed", () => {
+    useEarnings.mockReturnValue(windowLoaded(3480, teamJobs));
+    useEarningsByPro.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+    const { unmount } = render(<Page />);
+    expect(screen.queryByText(/by ravi/i)).not.toBeInTheDocument();
+    unmount();
+
+    useEarningsByPro.mockReturnValue({ data: undefined, isLoading: false, isError: true });
+    render(<Page />);
+    expect(screen.queryByText(/by team member/i)).not.toBeInTheDocument();
+  });
+
+  it("names who did each job, 'you' for the SP's own", () => {
+    useEarnings.mockReturnValue(windowLoaded(3480, teamJobs));
+    useEarningsByPro.mockReturnValue(byProLoaded("week", TEAM));
+    render(<Page />);
+
+    expect(screen.getByText(/by ravi/i)).toBeInTheDocument();
+    expect(screen.getByText(/by you/i)).toBeInTheDocument();
+    // The breakdown has its own "Not assigned" row; the job row says it too.
+    expect(screen.getAllByText(/not assigned/i).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("splits the window by Pro, including removed Pros and Not assigned", () => {
+    useEarnings.mockReturnValue(windowLoaded(3480, teamJobs));
+    useEarningsByPro.mockReturnValue(byProLoaded("week", TEAM));
+    render(<Page />);
+
+    const split = screen.getByRole("region", { name: /by team member/i });
+    expect(split).toHaveTextContent("You");
+    expect(split).toHaveTextContent("₹2,000");
+    expect(split).toHaveTextContent(/past member/i);
+    expect(split).toHaveTextContent("Not assigned");
+    expect(split).toHaveTextContent("₹200");
+    // Zero is "No jobs yet", never ₹0.
+    expect(split).toHaveTextContent(/no jobs yet/i);
+    expect(split).not.toHaveTextContent("₹0");
+  });
+
+  it("asks for the split of the window on screen", () => {
+    render(<Page />);
+    expect(useEarningsByPro).toHaveBeenLastCalledWith("week");
+
+    fireEvent.click(screen.getByRole("tab", { name: "This month" }));
+    expect(useEarningsByPro).toHaveBeenLastCalledWith("month");
+  });
+
+  it("hides a split still showing the previous window", () => {
+    // placeholderData keeps last week's response while this month's loads; a
+    // week split under a month total would not add up.
+    useEarnings.mockReturnValue(windowLoaded(3480, teamJobs));
+    useEarningsByPro.mockReturnValue(byProLoaded("week", TEAM));
+    render(<Page />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "This month" }));
+    expect(screen.queryByText(/by team member/i)).not.toBeInTheDocument();
+  });
+
+  it("opens a Pro from the split, but not the Not assigned row", () => {
+    useEarnings.mockReturnValue(windowLoaded(3480, teamJobs));
+    useEarningsByPro.mockReturnValue(byProLoaded("week", TEAM));
+    render(<Page />);
+
+    const split = screen.getByRole("region", { name: /by team member/i });
+    // The Link stub here renders a bare <a>, so count anchors, not link roles.
+    expect(split.querySelectorAll("a")).toHaveLength(4);
+    expect(within(split).getByText("Not assigned").closest("a")).toBeNull();
+  });
+
+  it("puts the split after the job list, so it never shifts the rows", () => {
+    useEarnings.mockReturnValue(windowLoaded(3480, teamJobs));
+    useEarningsByPro.mockReturnValue(byProLoaded("week", TEAM));
+    render(<Page />);
+
+    const row = screen.getByText(/by ravi/i);
+    const split = screen.getByRole("region", { name: /by team member/i });
+    expect(row.compareDocumentPosition(split) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
