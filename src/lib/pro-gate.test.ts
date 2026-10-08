@@ -68,24 +68,32 @@ describe("the rest of the consumer app", () => {
 
 describe("when the launch landing is used up", () => {
   it("once the answer is known on / or in the Pro app", () => {
-    expect(consumesLanding("/", "pro")).toBe(true);
-    expect(consumesLanding("/", "not-pro")).toBe(true);
-    expect(consumesLanding("/pro/jobs", "pro")).toBe(true);
+    expect(consumesLanding("/", "pro", true)).toBe(true);
+    expect(consumesLanding("/", "not-pro", true)).toBe(true);
+    expect(consumesLanding("/pro/jobs", "pro", true)).toBe(true);
   });
 
   it("not while the answer is still loading", () => {
-    expect(consumesLanding("/", "loading")).toBe(false);
+    expect(consumesLanding("/", "loading", true)).toBe(false);
   });
 
   it("not on an error, so a Pro who opened the app offline still lands later", () => {
-    expect(consumesLanding("/", "error")).toBe(false);
-    expect(consumesLanding("/pro", "error")).toBe(false);
+    expect(consumesLanding("/", "error", true)).toBe(false);
+    expect(consumesLanding("/pro", "error", true)).toBe(false);
+  });
+
+  it("not on a render that never reached the gate (found on device)", () => {
+    // Cold start with an expired token: the refresh let /pros/me answer
+    // before /users/me, so "/" + "pro" was seen while the gate still showed
+    // the restoring splash. Counting it skipped the redirect to /pro.
+    expect(consumesLanding("/", "pro", false)).toBe(false);
+    expect(consumesLanding("/pro", "pro", false)).toBe(false);
   });
 
   it("not on a screen the Pro passed through first", () => {
     // A new invitee is sent to /profile for their name; reaching / afterwards
     // must still land them in the Pro app.
-    expect(consumesLanding("/profile", "pro")).toBe(false);
-    expect(consumesLanding("/tracking/abc", "pro")).toBe(false);
+    expect(consumesLanding("/profile", "pro", true)).toBe(false);
+    expect(consumesLanding("/tracking/abc", "pro", true)).toBe(false);
   });
 });

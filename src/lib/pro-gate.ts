@@ -67,8 +67,18 @@ export function proGateVerdict({
  * An error does not count either: it was no answer. A Pro who opened the app
  * offline is let through to the consumer home, and is landed in the Pro app
  * once a later refetch (on focus) says who they are.
+ *
+ * Nor does a render that never reached the gate (`reachedGate`): the blank
+ * splash while the session restores, or the redirect to name setup. Found on
+ * device — both happen on "/", and counting them meant the redirect to /pro
+ * was skipped before it was ever rendered.
  */
-export function consumesLanding(pathname: string, proState: ProState): boolean {
+export function consumesLanding(
+  pathname: string,
+  proState: ProState,
+  reachedGate: boolean,
+): boolean {
+  if (!reachedGate) return false;
   if (proState === "loading" || proState === "error") return false;
   return pathname === "/" || isProRoute(pathname);
 }

@@ -149,9 +149,21 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // them afresh.
   const landedFor = useRef<string | null>(null);
   const landed = !!user?.id && landedFor.current === user.id;
+  // Whether this render actually reaches the Pro gate in the consumer branch
+  // below. The effect runs after *every* render, including the ones that
+  // return early — and on device it used up the landing during the blank
+  // restoring splash (the token refresh let /pros/me answer before /users/me
+  // did), so the Pro was let through to the consumer home. The name-setup
+  // redirect to /profile, which also fires on "/", did the same to every new
+  // invitee. Mirrors the branch conditions; keep the two in step.
+  const needsProfileSetup = !!user && (isNewUser || !user.name) && !isProfileRoute;
+  const reachesProGate =
+    isConsumer && !isRestoring && !isPublicRoute && !isAdminRoute && !needsProfileSetup;
   useEffect(() => {
-    if (user?.id && consumesLanding(pathname, proState)) landedFor.current = user.id;
-  }, [user?.id, pathname, proState]);
+    if (user?.id && consumesLanding(pathname, proState, reachesProGate)) {
+      landedFor.current = user.id;
+    }
+  }, [user?.id, pathname, proState, reachesProGate]);
 
   // Wire push taps → in-app navigation: native taps through the Capacitor
   // plugin (lazy-loaded so the web bundle stays clean), web-push taps through
@@ -302,7 +314,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
     if (isProviderRoute) {
       return <Navigate to="/" replace />;
     }
-    if (user && (isNewUser || !user.name) && !isProfileRoute) {
+    if (needsProfileSetup) {
       return <Navigate to="/profile" replace />;
     }
 
