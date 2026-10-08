@@ -263,3 +263,22 @@ export function useSetProOnline() {
     },
   });
 }
+
+/**
+ * Join the SP's team with the 6-digit code from the invite SMS (SVC-322 part
+ * 3). Open to consumers: invitees sign up as one. On success the Pro row
+ * exists, so `/pros/me` is refetched *before* this resolves — the caller then
+ * navigates to /pro, and the root gate must already know they are a Pro or it
+ * would send them home.
+ */
+export function useAcceptInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) =>
+      apiFetch<unknown>("/providers/me/accept-invite", {
+        method: "POST",
+        body: JSON.stringify({ token: code }),
+      }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: PRO_ME_QUERY_KEY }),
+  });
+}

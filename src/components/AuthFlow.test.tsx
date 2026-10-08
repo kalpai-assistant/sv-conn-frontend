@@ -249,3 +249,65 @@ describe("AuthFlow role selection", () => {
     expect(login.mock.calls[0][2].role).toBe("provider");
   });
 });
+
+describe("AuthFlow on /invite (SVC-322)", () => {
+  // An invitee must end up a consumer-role account: a provider account gets
+  // its own Pro-for-self at birth and can then never join a team. So the
+  // invite flow offers no way to pick "provider" at all.
+  beforeEach(() => {
+    vi.clearAllMocks();
+    apiFetch.mockImplementation((path: string) => {
+      if (path === "/auth/send-otp") return Promise.resolve({});
+      if (path === "/auth/verify-otp") {
+        return Promise.resolve({ access_token: "a", refresh_token: "r", is_new_user: true });
+      }
+      return Promise.reject(new Error(`unexpected call: ${path}`));
+    });
+    stubProfileFetch("consumer");
+  });
+
+  it("says what the sign-in is for, and hides the provider link", () => {
+    render(<AuthFlow onComplete={() => {}} invite />);
+    expect(screen.getByRole("heading", { name: /sign in to join your team/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /are you a service provider/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("signs up as a consumer", async () => {
+    const user = userEvent.setup();
+    render(<AuthFlow onComplete={() => {}} invite />);
+
+    await user.type(screen.getByPlaceholderText("98765 43210"), PHONE);
+    await user.click(screen.getByRole("button", { name: /send otp/i }));
+    await screen.findByText(/verify otp/i);
+    await user.type(document.querySelector("input[autocomplete='one-time-code']")!, OTP);
+
+    await waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith("/auth/verify-otp", expect.anything()),
+    );
+    expect((await submitAndReadVerifyBody()).role).toBe("consumer");
+  });
+
+  it("tells a provider number it can't join, instead of offering to switch roles", async () => {
+    apiFetch.mockImplementation((path: string) => {
+      if (path === "/auth/send-otp") return Promise.resolve({});
+      if (path === "/auth/verify-otp") {
+        return Promise.reject(new ApiError(400, "x", undefined, "ROLE_MISMATCH"));
+      }
+      return Promise.reject(new Error(`unexpected call: ${path}`));
+    });
+    const user = userEvent.setup();
+    render(<AuthFlow onComplete={() => {}} invite />);
+
+    await user.type(screen.getByPlaceholderText("98765 43210"), PHONE);
+    await user.click(screen.getByRole("button", { name: /send otp/i }));
+    await screen.findByText(/verify otp/i);
+    await user.type(document.querySelector("input[autocomplete='one-time-code']")!, OTP);
+
+    expect(await screen.findByText(/registered as a service provider/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /sign in as a service provider instead/i }),
+    ).not.toBeInTheDocument();
+  });
+});

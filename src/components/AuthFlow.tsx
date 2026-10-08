@@ -61,7 +61,24 @@ function formatCountdown(seconds: number): string {
   return `${minutes}m ${String(seconds % 60).padStart(2, "0")}s`;
 }
 
-export function AuthFlow({ onComplete }: { onComplete: () => void }) {
+export function AuthFlow({
+  onComplete,
+  invite = false,
+}: {
+  onComplete: () => void;
+  /**
+   * Signing in on /invite to join a team (SVC-322). Locks the signup to a
+   * customer account and hides "Are you a service provider?".
+   *
+   * Not cosmetic. A team Pro must be a consumer-role account: a provider
+   * account gets its own Pro-for-self at birth, and accept-invite then refuses
+   * it (ALREADY_PRO_ELSEWHERE) — for life, since a phone keeps its role
+   * (SVC-253). One tap on the provider link here would strand the invitee.
+   * It is also the UX half of SVC-327: a consumer signup never meets the
+   * payout (bank/UPI) step, which only provider onboarding has.
+   */
+  invite?: boolean;
+}) {
   const [step, setStep] = useState<AuthStep>("phone");
   const [phone, setPhone] = useState("");
   // Which identity this signup creates. SVC-252: this was hardcoded
@@ -272,12 +289,18 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
                 Policy A), so the commitment is restated in front of the user
                 while they type the number it will bind. */}
             <h1 className="text-2xl font-bold text-foreground">
-              {role === "provider" ? "Join as a service provider" : "Enter your phone number"}
+              {invite
+                ? "Sign in to join your team"
+                : role === "provider"
+                  ? "Join as a service provider"
+                  : "Enter your phone number"}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              {role === "provider"
-                ? "Earn on your schedule. We'll verify your number first."
-                : "We'll send you an OTP to verify your identity"}
+              {invite
+                ? "Use the number your invite was sent to. We'll send you an OTP to verify it."
+                : role === "provider"
+                  ? "Earn on your schedule. We'll verify your number first."
+                  : "We'll send you an OTP to verify your identity"}
             </p>
             {errorMsg && (
               <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
@@ -317,7 +340,7 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
                 Quiet by design: providers are recruited and arrive knowing to
                 look for this, while consumers are the overwhelming majority
                 and should read straight past it. */}
-            {role === "consumer" ? (
+            {invite ? null : role === "consumer" ? (
               <button
                 type="button"
                 onClick={() => switchRole("provider")}
@@ -369,7 +392,14 @@ export function AuthFlow({ onComplete }: { onComplete: () => void }) {
                     navigation, so this offers the move as one tap; sitting it
                     within the message it acts on is what reads as cause and
                     remedy instead of two unrelated things stacked. */}
-                {roleConflict && (
+                {/* On an invite there is no other role to offer: a provider
+                    number cannot join a team, and saying so is the remedy. */}
+                {roleConflict && invite && (
+                  <span className="mt-2 block">
+                    This number is registered as a service provider, so it can’t join a team.
+                  </span>
+                )}
+                {roleConflict && !invite && (
                   <button
                     onClick={retryAsOtherRole}
                     className="mt-2 block font-semibold underline underline-offset-4"
