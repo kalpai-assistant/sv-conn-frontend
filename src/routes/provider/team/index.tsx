@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { UserPlus, Users } from "lucide-react";
+import { ChevronRight, UserPlus, Users } from "lucide-react";
 
 import { BackButton } from "@/components/BackButton";
+import { RangeTabs } from "@/components/provider/EarningsWindow";
 import { InviteCode, InviteCodeActions } from "@/components/provider/InviteCodeActions";
+import { ProFigure } from "@/components/provider/ProEarningsBreakdown";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,7 +31,17 @@ import {
   type TeamInvite,
   type TeamMember,
 } from "@/hooks/useTeam";
+import {
+  hasTeam,
+  useEarningsByPro,
+  type ByProRange,
+  type ProEarningsItem,
+} from "@/hooks/useProEarnings";
+import { formatRupees } from "@/lib/currency";
+import { RANGE_META } from "@/lib/earnings-ranges";
 import { cn } from "@/lib/utils";
+
+const TEAM_RANGES: ByProRange[] = ["today", "week", "month", "all"];
 
 export const Route = createFileRoute("/provider/team/")({
   component: MyTeamPage,
@@ -52,6 +64,33 @@ function MyTeamPage() {
   const [revoking, setRevoking] = useState<TeamInvite | null>(null);
   const removeMember = useRemoveMember();
   const revokeInvite = useRevokeInvite();
+
+  // SVC-323: what each member earned. One by-pro call for the whole list, never
+  // one per Pro, and none on GET /me/team (the pick-a-Pro step's). `all` names
+  // the past members — removed Pros with any history, so they stay listed for
+  // settling up whichever window is picked — and decides whether this SP has a
+  // team at all: a solo SP gets no earnings here, just the invite CTA.
+  const [range, setRange] = useState<ByProRange>("week");
+  const lifetime = useEarningsByPro("all");
+  const windowed = useEarningsByPro(range);
+  const showEarnings = hasTeam(lifetime.data);
+  // A placeholder from the previous tab must not be read as this one's figures.
+  const current = windowed.data?.range === range ? windowed.data : undefined;
+  const earningsOf = (id: string) => current?.pros.find((p) => p.professional_id === id);
+  // Undefined for a solo SP: no figure, no link. A member absent from the
+  // response (joined a moment ago) reads "No jobs yet", which is true.
+  const figureFor = (id: string): ReactNode =>
+    !showEarnings ? undefined : current ? (
+      <ProFigure item={earningsOf(id)} />
+    ) : windowed.isError ? null : (
+      <Skeleton className="h-8 w-14" />
+    );
+  const pastMembers = showEarnings
+    ? (lifetime.data?.pros.filter(
+        (p) => p.professional_id !== null && !p.is_active && p.completed_count > 0,
+      ) ?? [])
+    : [];
+  const unassigned = current?.pros.find((p) => p.professional_id === null);
 
   const others = team.data?.filter((m) => !m.is_self) ?? [];
   const self = team.data?.find((m) => m.is_self);
@@ -135,16 +174,86 @@ function MyTeamPage() {
         </div>
       )}
 
+      {showEarnings && (
+        <>
+          <RangeTabs
+            ranges={TEAM_RANGES}
+            value={range}
+            onChange={setRange}
+            label="Team earnings period"
+          />
+          <p className="mt-3 text-sm text-muted-foreground">
+            {current ? (
+              <>
+                <span className="font-semibold tabular-nums text-foreground">
+                  {formatRupees(current.total_payout)}
+                </span>{" "}
+                &middot; {current.completed_count} {current.completed_count === 1 ? "job" : "jobs"}{" "}
+                {RANGE_META[range].tab.toLowerCase()}
+              </>
+            ) : windowed.isError ? (
+              <button className="text-primary" onClick={() => void windowed.refetch()}>
+                Couldn&rsquo;t load earnings. Retry
+              </button>
+            ) : (
+              <Skeleton className="h-5 w-40" />
+            )}
+          </p>
+        </>
+      )}
+
       {!isLoading && team.data && !isEmpty && (
         <section className="mt-6">
           <h2 className="text-sm font-semibold text-muted-foreground">Team · {team.data.length}</h2>
           <ul className="mt-2 space-y-2">
-            {self && <MemberRow member={self} />}
+            {self && (
+              <MemberRow
+                member={self}
+                figure={figureFor(self.id)}
+                periodLabel={RANGE_META[range].tab}
+              />
+            )}
             {others.map((member) => (
-              <MemberRow key={member.id} member={member} onRemove={() => setRemoving(member)} />
+              <MemberRow
+                key={member.id}
+                member={member}
+                figure={figureFor(member.id)}
+                periodLabel={RANGE_META[range].tab}
+                onRemove={() => setRemoving(member)}
+              />
             ))}
           </ul>
         </section>
+      )}
+
+      {/* Directly under Team, so every earnings row on the screen is one run
+          that adds up to the line above it. Their figures come from the window,
+          their membership from `all`. */}
+      {pastMembers.length > 0 && (
+        <section className="mt-6">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            Past members · {pastMembers.length}
+          </h2>
+          <ul className="mt-2 space-y-2">
+            {pastMembers.map((pro) => (
+              <PastMemberRow
+                key={pro.professional_id}
+                pro={pro}
+                figure={figureFor(pro.professional_id!)}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {showEarnings && unassigned && (
+        <div className="mt-2 flex items-center gap-3 rounded-xl border border-dashed border-border p-3">
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-foreground">Not assigned</p>
+            <p className="text-xs text-muted-foreground">Jobs finished with no one on them</p>
+          </div>
+          <ProFigure item={unassigned} />
+        </div>
       )}
 
       {pending.length > 0 && (
@@ -196,7 +305,6 @@ function MyTeamPage() {
                 confirmRemove();
               }}
               disabled={removeMember.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {removeMember.isPending ? "Removing…" : "Remove"}
             </AlertDialogAction>
@@ -232,9 +340,26 @@ function MyTeamPage() {
   );
 }
 
-function MemberRow({ member, onRemove }: { member: TeamMember; onRemove?: () => void }) {
-  return (
-    <li className="flex items-center gap-3 rounded-xl border border-border p-3">
+/**
+ * With a `figure`, the card grows a strip underneath — the window's figure —
+ * that opens the member's earnings. A strip rather than a column: on a phone,
+ * name, KYC, figure and Remove on one line truncate the name and wrap the
+ * badge (seen on device). It also keeps Remove away from the link: siblings,
+ * never nested, so a Remove tap can't navigate.
+ */
+function MemberRow({
+  member,
+  figure,
+  periodLabel,
+  onRemove,
+}: {
+  member: TeamMember;
+  figure?: ReactNode;
+  periodLabel?: string;
+  onRemove?: () => void;
+}) {
+  const body = (
+    <>
       <div className="relative">
         <Avatar className="h-10 w-10" aria-hidden>
           {member.profile_photo_url && <AvatarImage src={member.profile_photo_url} alt="" />}
@@ -261,12 +386,63 @@ function MemberRow({ member, onRemove }: { member: TeamMember; onRemove?: () => 
           {KYC_LABEL[member.kyc_status]}
         </Badge>
       </div>
-      {/* The SP's own row can't be removed: going off-tools is SVC-326. */}
-      {onRemove && (
-        <Button variant="ghost" size="sm" onClick={onRemove}>
-          Remove
-        </Button>
+    </>
+  );
+
+  return (
+    <li className="overflow-hidden rounded-xl border border-border">
+      <div className="flex items-center gap-3 p-3">
+        {body}
+        {/* The SP's own row can't be removed: going off-tools is SVC-326. */}
+        {onRemove && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-primary hover:text-primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+          >
+            Remove
+          </Button>
+        )}
+      </div>
+      {figure !== undefined && (
+        <Link
+          to="/provider/team/$professionalId/earnings"
+          params={{ professionalId: member.id }}
+          className="flex items-center gap-3 border-t border-border px-3 py-2.5"
+        >
+          <span className="flex-1 text-sm text-muted-foreground">{periodLabel}</span>
+          {figure}
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </Link>
       )}
+    </li>
+  );
+}
+
+/** A removed Pro with history: still openable, so the SP can settle with them. */
+function PastMemberRow({ pro, figure }: { pro: ProEarningsItem; figure: ReactNode }) {
+  return (
+    <li className="rounded-xl border border-border p-3">
+      <Link
+        to="/provider/team/$professionalId/earnings"
+        params={{ professionalId: pro.professional_id! }}
+        className="flex items-center gap-3"
+      >
+        <Avatar className="h-10 w-10" aria-hidden>
+          {pro.profile_photo_url && <AvatarImage src={pro.profile_photo_url} alt="" />}
+          <AvatarFallback>{pro.display_name.charAt(0).toUpperCase()}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-foreground">{pro.display_name}</p>
+          <p className="text-xs text-muted-foreground">Removed from team</p>
+        </div>
+        {figure}
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </Link>
     </li>
   );
 }
