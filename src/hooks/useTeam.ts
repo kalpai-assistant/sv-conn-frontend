@@ -94,12 +94,21 @@ export const SELF_PRO_QUERY_KEY = [...TEAM_QUERY_KEY, "self-pro"] as const;
 const SELF_PRO_POLL_MS = 30_000;
 export const TEAM_INVITES_QUERY_KEY = ["provider-team-invites"] as const;
 
-/** Active Pros, the SP's own row first. */
-export function useTeam(enabled = true) {
+/**
+ * Active Pros, the SP's own row first. `pollWhileSelfOff` (My Team): while the
+ * SP has switched off taking jobs, poll with `useSelfPro`, so a Pro's dot turns
+ * green when the "nobody available" banner clears, not on the next visit.
+ */
+export function useTeam(enabled = true, { pollWhileSelfOff = false } = {}) {
   return useQuery({
     queryKey: TEAM_QUERY_KEY,
     queryFn: () => apiFetch<TeamMember[]>("/providers/me/team"),
     enabled,
+    refetchInterval: (query) =>
+      pollWhileSelfOff && query.state.data?.find((m) => m.is_self)?.accepts_direct_jobs === false
+        ? SELF_PRO_POLL_MS
+        : false,
+    refetchIntervalInBackground: false,
   });
 }
 

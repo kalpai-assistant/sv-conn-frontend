@@ -61,7 +61,7 @@ const KYC_LABEL: Record<KycStatus, string> = {
 // invite more. Reached from Profile only. Almost every SP works alone and never
 // invites anyone, so this stays off Home on purpose.
 function MyTeamPage() {
-  const team = useTeam();
+  const team = useTeam(true, { pollWhileSelfOff: true });
   const invites = useTeamInvites();
   const [removing, setRemoving] = useState<TeamMember | null>(null);
   const [revoking, setRevoking] = useState<TeamInvite | null>(null);
