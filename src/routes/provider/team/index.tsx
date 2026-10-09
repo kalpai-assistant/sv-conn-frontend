@@ -206,12 +206,19 @@ function MyTeamPage() {
         <section className="mt-6">
           <h2 className="text-sm font-semibold text-muted-foreground">Team · {team.data.length}</h2>
           <ul className="mt-2 space-y-2">
-            {self && <MemberRow member={self} figure={figureFor(self.id)} />}
+            {self && (
+              <MemberRow
+                member={self}
+                figure={figureFor(self.id)}
+                periodLabel={RANGE_META[range].tab}
+              />
+            )}
             {others.map((member) => (
               <MemberRow
                 key={member.id}
                 member={member}
                 figure={figureFor(member.id)}
+                periodLabel={RANGE_META[range].tab}
                 onRemove={() => setRemoving(member)}
               />
             ))}
@@ -335,17 +342,21 @@ function MyTeamPage() {
 }
 
 /**
- * With a `figure`, the row opens that member's earnings. The link and Remove
- * are siblings, not nested: a button inside an anchor is invalid, and a
- * Remove tap must never navigate.
+ * With a `figure`, the card grows a strip underneath — the window's figure —
+ * that opens the member's earnings. A strip rather than a column: on a phone,
+ * name, KYC, figure and Remove on one line truncate the name and wrap the
+ * badge (seen on device). It also keeps Remove away from the link: siblings,
+ * never nested, so a Remove tap can't navigate.
  */
 function MemberRow({
   member,
   figure,
+  periodLabel,
   onRemove,
 }: {
   member: TeamMember;
   figure?: ReactNode;
+  periodLabel?: string;
   onRemove?: () => void;
 }) {
   const body = (
@@ -380,32 +391,34 @@ function MemberRow({
   );
 
   return (
-    <li className="flex items-center gap-1 rounded-xl border border-border p-3">
-      {figure !== undefined ? (
+    <li className="overflow-hidden rounded-xl border border-border">
+      <div className="flex items-center gap-3 p-3">
+        {body}
+        {/* The SP's own row can't be removed: going off-tools is SVC-326. */}
+        {onRemove && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-primary hover:text-primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+          >
+            Remove
+          </Button>
+        )}
+      </div>
+      {figure !== undefined && (
         <Link
           to="/provider/team/$professionalId/earnings"
           params={{ professionalId: member.id }}
-          className="flex min-w-0 flex-1 items-center gap-3"
+          className="flex items-center gap-3 border-t border-border px-3 py-2.5"
         >
-          {body}
+          <span className="flex-1 text-sm text-muted-foreground">{periodLabel}</span>
           {figure}
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         </Link>
-      ) : (
-        <div className="flex min-w-0 flex-1 items-center gap-3">{body}</div>
-      )}
-      {/* The SP's own row can't be removed: going off-tools is SVC-326. */}
-      {onRemove && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-        >
-          Remove
-        </Button>
       )}
     </li>
   );

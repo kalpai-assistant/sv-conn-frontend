@@ -42,7 +42,10 @@ export function RangeTabs<R extends ByProRange>({
           // provider operates, and a near-white pill on a near-white ground
           // does not read as "pressed" at arm's length in daylight — which is
           // where a provider actually uses it.
-          className={`flex-1 rounded-lg px-2 py-2 text-sm font-medium transition-colors ${
+          className={`flex-1 whitespace-nowrap rounded-lg py-2 font-medium transition-colors ${
+            // Four tabs (My Team adds "All time") don't fit a phone at text-sm.
+            ranges.length > 3 ? "px-1 text-[13px]" : "px-2 text-sm"
+          } ${
             r === value
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
