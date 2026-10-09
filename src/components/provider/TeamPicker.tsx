@@ -17,6 +17,11 @@
  * their own KYC is verified (409 PRO_KYC_INCOMPLETE). If that side fetch fails,
  * rows show no state rather than all reading offline or unverified: /assign is
  * the real gate, and a failed extra request must never stop the SP picking.
+ *
+ * SVC-326: an SP who has switched off taking jobs themselves still sees their
+ * own row, disabled, so the list says why "(You)" can't be picked. The row's
+ * `accepts_direct_jobs` says so up front; a SELF_NOT_TAKING_JOBS 409 covers a
+ * list that went stale while open.
  */
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
@@ -36,13 +41,15 @@ import {
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-type Availability = "available" | "busy" | "offline" | "kyc" | "unknown";
+type Availability = "available" | "busy" | "offline" | "kyc" | "self-off" | "unknown";
+type Learned = "busy" | "offline" | "kyc" | "self-off";
 
 const LABEL: Record<Exclude<Availability, "unknown">, string> = {
   available: "Available",
   busy: "On a job",
   offline: "Offline",
   kyc: "KYC pending",
+  "self-off": "You're not taking jobs yourself",
 };
 
 const DOT: Record<Exclude<Availability, "unknown">, string> = {
@@ -50,6 +57,7 @@ const DOT: Record<Exclude<Availability, "unknown">, string> = {
   busy: "bg-amber-500",
   offline: "bg-muted-foreground/40",
   kyc: "bg-muted-foreground/40",
+  "self-off": "bg-muted-foreground/40",
 };
 
 interface TeamPickerProps {
@@ -82,11 +90,13 @@ export function TeamPicker({
   const [pros, setPros] = useState(initialPros);
   // Learned from a 409 since the list loaded. Overrides what the 202 and the
   // team fetch said, which are both snapshots.
-  const [learned, setLearned] = useState<Record<string, "busy" | "offline" | "kyc">>({});
+  const [learned, setLearned] = useState<Record<string, Learned>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const availability = (pro: TeamPickPro): Availability => {
     if (learned[pro.id]) return learned[pro.id];
+    // `=== false`: an older backend doesn't send the field, and absent is "on".
+    if (pro.is_self && pro.accepts_direct_jobs === false) return "self-off";
     if (pro.busy) return "busy";
     // The SP's own toggle and KYC cover the Pro-for-self, and both are good:
     // they were just offered this job.
@@ -136,6 +146,7 @@ export function TeamPicker({
           if (code === "PRO_BUSY") setLearned((l) => ({ ...l, [pro.id]: "busy" }));
           if (code === "PRO_OFFLINE") setLearned((l) => ({ ...l, [pro.id]: "offline" }));
           if (code === "PRO_KYC_INCOMPLETE") setLearned((l) => ({ ...l, [pro.id]: "kyc" }));
+          if (code === "SELF_NOT_TAKING_JOBS") setLearned((l) => ({ ...l, [pro.id]: "self-off" }));
           // Removed from the team while the picker was open.
           if (code === "PRO_NOT_FOUND") setPros((list) => list.filter((p) => p.id !== pro.id));
         },

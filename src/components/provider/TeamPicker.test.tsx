@@ -37,6 +37,7 @@ const pro = (id: string, over: Record<string, unknown> = {}) => ({
   profile_photo_url: null,
   is_self: false,
   busy: false,
+  accepts_direct_jobs: true,
   ...over,
 });
 const member = (id: string, is_online: boolean, kyc_status = "verified") => ({
@@ -55,9 +56,9 @@ const PROS = [
 const onDismiss = vi.fn();
 const onBack = vi.fn();
 
-function renderPicker() {
+function renderPicker(pros = PROS) {
   render(
-    <TeamPicker bookingId="b1" pros={PROS} expired={false} onBack={onBack} onDismiss={onDismiss} />,
+    <TeamPicker bookingId="b1" pros={pros} expired={false} onBack={onBack} onDismiss={onDismiss} />,
   );
 }
 
@@ -215,5 +216,25 @@ describe("re-pick mode (SVC-324)", () => {
     expect(toast.success).toHaveBeenCalledWith("Asha is doing this job");
     expect(onDismiss).toHaveBeenCalledWith("accepted");
     expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("an SP who doesn't take jobs themselves (SVC-326)", () => {
+  it("disables their own row from the list's flag, and says why", () => {
+    renderPicker([pro("Me", { is_self: true, accepts_direct_jobs: false }), pro("Asha")]);
+    expect(row("Me")).toBeDisabled();
+    expect(row("Me")).toHaveTextContent("You're not taking jobs yourself");
+    expect(row("Asha")).toBeEnabled();
+  });
+
+  it("marks their own row on SELF_NOT_TAKING_JOBS from a stale list, picker still open", () => {
+    assignFails(new ApiError(409, "x", undefined, "SELF_NOT_TAKING_JOBS"));
+    renderPicker();
+    pickAndAssign("Me");
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/not taking jobs yourself/));
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(row("Me")).toBeDisabled();
+    expect(row("Me")).toHaveTextContent("You're not taking jobs yourself");
+    expect(row("Asha")).toBeEnabled();
   });
 });

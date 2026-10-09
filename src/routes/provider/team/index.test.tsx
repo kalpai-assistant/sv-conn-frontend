@@ -4,6 +4,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { toast } from "sonner";
+import { ApiError } from "@/lib/api";
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (opts: unknown) => opts,
@@ -16,6 +18,8 @@ const team = vi.fn();
 const invites = vi.fn();
 const removeMutate = vi.fn();
 const revokeMutate = vi.fn();
+const selfPro = vi.fn();
+const setSelfProMutate = vi.fn();
 vi.mock("@/hooks/useTeam", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/hooks/useTeam")>();
   return {
@@ -24,6 +28,8 @@ vi.mock("@/hooks/useTeam", async (importOriginal) => {
     useTeamInvites: () => invites(),
     useRemoveMember: () => ({ mutate: removeMutate, isPending: false }),
     useRevokeInvite: () => ({ mutate: revokeMutate, isPending: false }),
+    useSelfPro: (enabled: boolean) => selfPro(enabled),
+    useSetSelfPro: () => ({ mutate: setSelfProMutate, isPending: false }),
   };
 });
 
@@ -46,6 +52,7 @@ const member = (id: string, over: Record<string, unknown> = {}) => ({
   is_online: false,
   is_active: true,
   is_self: false,
+  accepts_direct_jobs: true,
   ...over,
 });
 const SELF = member("Priya", { is_self: true, is_online: true });
@@ -93,7 +100,10 @@ function setup(
   render(<Page />);
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  selfPro.mockReturnValue({ data: undefined });
+});
 
 describe("0 members", () => {
   it("shows the invite CTA, not a one-row list", () => {
@@ -252,5 +262,127 @@ describe("earnings", () => {
     );
     fireEvent.click(screen.getByRole("tab", { name: "This month" }));
     expect(screen.queryByText("₹1,250")).toBeNull();
+  });
+});
+
+/**
+ * SVC-326: "I take jobs myself". Only a team SP can switch it off (the backend
+ * refuses a solo SP), switching off asks first, and while off the SP is warned
+ * when nobody on the team could take a job.
+ */
+describe("I take jobs myself", () => {
+  const OFF = member("Priya", { is_self: true, is_online: true, accepts_direct_jobs: false });
+  const toggle = () => screen.getByRole("switch", { name: /i take jobs myself/i });
+
+  it("is hidden from a solo SP", () => {
+    setup([SELF]);
+    expect(screen.queryByRole("switch")).toBeNull();
+    setup([SELF], [invite("1")]);
+    expect(screen.queryByRole("switch")).toBeNull();
+  });
+
+  it("is on for a team SP, and never calls itself online/offline", () => {
+    setup([SELF, member("Asha")]);
+    expect(toggle()).toBeChecked();
+    expect(toggle().closest("label")).not.toHaveTextContent(/online|offline/i);
+  });
+
+  it("switches off only after confirming", () => {
+    setup([SELF, member("Asha")]);
+    fireEvent.click(toggle());
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog).toHaveTextContent(
+      "New jobs go to your team. You can still accept and assign them.",
+    );
+    expect(setSelfProMutate).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: /^switch off$/i }));
+    expect(setSelfProMutate).toHaveBeenCalledWith(false, expect.anything());
+  });
+
+  it("keeps taking jobs when the confirm is cancelled", () => {
+    setup([SELF, member("Asha")]);
+    fireEvent.click(toggle());
+    fireEvent.click(screen.getByRole("button", { name: /keep taking jobs/i }));
+    expect(setSelfProMutate).not.toHaveBeenCalled();
+  });
+
+  it("switches back on without asking", () => {
+    setup([OFF, member("Asha")]);
+    expect(toggle()).not.toBeChecked();
+    fireEvent.click(toggle());
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(setSelfProMutate).toHaveBeenCalledWith(true, expect.anything());
+  });
+
+  it("explains NO_TEAM_TO_DISPATCH in a toast", () => {
+    setSelfProMutate.mockImplementationOnce((_on, opts) =>
+      opts.onError(new ApiError(409, "x", undefined, "NO_TEAM_TO_DISPATCH")),
+    );
+    setup([SELF, member("Asha")]);
+    fireEvent.click(toggle());
+    fireEvent.click(screen.getByRole("button", { name: /^switch off$/i }));
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/add someone to your team/i));
+  });
+
+  it("stays visible while off, so the SP can always switch back on", () => {
+    setup([OFF]);
+    expect(toggle()).not.toBeChecked();
+  });
+
+  describe("the no-one-available banner", () => {
+    const banner = () => screen.queryByText(/nobody on your team is available right now/i);
+
+    it("shows while off and nobody on the team is assignable", () => {
+      selfPro.mockReturnValue({
+        data: { accepts_direct_jobs: false, team_has_assignable_pro: false },
+      });
+      setup([OFF, member("Asha")]);
+      expect(banner()).toHaveTextContent(
+        "Nobody on your team is available right now, so you won’t get new jobs.",
+      );
+    });
+
+    it("hides when someone on the team is assignable", () => {
+      selfPro.mockReturnValue({
+        data: { accepts_direct_jobs: false, team_has_assignable_pro: true },
+      });
+      setup([OFF, member("Asha")]);
+      expect(banner()).toBeNull();
+    });
+
+    it("isn't fetched, or shown, while the SP takes jobs", () => {
+      selfPro.mockReturnValue({
+        data: { accepts_direct_jobs: true, team_has_assignable_pro: false },
+      });
+      setup([SELF, member("Asha")]);
+      expect(selfPro).toHaveBeenLastCalledWith(false);
+      expect(banner()).toBeNull();
+    });
+
+    it("is asked for only while off", () => {
+      setup([OFF, member("Asha")]);
+      expect(selfPro).toHaveBeenLastCalledWith(true);
+    });
+  });
+
+  it("says so when removing the last member switched the SP back on", () => {
+    removeMutate.mockImplementationOnce((_id, opts) => opts.onSuccess({ self_reenabled: true }));
+    setup([OFF, member("Asha")]);
+    fireEvent.click(screen.getByRole("button", { name: /^remove$/i }));
+    fireEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", { name: /^remove$/i }),
+    );
+    expect(toast).toHaveBeenCalledWith("You're taking jobs yourself again");
+  });
+
+  it("says nothing extra on an ordinary removal", () => {
+    removeMutate.mockImplementationOnce((_id, opts) => opts.onSuccess({ self_reenabled: false }));
+    setup([SELF, member("Asha"), member("Ravi")]);
+    fireEvent.click(screen.getAllByRole("button", { name: /^remove$/i })[0]);
+    fireEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", { name: /^remove$/i }),
+    );
+    expect(toast.success).toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
   });
 });

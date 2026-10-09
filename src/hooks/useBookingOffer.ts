@@ -230,6 +230,18 @@ export function useDeclineOffer() {
   });
 }
 
+/**
+ * What the card says when accept fails for real. SELF_NOT_TAKING_JOBS (SVC-326)
+ * is a plain accept by an SP who has switched off taking jobs themselves. Rare:
+ * the card always sends `X-Team-Pick`, so a team SP gets the picker instead.
+ */
+export function acceptErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.code === "SELF_NOT_TAKING_JOBS") {
+    return "You've switched off taking jobs yourself. Switch it back on in My Team to take this one.";
+  }
+  return error instanceof Error ? error.message : "Could not accept this job.";
+}
+
 export type AcceptResult =
   | { outcome: Extract<DismissReason, "accepted" | "taken" | "unavailable"> }
   // SVC-321: a team SP's accept claims nothing yet. Show the picker; the claim

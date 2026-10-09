@@ -13,6 +13,8 @@ describe("assignOutcomeForError", () => {
     [409, "PRO_KYC_INCOMPLETE", "repick"],
     // The Pro was removed while the picker was open; the booking is still live.
     [404, "PRO_NOT_FOUND", "repick"],
+    // SVC-326: the SP picked themselves after switching off taking jobs.
+    [409, "SELF_NOT_TAKING_JOBS", "repick"],
     [410, undefined, "taken"],
     [403, undefined, "unavailable"],
     // BookingNotFound carries no code.
@@ -37,6 +39,16 @@ describe("teamErrorMessage", () => {
     expect(
       teamErrorMessage(new ApiError(403, "x", undefined, "INVITER_PAYOUT_KYC_INCOMPLETE")),
     ).toMatch(/KYC/);
+  });
+
+  it("explains the SVC-326 refusals", () => {
+    expect(teamErrorMessage(new ApiError(409, "x", undefined, "SELF_NOT_TAKING_JOBS"))).toMatch(
+      /not taking jobs yourself/,
+    );
+    // Switching off as a solo SP.
+    expect(teamErrorMessage(new ApiError(409, "x", undefined, "NO_TEAM_TO_DISPATCH"))).toMatch(
+      /add someone to your team/i,
+    );
   });
 
   it("explains the invite rate limit", () => {

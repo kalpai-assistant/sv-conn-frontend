@@ -51,6 +51,8 @@ export function AssignedPro({ booking }: { booking: Booking }) {
       profile_photo_url: member.profile_photo_url,
       is_self: member.is_self,
       busy: false,
+      // SVC-326: an SP who has switched off taking jobs sees "(You)" disabled.
+      accepts_direct_jobs: member.accepts_direct_jobs,
     }));
 
   const handleDismiss = (reason: DismissReason) => {
