@@ -31,13 +31,14 @@ vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn() }) }
 
 import { AssignedPro } from "@/components/provider/AssignedPro";
 
-const member = (id: string, is_self = false) => ({
+const member = (id: string, is_self = false, accepts_direct_jobs = true) => ({
   id,
   display_name: id,
   profile_photo_url: null,
   is_self,
   is_online: true,
   kyc_status: "verified",
+  accepts_direct_jobs,
 });
 const SOLO = [member("Tush", true)];
 const TEAM = [member("Tush", true), member("Rohan"), member("Asha")];
@@ -73,6 +74,15 @@ describe("with a Pro on the job", () => {
 
     const pros = pickerProps.current!.pros as Array<{ id: string }>;
     expect(pros.map((p) => p.id)).toEqual(["Tush", "Asha"]);
+  });
+
+  it("passes a switched-off SP's own flag to the picker (SVC-326)", () => {
+    teamQuery.mockReturnValue({ data: [member("Tush", true, false), member("Rohan")] });
+    render(<AssignedPro booking={booking({ professional: null })} />);
+    fireEvent.click(screen.getByRole("button", { name: /assign someone/i }));
+
+    const pros = pickerProps.current!.pros as Array<{ id: string; accepts_direct_jobs: boolean }>;
+    expect(pros.find((p) => p.id === "Tush")?.accepts_direct_jobs).toBe(false);
   });
 
   it("can't change once someone has set off", () => {

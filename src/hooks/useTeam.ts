@@ -26,6 +26,11 @@ export interface TeamMember {
   is_online: boolean;
   is_active: boolean;
   is_self: boolean;
+  /**
+   * SVC-326. Only ever false on the SP's own row: the SP has switched off taking
+   * jobs themselves. Set with `PATCH /providers/me/self-pro`.
+   */
+  accepts_direct_jobs: boolean;
   created_at: string;
 }
 
@@ -50,6 +55,11 @@ export interface TeamPickPro {
   is_self: boolean;
   /** Already on another unfinished job; /assign would answer 409 PRO_BUSY. */
   busy: boolean;
+  /**
+   * SVC-326: false only for the Pro-for-self of an SP who has switched off
+   * taking jobs themselves; /assign would answer 409 SELF_NOT_TAKING_JOBS.
+   */
+  accepts_direct_jobs: boolean;
 }
 
 /** The 202 body from `PATCH /bookings/{id}/accept` with `X-Team-Pick: 1`. */
@@ -58,15 +68,77 @@ export interface TeamPickResponse {
   pros: TeamPickPro[];
 }
 
+/** `GET` / `PATCH /providers/me/self-pro` (SVC-326). */
+export interface SelfPro {
+  professional_id: string;
+  accepts_direct_jobs: boolean;
+  /**
+   * Whether anyone on the team (not the SP) could be assigned a job right now:
+   * active, KYC-verified, online and not on another job. The broadcast's own
+   * rule, so false means a switched-off SP gets no new jobs.
+   */
+  team_has_assignable_pro: boolean;
+}
+
+/** `DELETE /providers/me/team/{id}` (SVC-326; a bodiless 204 before it). */
+export interface RemoveProResponse {
+  /** The last other Pro is gone, so the SP takes jobs themselves again. */
+  self_reenabled: boolean;
+}
+
 export const TEAM_QUERY_KEY = ["provider-team"] as const;
+// Under the team key, so every team invalidation (a removal, a 409 from
+// /assign) refreshes it too.
+export const SELF_PRO_QUERY_KEY = [...TEAM_QUERY_KEY, "self-pro"] as const;
+/** Team Pros go online and finish jobs on their own, and nothing pushes that here. */
+const SELF_PRO_POLL_MS = 30_000;
 export const TEAM_INVITES_QUERY_KEY = ["provider-team-invites"] as const;
 
-/** Active Pros, the SP's own row first. */
-export function useTeam(enabled = true) {
+/**
+ * Active Pros, the SP's own row first. `pollWhileSelfOff` (My Team): while the
+ * SP has switched off taking jobs, poll with `useSelfPro`, so a Pro's dot turns
+ * green when the "nobody available" banner clears, not on the next visit.
+ */
+export function useTeam(enabled = true, { pollWhileSelfOff = false } = {}) {
   return useQuery({
     queryKey: TEAM_QUERY_KEY,
     queryFn: () => apiFetch<TeamMember[]>("/providers/me/team"),
     enabled,
+    refetchInterval: (query) =>
+      pollWhileSelfOff && query.state.data?.find((m) => m.is_self)?.accepts_direct_jobs === false
+        ? SELF_PRO_POLL_MS
+        : false,
+    refetchIntervalInBackground: false,
+  });
+}
+
+/**
+ * Whether the SP takes jobs themselves, and whether their team could take one
+ * now. Only worth asking while switched off: that's when the answer means "you
+ * won't get new jobs", so that's also the only time it polls.
+ */
+export function useSelfPro(enabled: boolean) {
+  return useQuery({
+    queryKey: SELF_PRO_QUERY_KEY,
+    queryFn: () => apiFetch<SelfPro>("/providers/me/self-pro"),
+    enabled,
+    refetchInterval: enabled ? SELF_PRO_POLL_MS : false,
+    refetchIntervalInBackground: false,
+  });
+}
+
+/** Switch taking jobs yourself on or off. New dispatch only; held jobs stay. */
+export function useSetSelfPro() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (acceptsDirectJobs: boolean) =>
+      apiFetch<SelfPro>("/providers/me/self-pro", {
+        method: "PATCH",
+        body: JSON.stringify({ accepts_direct_jobs: acceptsDirectJobs }),
+      }),
+    onSuccess: (data) => queryClient.setQueryData(SELF_PRO_QUERY_KEY, data),
+    // The self row on /me/team carries the same flag.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: TEAM_QUERY_KEY }),
   });
 }
 
@@ -101,12 +173,15 @@ export function useRevokeInvite() {
   });
 }
 
-/** Soft removal: the Pro loses access, the row stays for past jobs and reviews. */
+/**
+ * Soft removal: the Pro loses access, the row stays for past jobs and reviews.
+ * Removing the last other Pro switches a switched-off SP back on (SVC-326).
+ */
 export function useRemoveMember() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (proId: string) =>
-      apiFetch<void>(`/providers/me/team/${proId}`, { method: "DELETE" }),
+      apiFetch<RemoveProResponse>(`/providers/me/team/${proId}`, { method: "DELETE" }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: TEAM_QUERY_KEY }),
   });
 }
@@ -139,14 +214,21 @@ export function useAssignPro() {
 }
 
 /** Pro-level refusals: the booking is still live, only this pick failed. */
-const REPICK_CODES = new Set(["PRO_BUSY", "PRO_OFFLINE", "PRO_KYC_INCOMPLETE", "PRO_NOT_FOUND"]);
+const REPICK_CODES = new Set([
+  "PRO_BUSY",
+  "PRO_OFFLINE",
+  "PRO_KYC_INCOMPLETE",
+  "PRO_NOT_FOUND",
+  "SELF_NOT_TAKING_JOBS",
+]);
 
 /**
  * What a failed `/assign` means for the open picker. Branches on the CODE
  * first, because the status alone mixes booking-level and Pro-level answers:
  *
- * - `repick` — PRO_BUSY / PRO_OFFLINE / PRO_KYC_INCOMPLETE (409) or
- *   PRO_NOT_FOUND (404, the Pro was removed while the picker was open).
+ * - `repick` — PRO_BUSY / PRO_OFFLINE / PRO_KYC_INCOMPLETE /
+ *   SELF_NOT_TAKING_JOBS (409) or PRO_NOT_FOUND (404, the Pro was removed while
+ *   the picker was open).
  *   Toast, refresh, keep picking.
  * - `taken` — 410: claimed by another SP, cancelled or expired. Quiet dismiss.
  * - `unavailable` — 403, a code-less 404 (no such booking) or a code-less 409
@@ -189,6 +271,10 @@ export function teamErrorMessage(error: unknown): string {
       return "This invite is no longer pending.";
     case "CANNOT_REMOVE_SELF":
       return "You can't remove yourself from your own team.";
+    case "SELF_NOT_TAKING_JOBS":
+      return "You're not taking jobs yourself. Pick someone on your team.";
+    case "NO_TEAM_TO_DISPATCH":
+      return "Add someone to your team before you stop taking jobs yourself.";
   }
   if (error.status === 429) return "Too many invites in the last hour. Try again later.";
   return error.message;

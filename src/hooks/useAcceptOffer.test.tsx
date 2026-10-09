@@ -7,7 +7,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useAcceptOffer } from "@/hooks/useBookingOffer";
+import { acceptErrorMessage, useAcceptOffer } from "@/hooks/useBookingOffer";
+import { ApiError } from "@/lib/api";
 
 function respond(status: number, body: unknown) {
   const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
@@ -29,7 +30,14 @@ function accept() {
 afterEach(() => vi.unstubAllGlobals());
 
 const PROS = [
-  { id: "p1", display_name: "Asha", profile_photo_url: null, is_self: true, busy: false },
+  {
+    id: "p1",
+    display_name: "Asha",
+    profile_photo_url: null,
+    is_self: true,
+    busy: false,
+    accepts_direct_jobs: true,
+  },
 ];
 
 describe("useAcceptOffer", () => {
@@ -58,5 +66,21 @@ describe("useAcceptOffer", () => {
     respond(410, { message: "This booking is no longer available" });
     const result = accept();
     await waitFor(() => expect(result.current.data).toEqual({ outcome: "taken" }));
+  });
+
+  it("409 SELF_NOT_TAKING_JOBS is a real error the card explains (SVC-326)", async () => {
+    respond(409, { message: "server copy", code: "SELF_NOT_TAKING_JOBS" });
+    const result = accept();
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(acceptErrorMessage(result.current.error)).toMatch(/switch it back on in my team/i);
+  });
+});
+
+describe("acceptErrorMessage", () => {
+  it("keeps the server message for anything else", () => {
+    expect(acceptErrorMessage(new ApiError(409, "Booking is en route"))).toBe(
+      "Booking is en route",
+    );
+    expect(acceptErrorMessage("??")).toBe("Could not accept this job.");
   });
 });

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { ChevronRight, UserPlus, Users } from "lucide-react";
+import { AlertTriangle, ChevronRight, UserPlus, Users } from "lucide-react";
 
 import { BackButton } from "@/components/BackButton";
 import { RangeTabs } from "@/components/provider/EarningsWindow";
@@ -21,11 +21,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import type { KycStatus } from "@/hooks/useApi";
 import {
   teamErrorMessage,
   useRemoveMember,
   useRevokeInvite,
+  useSelfPro,
+  useSetSelfPro,
   useTeam,
   useTeamInvites,
   type TeamInvite,
@@ -58,12 +61,14 @@ const KYC_LABEL: Record<KycStatus, string> = {
 // invite more. Reached from Profile only. Almost every SP works alone and never
 // invites anyone, so this stays off Home on purpose.
 function MyTeamPage() {
-  const team = useTeam();
+  const team = useTeam(true, { pollWhileSelfOff: true });
   const invites = useTeamInvites();
   const [removing, setRemoving] = useState<TeamMember | null>(null);
   const [revoking, setRevoking] = useState<TeamInvite | null>(null);
   const removeMember = useRemoveMember();
   const revokeInvite = useRevokeInvite();
+  const [confirmingOff, setConfirmingOff] = useState(false);
+  const setSelfPro = useSetSelfPro();
 
   // SVC-323: what each member earned. One by-pro call for the whole list, never
   // one per Pro, and none on GET /me/team (the pick-a-Pro step's). `all` names
@@ -96,13 +101,33 @@ function MyTeamPage() {
   const self = team.data?.find((m) => m.is_self);
   const pending = invites.data?.filter((i) => i.status === "PENDING") ?? [];
   const isLoading = team.isLoading || invites.isLoading;
-  const isEmpty = !isLoading && others.length === 0 && pending.length === 0;
+  // SVC-326. A solo SP never sees the switch: switching off with nobody to send
+  // would leave them getting no jobs at all, and the backend refuses it
+  // (NO_TEAM_TO_DISPATCH). An SP already switched off always sees it, so they
+  // can switch back on whatever the list says; for that, "empty" needs them on.
+  const takesJobs = self?.accepts_direct_jobs !== false;
+  const isEmpty = !isLoading && others.length === 0 && pending.length === 0 && takesJobs;
+  const showSelfSwitch = Boolean(self) && (others.length > 0 || !takesJobs);
+  // Whether the team can cover for them only matters while they're off.
+  const selfPro = useSelfPro(!takesJobs);
+  const nobodyAvailable = !takesJobs && selfPro.data?.team_has_assignable_pro === false;
+
+  const changeTakesJobs = (on: boolean) => {
+    setSelfPro.mutate(on, {
+      onError: (error) => toast.error(teamErrorMessage(error)),
+      onSettled: () => setConfirmingOff(false),
+    });
+  };
 
   const confirmRemove = () => {
     if (!removing) return;
     const member = removing;
     removeMember.mutate(member.id, {
-      onSuccess: () => toast.success(`${member.display_name} removed from your team`),
+      onSuccess: (result) => {
+        toast.success(`${member.display_name} removed from your team`);
+        // The last other Pro went, so the backend switched the SP back on.
+        if (result?.self_reenabled) toast("You're taking jobs yourself again");
+      },
       onError: (error) => toast.error(teamErrorMessage(error)),
       onSettled: () => setRemoving(null),
     });
@@ -145,6 +170,16 @@ function MyTeamPage() {
           >
             Retry
           </Button>
+        </div>
+      )}
+
+      {nobodyAvailable && (
+        <div
+          role="status"
+          className="mt-4 flex gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-foreground"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+          <span>Nobody on your team is available right now, so you won&rsquo;t get new jobs.</span>
         </div>
       )}
 
@@ -211,6 +246,15 @@ function MyTeamPage() {
                 member={self}
                 figure={figureFor(self.id)}
                 periodLabel={RANGE_META[range].tab}
+                selfSwitch={
+                  showSelfSwitch && (
+                    <TakesJobsSwitch
+                      on={takesJobs}
+                      disabled={setSelfPro.isPending}
+                      onChange={(on) => (on ? changeTakesJobs(true) : setConfirmingOff(true))}
+                    />
+                  )
+                }
               />
             )}
             {others.map((member) => (
@@ -312,6 +356,32 @@ function MyTeamPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog
+        open={confirmingOff}
+        onOpenChange={(open) => !open && !setSelfPro.isPending && setConfirmingOff(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop taking jobs yourself?</AlertDialogTitle>
+            <AlertDialogDescription>
+              New jobs go to your team. You can still accept and assign them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={setSelfPro.isPending}>Keep taking jobs</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                changeTakesJobs(false);
+              }}
+              disabled={setSelfPro.isPending}
+            >
+              {setSelfPro.isPending ? "Switching off…" : "Switch off"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={revoking !== null} onOpenChange={(open) => !open && setRevoking(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -352,11 +422,14 @@ function MemberRow({
   figure,
   periodLabel,
   onRemove,
+  selfSwitch,
 }: {
   member: TeamMember;
   figure?: ReactNode;
   periodLabel?: string;
   onRemove?: () => void;
+  /** The SP's own row only (SVC-326). */
+  selfSwitch?: ReactNode;
 }) {
   const body = (
     <>
@@ -393,7 +466,7 @@ function MemberRow({
     <li className="overflow-hidden rounded-xl border border-border">
       <div className="flex items-center gap-3 p-3">
         {body}
-        {/* The SP's own row can't be removed: going off-tools is SVC-326. */}
+        {/* The SP's own row can't be removed: its switch below takes it off jobs. */}
         {onRemove && (
           <Button
             variant="ghost"
@@ -408,6 +481,7 @@ function MemberRow({
           </Button>
         )}
       </div>
+      {selfSwitch}
       {figure !== undefined && (
         <Link
           to="/provider/team/$professionalId/earnings"
@@ -420,6 +494,32 @@ function MemberRow({
         </Link>
       )}
     </li>
+  );
+}
+
+/**
+ * "I take jobs myself" (SVC-326). Never "online": that is the separate switch
+ * that stops the SP getting jobs for the team too.
+ */
+function TakesJobsSwitch({
+  on,
+  disabled,
+  onChange,
+}: {
+  on: boolean;
+  disabled: boolean;
+  onChange: (on: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-3 border-t border-border px-3 py-2.5">
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-foreground">I take jobs myself</span>
+        {!on && (
+          <span className="block text-xs text-muted-foreground">New jobs go to your team</span>
+        )}
+      </span>
+      <Switch checked={on} disabled={disabled} onCheckedChange={onChange} />
+    </label>
   );
 }
 

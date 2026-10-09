@@ -18,6 +18,7 @@ import { TeamPicker } from "@/components/provider/TeamPicker";
 import type { TeamPickPro } from "@/hooks/useTeam";
 import { formatRupees } from "@/lib/currency";
 import {
+  acceptErrorMessage,
   dismissReasonForOfferError,
   readSecondsRemaining,
   useAcceptOffer,
@@ -113,8 +114,7 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
         if (result.outcome === "pick") setPickPros(result.pros);
         else onDismiss(result.outcome);
       },
-      onError: (err) =>
-        setAcceptError(err instanceof Error ? err.message : "Could not accept this job."),
+      onError: (err) => setAcceptError(acceptErrorMessage(err)),
     });
   };
 
