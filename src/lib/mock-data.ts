@@ -166,6 +166,10 @@ export interface Booking {
   // a team Pro declined and the SP has to pick someone else. `undefined` means
   // a backend that doesn't send the field yet. Never treat the two alike.
   professional?: BookingProfessional | null;
+  // The business behind the job (SVC-324): set from the booking's SP, not
+  // from the Pro, so it stays put while a team SP re-picks after a decline.
+  // Same `undefined` (older backend) vs `null` (no SP yet) split as above.
+  serviceProvider?: BookingServiceProvider | null;
 }
 
 export interface BookingProfessional {
@@ -174,6 +178,13 @@ export interface BookingProfessional {
   photoUrl: string | null;
   /** The SP's own Pro-for-self: the provider is doing it themselves. */
   isSelf: boolean;
+}
+
+export interface BookingServiceProvider {
+  userId: string;
+  /** Null until the SP names their business; most solo SPs never do. */
+  businessName: string | null;
+  businessImageUrl: string | null;
 }
 
 // Nothing imports this as a value — every consumer of this module uses

@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { BookingCardSkeleton } from "@/components/skeletons/BookingCardSkeleton";
 import { useBookings } from "@/hooks/useApi";
 import { AccountAvatar } from "@/components/AccountAvatar";
+import { WhoIsComingLine } from "@/components/booking/WhoIsComing";
 import { useAuth } from "@/lib/auth-context";
 import { CalendarClock, History } from "lucide-react";
 import { formatRupees } from "@/lib/currency";
@@ -129,9 +130,7 @@ function BookingsPage() {
                     and break the skeleton's height match. */}
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-foreground">{b.service.name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {b.service.provider?.name || "Finding nearby partner..."}
-                  </p>
+                  <WhoIsComingLine booking={b} />
                 </div>
                 <span
                   className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusColor(b.status)}`}
