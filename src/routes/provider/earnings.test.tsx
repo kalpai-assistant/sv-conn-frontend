@@ -313,7 +313,7 @@ describe("per-Pro earnings", () => {
     render(<Page />);
 
     expect(screen.queryByText(/by you/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/by team member/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /by team member/i })).not.toBeInTheDocument();
   });
 
   it("stays solo-shaped while the split is loading or failed", () => {
@@ -325,7 +325,7 @@ describe("per-Pro earnings", () => {
 
     useEarningsByPro.mockReturnValue({ data: undefined, isLoading: false, isError: true });
     render(<Page />);
-    expect(screen.queryByText(/by team member/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /by team member/i })).not.toBeInTheDocument();
   });
 
   it("names who did each job, 'you' for the SP's own", () => {
@@ -335,24 +335,56 @@ describe("per-Pro earnings", () => {
 
     expect(screen.getByText(/by ravi/i)).toBeInTheDocument();
     expect(screen.getByText(/by you/i)).toBeInTheDocument();
-    // The breakdown has its own "Not assigned" row; the job row says it too.
-    expect(screen.getAllByText(/not assigned/i).length).toBeGreaterThanOrEqual(2);
+    // A job nobody was on. The split's own row stays hidden while it's closed.
+    expect(screen.getByText("Not assigned")).toBeInTheDocument();
   });
 
-  it("splits the window by Pro, including removed Pros and Not assigned", () => {
+  const openSplit = () => {
+    fireEvent.click(screen.getByRole("button", { name: /by team member/i }));
+    return screen.getByRole("button", { name: /by team member/i }).closest("div")!;
+  };
+
+  it("starts closed: one row saying how many people it covers", () => {
     useEarnings.mockReturnValue(windowLoaded(3480, teamJobs));
     useEarningsByPro.mockReturnValue(byProLoaded("week", TEAM));
     render(<Page />);
 
-    const split = screen.getByRole("region", { name: /by team member/i });
+    const trigger = screen.getByRole("button", { name: /by team member/i });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    // Not assigned isn't a person.
+    expect(trigger).toHaveTextContent("4 people");
+    expect(screen.queryByText("₹2,000")).not.toBeInTheDocument();
+  });
+
+  it("opens on tap and lists everyone, removed Pros and Not assigned included", () => {
+    useEarnings.mockReturnValue(windowLoaded(3480, teamJobs));
+    useEarningsByPro.mockReturnValue(byProLoaded("week", TEAM));
+    render(<Page />);
+
+    const split = openSplit();
+    expect(screen.getByRole("button", { name: /by team member/i })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
     expect(split).toHaveTextContent("You");
     expect(split).toHaveTextContent("₹2,000");
     expect(split).toHaveTextContent(/past member/i);
     expect(split).toHaveTextContent("Not assigned");
-    expect(split).toHaveTextContent("₹200");
     // Zero is "No jobs yet", never ₹0.
     expect(split).toHaveTextContent(/no jobs yet/i);
     expect(split).not.toHaveTextContent("₹0");
+    // The sum, stated: 1,000 + 2,000 + 280 + 0 + 200.
+    expect(split).toHaveTextContent(/adds up to ₹3,480 this week/i);
+  });
+
+  it("closes again on a second tap", () => {
+    useEarnings.mockReturnValue(windowLoaded(3480, teamJobs));
+    useEarningsByPro.mockReturnValue(byProLoaded("week", TEAM));
+    render(<Page />);
+
+    openSplit();
+    fireEvent.click(screen.getByRole("button", { name: /by team member/i }));
+    expect(screen.queryByText("₹2,000")).not.toBeInTheDocument();
   });
 
   it("asks for the split of the window on screen", () => {
@@ -371,7 +403,7 @@ describe("per-Pro earnings", () => {
     render(<Page />);
 
     fireEvent.click(screen.getByRole("tab", { name: "This month" }));
-    expect(screen.queryByText(/by team member/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /by team member/i })).not.toBeInTheDocument();
   });
 
   it("opens a Pro from the split, but not the Not assigned row", () => {
@@ -379,10 +411,10 @@ describe("per-Pro earnings", () => {
     useEarningsByPro.mockReturnValue(byProLoaded("week", TEAM));
     render(<Page />);
 
-    const split = screen.getByRole("region", { name: /by team member/i });
+    const split = openSplit();
     // The Link stub here renders a bare <a>, so count anchors, not link roles.
     expect(split.querySelectorAll("a")).toHaveLength(4);
-    expect(within(split).getByText("Not assigned").closest("a")).toBeNull();
+    expect(within(split).getAllByText("Not assigned")[0].closest("a")).toBeNull();
   });
 
   it("puts the split after the job list, so it never shifts the rows", () => {
@@ -391,7 +423,24 @@ describe("per-Pro earnings", () => {
     render(<Page />);
 
     const row = screen.getByText(/by ravi/i);
-    const split = screen.getByRole("region", { name: /by team member/i });
+    const split = screen.getByRole("button", { name: /by team member/i });
     expect(row.compareDocumentPosition(split) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("puts 'by …' beside the payment badge, not after the date", () => {
+    useEarnings.mockReturnValue(
+      windowLoaded(3480, [
+        job({
+          payment_method: "cash",
+          professional: { id: "p-ravi", display_name: "Ravi", is_self: false },
+        }),
+      ]),
+    );
+    useEarningsByPro.mockReturnValue(byProLoaded("week", TEAM));
+    render(<Page />);
+
+    const by = screen.getByText("by Ravi");
+    expect(by.parentElement).toHaveTextContent(/collected in cash/i);
+    expect(screen.getByText(/14 sept/i)).not.toHaveTextContent(/ravi/i);
   });
 });

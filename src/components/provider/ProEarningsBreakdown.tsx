@@ -10,7 +10,10 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatRupees } from "@/lib/currency";
+import { RANGE_META } from "@/lib/earnings-ranges";
+import { cn } from "@/lib/utils";
 import { proName, type EarningsByProResponse, type ProEarningsItem } from "@/hooks/useProEarnings";
 
 /** The Pro's figure, or "No jobs yet" — never "₹0", which reads as unpaid work. */
@@ -30,26 +33,61 @@ export function ProFigure({ item }: { item: ProEarningsItem | undefined }) {
   );
 }
 
-export function ProEarningsBreakdown({ data }: { data: EarningsByProResponse }) {
+/**
+ * Closed by default: it sits under the job list, and a team SP opens it when
+ * settling up rather than on every visit. Open state is the page's, so it
+ * survives switching windows. Opening it grows the card downward only, so
+ * nothing the SP was reading moves.
+ */
+export function ProEarningsBreakdown({
+  data,
+  open,
+  onOpenChange,
+}: {
+  data: EarningsByProResponse;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const people = data.pros.filter((p) => p.professional_id !== null).length;
+
   return (
-    <section className="mt-4" aria-label="By team member">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        By team member
-      </h2>
-      <ul className="mt-2 overflow-hidden rounded-xl border border-border bg-card">
-        {data.pros.map((item, i) => (
-          <li
-            key={item.professional_id ?? "unassigned"}
-            className={i > 0 ? "border-t border-border" : ""}
-          >
-            <BreakdownRow item={item} />
-          </li>
-        ))}
-      </ul>
-    </section>
+    <Collapsible
+      open={open}
+      onOpenChange={onOpenChange}
+      className="mt-3 overflow-hidden rounded-xl border border-border bg-card"
+    >
+      <CollapsibleTrigger className="flex w-full items-center gap-3 p-3.5 text-left">
+        <span className="flex-1 text-sm font-semibold text-foreground">By team member</span>
+        <span className="text-xs text-muted-foreground">
+          {people} {people === 1 ? "person" : "people"}
+        </span>
+        <ChevronRight
+          aria-hidden
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-90",
+          )}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <ul className="border-t border-border">
+          {data.pros.map((item, i) => (
+            <li
+              key={item.professional_id ?? "unassigned"}
+              className={i > 0 ? "border-t border-border" : ""}
+            >
+              <BreakdownRow item={item} />
+            </li>
+          ))}
+        </ul>
+        {/* The sum, said out loud: the reason "Not assigned" is a row at all. */}
+        <p className="border-t border-border px-3.5 py-2.5 text-xs text-muted-foreground">
+          Adds up to {formatRupees(data.total_payout)} {RANGE_META[data.range].tab.toLowerCase()}
+        </p>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
-
 function BreakdownRow({ item }: { item: ProEarningsItem }) {
   const body = (
     <>

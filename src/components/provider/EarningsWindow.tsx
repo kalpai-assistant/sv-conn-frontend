@@ -174,17 +174,27 @@ function EarningRow({
         <p className="truncate text-sm font-medium text-foreground">{job.service_name}</p>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
           {formatCompletedAt(job.completed_at)}
-          {showPro && <> &middot; {proLabel(job.professional)}</>}
         </p>
-        {/* Where this job's money is (SVC-303). Absent on bookings from before
-            these columns existed — an unlabelled row beats a guessed label on a
-            screen about money. */}
-        {state && (
-          <span
-            className={`mt-1.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${state.className}`}
-          >
-            {state.label}
-          </span>
+        {(state || showPro) && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {/* Where this job's money is (SVC-303). Absent on bookings from
+                before these columns existed — an unlabelled row beats a
+                guessed label on a screen about money. */}
+            {state && (
+              <span
+                className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${state.className}`}
+              >
+                {state.label}
+              </span>
+            )}
+            {/* Who did it (SVC-323), beside where the money is: the two facts
+                a team SP settles a job on. */}
+            {showPro && (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                {proLabel(job.professional)}
+              </span>
+            )}
+          </div>
         )}
       </div>
       <div className="shrink-0 text-right">

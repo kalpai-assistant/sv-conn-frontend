@@ -61,6 +61,7 @@ function ProviderEarningsPage() {
   // team-shaped flashes up for the 99% who never invite anyone.
   const byPro = useEarningsByPro(range);
   const team = hasTeam(byPro.data);
+  const [splitOpen, setSplitOpen] = useState(false);
 
   return (
     <div className="min-h-screen p-6 pb-24">
@@ -126,7 +127,7 @@ function ProviderEarningsPage() {
           its own request, and appearing above the list would shove the rows the
           provider is reading out from under them. */}
       {team && byPro.data && byPro.data.range === range && (
-        <ProEarningsBreakdown data={byPro.data} />
+        <ProEarningsBreakdown data={byPro.data} open={splitOpen} onOpenChange={setSplitOpen} />
       )}
     </div>
   );
