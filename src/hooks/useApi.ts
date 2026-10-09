@@ -200,6 +200,30 @@ export const mapProfessional = (b: object): UI_Booking["professional"] => {
   };
 };
 
+/**
+ * `service_provider` (SVC-324), the same way: absent → `undefined`, null →
+ * `null`. Read from the booking's SP, so it can be set while `professional`
+ * is null (a team SP re-picking after a decline).
+ */
+export const mapServiceProvider = (b: object): UI_Booking["serviceProvider"] => {
+  if (!("service_provider" in b)) return undefined;
+  const sp = (
+    b as {
+      service_provider: {
+        user_id: string;
+        business_name: string | null;
+        business_image_url: string | null;
+      } | null;
+    }
+  ).service_provider;
+  if (!sp) return null;
+  return {
+    userId: sp.user_id,
+    businessName: sp.business_name,
+    businessImageUrl: sp.business_image_url,
+  };
+};
+
 export const mapBooking = (
   b: API_BookingResponse & {
     // The generated OpenAPI type may not yet include these fields — cast
@@ -317,12 +341,18 @@ export const mapBooking = (
     })),
     otp: b.doorstep_otp || undefined,
     professional: mapProfessional(b),
+    serviceProvider: mapServiceProvider(b),
+    // Who is coming is `professional` + `serviceProvider` (SVC-325); nothing
+    // reads `provider.name` any more, so it carries no invented name. The
+    // object survives only for the tracking call button, which still dials
+    // this placeholder number by Tushar's call (SVC-325): BookingResponse has
+    // no phone by design, and a real contact path is a follow-up.
     service: b.provider_id
       ? {
           ...primaryService,
           provider: {
             id: b.provider_id,
-            name: "Assigned Partner",
+            name: "",
             phone: "+910000000000",
             rating: 5,
             reviewCount: 0,

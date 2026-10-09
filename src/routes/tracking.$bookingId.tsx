@@ -6,6 +6,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { ReviewSheet } from "@/components/ReviewSheet";
 import { TrackingMap } from "@/components/tracking/TrackingMap";
 import { TipSection } from "@/components/tracking/TipSection";
+import { WhoIsComingCard } from "@/components/booking/WhoIsComing";
 import {
   useBooking,
   useCancelBooking,
@@ -280,39 +281,30 @@ function TrackingPage() {
           </div>
         )}
 
-        {/* Provider card. Header now renders the full cart summary
-            ("Deep Clean + 2 more") rather than just the first service
-            name — matches PR #77's push-body summariser and keeps the
-            provider row honest about what they're doing. */}
-        {!isSearching && booking.service.provider && (
-          <div className="rounded-xl border border-border bg-card p-4 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-sm font-bold text-accent-foreground">
-                {booking.service.provider.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .substring(0, 2)}
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">
-                  {booking.service.provider.name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {summariseServices(booking.items, booking.service.name)}
-                </p>
-              </div>
-              {booking.service.provider.phone && (
+        {/* Who is coming (SVC-325): the Pro, and their business when it
+            isn't just them. The summary line renders the full cart
+            ("Deep Clean + 2 more"), matching PR #77's push-body summariser.
+            REQUESTED keeps the searching block above.
+
+            The call button still dials the mapper's placeholder number —
+            Tushar's call on SVC-325: BookingResponse has no phone by design,
+            and a real contact path is a follow-up. */}
+        {!isSearching && (
+          <WhoIsComingCard
+            booking={booking}
+            summary={summariseServices(booking.items, booking.service.name)}
+            action={
+              booking.service.provider?.phone && (
                 <a
                   href={`tel:${booking.service.provider.phone}`}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success/10"
                   aria-label="Call provider"
                 >
                   <Phone className="h-4 w-4 text-success" />
                 </a>
-              )}
-            </div>
-          </div>
+              )
+            }
+          />
         )}
 
         {/* Map — real OSM tiles centred on the customer address.
