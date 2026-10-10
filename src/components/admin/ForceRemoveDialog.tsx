@@ -4,7 +4,6 @@
  * their history; the row is marked removed. Reason required, and audited.
  */
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { Loader2, UserMinus } from "lucide-react";
 import {
   AlertDialog,
@@ -17,9 +16,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { ActiveJobLink } from "@/components/admin/ActiveJobLink";
 import { Textarea } from "@/components/ui/textarea";
 import { useAdminForceRemovePro, type API_AdminTeamPro } from "@/hooks/useApi";
-import { REASON_MAX, forceRemoveErrorCopy, isActiveJobError, reasonError } from "@/lib/admin-team";
+import { REASON_MAX, forceRemoveErrorCopy, activeJobLink, reasonError } from "@/lib/admin-team";
 
 export function ForceRemoveDialog({
   pro,
@@ -30,7 +30,10 @@ export function ForceRemoveDialog({
   onClose: () => void;
 }) {
   const [reason, setReason] = useState("");
-  const [error, setError] = useState<{ copy: string; activeJob: boolean } | null>(null);
+  const [error, setError] = useState<{
+    copy: string;
+    activeJob: { bookingId: string | null } | null;
+  } | null>(null);
   const [done, setDone] = useState<{ selfReenabled: boolean } | null>(null);
   const remove = useAdminForceRemovePro();
   const busy = remove.isPending;
@@ -47,7 +50,7 @@ export function ForceRemoveDialog({
     if (!pro) return;
     const invalid = reasonError(reason);
     if (invalid) {
-      setError({ copy: invalid, activeJob: false });
+      setError({ copy: invalid, activeJob: null });
       return;
     }
     setError(null);
@@ -56,7 +59,7 @@ export function ForceRemoveDialog({
       {
         onSuccess: (res) => setDone({ selfReenabled: res.self_reenabled }),
         onError: (err) =>
-          setError({ copy: forceRemoveErrorCopy(err), activeJob: isActiveJobError(err) }),
+          setError({ copy: forceRemoveErrorCopy(err), activeJob: activeJobLink(err) }),
       },
     );
   };
@@ -115,11 +118,7 @@ export function ForceRemoveDialog({
                 className="space-y-2 rounded-lg border border-destructive bg-destructive/5 p-3 text-sm text-destructive"
               >
                 <p>{error.copy}</p>
-                {error.activeJob && (
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/admin/bookings">Open Bookings</Link>
-                  </Button>
-                )}
+                {error.activeJob && <ActiveJobLink bookingId={error.activeJob.bookingId} />}
               </div>
             )}
 

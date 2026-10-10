@@ -35,6 +35,7 @@ vi.mock("@tanstack/react-router", async () => {
     Link: ({
       to,
       params,
+      search,
       children,
       onClick,
       className,
@@ -42,13 +43,17 @@ vi.mock("@tanstack/react-router", async () => {
     }: {
       to: string;
       params?: Record<string, string>;
+      search?: Record<string, string>;
       children: React.ReactNode;
       onClick?: () => void;
       className?: string;
       "aria-current"?: "page";
     }) => (
       <a
-        href={params ? to.replace("$spUserId", params.spUserId) : to}
+        href={
+          (params ? to.replace("$spUserId", params.spUserId) : to) +
+          (search ? `?${new URLSearchParams(search).toString()}` : "")
+        }
         onClick={onClick}
         className={className}
         aria-current={ariaCurrent}
@@ -152,7 +157,22 @@ describe("ForceRemoveDialog", () => {
     );
   });
 
-  it("maps an active job to copy plus a Bookings link", async () => {
+  it("maps an active job to copy plus a link to that booking", async () => {
+    apiFetch.mockRejectedValue(
+      new ApiError(409, "raw", undefined, "PRO_HAS_ACTIVE_JOB", { booking_ids: ["bk-1", "bk-2"] }),
+    );
+    open();
+    await userEvent.type(screen.getByLabelText(/reason/i), "Left the business");
+    await userEvent.click(confirm());
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Has an active job. Resolve it first (cancel or re-pick).");
+    expect(within(alert).getByRole("link", { name: "Open the booking" })).toHaveAttribute(
+      "href",
+      "/admin/bookings?booking=bk-1",
+    );
+  });
+
+  it("falls back to the Bookings list when no booking ids came back", async () => {
     apiFetch.mockRejectedValue(new ApiError(409, "raw", undefined, "PRO_HAS_ACTIVE_JOB"));
     open();
     await userEvent.type(screen.getByLabelText(/reason/i), "Left the business");
@@ -263,11 +283,18 @@ describe("ReassignDialog", () => {
     );
   });
 
-  it("maps an active job with the Bookings link", async () => {
-    await submitTo(() => Promise.reject(new ApiError(409, "raw", undefined, "PRO_HAS_ACTIVE_JOB")));
+  it("maps an active job with a link to that booking", async () => {
+    await submitTo(() =>
+      Promise.reject(
+        new ApiError(409, "raw", undefined, "PRO_HAS_ACTIVE_JOB", { booking_ids: ["bk-9"] }),
+      ),
+    );
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(/Has an active job/);
-    expect(within(alert).getByRole("link", { name: "Open Bookings" })).toBeInTheDocument();
+    expect(within(alert).getByRole("link", { name: "Open the booking" })).toHaveAttribute(
+      "href",
+      "/admin/bookings?booking=bk-9",
+    );
   });
 
   it("on a new row, says they start KYC pending", async () => {

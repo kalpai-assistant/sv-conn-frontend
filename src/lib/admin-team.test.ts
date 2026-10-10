@@ -9,7 +9,7 @@ import {
   ACTIVE_JOB_COPY,
   describeAction,
   forceRemoveErrorCopy,
-  isActiveJobError,
+  activeJobLink,
   reasonError,
   reassignErrorCopy,
   reassignTargetBlock,
@@ -38,9 +38,23 @@ describe("forceRemoveErrorCopy", () => {
     expect(forceRemoveErrorCopy(apiErr(500))).toBe("server text");
   });
 
-  it("flags only the active-job refusal for the Bookings link", () => {
-    expect(isActiveJobError(apiErr(409, "PRO_HAS_ACTIVE_JOB"))).toBe(true);
-    expect(isActiveJobError(apiErr(409, "ALREADY_ON_TEAM"))).toBe(false);
+  it("links an active-job refusal to the first blocking booking (#203)", () => {
+    const err = new ApiError(409, "raw", undefined, "PRO_HAS_ACTIVE_JOB", {
+      booking_ids: ["b-1", "b-2"],
+    });
+    expect(activeJobLink(err)).toEqual({ bookingId: "b-1" });
+  });
+
+  it("falls back to the bookings list when no ids came back", () => {
+    expect(activeJobLink(apiErr(409, "PRO_HAS_ACTIVE_JOB"))).toEqual({ bookingId: null });
+    expect(
+      activeJobLink(new ApiError(409, "raw", undefined, "PRO_HAS_ACTIVE_JOB", { booking_ids: [] })),
+    ).toEqual({ bookingId: null });
+  });
+
+  it("offers no booking link for any other refusal", () => {
+    expect(activeJobLink(apiErr(409, "ALREADY_ON_TEAM"))).toBeNull();
+    expect(activeJobLink(new Error("network"))).toBeNull();
   });
 });
 

@@ -42,6 +42,23 @@ describe("apiFetch", () => {
     expect(error).toMatchObject({ status: 409, message: "Asha is offline.", code: "PRO_OFFLINE" });
   });
 
+  it("carries the body's details when the backend sends them (SVC-329)", async () => {
+    respond(409, {
+      message: "Asha is on a job.",
+      code: "PRO_HAS_ACTIVE_JOB",
+      details: { booking_ids: ["b1"] },
+    });
+    const error = await apiFetch("/x").catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: "PRO_HAS_ACTIVE_JOB", details: { booking_ids: ["b1"] } });
+  });
+
+  it("leaves details undefined when absent or not an object", async () => {
+    respond(409, { message: "Nope.", code: "X" });
+    expect(await apiFetch("/x").catch((e: ApiError) => e.details)).toBeUndefined();
+    respond(409, { message: "Nope.", details: ["not", "an", "object"] });
+    expect(await apiFetch("/x").catch((e: ApiError) => e.details)).toBeUndefined();
+  });
+
   it("passes caller headers through", async () => {
     const fetchMock = respond(200, {});
     await apiFetch("/x", { method: "PATCH", headers: { "X-Team-Pick": "1" } });

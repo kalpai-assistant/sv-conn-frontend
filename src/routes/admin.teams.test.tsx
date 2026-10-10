@@ -14,6 +14,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/lib/api";
 import type {
   API_AdminActionRow,
   API_AdminInviteRow,
@@ -190,8 +191,20 @@ const ACTIONS: API_AdminActionRow[] = [
   },
 ];
 
-function stubOwner(team: API_AdminTeamPro[] = TEAM) {
+const OWNER_ROW = owner(1, {
+  name: "Tush",
+  business_name: "Tush Home Care",
+  kyc_status: "verified",
+  is_online: true,
+  active_pro_count: 1,
+});
+
+function stubOwner(
+  team: API_AdminTeamPro[] = TEAM,
+  ownerRow: () => Promise<unknown> = () => Promise.resolve(OWNER_ROW),
+) {
   apiFetch.mockImplementation((path: string) => {
+    if (path === "/admin/providers/sp-1") return ownerRow();
     if (path === "/admin/providers/sp-1/team") return Promise.resolve(team);
     if (path === "/admin/providers/sp-1/invites") return Promise.resolve(INVITES);
     if (path.startsWith("/admin/actions?sp_user_id=sp-1")) return Promise.resolve(ACTIONS);
@@ -216,8 +229,38 @@ describe("/admin/teams/$spUserId", () => {
     expect(within(self).getByText("Owner")).toBeInTheDocument();
     expect(within(self).getByText("No")).toBeInTheDocument();
     expect(within(self).queryByRole("button")).toBeNull();
-    // Header falls back to the Pro-for-self row when there's no cached search.
+  });
+
+  it("builds the header from the owner endpoint: business, KYC, online", async () => {
+    stubOwner();
+    wrap(<OwnerPage />);
+    const heading = await screen.findByRole("heading", { level: 1, name: "Tush · Tush Home Care" });
+    const header = heading.closest("header")!;
+    expect(within(header).getByText("KYC verified")).toBeInTheDocument();
+    expect(within(header).getByText("Online")).toBeInTheDocument();
+    expect(within(header).queryByText("Deactivated")).toBeNull();
+  });
+
+  it("marks a deactivated owner in the header", async () => {
+    stubOwner(TEAM, () => Promise.resolve({ ...OWNER_ROW, user_is_active: false }));
+    wrap(<OwnerPage />);
+    const heading = await screen.findByRole("heading", { level: 1, name: "Tush · Tush Home Care" });
+    expect(within(heading.closest("header")!).getByText("Deactivated")).toBeInTheDocument();
+  });
+
+  it("falls back to the owner's own row when the owner endpoint fails", async () => {
+    stubOwner(TEAM, () => Promise.reject(new ApiError(500, "boom")));
+    wrap(<OwnerPage />);
+    await screen.findByTestId("member-pro-self");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Owner Self");
+  });
+
+  it("says so for an id that isn't an owner", async () => {
+    apiFetch.mockImplementation(() =>
+      Promise.reject(new ApiError(404, "Service provider not found.", undefined, "SP_NOT_FOUND")),
+    );
+    wrap(<OwnerPage />);
+    expect(await screen.findByText("No service provider with this id.")).toBeInTheDocument();
   });
 
   it("offers both actions on an active member, with online and job count", async () => {

@@ -68,8 +68,18 @@ export const forceRemoveErrorCopy = (err: unknown) =>
 export const reassignErrorCopy = (err: unknown) =>
   mapError(err, REASSIGN_ERRORS, "Couldn't move this member.");
 
-export const isActiveJobError = (err: unknown) =>
-  err instanceof ApiError && err.code === "PRO_HAS_ACTIVE_JOB";
+/**
+ * For a PRO_HAS_ACTIVE_JOB refusal, the job to link to: `{ bookingId }` with
+ * the first of `details.booking_ids` (#203), or `bookingId: null` when the
+ * backend sent none, so the dialog falls back to the bookings list. Null for
+ * any other error.
+ */
+export function activeJobLink(err: unknown): { bookingId: string | null } | null {
+  if (!(err instanceof ApiError) || err.code !== "PRO_HAS_ACTIVE_JOB") return null;
+  const ids = err.details?.booking_ids;
+  const first = Array.isArray(ids) ? ids.find((id) => typeof id === "string") : undefined;
+  return { bookingId: (first as string | undefined) ?? null };
+}
 
 /**
  * Why an owner can't be picked as the reassign target, or null if they can.

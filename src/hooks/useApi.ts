@@ -1311,6 +1311,14 @@ export const useAdminProviderSearch = (q: string) => {
   });
 };
 
+/** GET /admin/providers/{id} (#203): one owner, the same row search returns.
+ *  404 `SP_NOT_FOUND` for an unknown id or a user who isn't an owner. */
+export const useAdminProvider = (spUserId: string) =>
+  useQuery({
+    queryKey: ["admin", "teams", "provider", spUserId],
+    queryFn: () => apiFetch<API_AdminProviderRow>(`/admin/providers/${spUserId}`),
+  });
+
 export const useAdminProviderTeam = (spUserId: string) =>
   useQuery({
     queryKey: ["admin", "teams", "team", spUserId],

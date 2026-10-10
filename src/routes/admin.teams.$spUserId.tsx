@@ -7,14 +7,13 @@
  * active member except the owner's own row can be force-removed or
  * reassigned.
  *
- * There's no owner-detail endpoint, so the header comes from the owner's row
- * in an earlier search (the react-query cache), else their own Pro-for-self
- * row, else just the id.
+ * The header is GET /admin/providers/{id} (#203): business name, KYC, online
+ * and account status. While that loads or if it fails, the owner's own
+ * Pro-for-self row stands in for the name and phone.
  *
  * Auth: gated by admin role via the AppGate in __root.tsx.
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useState } from "react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ArrowLeft, ArrowRightLeft, History, Loader2, Mail, UserMinus, Users } from "lucide-react";
@@ -26,6 +25,7 @@ import { ForceRemoveDialog } from "@/components/admin/ForceRemoveDialog";
 import { ReassignDialog } from "@/components/admin/ReassignDialog";
 import {
   useAdminOwnerActions,
+  useAdminProvider,
   useAdminProviderInvites,
   useAdminProviderTeam,
   type API_AdminInviteRow,
@@ -42,28 +42,17 @@ export const Route = createFileRoute("/admin/teams/$spUserId")({
 const ago = (iso: string) => formatDistanceToNowStrict(new Date(iso), { addSuffix: true });
 const when = (iso: string) => `${new Date(iso).toLocaleString()} (${ago(iso)})`;
 
-/** The owner's row from any search already in the cache, if there is one. */
-function useCachedOwner(spUserId: string): API_AdminProviderRow | null {
-  const qc = useQueryClient();
-  const cached = qc.getQueriesData<InfiniteData<API_AdminProviderRow[]>>({
-    queryKey: ["admin", "teams", "providers"],
-  });
-  for (const [, data] of cached) {
-    const hit = data?.pages.flat().find((r) => r.user_id === spUserId);
-    if (hit) return hit;
-  }
-  return null;
-}
-
 function AdminOwnerPage() {
   const { spUserId } = Route.useParams();
   const team = useAdminProviderTeam(spUserId);
-  const cachedOwner = useCachedOwner(spUserId);
+  const owner = useAdminProvider(spUserId);
   const [removing, setRemoving] = useState<API_AdminTeamPro | null>(null);
   const [moving, setMoving] = useState<API_AdminTeamPro | null>(null);
 
   const selfRow = team.data?.find((p) => p.is_self) ?? null;
-  const notFound = team.error instanceof ApiError && team.error.code === "SP_NOT_FOUND";
+  const notFound = [owner.error, team.error].some(
+    (e) => e instanceof ApiError && e.code === "SP_NOT_FOUND",
+  );
 
   return (
     <div className="mx-auto max-w-6xl p-6">
@@ -74,7 +63,7 @@ function AdminOwnerPage() {
         </Link>
       </Button>
 
-      <OwnerHeader spUserId={spUserId} owner={cachedOwner} selfRow={selfRow} />
+      <OwnerHeader spUserId={spUserId} owner={owner.data ?? null} selfRow={selfRow} />
 
       {notFound ? (
         <p className="rounded-lg border border-border bg-secondary/30 p-6 text-center text-sm">
@@ -113,6 +102,11 @@ function OwnerHeader({
         <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           {phone && <span className="tabular-nums">{phone}</span>}
           {owner && <KycBadge status={owner.kyc_status} />}
+          {owner && (
+            <Badge variant={owner.is_online ? "default" : "outline"}>
+              {owner.is_online ? "Online" : "Offline"}
+            </Badge>
+          )}
           {owner && !owner.user_is_active && <Badge variant="destructive">Deactivated</Badge>}
           <span className="font-mono text-xs">{spUserId}</span>
         </div>
