@@ -20,8 +20,13 @@ export function AdminMenu() {
               key={item.to}
               asChild
               size="sm"
-              variant={active ? "secondary" : "ghost"}
-              className={active ? "font-semibold" : undefined}
+              // Same selected look as My Bookings' Active / Past tabs.
+              variant={active ? "default" : "ghost"}
+              className={
+                active
+                  ? "bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+                  : "text-muted-foreground hover:text-foreground"
+              }
             >
               <Link to={item.to} aria-current={active ? "page" : undefined}>
                 {item.label}

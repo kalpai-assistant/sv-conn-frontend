@@ -130,6 +130,9 @@ describe("AdminMenu", () => {
     pathname = "/admin/teams/sp-1";
     render(<AdminMenu />);
     expect(screen.getByRole("link", { name: "Teams" })).toHaveAttribute("aria-current", "page");
+    // Filled blue like My Bookings' selected tab; the others stay plain.
+    expect(screen.getByRole("link", { name: "Teams" })).toHaveClass("bg-primary");
+    expect(screen.getByRole("link", { name: "KYC" })).not.toHaveClass("bg-primary");
   });
 });
 
