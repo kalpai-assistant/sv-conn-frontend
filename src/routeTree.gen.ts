@@ -38,6 +38,8 @@ import { Route as ProviderPayoutsRouteImport } from './routes/provider/payouts'
 import { Route as ProviderProfileRouteImport } from './routes/provider/profile'
 import { Route as ServiceServiceIdRouteImport } from './routes/service.$serviceId'
 import { Route as TrackingBookingIdRouteImport } from './routes/tracking.$bookingId'
+import { Route as AdminTeamsIndexRouteImport } from './routes/admin.teams.index'
+import { Route as AdminTeamsSpUserIdRouteImport } from './routes/admin.teams.$spUserId'
 import { Route as ProJobsIndexRouteImport } from './routes/pro/jobs/index'
 import { Route as ProJobsBookingIdRouteImport } from './routes/pro/jobs/$bookingId'
 import { Route as ProviderBookingsIndexRouteImport } from './routes/provider/bookings/index'
@@ -191,6 +193,16 @@ const TrackingBookingIdRoute = TrackingBookingIdRouteImport.update({
   path: '/tracking/$bookingId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminTeamsIndexRoute = AdminTeamsIndexRouteImport.update({
+  id: '/admin/teams/',
+  path: '/admin/teams/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTeamsSpUserIdRoute = AdminTeamsSpUserIdRouteImport.update({
+  id: '/admin/teams/$spUserId',
+  path: '/admin/teams/$spUserId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProJobsIndexRoute = ProJobsIndexRouteImport.update({
   id: '/pro/jobs/',
   path: '/pro/jobs/',
@@ -259,9 +271,11 @@ export interface FileRoutesByFullPath {
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
   '/pro/': typeof ProIndexRoute
   '/provider/': typeof ProviderIndexRoute
+  '/admin/teams/$spUserId': typeof AdminTeamsSpUserIdRoute
   '/pro/jobs/$bookingId': typeof ProJobsBookingIdRoute
   '/provider/bookings/$bookingId': typeof ProviderBookingsBookingIdRoute
   '/provider/team/invite': typeof ProviderTeamInviteRoute
+  '/admin/teams/': typeof AdminTeamsIndexRoute
   '/pro/jobs/': typeof ProJobsIndexRoute
   '/provider/bookings/': typeof ProviderBookingsIndexRoute
   '/provider/team/': typeof ProviderTeamIndexRoute
@@ -297,9 +311,11 @@ export interface FileRoutesByTo {
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
   '/pro': typeof ProIndexRoute
   '/provider': typeof ProviderIndexRoute
+  '/admin/teams/$spUserId': typeof AdminTeamsSpUserIdRoute
   '/pro/jobs/$bookingId': typeof ProJobsBookingIdRoute
   '/provider/bookings/$bookingId': typeof ProviderBookingsBookingIdRoute
   '/provider/team/invite': typeof ProviderTeamInviteRoute
+  '/admin/teams': typeof AdminTeamsIndexRoute
   '/pro/jobs': typeof ProJobsIndexRoute
   '/provider/bookings': typeof ProviderBookingsIndexRoute
   '/provider/team': typeof ProviderTeamIndexRoute
@@ -336,9 +352,11 @@ export interface FileRoutesById {
   '/tracking/$bookingId': typeof TrackingBookingIdRoute
   '/pro/': typeof ProIndexRoute
   '/provider/': typeof ProviderIndexRoute
+  '/admin/teams/$spUserId': typeof AdminTeamsSpUserIdRoute
   '/pro/jobs/$bookingId': typeof ProJobsBookingIdRoute
   '/provider/bookings/$bookingId': typeof ProviderBookingsBookingIdRoute
   '/provider/team/invite': typeof ProviderTeamInviteRoute
+  '/admin/teams/': typeof AdminTeamsIndexRoute
   '/pro/jobs/': typeof ProJobsIndexRoute
   '/provider/bookings/': typeof ProviderBookingsIndexRoute
   '/provider/team/': typeof ProviderTeamIndexRoute
@@ -376,9 +394,11 @@ export interface FileRouteTypes {
     | '/tracking/$bookingId'
     | '/pro/'
     | '/provider/'
+    | '/admin/teams/$spUserId'
     | '/pro/jobs/$bookingId'
     | '/provider/bookings/$bookingId'
     | '/provider/team/invite'
+    | '/admin/teams/'
     | '/pro/jobs/'
     | '/provider/bookings/'
     | '/provider/team/'
@@ -414,9 +434,11 @@ export interface FileRouteTypes {
     | '/tracking/$bookingId'
     | '/pro'
     | '/provider'
+    | '/admin/teams/$spUserId'
     | '/pro/jobs/$bookingId'
     | '/provider/bookings/$bookingId'
     | '/provider/team/invite'
+    | '/admin/teams'
     | '/pro/jobs'
     | '/provider/bookings'
     | '/provider/team'
@@ -452,9 +474,11 @@ export interface FileRouteTypes {
     | '/tracking/$bookingId'
     | '/pro/'
     | '/provider/'
+    | '/admin/teams/$spUserId'
     | '/pro/jobs/$bookingId'
     | '/provider/bookings/$bookingId'
     | '/provider/team/invite'
+    | '/admin/teams/'
     | '/pro/jobs/'
     | '/provider/bookings/'
     | '/provider/team/'
@@ -491,9 +515,11 @@ export interface RootRouteChildren {
   TrackingBookingIdRoute: typeof TrackingBookingIdRoute
   ProIndexRoute: typeof ProIndexRoute
   ProviderIndexRoute: typeof ProviderIndexRoute
+  AdminTeamsSpUserIdRoute: typeof AdminTeamsSpUserIdRoute
   ProJobsBookingIdRoute: typeof ProJobsBookingIdRoute
   ProviderBookingsBookingIdRoute: typeof ProviderBookingsBookingIdRoute
   ProviderTeamInviteRoute: typeof ProviderTeamInviteRoute
+  AdminTeamsIndexRoute: typeof AdminTeamsIndexRoute
   ProJobsIndexRoute: typeof ProJobsIndexRoute
   ProviderBookingsIndexRoute: typeof ProviderBookingsIndexRoute
   ProviderTeamIndexRoute: typeof ProviderTeamIndexRoute
@@ -705,6 +731,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrackingBookingIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/teams/': {
+      id: '/admin/teams/'
+      path: '/admin/teams'
+      fullPath: '/admin/teams/'
+      preLoaderRoute: typeof AdminTeamsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/teams/$spUserId': {
+      id: '/admin/teams/$spUserId'
+      path: '/admin/teams/$spUserId'
+      fullPath: '/admin/teams/$spUserId'
+      preLoaderRoute: typeof AdminTeamsSpUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pro/jobs/': {
       id: '/pro/jobs/'
       path: '/pro/jobs'
@@ -787,9 +827,11 @@ const rootRouteChildren: RootRouteChildren = {
   TrackingBookingIdRoute: TrackingBookingIdRoute,
   ProIndexRoute: ProIndexRoute,
   ProviderIndexRoute: ProviderIndexRoute,
+  AdminTeamsSpUserIdRoute: AdminTeamsSpUserIdRoute,
   ProJobsBookingIdRoute: ProJobsBookingIdRoute,
   ProviderBookingsBookingIdRoute: ProviderBookingsBookingIdRoute,
   ProviderTeamInviteRoute: ProviderTeamInviteRoute,
+  AdminTeamsIndexRoute: AdminTeamsIndexRoute,
   ProJobsIndexRoute: ProJobsIndexRoute,
   ProviderBookingsIndexRoute: ProviderBookingsIndexRoute,
   ProviderTeamIndexRoute: ProviderTeamIndexRoute,

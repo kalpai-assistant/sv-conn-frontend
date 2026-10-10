@@ -1,4 +1,10 @@
-import { useQuery, useMutation, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
 import type { components } from "@/types/api";
 
@@ -1185,6 +1191,185 @@ export const useTriggerPayout = () => {
       // row and drives the 60s in-flight guard.
       qc.invalidateQueries({ queryKey: ["admin", "providers", providerId, "payouts"] });
     },
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Admin: team management (SVC-329)
+//
+// Hand-written against backend `app/schemas/admin_team.py` (#202), like the
+// blocks above — not in the frozen `svc_connect.json`. Every list endpoint
+// here is a bare array with no total, so paging asks for the next page until
+// one comes back short.
+// ---------------------------------------------------------------------------
+
+/** GET /admin/providers — one owner (a user with a provider profile). */
+export interface API_AdminProviderRow {
+  user_id: string;
+  name: string | null;
+  phone: string;
+  business_name: string | null;
+  kyc_status: KycStatus;
+  is_online: boolean;
+  user_is_active: boolean;
+  /** Active team Pros, the owner's own Pro-for-self not counted. */
+  active_pro_count: number;
+  created_at: string;
+}
+
+/** A Pro row as admin sees it. Removed rows are included (`is_active` false). */
+export interface API_AdminTeamPro {
+  id: string;
+  service_provider_id: string;
+  user_id: string;
+  display_name: string;
+  phone: string;
+  user_is_active: boolean;
+  profile_photo_url: string | null;
+  /** KYC lives on the row: per owner, never copied between owners. */
+  kyc_status: KycStatus;
+  is_online: boolean;
+  is_active: boolean;
+  /** The owner's own Pro-for-self row. Can't be force-removed or reassigned. */
+  is_self: boolean;
+  /** "Takes jobs themselves" (SVC-326); meaningful on the is_self row. */
+  accepts_direct_jobs: boolean;
+  active_job_count: number;
+  created_at: string;
+}
+
+/** An invite in the owner's history. The backend never returns the code. */
+export interface API_AdminInviteRow {
+  id: string;
+  invitee_phone: string;
+  status: string;
+  expires_at: string;
+  created_at: string;
+  accepted_at: string | null;
+  accepted_by_user_id: string | null;
+  revoked_at: string | null;
+}
+
+export type AdminActionKind = "user_deactivated" | "pro_force_removed" | "pro_reassigned";
+
+/** GET /admin/actions — one append-only audit row. */
+export interface API_AdminActionRow {
+  id: string;
+  admin_user_id: string;
+  admin_name: string | null;
+  action: AdminActionKind;
+  target_type: "user" | "professional";
+  target_id: string;
+  /** The owner a Pro was removed or moved from (or the deactivated owner). */
+  sp_user_id: string | null;
+  /** For a reassign, the owner the person moved to. */
+  to_sp_user_id: string | null;
+  reason: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface API_ForceRemoveResponse {
+  professional_id: string;
+  /** True when this removed the owner's last other Pro while they'd switched
+   *  off taking jobs themselves, so that was switched back on (SVC-326). */
+  self_reenabled: boolean;
+}
+
+export interface API_ReassignResponse {
+  old_professional_id: string;
+  /** The person's row under the new owner: reactivated (its own KYC) or new (pending). */
+  professional: API_AdminTeamPro;
+  reactivated: boolean;
+  self_reenabled: boolean;
+}
+
+export const ADMIN_TEAMS_PER_PAGE = 50;
+
+/** Next page number, or undefined once a page comes back short. */
+const nextPageWhileFull = <T>(last: T[], all: T[][]) =>
+  last.length < ADMIN_TEAMS_PER_PAGE ? undefined : all.length + 1;
+
+/**
+ * Owner search. `q` under 2 characters lists every owner (the backend
+ * rejects a 1-character `q` with a 422, so it's never sent).
+ */
+export const useAdminProviderSearch = (q: string) => {
+  const term = q.trim();
+  const sent = term.length >= 2 ? term : "";
+  return useInfiniteQuery({
+    queryKey: ["admin", "teams", "providers", sent],
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams();
+      if (sent) params.set("q", sent);
+      params.set("page", String(pageParam));
+      params.set("per_page", String(ADMIN_TEAMS_PER_PAGE));
+      return apiFetch<API_AdminProviderRow[]>(`/admin/providers?${params.toString()}`);
+    },
+    initialPageParam: 1,
+    getNextPageParam: nextPageWhileFull,
+  });
+};
+
+export const useAdminProviderTeam = (spUserId: string) =>
+  useQuery({
+    queryKey: ["admin", "teams", "team", spUserId],
+    queryFn: () => apiFetch<API_AdminTeamPro[]>(`/admin/providers/${spUserId}/team`),
+  });
+
+export const useAdminProviderInvites = (spUserId: string) =>
+  useQuery({
+    queryKey: ["admin", "teams", "invites", spUserId],
+    queryFn: () => apiFetch<API_AdminInviteRow[]>(`/admin/providers/${spUserId}/invites`),
+  });
+
+/** An owner's audit history: matches them on either side, so a reassign shows
+ *  for both the owner the person left and the one they joined. */
+export const useAdminOwnerActions = (spUserId: string) =>
+  useInfiniteQuery({
+    queryKey: ["admin", "teams", "actions", spUserId],
+    queryFn: ({ pageParam }) =>
+      apiFetch<API_AdminActionRow[]>(
+        `/admin/actions?sp_user_id=${spUserId}&page=${pageParam}&per_page=${ADMIN_TEAMS_PER_PAGE}`,
+      ),
+    initialPageParam: 1,
+    getNextPageParam: nextPageWhileFull,
+  });
+
+/**
+ * Both mutations touch more than one owner's view: a reassign changes two
+ * teams and both histories, and either can change an owner's Pro count in
+ * search. So everything under ["admin", "teams"] is refetched.
+ */
+export const useAdminForceRemovePro = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ professionalId, reason }: { professionalId: string; reason: string }) =>
+      apiFetch<API_ForceRemoveResponse>(`/admin/pros/${professionalId}/force-remove`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "teams"] }),
+  });
+};
+
+export const useAdminReassignPro = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      professionalId,
+      targetSpUserId,
+      reason,
+    }: {
+      professionalId: string;
+      targetSpUserId: string;
+      reason: string;
+    }) =>
+      apiFetch<API_ReassignResponse>(`/admin/pros/${professionalId}/reassign`, {
+        method: "POST",
+        body: JSON.stringify({ target_sp_user_id: targetSpUserId, reason }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "teams"] }),
   });
 };
 
