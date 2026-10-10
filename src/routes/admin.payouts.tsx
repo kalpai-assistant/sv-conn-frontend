@@ -20,7 +20,7 @@
  *
  * Auth: gated by admin role via the AppGate in __root.tsx.
  */
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, ChevronDown, ChevronRight, Copy, IndianRupee, Loader2 } from "lucide-react";
@@ -64,7 +64,6 @@ const displayName = (p: API_PendingSettlementProvider) => p.name ?? p.phone;
 const IN_FLIGHT_WINDOW_MS = 60_000;
 
 function AdminPayoutsPage() {
-  const navigate = useNavigate();
   const { data, isLoading, isError, error, refetch } = usePendingSettlements();
   const [target, setTarget] = useState<API_PendingSettlementProvider | null>(null);
   // Only one row expanded at a time — the history view is dense enough that
@@ -149,12 +148,6 @@ function AdminPayoutsPage() {
           ))}
         </ul>
       )}
-
-      <div className="mt-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/" })}>
-          ← Back home
-        </Button>
-      </div>
 
       <PayoutConfirmDialog target={target} onClose={() => setTarget(null)} />
     </div>

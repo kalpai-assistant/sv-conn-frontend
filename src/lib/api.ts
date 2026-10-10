@@ -23,12 +23,25 @@ export class ApiError extends Error {
    * exception didn't set one — most 4xx bodies from FastAPI validation.
    */
   code?: string;
-  constructor(status: number, message: string, retryAfter?: number, code?: string) {
+  /**
+   * SVC-329: optional structured context next to `code`, e.g. the blocking
+   * `booking_ids` on `PRO_HAS_ACTIVE_JOB` / `USER_HAS_ACTIVE_JOBS`. The
+   * backend emits it only when set; absent otherwise.
+   */
+  details?: Record<string, unknown>;
+  constructor(
+    status: number,
+    message: string,
+    retryAfter?: number,
+    code?: string,
+    details?: Record<string, unknown>,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.retryAfter = retryAfter;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -165,6 +178,7 @@ export async function apiFetchWithStatus<T = unknown>(
   if (!res.ok) {
     let errorMsg = `API error: ${res.status} ${res.statusText}`;
     let errorCode: string | undefined;
+    let errorDetails: Record<string, unknown> | undefined;
     try {
       const errorData = await res.json();
       if (errorData && errorData.message) {
@@ -197,6 +211,14 @@ export async function apiFetchWithStatus<T = unknown>(
       if (errorData && typeof errorData.code === "string") {
         errorCode = errorData.code;
       }
+      if (
+        errorData &&
+        typeof errorData.details === "object" &&
+        errorData.details !== null &&
+        !Array.isArray(errorData.details)
+      ) {
+        errorDetails = errorData.details;
+      }
     } catch {
       // Ignored if response is not JSON
     }
@@ -209,6 +231,7 @@ export async function apiFetchWithStatus<T = unknown>(
       errorMsg,
       Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter : undefined,
       errorCode,
+      errorDetails,
     );
   }
 

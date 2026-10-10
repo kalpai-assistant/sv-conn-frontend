@@ -11,6 +11,8 @@ import { useAddresses, useProviderProfile } from "@/hooks/useApi";
 import { isTeamPro, useProMe } from "@/hooks/usePro";
 import { useProHeartbeatHost } from "@/hooks/useProHeartbeat";
 import { rememberPendingInvite } from "@/lib/invite";
+import { adminGate } from "@/lib/admin";
+import { AdminMenu } from "@/components/admin/AdminMenu";
 import { consumesLanding, proGateVerdict, skipsLocationGate, type ProState } from "@/lib/pro-gate";
 import { BottomNav } from "@/components/BottomNav";
 import { CartFab } from "@/components/cart/CartFab";
@@ -73,11 +75,6 @@ function AppGate({ children }: { children: React.ReactNode }) {
   const pathname = routerState.location.pathname;
   const isProfileRoute = pathname.startsWith("/profile");
   const isAdminRoute = pathname.startsWith("/admin");
-  // SVC-345: /admin/login is the only /admin/* route reachable without auth.
-  // Kept separate from `isPublicRoute` because it is still role-aware — an
-  // already-signed-in admin arriving here hops to /admin/kyc rather than
-  // seeing a login screen they don't need.
-  const isAdminLoginRoute = pathname === "/admin/login";
   const isProviderRoute = pathname.startsWith("/provider");
   const isProviderOnboardingRoute = pathname.startsWith("/provider/onboarding");
   // The gate sends providers here for the full map + radius picker, so it must
@@ -230,14 +227,19 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // /admin/* route is redirected here (not into AuthFlow — that lands them on
   // the consumer home after signin and never on the admin surface). An
   // already-signed-in admin arriving here hops onto /admin/kyc, so a stale
-  // bookmark doesn't force a redundant login screen.
-  if (isAdminLoginRoute) {
-    if (isAuthenticated && role === "admin") {
-      return <Navigate to="/admin/kyc" replace />;
-    }
+  // bookmark doesn't force a redundant login screen. /admin/login is the only
+  // /admin/* route reachable without auth, kept apart from `isPublicRoute`
+  // because it is still role-aware. A signed-in admin anywhere outside /admin
+  // also goes to /admin/kyc, as a provider is kept under /provider. The rules
+  // live in `adminGate` (SVC-329).
+  const adminVerdict = adminGate(pathname, isAuthenticated, role);
+  if (adminVerdict === "to-kyc") {
+    return <Navigate to="/admin/kyc" replace />;
+  }
+  if (adminVerdict === "login-page") {
     return <div className="safe-top min-h-screen bg-background">{children}</div>;
   }
-  if (isAdminRoute && (!isAuthenticated || role !== "admin")) {
+  if (adminVerdict === "to-login") {
     return <Navigate to="/admin/login" replace />;
   }
 
@@ -390,8 +392,15 @@ function AppGate({ children }: { children: React.ReactNode }) {
   }
 
   // Admin pages render full-width; consumer/provider keep the max-w-md mobile shell.
+  // The admin menu sits here, once, so every admin page has it (SVC-329); the
+  // login page returns earlier and never shows it.
   if (isAdminRoute) {
-    return <div className="safe-top min-h-screen bg-background">{children}</div>;
+    return (
+      <div className="safe-top min-h-screen bg-background">
+        <AdminMenu />
+        {children}
+      </div>
+    );
   }
   return (
     <div className="safe-top mx-auto max-w-md min-h-screen bg-background pb-20">{children}</div>
