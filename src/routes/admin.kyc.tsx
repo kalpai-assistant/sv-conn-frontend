@@ -144,12 +144,6 @@ function AdminKYCReviewPage() {
         </ul>
       )}
 
-      <div className="mt-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/" })}>
-          ← Back home
-        </Button>
-      </div>
-
       <ReviewSheet
         userId={selectedUserId}
         readOnly={activeTab !== "pending"}

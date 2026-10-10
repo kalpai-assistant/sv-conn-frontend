@@ -37,10 +37,20 @@ describe("adminGate", () => {
     expect(adminGate("/admin/login", true, "admin")).toBe("to-kyc");
   });
 
-  it("has no say outside /admin", () => {
+  it("leaves everyone but an admin alone outside /admin", () => {
     expect(adminGate("/", false, null)).toBe("pass");
+    expect(adminGate("/", true, "consumer")).toBe("pass");
     expect(adminGate("/provider", true, "provider")).toBe("pass");
   });
+
+  it.each(["/", "/bookings", "/profile", "/provider", "/service/abc"])(
+    "keeps a signed-in admin on the admin surface: %s → /admin/kyc",
+    (path) => {
+      // The customer UI is no use to an admin account; this used to be where
+      // the old "← Back home" buttons dropped them.
+      expect(adminGate(path, true, "admin")).toBe("to-kyc");
+    },
+  );
 });
 
 describe("the admin menu", () => {

@@ -229,7 +229,9 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // already-signed-in admin arriving here hops onto /admin/kyc, so a stale
   // bookmark doesn't force a redundant login screen. /admin/login is the only
   // /admin/* route reachable without auth, kept apart from `isPublicRoute`
-  // because it is still role-aware. The rules live in `adminGate` (SVC-329).
+  // because it is still role-aware. A signed-in admin anywhere outside /admin
+  // also goes to /admin/kyc, as a provider is kept under /provider. The rules
+  // live in `adminGate` (SVC-329).
   const adminVerdict = adminGate(pathname, isAuthenticated, role);
   if (adminVerdict === "to-kyc") {
     return <Navigate to="/admin/kyc" replace />;

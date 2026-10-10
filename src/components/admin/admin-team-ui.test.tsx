@@ -17,7 +17,13 @@ import { ApiError } from "@/lib/api";
 import type { API_AdminProviderRow, API_AdminTeamPro } from "@/hooks/useApi";
 
 const apiFetch = vi.fn();
+const navigate = vi.fn();
+const logout = vi.fn();
 let pathname = "/admin/kyc";
+
+vi.mock("@/lib/auth-context", () => ({
+  useAuth: () => ({ logout }),
+}));
 
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
@@ -30,6 +36,7 @@ vi.mock("@tanstack/react-router", async () => {
     await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
   return {
     ...actual,
+    useNavigate: () => navigate,
     useRouterState: ({ select }: { select: (s: unknown) => unknown }) =>
       select({ location: { pathname } }),
     Link: ({
@@ -133,6 +140,17 @@ describe("AdminMenu", () => {
     // Filled blue like My Bookings' selected tab; the others stay plain.
     expect(screen.getByRole("link", { name: "Teams" })).toHaveClass("bg-primary");
     expect(screen.getByRole("link", { name: "KYC" })).not.toHaveClass("bg-primary");
+  });
+
+  it("logs out and lands on the admin login, not the customer sign-in", async () => {
+    // AppGate keeps an admin on /admin/*, so Profile's Logout is unreachable;
+    // this button is the admin's only way out.
+    pathname = "/admin/teams";
+    render(<AdminMenu />);
+    await userEvent.click(screen.getByRole("button", { name: /Log out/ }));
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledWith({ to: "/admin/login", replace: true });
+    expect(logout.mock.invocationCallOrder[0]).toBeLessThan(navigate.mock.invocationCallOrder[0]);
   });
 });
 

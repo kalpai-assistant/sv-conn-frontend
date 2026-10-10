@@ -335,12 +335,6 @@ function AdminBookingsPage() {
         )}
       </div>
 
-      <div className="mt-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/" })}>
-          ← Back home
-        </Button>
-      </div>
-
       <DetailSheet bookingId={selectedId} onClose={() => setSelectedId(null)} />
     </div>
   );

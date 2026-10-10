@@ -15,7 +15,8 @@ export const ADMIN_MENU_ITEMS = [
 export type AdminGateVerdict =
   /** /admin/login for someone who isn't a signed-in admin: show the login. */
   | "login-page"
-  /** /admin/login for a signed-in admin: skip it, go to /admin/kyc. */
+  /** A signed-in admin on /admin/login or off the admin surface entirely:
+   *  go to /admin/kyc. */
   | "to-kyc"
   /** Any other /admin/* route for anyone but a signed-in admin. */
   | "to-login"
@@ -25,6 +26,11 @@ export type AdminGateVerdict =
 /**
  * SVC-345's admin branches of AppGate. Applies to every /admin/* route by
  * prefix, so a new admin page is guarded without being listed anywhere.
+ *
+ * An admin is also kept on the admin surface (SVC-329), the way a provider is
+ * kept under /provider: anywhere else in the app is the customer UI, which an
+ * admin account has no use for. Public pages (legal, /download) never get
+ * here; AppGate returns for them first.
  */
 export function adminGate(
   pathname: string,
@@ -32,8 +38,11 @@ export function adminGate(
   role: string | null,
 ): AdminGateVerdict {
   const isAdmin = isAuthenticated && role === "admin";
+  // The same test AppGate's `isAdminRoute` uses, so the two always agree.
+  const isAdminRoute = pathname.startsWith("/admin");
   if (pathname === "/admin/login") return isAdmin ? "to-kyc" : "login-page";
-  if (pathname.startsWith("/admin") && !isAdmin) return "to-login";
+  if (isAdminRoute && !isAdmin) return "to-login";
+  if (isAdmin && !isAdminRoute) return "to-kyc";
   return "pass";
 }
 
