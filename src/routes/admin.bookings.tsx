@@ -21,7 +21,7 @@
  *
  * Auth: gated by admin role via the AppGate in __root.tsx.
  */
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -70,9 +70,11 @@ import {
   type API_AdminBookingResponse,
   type BookingStatusFilter,
 } from "@/hooks/useApi";
+import { bookingsSearchSchema } from "@/lib/admin";
 
 export const Route = createFileRoute("/admin/bookings")({
   component: AdminBookingsPage,
+  validateSearch: bookingsSearchSchema,
 });
 
 type DateRange = "today" | "7d" | "30d" | "all";
@@ -145,12 +147,16 @@ const totalCharged = (b: API_AdminBookingResponse) =>
   Math.max(0, b.service_amount - b.discount_amount + b.tip_amount);
 
 function AdminBookingsPage() {
-  const navigate = useNavigate();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const { booking: selectedId = null } = useSearch({ from: Route.fullPath });
+  // The open sheet lives in the URL. `replace` on both, so opening and
+  // closing a sheet adds no history entries — Back leaves the page, as before.
+  const setSelectedId = (id: string | null) =>
+    navigate({ search: id ? { booking: id } : {}, replace: true });
   const [status, setStatus] = useState<BookingStatusFilter>("all");
   const [disputed, setDisputed] = useState(false);
   const [range, setRange] = useState<DateRange>("7d");
   const [page, setPage] = useState(1);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   // The list is server-paginated; accumulate pages client-side for "Load more".
   // Keyed on the filter tuple so a filter change resets the accumulation.
   const [accumulated, setAccumulated] = useState<{
