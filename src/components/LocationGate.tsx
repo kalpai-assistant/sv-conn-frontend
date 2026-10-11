@@ -52,7 +52,7 @@
  * permanently. Any change that can hide it is the bug.
  */
 import { useEffect, useState } from "react";
-import { Check, Home, Loader2, MapPin, Navigation } from "lucide-react";
+import { Check, Home, Loader2, MapPin, Navigation, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InUseBadge } from "@/components/InUseBadge";
 import {
@@ -130,6 +130,25 @@ export interface LocationGateProps {
   onSeeAll?: () => void;
   /** True while a choice is being saved, so the screen can show progress. */
   isSaving?: boolean;
+  /**
+   * Replace the gate's contents with an offline message + Retry button
+   * (SVC-351). True only when we are definitely offline — the address list did
+   * not load because `navigator.onLine` is false, or the first fetch failed
+   * with a network error — and nothing we show here could work. "Enable" needs
+   * to reverse-geocode, "Enter address manually" opens a map that fetches
+   * tiles, and the saved list is empty by definition in this branch.
+   *
+   * A spinner is the one thing never shown here: it is the exact failure mode
+   * (an unbounded await) that SVC-351 is replacing.
+   */
+  offline?: boolean;
+  /**
+   * Called by Retry on the offline branch (SVC-351). The gate itself has no
+   * network to re-attempt — this is the caller's hook to re-run the address
+   * fetch and the geolocation probe. Independent of `offline` so the caller
+   * can wire a no-op where retry is not meaningful.
+   */
+  onRetry?: () => void;
 }
 
 /**
@@ -200,6 +219,8 @@ export function LocationGate({
   onEnterManually,
   onSeeAll,
   isSaving = false,
+  offline = false,
+  onRetry,
 }: LocationGateProps) {
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -304,6 +325,38 @@ export function LocationGate({
   const copy = copyFor(reason);
   const heading = title ?? copy.title;
   const body = subtitle ?? copy.subtitle;
+
+  // SVC-351: no network, nothing on screen below works. "Enable" has to
+  // reverse-geocode on success, "Enter address manually" opens a map that
+  // fetches tiles, and the saved list is empty (addresses did not load — that
+  // is how the caller decided we were offline in the first place). The honest
+  // screen is the problem and a Retry, not the usual choices with every path
+  // leading to its own silent failure.
+  //
+  // The gate still blocks the app here, which is the right default: a user
+  // who has never set an address cannot book, and online-screen-only chrome
+  // like Profile is reached from the root once a cached address short-circuits
+  // this branch (see `useSelectedAddress`'s cache + `__root.tsx`'s offline
+  // bypass).
+  if (offline) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 py-10 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-accent">
+          <WifiOff className="h-10 w-10 text-primary" />
+        </div>
+        <h1 className="mt-6 text-2xl font-semibold text-foreground">You're offline</h1>
+        <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+          We can't load your addresses right now. Reconnect and try again — the app will pick up
+          where you left off.
+        </p>
+        {onRetry && (
+          <Button className="mt-8 min-w-32" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background px-6 py-10">

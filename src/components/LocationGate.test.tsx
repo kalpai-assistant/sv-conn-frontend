@@ -359,6 +359,54 @@ describe("on the web", () => {
 });
 
 /**
+ * SVC-351: offline branch replaces the normal choices.
+ *
+ * Everything the usual gate offers assumes the network: "Enable" has to
+ * reverse-geocode on success, "Enter address manually" opens a map that
+ * fetches tiles, and the saved list is empty by definition in this branch
+ * (we were sent here because the address fetch did not resolve). A spinner
+ * is the exact failure mode SVC-351 is replacing, so this view is
+ * synchronous — honest message, Try again button, and nothing to await.
+ */
+describe("the offline branch", () => {
+  it("replaces the normal screen with an offline message", () => {
+    render(<LocationGate {...props({ offline: true })} />);
+
+    expect(screen.getByText(/you're offline/i)).toBeInTheDocument();
+    // None of the usual choices: each would call network and fail in a
+    // different silent way. The offline screen names the problem instead.
+    expect(screen.queryByRole("button", { name: /enable/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /enter address manually/i })).toBeNull();
+  });
+
+  it("renders no spinner — a spinner is what this ticket exists to kill", () => {
+    render(<LocationGate {...props({ offline: true })} />);
+
+    // The SVG icon under "You're offline" is the WifiOff glyph, so there is
+    // an svg on screen — but nothing with the Loader2 animate-spin class.
+    const spinners = document.querySelectorAll(".animate-spin");
+    expect(spinners.length).toBe(0);
+  });
+
+  it("offers a Try again that the caller wires to the retry", async () => {
+    const onRetry = vi.fn();
+    render(<LocationGate {...props({ offline: true, onRetry })} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /try again/i }));
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+
+  it("omits Try again when the caller has no retry to offer", () => {
+    // The provider gate has nothing meaningful to re-run here (it has no
+    // backend address list to re-fetch), so it leaves onRetry unset — and
+    // a dead button is worse than no button.
+    render(<LocationGate {...props({ offline: true })} />);
+
+    expect(screen.queryByRole("button", { name: /try again/i })).toBeNull();
+  });
+});
+
+/**
  * Two causes, one error code, and only the tap tells them apart.
  *
  * The web reports a switched-off device location and a user's refusal

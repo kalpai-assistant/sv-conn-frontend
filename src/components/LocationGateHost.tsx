@@ -27,7 +27,17 @@ import type { LocationBlockedReason } from "@/hooks/useLocationAvailability";
  * "yes, I'm at this one" is a selection, not a write. Only a *new* location
  * costs a request.
  */
-export function ConsumerLocationGate({ reason }: { reason: LocationBlockedReason | null }) {
+export function ConsumerLocationGate({
+  reason,
+  offline = false,
+  onRetry,
+}: {
+  reason: LocationBlockedReason | null;
+  /** SVC-351: show the offline branch instead of the usual choices. */
+  offline?: boolean;
+  /** SVC-351: called when the user taps Retry on the offline branch. */
+  onRetry?: () => void;
+}) {
   const { addresses, selected, setSelectedId } = useSelectedAddress();
   const [manual, setManual] = useState(false);
   // The full address list, over the gate rather than instead of it (SVC-287).
@@ -81,6 +91,8 @@ export function ConsumerLocationGate({ reason }: { reason: LocationBlockedReason
   return (
     <LocationGate
       reason={reason}
+      offline={offline}
+      onRetry={onRetry}
       // Every address, not just the selected one — the common case is "location
       // is off and I'm at home", and a list makes that one tap.
       //
