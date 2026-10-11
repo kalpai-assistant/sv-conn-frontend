@@ -34,7 +34,9 @@ export function ProHeader({
         {team && (
           <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
             <BusinessLogo src={team.business_image_url} alt="" className="h-5 w-5 rounded-md" />
-            <span className="truncate">On {teamName}’s team</span>
+            {/* Not "On {name}’s team": business names are often plural
+                ("Sparkle Cleaners"), and a possessive renders "Cleaners’s". */}
+            <span className="truncate">Working with {teamName}</span>
           </p>
         )}
       </div>
