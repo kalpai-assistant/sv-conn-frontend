@@ -10,7 +10,7 @@ import { useFcmRegistration } from "@/lib/fcm";
 import { useAddresses, useProviderProfile } from "@/hooks/useApi";
 import { isTeamPro, useProMe } from "@/hooks/usePro";
 import { useProHeartbeatHost } from "@/hooks/useProHeartbeat";
-import { rememberPendingInvite } from "@/lib/invite";
+import { syncPendingInvite } from "@/lib/invite";
 import { adminGate } from "@/lib/admin";
 import { AdminMenu } from "@/components/admin/AdminMenu";
 import { consumesLanding, proGateVerdict, skipsLocationGate, type ProState } from "@/lib/pro-gate";
@@ -144,11 +144,13 @@ function AppGate({ children }: { children: React.ReactNode }) {
           : "not-pro";
   // SVC-322: someone who opened /invite came to join a team. Remembered for the
   // session, because a new invitee is sent to name setup first and saving it
-  // would otherwise drop them on "/" — see `src/lib/invite.ts`.
+  // would otherwise drop them on "/" — see `src/lib/invite.ts`. Dropped again
+  // on the ordinary sign-in screen, so backing out of /invite undoes it.
   const isInviteRoute = pathname === "/invite";
+  const signedOut = !isAuthenticated && !isRestoring;
   useEffect(() => {
-    if (isInviteRoute) rememberPendingInvite();
-  }, [isInviteRoute]);
+    syncPendingInvite({ onInviteRoute: isInviteRoute, signedOut });
+  }, [isInviteRoute, signedOut]);
 
   // SVC-322: an online team Pro sends their location every 30 s, on whatever
   // screen they are on — so it runs here, not on Pro Home.

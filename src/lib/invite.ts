@@ -95,3 +95,29 @@ export function clearPendingInvite(): void {
     // Nothing to clear.
   }
 }
+
+/**
+ * Keeps the pending invite in step with where the user is. Run on every
+ * route and auth change.
+ *
+ * On /invite it is remembered. Signed out anywhere else, it is dropped: that is
+ * the ordinary sign-in screen — someone who backed out of /invite, or who just
+ * logged out — and whoever signs up there next did not come for an invite.
+ * Without this, a new customer who once tapped "I have an invite code" (SVC-331)
+ * and backed out was sent to "Join your team" after naming themselves, instead
+ * of home.
+ *
+ * Signed in, it is left alone. Leaving /invite is not enough to drop it: a new
+ * invitee is *sent* from /invite to Profile for their name, and needs it to come
+ * back.
+ */
+export function syncPendingInvite({
+  onInviteRoute,
+  signedOut,
+}: {
+  onInviteRoute: boolean;
+  signedOut: boolean;
+}): void {
+  if (onInviteRoute) rememberPendingInvite();
+  else if (signedOut) clearPendingInvite();
+}
