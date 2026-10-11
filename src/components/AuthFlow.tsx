@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useAuth, type UserRole } from "@/lib/auth-context";
 import { API_BASE_URL, ApiError, apiFetch } from "@/lib/api";
@@ -174,6 +175,7 @@ export function AuthFlow({
   };
 
   const { login } = useAuth(); // We need basic login from context instead of mockLogin
+  const navigate = useNavigate();
 
   const handleOtpChange = (value: string) => {
     setOtp(value);
@@ -341,13 +343,28 @@ export function AuthFlow({
                 look for this, while consumers are the overwhelming majority
                 and should read straight past it. */}
             {invite ? null : role === "consumer" ? (
-              <button
-                type="button"
-                onClick={() => switchRole("provider")}
-                className="mt-6 self-center text-sm font-medium text-muted-foreground underline underline-offset-4"
-              >
-                Are you a service provider?
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => switchRole("provider")}
+                  className="mt-6 self-center text-sm font-medium text-muted-foreground underline underline-offset-4"
+                >
+                  Are you a service provider?
+                </button>
+                {/* SVC-331: the only way in for a Pro who opens the app without
+                    the invite SMS's link. /invite renders this flow again in
+                    invite mode, then the code entry. Consumer mode only: a
+                    team Pro must be a customer account (see `invite` above),
+                    so offering it beside a provider signup would invite the
+                    one combination that can never join. */}
+                <button
+                  type="button"
+                  onClick={() => navigate({ to: "/invite" })}
+                  className="mt-4 self-center text-sm font-medium text-muted-foreground underline underline-offset-4"
+                >
+                  Joining a team? I have an invite code
+                </button>
+              </>
             ) : (
               <div className="mt-6 flex flex-col items-center gap-1">
                 <span className="text-sm text-muted-foreground">Signing up as a provider</span>
