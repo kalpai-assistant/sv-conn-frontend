@@ -7,8 +7,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { join, resolve } from "node:path";
 import type { ReactNode } from "react";
 import { AuthProvider, useAuth } from "./auth-context";
 import { CartProvider, useCart } from "./cart-context";
@@ -125,13 +125,38 @@ describe("session teardown (SVC-350)", () => {
     expect(localStorage.getItem("sc_selected_address_id")).toBeNull();
   });
 
-  it("clearSession is the sole entry point — guards against future drift", () => {
-    // If a future dev adds a third cache-clearing path (sign-out-everywhere,
-    // token-refresh reset, …) they MUST route it through `clearSession` too.
-    // Both `login` and `logout` call it today, imported from `./session`.
-    const source = readFileSync(resolve(__dirname, "./auth-context.tsx"), "utf8");
-    const callSites = source.match(/clearSession\(/g) ?? [];
-    expect(callSites.length).toBe(2);
-    expect(source).toMatch(/from ["']\.\/session["']/);
+  it("queryClient.clear() lives only in session.ts — repo-wide invariant", () => {
+    // The real drift risk isn't a second call site inside auth-context — it's
+    // a brand-new file that reaches for `queryClient.clear()` directly and
+    // bypasses `clearSession`, so the next `sc_*` key added to the project
+    // doesn't get swept with it. Walk `src/` and assert that nothing other
+    // than `session.ts` itself contains the literal `queryClient.clear(`.
+    //
+    // Deliberately a textual match. `client.clear()` in a test harness or
+    // `localStorage.clear()` doesn't match and must not — those are
+    // legitimate uses of a `.clear()` that happens to share a name.
+    const srcDir = resolve(__dirname, "..");
+    const offenders: string[] = [];
+    function walk(dir: string): void {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(path);
+          continue;
+        }
+        // Production files only. A test (like this one) is allowed to mention
+        // `queryClient.clear(` in a comment or string — the invariant is
+        // about app code bypassing the helper, not test introspection.
+        if (!/\.(ts|tsx)$/.test(entry.name)) continue;
+        if (/\.test\.(ts|tsx)$/.test(entry.name)) continue;
+        if (readFileSync(path, "utf8").includes("queryClient.clear(")) {
+          offenders.push(path.slice(srcDir.length + 1));
+        }
+      }
+    }
+    walk(srcDir);
+    // Exact equality, not a substring: a new file matching the pattern will
+    // fail here and name itself in the diff.
+    expect(offenders).toEqual(["lib/session.ts"]);
   });
 });
