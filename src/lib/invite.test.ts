@@ -12,6 +12,7 @@ import {
   inviteErrorMessage,
   isAlreadyOnThisTeam,
   rememberPendingInvite,
+  syncPendingInvite,
 } from "@/lib/invite";
 
 describe("inviteCodeFromClipboard", () => {
@@ -89,5 +90,36 @@ describe("the pending invite", () => {
     expect(hasPendingInvite()).toBe(true);
     clearPendingInvite();
     expect(hasPendingInvite()).toBe(false);
+  });
+
+  describe("kept in step with the route", () => {
+    it("is remembered on /invite, signed in or out", () => {
+      syncPendingInvite({ onInviteRoute: true, signedOut: true });
+      expect(hasPendingInvite()).toBe(true);
+      clearPendingInvite();
+      syncPendingInvite({ onInviteRoute: true, signedOut: false });
+      expect(hasPendingInvite()).toBe(true);
+    });
+
+    it("is dropped on the ordinary sign-in screen — backing out of /invite", () => {
+      syncPendingInvite({ onInviteRoute: true, signedOut: true });
+      syncPendingInvite({ onInviteRoute: false, signedOut: true });
+      expect(hasPendingInvite()).toBe(false);
+    });
+
+    it("survives a new invitee being sent from /invite to Profile for their name", () => {
+      syncPendingInvite({ onInviteRoute: true, signedOut: true });
+      // Signed in on /invite, then redirected to /profile.
+      syncPendingInvite({ onInviteRoute: true, signedOut: false });
+      syncPendingInvite({ onInviteRoute: false, signedOut: false });
+      expect(hasPendingInvite()).toBe(true);
+    });
+
+    it("is dropped on logout, so the next signup on the phone starts clean", () => {
+      syncPendingInvite({ onInviteRoute: true, signedOut: false });
+      syncPendingInvite({ onInviteRoute: false, signedOut: false });
+      syncPendingInvite({ onInviteRoute: false, signedOut: true });
+      expect(hasPendingInvite()).toBe(false);
+    });
   });
 });
