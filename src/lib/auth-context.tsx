@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch, clearTokens, getAccessToken, hasStoredAuth, setTokens } from "./api";
 import { setSentryUser } from "./sentry";
 import { clearFcmToken } from "./fcm";
 import { resetLocationGate } from "./location-gate";
+import { clearSession } from "./session";
 
 // SVC-41 back-port: three roles the backend recognises. The client uses this
 // to pick between consumer and provider UIs; `admin` isn't a mobile persona
@@ -68,6 +70,11 @@ function writeStoredUser(user: User | null): void {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // The QueryClient `logout` hands to `clearSession` (SVC-350). Grabbed via
+  // the hook rather than imported from `__root.tsx` so this module stays
+  // free of a route-tree import and tests can wrap the provider under any
+  // client they like.
+  const queryClient = useQueryClient();
   // Seed from localStorage immediately so the very first render already
   // knows whether we THINK we're logged in. The probe below either
   // confirms it (network + token still valid) or clears everything.
@@ -130,16 +137,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     (accessToken: string, refreshToken: string, u: User, newUser = false) => {
+      // Belt-and-braces for "same session, different account" on a shared
+      // device (SVC-350). The logout path already clears, but a user can
+      // reach this code without one — refresh-token loss, cold start into
+      // AuthFlow after a wipe, or a stale cache that survived a prior
+      // bug — and we would rather clear twice than ever leak once.
+      clearSession(queryClient);
       setTokens(accessToken, refreshToken);
       setUser(u);
       writeStoredUser(u);
       setIsNewUser(newUser);
       setSentryUser({ id: u.id });
     },
-    [],
+    [queryClient],
   );
 
   const logout = useCallback(() => {
+    // Wipe every user-scoped cache BEFORE touching auth state (SVC-350).
+    //
+    // Order matters: if we flipped `user` to null first, consumers that read
+    // the auth context would re-render and some would unmount; a query hook
+    // mid-flight can still land its response and re-populate `queryClient`
+    // with user A's data under user B's eventual token. Clearing first makes
+    // every subsequent write a no-op from the point of view of the signed-out
+    // user — the only data the next route can see is what it fetches fresh.
+    clearSession(queryClient);
     // Invalidate this device's push token — server-side and at FCM.
     //
     // The JWT is snapshotted BEFORE `clearTokens()` wipes it. The clear
@@ -164,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // on device, where a provider logged in after a consumer and went straight
     // to their home screen with no location confirmed.
     resetLocationGate();
-  }, []);
+  }, [queryClient]);
 
   const updateUser = useCallback((data: Partial<User>) => {
     setUser((prev) => {
