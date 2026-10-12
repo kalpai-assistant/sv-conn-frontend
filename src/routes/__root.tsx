@@ -22,6 +22,8 @@ import { AuthFlow } from "@/components/AuthFlow";
 import { ConsumerLocationGate, ProviderLocationGate } from "@/components/LocationGateHost";
 import { useLocationConfirmed } from "@/hooks/useLocationConfirmed";
 import { useLocationAvailability } from "@/hooks/useLocationAvailability";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { readSelectedAddressCache } from "@/hooks/useSelectedAddress";
 import { shouldGateLocation } from "@/lib/should-gate-location";
 import { AppVersionGate } from "@/components/AppVersionGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -104,6 +106,14 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // Subscribed, not read: a plain module read would not re-render when the user
   // answers, leaving the gate on screen forever. See useLocationConfirmed.
   const locationConfirmed = useLocationConfirmed();
+
+  // SVC-351: trusted in one direction only — `false` is proof we are offline
+  // (airplane mode flips it synchronously), `true` is not proof the backend is
+  // reachable (Android WebView lies). The gate below reads `false` as the
+  // fast-path short-circuit for the "spinner forever" bug; the first-fetch
+  // outcome (`addressesError`) is what ultimately decides on a connection
+  // that `onLine` reports as up but the radio has quietly dropped.
+  const isOnline = useOnlineStatus();
 
   // SVC-281: can we locate them at all? The gate appears only when the answer
   // is no.
@@ -366,6 +376,14 @@ function AppGate({ children }: { children: React.ReactNode }) {
     // So the gate now appears only when we genuinely do not know where they
     // are, or they have no address to book against at all.
     if (isAuthenticated && !skipsLocationGate(pathname, proState)) {
+      // SVC-351: offline collapses the "still fetching" state into a decided
+      // one. React Query defaults to `networkMode: 'online'` and pauses
+      // queries while `navigator.onLine === false` — isPending stays true,
+      // isError stays false, and without this branch the spinner below rode
+      // that pause forever, which is the whole bug. The cached address lets
+      // us bypass the gate entirely for a returning user; a fresh install
+      // with nothing cached falls through to the gate's offline branch.
+      const cached = !isOnline && addressesPending ? readSelectedAddressCache() : null;
       const verdict = shouldGateLocation({
         confirmed: locationConfirmed,
         blocked: availability.isResolving ? null : availability.blocked,
@@ -373,14 +391,32 @@ function AppGate({ children }: { children: React.ReactNode }) {
         // error would spin forever once React Query gives up retrying — the
         // same lockout shape as #121, and offline is exactly when it happens.
         // Gating instead is safe: the gate's manual entry needs no network.
-        hasOwnLocation: addressesError ? false : addressesPending ? null : !!addresses?.length,
+        //
+        // Offline + pending collapses the same way: if we have a cached
+        // selected address, treat it as evidence of a location on file and
+        // let the user into the app with a stale LocationBar; otherwise fall
+        // through to the gate, which renders its own offline branch rather
+        // than a spinner.
+        hasOwnLocation: addressesError
+          ? false
+          : addressesPending
+            ? !isOnline
+              ? cached
+                ? true
+                : false
+              : null
+            : !!addresses?.length,
       });
       // Only the address query is worth a spinner — it is one fast request.
       // The location probe is not: it can take seconds, since it is the call
       // that raises the native permission dialog, and blocking on it would
       // mean a blank launch for everyone. So the app renders while it runs and
       // the gate appears only once the answer comes back negative.
-      if (verdict === "wait" && addressesPending && !addressesError) {
+      //
+      // Online-only: when `navigator.onLine` is false the query is paused and
+      // never resolves, so a spinner here is exactly the infinite one SVC-351
+      // kills. The branch above has already decided what to show in that case.
+      if (verdict === "wait" && addressesPending && !addressesError && isOnline) {
         return (
           <div className="flex min-h-screen items-center justify-center bg-background">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -388,7 +424,25 @@ function AppGate({ children }: { children: React.ReactNode }) {
         );
       }
       if (verdict === "gate") {
-        return <ConsumerLocationGate reason={availability.reason} />;
+        return (
+          <ConsumerLocationGate
+            reason={availability.reason}
+            // Only when the browser is certain we are offline. A failed fetch
+            // on an "online" device could be a 5xx the gate's normal path
+            // handles perfectly well — treating that as offline would send a
+            // user with a working connection to a Retry screen rather than
+            // the manual-entry escape they already have below.
+            offline={!isOnline}
+            // Hard reload: the location probe caches its answer in a hook that
+            // only re-runs on `enabled` flipping, and React Query's paused
+            // state is tied to a listener we do not want to replicate here.
+            // A reload also walks the user back through the auth cold-start,
+            // which is the honest version of "try again".
+            onRetry={() => {
+              if (typeof window !== "undefined") window.location.reload();
+            }}
+          />
+        );
       }
     }
   }

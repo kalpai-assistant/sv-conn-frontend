@@ -25,6 +25,86 @@ import type { Address } from "@/lib/mock-data";
 
 const STORAGE_KEY = "sc_selected_address_id";
 
+/**
+ * The last resolved selected address, mirrored to localStorage (SVC-351).
+ *
+ * Only the fields the home LocationBar actually paints — label and full. A
+ * stale blob is better than a spinner when the device cold-starts offline:
+ * React Query's cache lives in memory, so without this the LocationBar reads
+ * "Set your location" every airplane-mode launch, which is a worse lie than a
+ * day-old locality. The offline banner above it names it as stale.
+ *
+ * Nothing booking-time reads this cache. The authoritative record is still
+ * the backend row keyed by `STORAGE_KEY`, and bookings go through the fresh
+ * list — this blob only exists to keep the chrome honest when the fresh list
+ * cannot be reached.
+ */
+const CACHE_KEY = "sc_selected_address_cache";
+
+interface CachedAddress {
+  id: string;
+  label: string;
+  full: string;
+}
+
+function readCache(): CachedAddress | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      typeof (parsed as CachedAddress).id === "string" &&
+      typeof (parsed as CachedAddress).label === "string" &&
+      typeof (parsed as CachedAddress).full === "string"
+    ) {
+      return parsed as CachedAddress;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(a: CachedAddress | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (a === null) localStorage.removeItem(CACHE_KEY);
+    else localStorage.setItem(CACHE_KEY, JSON.stringify(a));
+  } catch {
+    // No localStorage (private mode, quota) — the next online load will
+    // repopulate the chrome anyway, so a dropped cache write costs nothing
+    // beyond a one-launch regression to "Set your location".
+  }
+}
+
+/**
+ * The last-known selected address, read from localStorage without touching the
+ * backend. Exists so a caller rendering the gate's offline branch can show the
+ * stale address rather than "Set your location" (SVC-351). Deliberately a
+ * plain read, not a hook: callers reach for it only when the fresh fetch has
+ * failed, and tying it to React state would race the gate's own fast path.
+ */
+export function readSelectedAddressCache(): Address | null {
+  const blob = readCache();
+  if (!blob) return null;
+  return {
+    id: blob.id,
+    label: blob.label,
+    full: blob.full,
+    lat: null,
+    lng: null,
+    house_floor: null,
+    building: null,
+    landmark_area: null,
+    pincode: null,
+    contact_name: null,
+    contact_phone: null,
+  };
+}
+
 // Simple pub/sub so multiple LocationBars / Cart selectors on the same page
 // stay in sync when one calls setSelectedAddressId — otherwise the writer
 // updates localStorage but the readers keep their stale in-memory value
@@ -83,6 +163,16 @@ export function useSelectedAddress(): {
   // first address instead of showing nothing.
   const selected =
     (storedId ? addresses?.find((a) => a.id === storedId) : undefined) ?? addresses?.[0];
+
+  // Mirror the resolved address to a localStorage cache so an offline cold
+  // start has something to paint (SVC-351). React Query's cache is memory-only
+  // and the backend address list is the one call the gate blocks on, so
+  // without this the LocationBar reads "Set your location" every airplane-mode
+  // launch even for someone who had an address five minutes ago.
+  useEffect(() => {
+    if (!selected) return;
+    writeCache({ id: selected.id, label: selected.label, full: selected.full });
+  }, [selected]);
 
   // Clean up an id that no longer resolves. Otherwise the user gets the
   // fallback UI on every load until they manually pick an address.
