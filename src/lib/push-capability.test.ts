@@ -25,7 +25,8 @@ vi.mock("./api", () => ({ apiFetch: (...args: unknown[]) => apiFetch(...args) })
 vi.mock("./platform", () => ({ detectPlatform: () => detectPlatform() }));
 vi.mock("./sentry", () => ({ reportError: vi.fn() }));
 vi.mock("@capacitor/core", () => ({
-  Capacitor: { isNativePlatform: () => isNativePlatform() },
+  // getPlatform: notification-channels.ts calls it; "web" skips its Android-only setup.
+  Capacitor: { isNativePlatform: () => isNativePlatform(), getPlatform: () => "web" },
 }));
 
 const notificationMock = {
