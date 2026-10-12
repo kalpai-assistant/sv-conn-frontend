@@ -81,6 +81,28 @@ describe("two-level dispatch events (SVC-320)", () => {
   });
 });
 
+describe("a team Pro's job going away (SVC-348)", () => {
+  it.each(["job_cancelled", "unassigned"])(
+    "%s opens the Pro app's job screen, not /tracking",
+    (event) => {
+      // Same reason as "assigned": the Pro's account is consumer-role.
+      expect(route(event, "consumer")).toBe(`/pro/jobs/${ID}`);
+    },
+  );
+
+  it.each(["job_cancelled", "unassigned"])("%s goes nowhere for an SP or admin", (event) => {
+    // The backend never sends these to a provider: the SP gets "cancelled",
+    // or caused the unassign.
+    expect(route(event, "provider")).toBeNull();
+    expect(route(event, "admin")).toBeNull();
+  });
+
+  it("leaves the plain cancelled push where it was", () => {
+    expect(route("cancelled", "consumer")).toBe(`/tracking/${ID}`);
+    expect(route("cancelled", "provider")).toBe(`/provider/bookings/${ID}`);
+  });
+});
+
 describe("unactionable payloads", () => {
   it("needs a booking id", () => {
     expect(routeForPayload({ event: "accepted" }, "consumer")).toBeNull();
@@ -108,6 +130,8 @@ describe("every target is a real route", () => {
       "reopened",
       "no_taker_refunded",
       "assigned",
+      "job_cancelled",
+      "unassigned",
     ];
     const targets = new Set<string>();
     for (const event of events) {

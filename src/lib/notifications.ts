@@ -38,7 +38,10 @@ export type NotificationEvent =
   | "pro_declined" // to the SP: a team Pro turned the job down, pick someone else
   | "reopened" // to the consumer: their provider dropped out, searching again
   | "no_taker_refunded" // to the consumer: nobody took a paid booking (SVC-344)
-  | "assigned"; // to a team Pro: the SP gave them this job
+  | "assigned" // to a team Pro: the SP gave them this job
+  // SVC-348: to a team Pro whose job went away, so they don't travel to it.
+  | "job_cancelled" // the booking was cancelled (by the customer or an admin)
+  | "unassigned"; // the SP re-picked, released or gave the job back
 
 export interface NotificationPayload {
   event: NotificationEvent | string;
@@ -118,11 +121,36 @@ export function routeForPayload(data: NotificationPayload, role: ViewerRole): st
       // the backend doesn't tell an SP who picked themselves.
       return role === "consumer" ? proJob(bookingId) : null;
 
+    case "job_cancelled":
+    case "unassigned":
+      // The team Pro's side of a job going away (SVC-348), so the same rule as
+      // "assigned". Plain "cancelled" would send them to /tracking. Their job
+      // screen shows the cancelled state, or "no longer yours" once the
+      // booking answers 403.
+      return role === "consumer" ? proJob(bookingId) : null;
+
     default:
       // Unknown event — log somewhere observable once Sentry lands (SC-46).
       return null;
   }
 }
+
+/**
+ * What the Pro is told when a job goes away with the app open (SVC-348). Word
+ * for word the push's own title and body (backend NOTIFICATION_TEMPLATES), so
+ * the toast and the notification never disagree. Not "reassigned": a release
+ * or give-back sends the job back to searching, to nobody.
+ */
+const PRO_JOB_GONE_TOAST: Record<string, { title: string; description: string }> = {
+  job_cancelled: {
+    title: "Job cancelled",
+    description: "This job has been cancelled. Please don't travel to it.",
+  },
+  unassigned: {
+    title: "Job removed",
+    description: "This job is no longer assigned to you. Please don't travel to it.",
+  },
+};
 
 /**
  * Whether a foreground-arrival notification should auto-navigate.
@@ -216,6 +244,16 @@ export function useNotificationRouter(): void {
               description: "Your team gave you a job.",
               action: { label: "Open", onClick: () => navigate({ to: target }) },
             });
+            return;
+          }
+          // The reverse (SVC-348): the job was cancelled or taken off them.
+          // Refresh Pro Home and the job screen if it is open, and say so. No
+          // "Open": there is nothing to do there but read that it is gone.
+          const gone = PRO_JOB_GONE_TOAST[data.event];
+          if (gone && role === "consumer" && data.booking_id) {
+            void queryClient.invalidateQueries({ queryKey: ["pro-jobs"] });
+            void queryClient.invalidateQueries({ queryKey: ["booking", data.booking_id] });
+            toast(gone.title, { description: gone.description });
             return;
           }
           if (!shouldAutoRouteForeground(data, role)) return;
