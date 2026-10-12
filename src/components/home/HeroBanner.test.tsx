@@ -1,11 +1,15 @@
 /**
- * Hero banner tap behaviour (SVC-310).
+ * Hero banner tap behaviour.
  *
- * The bug that drove this ticket is invisible in a screenshot: the FIRST20
- * banner looked right and did nothing on tap. Every assertion here is on
- * the destination branches, not the pixels — the four render shapes
- * (coupon / route / external / undefined) are the whole product surface
- * and are what a user would notice break.
+ * Each render branch — the four coupon-* flows (SVC-347), ``route``,
+ * ``external``, and the decorative-no-destination case — gets its own
+ * assertion. The whole product surface is which element the frame wraps
+ * in and what the tap handler does; everything else is pixels.
+ *
+ * The SVC-347 non-regression: the pre-SVC-347 empty-cart dead-end (toast
+ * + stay) is gone. An empty-cart tap on a plain ``coupon`` banner now
+ * stashes via pendingCouponStore and navigates — the cart's own boot-hook
+ * surfaces the sticky "will apply when you add items" row from there.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -13,7 +17,9 @@ import userEvent from "@testing-library/user-event";
 
 const navigate = vi.fn();
 const toastFn = vi.fn();
+const addMany = vi.fn(() => ({ skipped: [] as string[] }));
 let cartItems: Array<{ serviceId: string }>;
+let servicesData: unknown | undefined;
 
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
@@ -36,10 +42,19 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/lib/cart-context", () => ({
-  useCart: () => ({ items: cartItems }),
+  useCart: () => ({ items: cartItems, addMany }),
+}));
+
+vi.mock("@/lib/auth-context", () => ({
+  useAuth: () => ({ user: { id: "test-user" } }),
+}));
+
+vi.mock("@/hooks/useApi", () => ({
+  useServices: () => ({ data: servicesData }),
 }));
 
 import { HeroBannerView, type HeroBannerConfig } from "@/components/home/HeroBanner";
+import { getPendingCoupon } from "@/lib/pending-coupon";
 
 // Reference a real public asset — scripts/check-public-asset-refs.mjs
 // scans test files too and 404s on made-up paths.
@@ -56,13 +71,13 @@ const BASE: Omit<HeroBannerConfig, "destination"> = {
 beforeEach(() => {
   vi.clearAllMocks();
   cartItems = [];
+  servicesData = [{ id: "svc_1", name: "x", variants: [] }];
+  window.localStorage.clear();
 });
 
-describe("coupon destination", () => {
+describe("coupon destination (SVC-310, extended by SVC-347)", () => {
   it("hands the code off to the cart's coupons sheet when there are items to apply against", async () => {
-    // The whole bug this ticket closes: tapping FIRST20 used to be a no-op.
-    // The handoff is the hero banner's only job in the happy path — the cart
-    // route and CouponsSheet take it from here.
+    // Still the happy path: ?coupon= handoff opens CouponsSheet pre-filled.
     cartItems = [{ serviceId: "svc_1" }];
     const banner: HeroBannerConfig = {
       ...BASE,
@@ -76,11 +91,11 @@ describe("coupon destination", () => {
     expect(toastFn).not.toHaveBeenCalled();
   });
 
-  it("toasts and stays on Home when the cart is empty", async () => {
-    // ``/coupons/validate`` 400s on ``cart_amount: 0`` and the coupons sheet
-    // has no subtotal to compute a discount against. Dropping the user on
-    // an empty cart silently would strand them. The toast names the code
-    // so the user can tell what wasn't applied.
+  it("stashes and still navigates when the cart is empty — no more dead-end toast (SVC-347 §7)", async () => {
+    // The whole point of this ticket's fix. Pre-SVC-347 this tap toasted
+    // and stayed on Home. Now the code is stashed via pendingCouponStore
+    // and we still navigate; the cart's boot-hook renders the sticky
+    // "will apply when you add items" row because items.length === 0.
     cartItems = [];
     const banner: HeroBannerConfig = {
       ...BASE,
@@ -90,8 +105,102 @@ describe("coupon destination", () => {
     render(<HeroBannerView banner={banner} />);
     await userEvent.click(screen.getByRole("button"));
 
-    expect(toastFn).toHaveBeenCalledWith(expect.stringMatching(/add items.*FIRST20/i));
+    expect(navigate).toHaveBeenCalledWith({ to: "/cart", search: { coupon: "FIRST20" } });
+    expect(toastFn).not.toHaveBeenCalled();
+    expect(getPendingCoupon("test-user")).toBe("FIRST20");
+  });
+});
+
+describe("coupon-prefill-cart destination (SVC-347)", () => {
+  it("hydrates the cart via addMany, stashes the code, then navigates to /cart", async () => {
+    cartItems = [];
+    const banner: HeroBannerConfig = {
+      ...BASE,
+      destination: {
+        kind: "coupon-prefill-cart",
+        code: "DIWALI20",
+        items: [{ serviceId: "svc_deep_clean", quantity: 1 }],
+      },
+    };
+
+    render(<HeroBannerView banner={banner} />);
+    await userEvent.click(screen.getByRole("button"));
+
+    expect(addMany).toHaveBeenCalledWith([{ serviceId: "svc_deep_clean", quantity: 1 }]);
+    expect(getPendingCoupon("test-user")).toBe("DIWALI20");
+    expect(navigate).toHaveBeenCalledWith({ to: "/cart" });
+  });
+
+  it("disables the tap and shows a spinner while the service catalogue is still loading", async () => {
+    // addMany would silently drop every item against an empty catalogue
+    // cache. Showing a spinner on the pill is the "we heard you, waiting
+    // on data" affordance; silent no-op is the exact SVC-310 bug this
+    // ticket is a sequel to.
+    servicesData = undefined;
+    const banner: HeroBannerConfig = {
+      ...BASE,
+      destination: {
+        kind: "coupon-prefill-cart",
+        code: "DIWALI20",
+        items: [{ serviceId: "svc_deep_clean" }],
+      },
+    };
+
+    render(<HeroBannerView banner={banner} />);
+    const button = screen.getByRole("button");
+    expect(button).toBeDisabled();
+    await userEvent.click(button);
+
+    expect(addMany).not.toHaveBeenCalled();
     expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("coupon-stash destination (SVC-347)", () => {
+  it("stashes the code and navigates to the configured destination", async () => {
+    const banner: HeroBannerConfig = {
+      ...BASE,
+      destination: { kind: "coupon-stash", code: "REFER100", navigateTo: "/bookings" },
+    };
+
+    render(<HeroBannerView banner={banner} />);
+    await userEvent.click(screen.getByRole("button"));
+
+    expect(getPendingCoupon("test-user")).toBe("REFER100");
+    expect(navigate).toHaveBeenCalledWith({ to: "/bookings" });
+    expect(addMany).not.toHaveBeenCalled();
+  });
+
+  it("defaults navigateTo to / when the campaign didn't set one", async () => {
+    // The referral-reward kind that just wants the user back in the
+    // browse funnel — no specific page in mind.
+    const banner: HeroBannerConfig = {
+      ...BASE,
+      destination: { kind: "coupon-stash", code: "REFER100" },
+    };
+
+    render(<HeroBannerView banner={banner} />);
+    await userEvent.click(screen.getByRole("button"));
+
+    expect(navigate).toHaveBeenCalledWith({ to: "/" });
+  });
+});
+
+describe("coupon-category destination (SVC-347)", () => {
+  it("stashes the code and lands on /category/$slug", async () => {
+    const banner: HeroBannerConfig = {
+      ...BASE,
+      destination: { kind: "coupon-category", code: "SPA20", categorySlug: "spa" },
+    };
+
+    render(<HeroBannerView banner={banner} />);
+    await userEvent.click(screen.getByRole("button"));
+
+    expect(getPendingCoupon("test-user")).toBe("SPA20");
+    expect(navigate).toHaveBeenCalledWith({
+      to: "/category/$slug",
+      params: { slug: "spa" },
+    });
   });
 });
 

@@ -15,17 +15,24 @@
  * Horizontal snap scroll, one banner per screen — using CSS scroll-snap so
  * the sequencing feels intentional on iOS without any JS.
  *
- * Tap behaviour (SVC-310 follow-up): shares ``BannerDestination`` with
- * ``HeroBanner``. The hero slot is occasional (festival-weeks only); this
- * strip is always-on, so the "FIRST20 tap did nothing" bug stays fixed on
- * the surface users actually see day-to-day. A card with no ``destination``
- * is still rendered — gives us the shape to add greeting-only cards later
- * without reaching for a fake ``ctaTo: "/"``.
+ * Tap behaviour: shares ``BannerDestination`` with ``HeroBanner``. The
+ * hero slot is occasional (festival-weeks only); this strip is always-on,
+ * so the "FIRST20 tap did nothing" bug stays fixed on the surface users
+ * actually see day-to-day. A card with no ``destination`` is still
+ * rendered — gives us the shape to add greeting-only cards later without
+ * reaching for a fake ``ctaTo: "/"``.
+ *
+ * SVC-347: coupon flows (``kind`` ``coupon`` / ``coupon-prefill-cart`` /
+ * ``coupon-stash`` / ``coupon-category``) all go through
+ * ``useCouponBannerHandlers`` so this file and ``HeroBanner`` cannot drift.
+ * The pre-SVC-347 empty-cart dead-end (toast + stay) is gone — a tap on
+ * an empty cart now stashes via ``pendingCouponStore`` and the cart's
+ * boot-hook turns it into a sticky "will apply when you add items" row.
  */
-import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
-import { toast } from "sonner";
-import { useCart } from "@/lib/cart-context";
+import { Link } from "@tanstack/react-router";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { useServices } from "@/hooks/useApi";
+import { useCouponBannerHandlers } from "./coupon-banner-handlers";
 import type { BannerDestination } from "./banner-destination";
 
 interface PromoBanner {
@@ -57,20 +64,6 @@ const BANNERS: PromoBanner[] = [
 ];
 
 export function PromoCarousel() {
-  const navigate = useNavigate();
-  const { items } = useCart();
-
-  const onCouponTap = (code: string) => {
-    // Mirror the hero banner's empty-cart path: the coupons sheet needs a
-    // subtotal, and ``cart_amount: 0`` 400s backend-side. Toast and stay
-    // put rather than drop the user on an empty cart that silently rejects.
-    if (items.length === 0) {
-      toast(`Add items to cart to redeem ${code}`);
-      return;
-    }
-    void navigate({ to: "/cart", search: { coupon: code } });
-  };
-
   return (
     <div className="pb-2">
       <div
@@ -81,7 +74,7 @@ export function PromoCarousel() {
         className="flex snap-x snap-mandatory gap-3 overflow-x-auto pl-4 scrollbar-none"
       >
         {BANNERS.map((b) => (
-          <PromoBannerCard key={b.id} banner={b} onCouponTap={onCouponTap} />
+          <PromoBannerCard key={b.id} banner={b} />
         ))}
         {/* Right-side gutter so the last banner's edge shadow isn't clipped. */}
         <div className="w-4 shrink-0" aria-hidden />
@@ -92,7 +85,6 @@ export function PromoCarousel() {
 
 interface PromoBannerCardProps {
   banner: PromoBanner;
-  onCouponTap: (code: string) => void;
 }
 
 /**
@@ -102,7 +94,15 @@ interface PromoBannerCardProps {
  * bare ``<div>``). Keeps the branching readable and testable per-card
  * without rendering the whole strip.
  */
-export function PromoBannerCard({ banner, onCouponTap }: PromoBannerCardProps) {
+export function PromoBannerCard({ banner }: PromoBannerCardProps) {
+  const handlers = useCouponBannerHandlers();
+  // Catalogue hydration check for `coupon-prefill-cart` — see the twin note
+  // in HeroBanner. On the always-on strip the services query is virtually
+  // always ready by the time a user scrolls past, but we still gate the
+  // tap so the "I tapped but nothing happened" bug doesn't creep back on
+  // a cold reload directly on Home.
+  const { data: services } = useServices();
+  const catalogueReady = services !== undefined;
   // 84% of the viewport so the next banner peeks in — the visual cue that
   // scroll exists, without needing an indicator row.
   const frameStyle = { width: "84%" } as const;
@@ -164,17 +164,56 @@ export function PromoBannerCard({ banner, onCouponTap }: PromoBannerCardProps) {
     );
   }
 
-  // destination.kind === "coupon"
-  const code = destination.value;
-  return (
+  // Below: the four coupon-* flows (SVC-347). Same pattern as HeroBanner —
+  // same inner frame, only the onClick + a11y label differ, with a spinner
+  // overlay when the catalogue isn't ready for a prefill flow.
+  const renderCouponButton = (onTap: () => void, ariaLabel: string, disabled = false) => (
     <button
       type="button"
-      onClick={() => onCouponTap(code)}
-      className={`${frameClass} ${interactiveClass} text-left`}
+      onClick={onTap}
+      disabled={disabled}
+      className={`${frameClass} ${interactiveClass} relative text-left disabled:cursor-progress`}
       style={frameStyle}
-      aria-label={`${banner.headline}. Apply coupon ${code}`}
+      aria-label={ariaLabel}
     >
       {inner}
+      {disabled && (
+        <span className="absolute bottom-4 right-4 flex h-6 w-6 items-center justify-center rounded-full bg-white/25 backdrop-blur">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        </span>
+      )}
     </button>
+  );
+
+  if (destination.kind === "coupon") {
+    const code = destination.value;
+    return renderCouponButton(
+      () => handlers.onCoupon(code),
+      `${banner.headline}. Apply coupon ${code}`,
+    );
+  }
+
+  if (destination.kind === "coupon-prefill-cart") {
+    const { code, items } = destination;
+    return renderCouponButton(
+      () => (catalogueReady ? handlers.onCouponPrefill(code, items) : undefined),
+      `${banner.headline}. Add ${items.length} ${items.length === 1 ? "item" : "items"} and apply coupon ${code}`,
+      !catalogueReady,
+    );
+  }
+
+  if (destination.kind === "coupon-stash") {
+    const { code, navigateTo } = destination;
+    return renderCouponButton(
+      () => handlers.onCouponStash(code, navigateTo),
+      `${banner.headline}. Save coupon ${code} for later`,
+    );
+  }
+
+  // destination.kind === "coupon-category"
+  const { code, categorySlug } = destination;
+  return renderCouponButton(
+    () => handlers.onCouponCategory(code, categorySlug),
+    `${banner.headline}. Browse ${categorySlug} with coupon ${code}`,
   );
 }

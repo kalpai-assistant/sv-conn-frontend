@@ -27,8 +27,10 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./auth-context";
 import type { Service } from "./mock-data";
+import type { PrefillItem } from "@/components/home/banner-destination";
 
 // v2 (SVC-232): line items gained `variantId`. A cart persisted under v1
 // predates that field, so loading one would send no service_variant_id and
@@ -62,6 +64,14 @@ interface CartContextValue {
   totalQuantity: number;
   subtotal: number;
   add: (service: Service, quantity?: number, variantId?: string) => void;
+  // SVC-347: batch add used by `coupon-prefill-cart` banner taps. Resolves
+  // each `serviceId` against the cached service catalogue so pricing +
+  // variant denormalisation matches a manual `add()` — a stale `unitPrice`
+  // would render as NaN in the sticky "You save" row until the user
+  // bumps a quantity. Returns the ids that were skipped (service no
+  // longer in the catalogue) so a caller can log or toast — the dropped
+  // services are reported, not swallowed silently.
+  addMany: (items: PrefillItem[]) => { skipped: string[] };
   updateQuantity: (key: string, quantity: number) => void;
   remove: (key: string) => void;
   clear: () => void;
@@ -101,6 +111,7 @@ function saveCart(userId: string | undefined, items: CartLineItem[]) {
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id;
+  const queryClient = useQueryClient();
   const [items, setItems] = useState<CartLineItem[]>(() => loadCart(userId));
 
   // On login (or user change) re-read from that user's storage slot.
@@ -164,6 +175,34 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const addMany = useCallback(
+    (prefill: PrefillItem[]): { skipped: string[] } => {
+      // Read the SAME cache entry `useServices()` writes — `["services",
+      // undefined]` is the "all services" key. Reading via the query client
+      // (instead of calling `useServices()` here) keeps `CartProvider` from
+      // owning a loading state it has no UI to render; callers that care
+      // about the "catalogue still loading" case should disable their own
+      // tap target until the hook reports data.
+      const services = queryClient.getQueryData<Service[]>(["services", undefined]) ?? [];
+      const byId = new Map(services.map((s) => [s.id, s]));
+      const skipped: string[] = [];
+      for (const item of prefill) {
+        const service = byId.get(item.serviceId);
+        if (!service) {
+          // Silently drop and warn — a deleted service shouldn't block the
+          // rest of the hydration, otherwise one stale banner config breaks
+          // every item it ships alongside.
+          console.warn(`[cart.addMany] serviceId ${item.serviceId} not in catalogue — skipped`);
+          skipped.push(item.serviceId);
+          continue;
+        }
+        add(service, item.quantity ?? 1, item.variantId);
+      }
+      return { skipped };
+    },
+    [add, queryClient],
+  );
+
   const updateQuantity = useCallback((serviceId: string, quantity: number) => {
     setItems((prev) => {
       if (quantity <= 0) {
@@ -184,8 +223,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const value = useMemo<CartContextValue>(() => {
     const totalQuantity = items.reduce((n, i) => n + i.quantity, 0);
     const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-    return { items, totalQuantity, subtotal, add, updateQuantity, remove, clear };
-  }, [items, add, updateQuantity, remove, clear]);
+    return { items, totalQuantity, subtotal, add, addMany, updateQuantity, remove, clear };
+  }, [items, add, addMany, updateQuantity, remove, clear]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
