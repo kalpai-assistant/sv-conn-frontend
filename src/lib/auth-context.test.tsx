@@ -150,7 +150,8 @@ describe("session teardown (SVC-350)", () => {
         if (!/\.(ts|tsx)$/.test(entry.name)) continue;
         if (/\.test\.(ts|tsx)$/.test(entry.name)) continue;
         if (readFileSync(path, "utf8").includes("queryClient.clear(")) {
-          offenders.push(path.slice(srcDir.length + 1));
+          // Forward slashes so the expectation holds on Windows too.
+          offenders.push(path.slice(srcDir.length + 1).replace(/\\/g, "/"));
         }
       }
     }
