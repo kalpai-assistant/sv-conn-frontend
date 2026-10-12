@@ -96,10 +96,17 @@ function JobBody({ booking }: { booking: Booking }) {
             Job completed
           </div>
         )}
-        {(booking.status === "CANCELLED" || booking.status === "EXPIRED") && (
+        {/* Reached from the "job_cancelled" push (SVC-348): the one thing the
+            Pro must take away is not to set off. */}
+        {booking.status === "CANCELLED" && (
+          <div className="rounded-lg bg-muted p-4 text-sm">
+            <p className="font-medium text-foreground">This job was cancelled</p>
+            <p className="mt-1 text-muted-foreground">Please don’t travel to it.</p>
+          </div>
+        )}
+        {booking.status === "EXPIRED" && (
           <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
-            This job was {booking.status === "CANCELLED" ? "cancelled" : "expired"}. There’s nothing
-            left to do here.
+            This job expired. There’s nothing left to do here.
           </p>
         )}
       </div>
