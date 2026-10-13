@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import {
   ArrowLeft,
@@ -9,6 +9,7 @@ import {
   Plus,
   Trash2,
   Ticket,
+  X,
   CreditCard,
   Banknote,
   Loader2,
@@ -26,6 +27,7 @@ import { SavedAddressesSheet } from "@/components/SavedAddressesSheet";
 import { SlotPickerSheet } from "@/components/cart/SlotPickerSheet";
 import { CouponsSheet } from "@/components/cart/CouponsSheet";
 import { formatRupees } from "@/lib/currency";
+import { clearPendingCoupon, getPendingCoupon } from "@/lib/pending-coupon";
 
 // SVC-310: the hero banner's "coupon" destination hands off the code
 // through this param so the cart opens with the coupons sheet pre-filled.
@@ -71,12 +73,13 @@ function CartHeader({ name }: { name?: string | null }) {
   );
 }
 
-function CartPage() {
+export function CartPage() {
   const navigate = useNavigate();
   const { coupon: couponFromUrl } = useSearch({ from: Route.fullPath });
   const { items, subtotal, updateQuantity, remove, clear } = useCart();
   // Only for the header avatar's initials.
   const { user } = useAuth();
+  const userId = user?.id;
   const { selected: selectedAddress, setSelectedId } = useSelectedAddress();
   const { bookAndPay, isBusy } = useBookAndPay();
 
@@ -91,19 +94,33 @@ function CartPage() {
 
   const [addressPickerOpen, setAddressPickerOpen] = useState(false);
   const [slotPickerOpen, setSlotPickerOpen] = useState(false);
-  // SVC-310: open with the sheet already up when the hero banner handed us
-  // a coupon code — the banner only navigates here when it has one, so a
-  // user arriving via that path reads the pre-fill as "we remembered what
-  // you tapped" instead of landing on the cart with nothing happening.
-  const [couponsSheetOpen, setCouponsSheetOpen] = useState(() => Boolean(couponFromUrl));
-  // Hold the code separately so the search param can be dropped from the
-  // URL once consumed. Keeping it in the URL means a back nav or refresh
-  // would re-trigger the auto-apply even after the user cancelled.
-  const [pendingCouponCode, setPendingCouponCode] = useState<string | null>(couponFromUrl ?? null);
+
+  // SVC-347: coupon code the user tapped a banner for on Home, waiting to
+  // auto-apply here. Two entry points, same slot:
+  //   1. ``?coupon=CODE`` — the SVC-310 handoff, kept for backwards compat.
+  //      A user hand-typing the URL still works.
+  //   2. ``pendingCouponStore`` — the new store, written by every coupon-*
+  //      banner tap. Survives a kill-and-reopen that the search param can't.
+  // URL wins when both are set (the user's most recent action), otherwise
+  // the store. ``null`` when neither — the normal "walked into cart from
+  // the bottom nav" case.
+  const [pendingCouponCode, setPendingCouponCode] = useState<string | null>(() => {
+    const stashed = getPendingCoupon(userId);
+    return couponFromUrl ?? stashed ?? null;
+  });
+  // Sheet opens as soon as we have both a code AND something to apply it
+  // against. Opening it on an empty cart would show the sheet above an
+  // empty bill, which looks like the sheet is broken.
+  const [couponsSheetOpen, setCouponsSheetOpen] = useState(
+    () => Boolean(pendingCouponCode) && items.length > 0,
+  );
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">("online");
 
   // Consume the ?coupon= handoff once, then scrub it from the URL. ``replace``
   // so the pre-handoff URL doesn't live in the back stack as its own entry.
+  // The stashed code in pendingCouponStore is cleared on successful apply
+  // or on explicit "Clear" (see onApplied + the sticky-row Clear button) —
+  // not here, so a mid-mutation error leaves the code recoverable.
   useEffect(() => {
     if (couponFromUrl) {
       void navigate({ to: "/cart", search: {}, replace: true });
@@ -112,6 +129,20 @@ function CartPage() {
     // land with search = {} and this effect is a no-op.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-open the sheet when the cart transitions from empty → non-empty
+  // with a stash still in place — covers the "sticky row told the user it
+  // would apply when they added items" promise from the empty-cart branch.
+  // Guarded by a ref so dismissing the sheet without applying doesn't
+  // reopen it on the next render; the code stays stashed and the user can
+  // re-trigger via the "Apply coupon" row (same route as hand-typing).
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!autoOpenedRef.current && pendingCouponCode && items.length > 0) {
+      autoOpenedRef.current = true;
+      setCouponsSheetOpen(true);
+    }
+  }, [items.length, pendingCouponCode]);
 
   const bill = useMemo(() => {
     const discount = coupon ? Math.min(coupon.discount, subtotal) : 0;
@@ -167,9 +198,24 @@ function CartPage() {
     // Profile was unreachable from this tab and the only way out was another
     // tab. `fullScreen` is dropped for the same reason — the empty state now
     // sits under a header instead of owning the whole viewport.
+    //
+    // SVC-347: when a banner tap stashed a coupon and the cart is still
+    // empty, surface a sticky row above the empty state so the user has
+    // honest feedback — "we remembered FIRST20; it'll apply once you add
+    // items" — instead of silently landing on an empty cart that looks
+    // identical to a cold open.
     return (
       <div className="min-h-screen pb-20">
         <CartHeader name={user?.name} />
+        {pendingCouponCode && (
+          <PendingCouponStickyRow
+            code={pendingCouponCode}
+            onClear={() => {
+              clearPendingCoupon(userId);
+              setPendingCouponCode(null);
+            }}
+          />
+        )}
         <EmptyState
           icon={ShoppingCart}
           title="Your cart is empty"
@@ -422,15 +468,62 @@ function CartPage() {
             cartSubtotal={subtotal}
             currentCode={coupon?.code ?? null}
             initialCode={pendingCouponCode}
-            onApplied={(code, discountAmount) => setCoupon({ code, discount: discountAmount })}
+            onApplied={(code, discountAmount) => {
+              setCoupon({ code, discount: discountAmount });
+              // SVC-347: successful apply is the ONLY path that clears the
+              // store. A validate error (e.g. min-order) must leave the code
+              // in place so the user can retry after adjusting their cart.
+              clearPendingCoupon(userId);
+              setPendingCouponCode(null);
+            }}
             onRemoved={() => setCoupon(null)}
             onClose={() => {
               setCouponsSheetOpen(false);
-              setPendingCouponCode(null);
+              // Dismiss keeps the stash — the user may re-open manually.
+              // Only drop the LOCAL mirror; the store is cleared on apply
+              // or on explicit "Clear" from the sticky row.
             }}
           />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/**
+ * The empty-cart row that promises a stashed banner-tap coupon will apply
+ * once the user adds items.
+ *
+ * Rendered only on the empty branch — the non-empty branch auto-opens the
+ * sheet (see ``autoOpenedRef`` above). The "Clear" affordance is the only
+ * way for a user who tapped by accident to drop the stash without going
+ * through an apply attempt; without it a mis-tap on Home would leave a
+ * coupon riding every subsequent cart visit until it expired or applied.
+ * A toast would be lighter but can't survive the next route change, which
+ * is exactly where the user is going when the row appears.
+ */
+function PendingCouponStickyRow({ code, onClear }: { code: string; onClear: () => void }) {
+  return (
+    <div
+      // Not actually position:sticky — "sticky" in the SVC-347 sense is
+      // "always visible on the empty-cart screen", which is a tall thin
+      // viewport where the row sits right under the header and is
+      // guaranteed on-screen without needing position tricks.
+      className="mx-4 mt-3 flex items-center gap-3 rounded-xl border border-primary/40 bg-accent p-3"
+      aria-live="polite"
+    >
+      <Ticket className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+      <p className="flex-1 text-sm text-foreground">
+        <span className="font-semibold uppercase">{code}</span> will apply when you add items.
+      </p>
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label={`Clear ${code}`}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-destructive"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 }

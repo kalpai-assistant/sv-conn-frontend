@@ -1,10 +1,13 @@
 /**
- * Promo carousel tap behaviour (SVC-310 follow-up).
+ * Promo carousel tap behaviour.
  *
  * The hero slot's bug lived here too — the FIRST20 card was wrapped in a
- * ``<Link to="/">`` that tapped back to Home with no visible change.
- * Promo carousel is the always-on surface (festival-weeks aside), so this
- * is the one users actually hit day-to-day.
+ * ``<Link to="/">`` that tapped back to Home with no visible change. Promo
+ * carousel is the always-on surface (festival-weeks aside), so this is the
+ * one users actually hit day-to-day.
+ *
+ * SVC-347: same handler model as HeroBanner (``useCouponBannerHandlers``),
+ * so the four coupon-* flows + the dead-end fix share one test shape.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -12,7 +15,9 @@ import userEvent from "@testing-library/user-event";
 
 const navigate = vi.fn();
 const toastFn = vi.fn();
+const addMany = vi.fn(() => ({ skipped: [] as string[] }));
 let cartItems: Array<{ serviceId: string }>;
+let servicesData: unknown | undefined;
 
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
@@ -32,17 +37,28 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/lib/cart-context", () => ({
-  useCart: () => ({ items: cartItems }),
+  useCart: () => ({ items: cartItems, addMany }),
+}));
+
+vi.mock("@/lib/auth-context", () => ({
+  useAuth: () => ({ user: { id: "test-user" } }),
+}));
+
+vi.mock("@/hooks/useApi", () => ({
+  useServices: () => ({ data: servicesData }),
 }));
 
 import { PromoCarousel, PromoBannerCard } from "@/components/home/PromoCarousel";
+import { getPendingCoupon } from "@/lib/pending-coupon";
 
 beforeEach(() => {
   vi.clearAllMocks();
   cartItems = [];
+  servicesData = [{ id: "svc_1", name: "x", variants: [] }];
+  window.localStorage.clear();
 });
 
-describe("seeded FIRST20 card", () => {
+describe("seeded FIRST20 card (SVC-310, extended by SVC-347)", () => {
   // The default export's one real card. Covers the top-of-funnel path a
   // real user hits: tap FIRST20 on Home.
 
@@ -56,17 +72,116 @@ describe("seeded FIRST20 card", () => {
     expect(toastFn).not.toHaveBeenCalled();
   });
 
-  it("toasts and stays on Home when the cart is empty", async () => {
-    // ``/coupons/validate`` 400s on ``cart_amount: 0`` and the sheet has
-    // nothing to compute against. Named toast tells the user what wasn't
-    // applied so the no-op is honest.
+  it("stashes and still navigates when the cart is empty — the SVC-347 §7 dead-end fix", async () => {
     cartItems = [];
     render(<PromoCarousel />);
 
     await userEvent.click(screen.getByRole("button", { name: /20%.*FIRST20/i }));
 
-    expect(toastFn).toHaveBeenCalledWith(expect.stringMatching(/add items.*FIRST20/i));
+    expect(navigate).toHaveBeenCalledWith({ to: "/cart", search: { coupon: "FIRST20" } });
+    expect(toastFn).not.toHaveBeenCalled();
+    expect(getPendingCoupon("test-user")).toBe("FIRST20");
+  });
+});
+
+describe("coupon-prefill-cart card (SVC-347)", () => {
+  it("calls addMany with the configured items, stashes the code, and navigates to /cart", async () => {
+    render(
+      <PromoBannerCard
+        banner={{
+          id: "prefill-x",
+          headline: "Weekend deep cleaning — ₹200 off",
+          body: "Add + apply",
+          ctaLabel: "Add + apply",
+          gradient: "from-primary to-primary/70",
+          destination: {
+            kind: "coupon-prefill-cart",
+            code: "DIWALI20",
+            items: [{ serviceId: "svc_deep_clean", quantity: 1 }],
+          },
+        }}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button"));
+
+    expect(addMany).toHaveBeenCalledWith([{ serviceId: "svc_deep_clean", quantity: 1 }]);
+    expect(getPendingCoupon("test-user")).toBe("DIWALI20");
+    expect(navigate).toHaveBeenCalledWith({ to: "/cart" });
+  });
+
+  it("disables the tap while the service catalogue is unresolved", async () => {
+    servicesData = undefined;
+    render(
+      <PromoBannerCard
+        banner={{
+          id: "prefill-x",
+          headline: "Weekend deep cleaning — ₹200 off",
+          body: "Add + apply",
+          ctaLabel: "Add + apply",
+          gradient: "from-primary to-primary/70",
+          destination: {
+            kind: "coupon-prefill-cart",
+            code: "DIWALI20",
+            items: [{ serviceId: "svc_deep_clean" }],
+          },
+        }}
+      />,
+    );
+
+    const button = screen.getByRole("button");
+    expect(button).toBeDisabled();
+    await userEvent.click(button);
+    expect(addMany).not.toHaveBeenCalled();
     expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("coupon-stash card (SVC-347)", () => {
+  it("stashes the code and lands on navigateTo (defaulting to /)", async () => {
+    render(
+      <PromoBannerCard
+        banner={{
+          id: "stash-x",
+          headline: "₹100 off next booking",
+          body: "Stash + apply later",
+          ctaLabel: "Save for later",
+          gradient: "from-primary to-primary/70",
+          destination: { kind: "coupon-stash", code: "REFER100" },
+        }}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button"));
+
+    expect(getPendingCoupon("test-user")).toBe("REFER100");
+    expect(navigate).toHaveBeenCalledWith({ to: "/" });
+    expect(addMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("coupon-category card (SVC-347)", () => {
+  it("stashes the code and lands on /category/$slug", async () => {
+    render(
+      <PromoBannerCard
+        banner={{
+          id: "cat-x",
+          headline: "Spa week — 20% off",
+          body: "Browse spa services with SPA20 ready",
+          ctaLabel: "Browse spa",
+          gradient: "from-primary to-primary/70",
+          destination: { kind: "coupon-category", code: "SPA20", categorySlug: "spa" },
+        }}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button"));
+
+    expect(getPendingCoupon("test-user")).toBe("SPA20");
+    expect(navigate).toHaveBeenCalledWith({
+      to: "/category/$slug",
+      params: { slug: "spa" },
+    });
   });
 });
 
@@ -82,7 +197,6 @@ describe("route destination", () => {
           gradient: "from-primary to-primary/70",
           destination: { kind: "route", value: "/bookings" },
         }}
-        onCouponTap={vi.fn()}
       />,
     );
     const link = screen.getByRole("link");
@@ -107,7 +221,6 @@ describe("external destination", () => {
           gradient: "from-primary to-primary/70",
           destination: { kind: "external", value: "https://example.com/post" },
         }}
-        onCouponTap={vi.fn()}
       />,
     );
     const anchor = screen.getByRole("link");
@@ -133,7 +246,6 @@ describe("no destination (decorative)", () => {
           gradient: "from-primary to-primary/70",
           destination: undefined,
         }}
-        onCouponTap={vi.fn()}
       />,
     );
 
@@ -153,7 +265,6 @@ describe("no destination (decorative)", () => {
           gradient: "from-primary to-primary/70",
           destination: undefined,
         }}
-        onCouponTap={vi.fn()}
       />,
     );
 
