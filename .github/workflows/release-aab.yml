@@ -1,0 +1,318 @@
+# Signed Android release AAB → S3 (SVC-122).
+#
+# PARALLEL to release-apk.yml, not a replacement. The APK pipeline stays
+# the primary distribution channel for direct / sideload testers. This
+# workflow produces an Android App Bundle (AAB) for the Google Play
+# Internal Testing track, feeding SVC-78 (Play Console account) once
+# that lands.
+#
+# Scope today:
+# - Build + sign the AAB using the SAME keystore / alias / passwords as
+#   the APK pipeline (SVC-160 secrets). The signing config in
+#   `android/app/build.gradle` is attached at the `release` build-type
+#   level, so `bundleRelease` picks it up with no gradle changes.
+# - Upload to S3 under `aab/eazyserv-<version>.aab` + `aab/latest.aab`
+#   (own prefix — never collide with the APK keys).
+# - Attach the signed AAB as a GitHub Actions artifact so Vipul can
+#   grab it without S3 access.
+#
+# Explicitly out of scope here (per SVC-122):
+# - No Play Console upload step. SVC-78 (service-account provisioning)
+#   is the blocker; interim upload path is manual via the Console. A
+#   commented stub at the bottom shows the exact shape the SVC-78
+#   follow-up should paste in.
+# - No in-app update push. Play handles its own update prompt.
+# - No Play App Signing enrollment / key rotation. That's a Play
+#   Console setting Vipul configures after SVC-78 lands.
+# - No touching the keystore. Shared with App Links (SVC-343).
+
+name: Release AAB to S3
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.0.11-beta). Uploaded as eazyserv-<version>.aab + latest.aab"
+        required: true
+        type: string
+      track:
+        description: "Play Console track. Only `internal` is wired today; the rest are reserved for the SVC-78 follow-up."
+        required: false
+        type: choice
+        default: internal
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+
+# Separate from `release-apk` on purpose — AAB and APK can run in
+# parallel; serialising them would delay a Play release behind an APK
+# push without any shared mutable state (different S3 prefixes, no
+# backend write).
+concurrency:
+  group: release-aab
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-south-1
+  S3_BUCKET: eazyserv-downloads
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # AGP is currently pinned to JDK 21 — see RELEASE.md for the "why 21,
+      # not the newest LTS" note. Bumping this must be coordinated with
+      # Gradle / AGP versions in android/.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # No setup-android action here, deliberately — see release-apk.yml
+      # for the full history of why. The runner's preinstalled SDK is
+      # what gradle resolves against.
+      - name: Verify Android SDK is present
+        run: |
+          echo "ANDROID_HOME=${ANDROID_HOME:-unset}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-unset}"
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [ -z "$SDK" ] || [ ! -d "$SDK/platforms" ]; then
+            echo "::error::No Android SDK on the runner image; restore an SDK setup step."
+            exit 1
+          fi
+          ls "$SDK/platforms"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # Mirrors release-apk.yml hoisting: VITE_* envs must exist BEFORE
+      # `npm run build:mobile`, or the Vite bundle ships without the key
+      # (SVC-309). The AAB packages the exact same web bundle the APK
+      # does, so the same hoisting discipline applies.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::018272776203:role/eazyserv-github-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Fetch Maps browser key from SSM
+        run: |
+          set -euo pipefail
+          MAPS_KEY=$(aws ssm get-parameter \
+            --name /eazyserv/beta/GOOGLE_MAPS_API_KEY \
+            --with-decryption --query 'Parameter.Value' --output text)
+          echo "::add-mask::$MAPS_KEY"
+          echo "VITE_GOOGLE_MAPS_BROWSER_API_KEY=$MAPS_KEY" >> "$GITHUB_ENV"
+          echo "  loaded VITE_GOOGLE_MAPS_BROWSER_API_KEY (len=${#MAPS_KEY})"
+
+      # SVC-317 probe — same two endpoints the app actually hits. If
+      # either is dead the AAB would ship broken location screens, so
+      # fail-fast here rather than in a Play rollout.
+      - name: Verify Google Maps APIs are live
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="$VITE_GOOGLE_MAPS_BROWSER_API_KEY"
+          [ -z "$key" ] && { echo "::error::VITE_GOOGLE_MAPS_BROWSER_API_KEY empty"; exit 1; }
+          gc=$(curl -sf "https://maps.googleapis.com/maps/api/geocode/json?latlng=18.5204,73.8567&key=$key" | jq -r .status)
+          [ "$gc" = "OK" ] || { echo "::error::Geocoding API not OK (got $gc)"; exit 1; }
+          pl=$(curl -sf -X POST "https://places.googleapis.com/v1/places:autocomplete" \
+                 -H "Content-Type: application/json" -H "X-Goog-Api-Key: $key" \
+                 -d '{"input":"pune"}' | jq -r 'has("suggestions")')
+          [ "$pl" = "true" ] || { echo "::error::Places API (New) autocomplete failed"; exit 1; }
+
+      - name: Build mobile web bundle + sync to Android
+        env:
+          VITE_API_BASE_URL: https://api.eazyserv.com/api/v1
+        run: |
+          set -euo pipefail
+          npm run build:mobile
+          npx cap sync android
+
+          # Same key-inlining guard as the APK pipeline — a bundle that
+          # fell back to the "key not set" throw path would ship broken
+          # location screens on Play.
+          if grep -rq --include='*.js' "GOOGLE_MAPS_BROWSER_API_KEY is not set" dist-mobile/assets/; then
+            echo "::error::Maps key was not inlined — location screens would ship broken"
+            exit 1
+          fi
+
+      - name: Materialise release keystore + properties
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          mkdir -p android/keystore
+          echo "$KEYSTORE_B64" | base64 -d > android/keystore/eazyserv-release.jks
+          cp android/keystore.properties.example android/keystore.properties
+
+      - name: Materialise google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON_B64" ]; then
+            echo "::error::GOOGLE_SERVICES_JSON_B64 is not set. A release build" \
+                 "without it crashes on launch (Default FirebaseApp is not initialized)."
+            exit 1
+          fi
+          echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > android/app/google-services.json
+          python3 -c "import json,sys; d=json.load(open('android/app/google-services.json')); \
+            pkgs=[c['client_info']['android_client_info']['package_name'] for c in d['client']]; \
+            sys.exit(0 if 'com.eazyserv.app' in pkgs else 'com.eazyserv.app missing from google-services.json: %s' % pkgs)"
+          echo "google-services.json OK (project: $(python3 -c "import json; print(json.load(open('android/app/google-services.json'))['project_info']['project_id'])"))"
+
+      # Same signingConfig the APK uses — `release` build type is shared
+      # between `assembleRelease` and `bundleRelease`, so no gradle
+      # changes were needed.
+      - name: Build signed release AAB
+        env:
+          ANDROID_KEYSTORE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_STORE_PASSWORD }}
+          ANDROID_KEYSTORE_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_KEY_PASSWORD }}
+        working-directory: android
+        run: ./gradlew bundleRelease
+
+      # Guard against a stub / unsigned output. `bundleRelease` normally
+      # writes `app-release.aab`; a missing or `-unsigned` suffix means
+      # the signing config did not attach (hasKeystore gate failed
+      # silently) and we'd ship an unsignable AAB.
+      - name: Verify AAB produced + Firebase config landed
+        run: |
+          AAB=android/app/build/outputs/bundle/release/app-release.aab
+          test -f "$AAB" || {
+            echo "::error::Expected signed AAB at $AAB but it is missing."
+            echo "Directory contents:"
+            ls -la android/app/build/outputs/bundle/release/ 2>&1 || true
+            exit 1
+          }
+          UNSIGNED=android/app/build/outputs/bundle/release/app-release-unsigned.aab
+          if [ -f "$UNSIGNED" ]; then
+            echo "::error::Found $UNSIGNED — signing config did not attach to bundleRelease."
+            exit 1
+          fi
+          echo "AAB size: $(stat -c%s "$AAB") bytes"
+
+          RES=android/app/build/generated/res/processReleaseGoogleServices/values/values.xml
+          test -f "$RES" || {
+            echo "::error::google-services plugin did not run — the AAB has no Firebase" \
+                 "config and will crash on launch."
+            exit 1
+          }
+          grep -q "google_app_id" "$RES" || {
+            echo "::error::google_app_id missing from generated resources."
+            exit 1
+          }
+          echo "Firebase config present in the release build."
+
+      # AABs are JAR-format; `apksigner` only knows APKs. `jarsigner`'s
+      # exit code is the authoritative signed/unsigned signal here. The
+      # `keytool -printcert` step after is for provenance + prints the
+      # SHA-256 fingerprint reviewers compare against the APK's.
+      - name: Verify AAB signing + print SHA-256
+        run: |
+          set -euo pipefail
+          AAB=android/app/build/outputs/bundle/release/app-release.aab
+
+          echo "--- jarsigner -verify ---"
+          jarsigner -verify -verbose:summary "$AAB" | tail -20
+          jarsigner -verify "$AAB" \
+            || { echo "::error::AAB is not signed"; exit 1; }
+
+          echo "--- keytool -printcert (full) ---"
+          # Non-fatal: we want the DN + fingerprints in the log but
+          # jarsigner above already gated signed/unsigned.
+          set +e
+          keytool -printcert -jarfile "$AAB"
+          set -e
+
+          echo "--- SHA-256 fingerprint ---"
+          # Isolate the SHA-256 line for PR body comparison against APK.
+          # keytool prints `	 SHA256: AA:BB:...` under each signer block;
+          # grab the first occurrence (there is only one signer here).
+          SHA256=$(keytool -printcert -jarfile "$AAB" \
+                     | grep -i "SHA256:" | head -1 | awk -F: '{for(i=2;i<=NF;i++) printf "%s%s", $i, (i<NF?":":"")}' \
+                     | sed 's/^ *//')
+          if [ -z "$SHA256" ]; then
+            echo "::error::Could not extract SHA-256 fingerprint from AAB."
+            exit 1
+          fi
+          echo "AAB SHA-256: $SHA256"
+          echo "AAB_SHA256=$SHA256" >> "$GITHUB_ENV"
+
+      # Two uploads — mirrors the APK's versioned + latest convention,
+      # but under the `aab/` prefix so there's no key collision with
+      # `apk/latest.apk`.
+      - name: Upload AAB to S3
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          AAB=android/app/build/outputs/bundle/release/app-release.aab
+          aws s3 cp "$AAB" "s3://${S3_BUCKET}/aab/eazyserv-${VERSION}.aab" \
+            --content-type application/octet-stream \
+            --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp "$AAB" "s3://${S3_BUCKET}/aab/latest.aab" \
+            --content-type application/octet-stream \
+            --cache-control "public, max-age=300"
+
+      - name: Print URLs + SHA
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "Versioned: s3://${S3_BUCKET}/aab/eazyserv-${VERSION}.aab"
+          echo "Latest:    s3://${S3_BUCKET}/aab/latest.aab"
+          echo "SHA-256:   ${AAB_SHA256}"
+          echo "Track:     ${{ inputs.track }} (reserved — Play upload is manual until SVC-78)"
+
+      # Attach as a GitHub Actions artifact as well. Vipul uses this for
+      # the manual Play Internal Testing upload until SVC-78 lands —
+      # saves needing S3 read access from the laptop.
+      - name: Upload AAB as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eazyserv-${{ inputs.version }}-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          # Retention long enough to cover a slow Play review cycle but
+          # not permanent — S3 is the source of truth.
+          retention-days: 30
+          if-no-files-found: error
+
+      # ---------------------------------------------------------------
+      # TODO SVC-78: upload to Play Internal Testing track once service
+      # account JSON is in SSM at /eazyserv/beta/PLAY_SERVICE_ACCOUNT_JSON.
+      # Expected shape of the follow-up (do NOT uncomment until SVC-78
+      # is done + Play App Signing is enrolled):
+      #
+      # - name: Fetch Play service account from SSM
+      #   id: play-sa
+      #   run: |
+      #     set -euo pipefail
+      #     SA_JSON=$(aws ssm get-parameter \
+      #       --name /eazyserv/beta/PLAY_SERVICE_ACCOUNT_JSON \
+      #       --with-decryption --query 'Parameter.Value' --output text)
+      #     echo "::add-mask::$SA_JSON"
+      #     SA_FILE="$RUNNER_TEMP/play-service-account.json"
+      #     printf '%s' "$SA_JSON" > "$SA_FILE"
+      #     echo "sa_file=$SA_FILE" >> "$GITHUB_OUTPUT"
+      #
+      # - name: Upload AAB to Play
+      #   uses: r0adkll/upload-google-play@v1
+      #   with:
+      #     serviceAccountJson: ${{ steps.play-sa.outputs.sa_file }}
+      #     packageName: com.eazyserv.app
+      #     releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+      #     track: ${{ inputs.track }}
+      #     status: completed
+      # ---------------------------------------------------------------
