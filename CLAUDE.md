@@ -175,6 +175,60 @@ Actions tab → **Release APK to S3** → **Run workflow** → fill inputs → *
 - In-app APK download plugin: `android/app/src/main/java/com/eazyserv/apkupdater/` (SVC-226)
 - Release endpoint auth: SVC-227.2 — the workflow reads `INTERNAL_RELEASE_TOKEN` from AWS SSM at run time. Your local machine never needs the token.
 
+## Cutting a Play Store build (SVC-122 — AAB, parallel to APK)
+
+Play Store requires AAB (Android App Bundle), not APK. The AAB pipeline is **parallel** to the APK one — the APK ritual above stays the primary distribution channel for direct / sideload testers; the AAB pipeline exists to feed Play's Internal Testing track once SVC-78 (Play Console service account) lands.
+
+Both pipelines sign with the **same keystore** — do NOT create a separate AAB signing key. Matching SHA-256 fingerprints is a prerequisite for Play App Signing enrollment later.
+
+### Ritual
+
+```bash
+gh workflow run release-aab.yml \
+  --repo kalpai-assistant/sv-conn-frontend \
+  -f version=1.0.11-beta
+```
+
+| Param | Required | Default | Notes |
+|---|---|---|---|
+| `version` | ✅ | — | SemVer. Same value as the APK release — must match `versionName` in `build.gradle`. |
+| `track` | ⬜ | `internal` | `internal` / `alpha` / `beta` / `production`. Only `internal` is wired today; the rest are reserved for the SVC-78 follow-up. |
+
+### What the workflow produces
+
+- `s3://eazyserv-downloads/aab/eazyserv-<version>.aab` (immutable, versioned)
+- `s3://eazyserv-downloads/aab/latest.aab` (mutable pointer, cache 5 min)
+- GitHub Actions artifact `eazyserv-<version>-aab` on the workflow run — 30-day retention — so you can download the signed AAB without S3 read access.
+
+The workflow does **not** call the backend release endpoint. Play handles its own update prompt; firing an FCM push on a Play release would double-notify.
+
+### Interim upload path (until SVC-78 completes)
+
+Automated Play Console upload is blocked on SVC-78 (service-account provisioning). Until that lands:
+
+1. Run `gh workflow run release-aab.yml -f version=...` as above.
+2. Open the workflow run on GitHub → Artifacts → download `eazyserv-<version>-aab`.
+3. In Play Console, go to the app → Internal testing → Create new release → upload the AAB.
+
+Once SVC-78 lands, uncomment the `# TODO SVC-78` block at the bottom of `.github/workflows/release-aab.yml` and the pipeline will push directly to the Internal track. The commented stub already shows the exact shape (uses `r0adkll/upload-google-play@v1` reading `PLAY_SERVICE_ACCOUNT_JSON` from SSM).
+
+### Verifying signing parity with the APK
+
+After the first AAB build, confirm its SHA-256 matches the APK's — if they diverge, Play App Signing enrollment will fail later:
+
+```bash
+# From a built AAB (either downloaded artifact or `aws s3 cp` the S3 key locally):
+keytool -printcert -jarfile app-release.aab | grep -i SHA256
+```
+
+Compare against:
+```bash
+"$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --print-certs app-release.apk \
+  | grep -i "SHA-256"
+```
+
+They MUST match. If they don't, something is wrong with the signing config and the AAB will not be acceptable to Play.
+
 ## Commands
 
 ```bash
