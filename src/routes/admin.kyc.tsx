@@ -86,7 +86,7 @@ function AdminKYCReviewPage() {
   const copy = tabCopy(activeTab);
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
+    <div className="mx-auto max-w-2xl p-4 sm:p-6">
       <header className="mb-6 flex items-center gap-3">
         <ShieldCheck className="h-6 w-6 text-primary" />
         <div>
@@ -412,13 +412,22 @@ function ComparisonTable({
   const dobMismatch = looksMismatched(providerStatedDob, extractedDob);
 
   return (
+    // Sized for a phone (SVC-355). The sheet leaves this table ~256px at 340px
+    // wide and ~235px at 320. An auto-layout table grew to fit one long unbroken
+    // word (a long name in capitals, ~406px) and the wrapper clipped the
+    // AI-extracted column. Fixed layout holds the width, and `break-words`
+    // wraps such a word inside its cell. `overflow-wrap: anywhere` was tried
+    // and rejected on device: it lets auto layout squeeze columns until short
+    // words split ("Aadhaa / r #"). Field gets 4rem (6rem from sm, where the
+    // padding grows) and the value columns split the rest, so at 320px each is
+    // ~86px: just enough for the widest header word, EXTRACTED (67px + 16px).
     <div className="mt-4 overflow-hidden rounded-lg border border-border">
-      <table className="w-full text-xs">
+      <table className="w-full table-fixed text-xs [&_td]:break-words [&_th]:break-words">
         <thead className="bg-secondary/40 text-left uppercase tracking-wide text-muted-foreground">
           <tr>
-            <th className="px-3 py-2 font-medium">Field</th>
-            <th className="px-3 py-2 font-medium">Provider stated</th>
-            <th className="px-3 py-2 font-medium">AI extracted</th>
+            <th className="w-16 px-2 py-2 font-medium sm:w-24 sm:px-3">Field</th>
+            <th className="px-2 py-2 sm:px-3 font-medium">Provider stated</th>
+            <th className="px-2 py-2 sm:px-3 font-medium">AI extracted</th>
           </tr>
         </thead>
         <tbody>
@@ -467,9 +476,9 @@ function ComparisonRow({
   const cellCls = mismatch ? "bg-amber-100 dark:bg-amber-950/40" : "";
   return (
     <tr className="border-t border-border">
-      <td className="px-3 py-2 font-medium text-foreground">{field}</td>
-      <td className={`px-3 py-2 ${cellCls}`}>{stated ?? "—"}</td>
-      <td className={`px-3 py-2 ${cellCls}`}>{extracted ?? "—"}</td>
+      <td className="px-2 py-2 sm:px-3 font-medium text-foreground">{field}</td>
+      <td className={`px-2 py-2 sm:px-3 ${cellCls}`}>{stated ?? "—"}</td>
+      <td className={`px-2 py-2 sm:px-3 ${cellCls}`}>{extracted ?? "—"}</td>
     </tr>
   );
 }
@@ -479,9 +488,9 @@ function AddressRow({ address }: { address: string | null }) {
   if (!address) {
     return (
       <tr className="border-t border-border">
-        <td className="px-3 py-2 font-medium text-foreground">Address</td>
-        <td className="px-3 py-2">—</td>
-        <td className="px-3 py-2">—</td>
+        <td className="px-2 py-2 sm:px-3 font-medium text-foreground">Address</td>
+        <td className="px-2 py-2 sm:px-3">—</td>
+        <td className="px-2 py-2 sm:px-3">—</td>
       </tr>
     );
   }
@@ -493,9 +502,9 @@ function AddressRow({ address }: { address: string | null }) {
   const shown = expanded || !needsTruncate ? address : `${address.slice(0, TRUNCATE_AT)}…`;
   return (
     <tr className="border-t border-border">
-      <td className="px-3 py-2 font-medium text-foreground">Address</td>
-      <td className="px-3 py-2">—</td>
-      <td className="px-3 py-2">
+      <td className="px-2 py-2 sm:px-3 font-medium text-foreground">Address</td>
+      <td className="px-2 py-2 sm:px-3">—</td>
+      <td className="px-2 py-2 sm:px-3">
         {needsTruncate ? (
           <button
             type="button"

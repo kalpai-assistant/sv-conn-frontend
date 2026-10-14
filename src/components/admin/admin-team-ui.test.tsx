@@ -115,7 +115,7 @@ beforeEach(() => {
 });
 
 describe("AdminMenu", () => {
-  it.each(["/admin/bookings", "/admin/kyc", "/admin/payouts", "/admin/teams"])(
+  it.each(["/admin/bookings", "/admin/kyc", "/admin/payouts", "/admin/teams", "/admin/profile"])(
     "links every admin page from %s",
     (path) => {
       pathname = path;
@@ -127,6 +127,7 @@ describe("AdminMenu", () => {
         "/admin/kyc",
         "/admin/payouts",
         "/admin/teams",
+        "/admin/profile",
       ]);
       const current = links.filter((a) => a.getAttribute("aria-current") === "page");
       expect(current.map((a) => a.getAttribute("href"))).toEqual([path]);
@@ -142,15 +143,25 @@ describe("AdminMenu", () => {
     expect(screen.getByRole("link", { name: "KYC" })).not.toHaveClass("bg-primary");
   });
 
-  it("logs out and lands on the admin login, not the customer sign-in", async () => {
-    // AppGate keeps an admin on /admin/*, so Profile's Logout is unreachable;
-    // this button is the admin's only way out.
+  it("has no Log out: it lives on /admin/profile (SVC-355)", () => {
     pathname = "/admin/teams";
     render(<AdminMenu />);
-    await userEvent.click(screen.getByRole("button", { name: /Log out/ }));
-    expect(logout).toHaveBeenCalledTimes(1);
-    expect(navigate).toHaveBeenCalledWith({ to: "/admin/login", replace: true });
-    expect(logout.mock.invocationCallOrder[0]).toBeLessThan(navigate.mock.invocationCallOrder[0]);
+    expect(screen.queryByRole("button", { name: /Log ?out/i })).toBeNull();
+    expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "/admin/profile");
+  });
+
+  it("scrolls the current item into view, so Profile is never selected off-screen", () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      pathname = "/admin/profile";
+      render(<AdminMenu />);
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(scrollIntoView.mock.contexts[0]).toBe(screen.getByRole("link", { name: "Profile" }));
+      expect(scrollIntoView).toHaveBeenCalledWith({ inline: "nearest", block: "nearest" });
+    } finally {
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
+    }
   });
 });
 

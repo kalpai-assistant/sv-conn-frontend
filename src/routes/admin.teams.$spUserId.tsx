@@ -42,6 +42,15 @@ export const Route = createFileRoute("/admin/teams/$spUserId")({
 const ago = (iso: string) => formatDistanceToNowStrict(new Date(iso), { addSuffix: true });
 const when = (iso: string) => `${new Date(iso).toLocaleString()} (${ago(iso)})`;
 
+/** What one member shows, shared by the table row and the phone card
+ *  (SVC-355). Only an active member other than the owner can be moved or
+ *  removed; "takes jobs themselves" only means anything on the owner's row. */
+const memberRowData = (pro: API_AdminTeamPro) => ({
+  actionable: pro.is_active && !pro.is_self,
+  online: pro.is_online ? "Online" : "Offline",
+  takesJobs: pro.is_self ? (pro.accepts_direct_jobs ? "Yes" : "No") : null,
+});
+
 function AdminOwnerPage() {
   const { spUserId } = Route.useParams();
   const team = useAdminProviderTeam(spUserId);
@@ -55,7 +64,7 @@ function AdminOwnerPage() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
+    <div className="mx-auto max-w-6xl p-4 sm:p-6">
       <Button asChild variant="ghost" size="sm" className="mb-4">
         <Link to="/admin/teams">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -154,8 +163,20 @@ function TeamSection({
           No team members, and no profile of their own yet.
         </p>
       )}
+      {/* Phones get cards (SVC-355): at 340px the table showed Member, Phone
+          and half a KYC badge, and Reassign / Force-remove needed a sideways
+          swipe that testers had to be told about. */}
       {query.data && query.data.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <ul aria-label="Team members" className="space-y-2 sm:hidden">
+          {query.data.map((p) => (
+            <li key={p.id}>
+              <MemberCard pro={p} onRemove={onRemove} onMove={onMove} />
+            </li>
+          ))}
+        </ul>
+      )}
+      {query.data && query.data.length > 0 && (
+        <div className="hidden overflow-x-auto rounded-lg border border-border sm:block">
           <table className="w-full text-sm">
             <thead className="bg-secondary/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -189,7 +210,7 @@ function MemberRow({
   onRemove: (p: API_AdminTeamPro) => void;
   onMove: (p: API_AdminTeamPro) => void;
 }) {
-  const actionable = pro.is_active && !pro.is_self;
+  const { actionable, online, takesJobs } = memberRowData(pro);
   return (
     <tr
       data-testid={`member-${pro.id}`}
@@ -210,8 +231,8 @@ function MemberRow({
       <td className="px-3 py-2">
         <KycBadge status={pro.kyc_status} />
       </td>
-      <td className="px-3 py-2">{pro.is_online ? "Online" : "Offline"}</td>
-      <td className="px-3 py-2">{pro.is_self ? (pro.accepts_direct_jobs ? "Yes" : "No") : "—"}</td>
+      <td className="px-3 py-2">{online}</td>
+      <td className="px-3 py-2">{takesJobs ?? "—"}</td>
       <td className="px-3 py-2 text-right tabular-nums">{pro.active_job_count}</td>
       <td className="px-3 py-2">
         {actionable && (
@@ -233,6 +254,65 @@ function MemberRow({
         )}
       </td>
     </tr>
+  );
+}
+
+/** One member under `sm`: every table column, with the actions full-width. */
+function MemberCard({
+  pro,
+  onRemove,
+  onMove,
+}: {
+  pro: API_AdminTeamPro;
+  onRemove: (p: API_AdminTeamPro) => void;
+  onMove: (p: API_AdminTeamPro) => void;
+}) {
+  const { actionable, online, takesJobs } = memberRowData(pro);
+  return (
+    <div
+      data-testid={`member-card-${pro.id}`}
+      className={`space-y-2 rounded-lg border border-border p-3 text-sm ${
+        pro.is_active ? "bg-card" : "bg-secondary/20 text-muted-foreground"
+      }`}
+    >
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={pro.is_active ? "font-medium text-foreground" : "line-through"}>
+            {pro.display_name}
+          </span>
+          {pro.is_self && <Badge variant="secondary">Owner</Badge>}
+          {!pro.is_active && <Badge variant="outline">Removed</Badge>}
+          {!pro.user_is_active && <Badge variant="destructive">Deactivated</Badge>}
+        </div>
+        <div className="text-xs text-muted-foreground">Joined {ago(pro.created_at)}</div>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="tabular-nums">{pro.phone}</span>
+        <KycBadge status={pro.kyc_status} />
+        <span>{online}</span>
+        <span className="tabular-nums">
+          {pro.active_job_count} active {pro.active_job_count === 1 ? "job" : "jobs"}
+        </span>
+      </div>
+      {takesJobs && <div className="text-xs">Takes jobs themselves: {takesJobs}</div>}
+      {actionable && (
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <Button variant="outline" size="sm" onClick={() => onMove(pro)}>
+            <ArrowRightLeft className="mr-1 h-3.5 w-3.5" />
+            Reassign
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-destructive text-destructive hover:bg-destructive/10"
+            onClick={() => onRemove(pro)}
+          >
+            <UserMinus className="mr-1 h-3.5 w-3.5" />
+            Force-remove
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 

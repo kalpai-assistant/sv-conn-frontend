@@ -8,7 +8,7 @@
  * - opening and closing write the URL with `replace`, so Back still leaves
  *   the page as it did before
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type React from "react";
@@ -110,7 +110,27 @@ describe("/admin/bookings?booking=", () => {
   it("opens a row by writing its id to the URL", async () => {
     wrap(<Page />);
     expect(screen.queryByRole("dialog")).toBeNull();
-    await userEvent.click(await screen.findByText("Deep Clean"));
+    // Cards render beside the table in jsdom (no CSS), so pick the table's row.
+    await userEvent.click(within(await screen.findByRole("table")).getByText("Deep Clean"));
+    expect(navigate).toHaveBeenCalledWith({ search: { booking: ID }, replace: true });
+  });
+});
+
+describe("/admin/bookings at phone width (SVC-355)", () => {
+  it("puts status, total, provider and age on the card the table clipped", async () => {
+    wrap(<Page />);
+    const card = await screen.findByTestId(`booking-card-${ID}`);
+    expect(within(card).getByText("5c1d2e3f")).toBeInTheDocument();
+    expect(within(card).getByText("Accepted")).toBeInTheDocument();
+    expect(within(card).getByText("₹500")).toBeInTheDocument();
+    expect(within(card).getByText("Provider: Tush")).toBeInTheDocument();
+    expect(within(card).getByText("+919876500001")).toBeInTheDocument();
+    expect(within(card).getByText(/ago$/)).toBeInTheDocument();
+  });
+
+  it("opens the same detail sheet from a card", async () => {
+    wrap(<Page />);
+    await userEvent.click(await screen.findByTestId(`booking-card-${ID}`));
     expect(navigate).toHaveBeenCalledWith({ search: { booking: ID }, replace: true });
   });
 });
