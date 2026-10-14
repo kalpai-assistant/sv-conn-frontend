@@ -4,9 +4,21 @@
  * `dueIn` and `currentJob` are new for the Home worklist; the rest moved out of
  * the Jobs page unchanged so both screens read from one definition.
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Booking } from "@/lib/mock-data";
 import { currentJob, dueIn, endedAt, isActive } from "@/lib/job-status";
+
+// Source formats with `toLocaleDateString(undefined, ...)`, so the exact
+// short-month spelling ("Sep" vs "Sept") depends on which locale and ICU set
+// the host resolves. Build the expected string with the same options so the
+// assertion follows the formatter instead of locking a specific spelling.
+function formattedDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 function job(over: Partial<Booking> = {}): Booking {
   return {
@@ -23,6 +35,17 @@ function at(over: Partial<Booking>): Booking {
 }
 
 const NOW = new Date("2026-09-16T12:00:00Z");
+
+// Pin TZ to IST so the created/terminal timestamps resolve to a predictable
+// calendar date, independent of the dev or CI host.
+const ORIGINAL_TZ = process.env.TZ;
+beforeEach(() => {
+  process.env.TZ = "Asia/Kolkata";
+});
+afterEach(() => {
+  process.env.TZ = ORIGINAL_TZ;
+  vi.useRealTimers();
+});
 
 describe("which job is the current one", () => {
   it("takes the furthest along the pipeline, not the first in the list", () => {
@@ -101,10 +124,12 @@ describe("when a job ended", () => {
       ],
     } as Partial<Booking>);
 
-    expect(endedAt(ended)).toMatch(/12 Sept 2026/);
+    expect(endedAt(ended)).toBe(formattedDate("2026-09-12T14:30:00Z"));
   });
 
   it("falls back to the booking date when history is missing", () => {
-    expect(endedAt(at({ status: "COMPLETED", statusHistory: [] }))).toMatch(/14 Sept 2026/);
+    expect(endedAt(at({ status: "COMPLETED", statusHistory: [] }))).toBe(
+      formattedDate("2026-09-14T10:00:00Z"),
+    );
   });
 });
