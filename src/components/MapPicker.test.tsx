@@ -53,6 +53,15 @@ const { isNativeLocation } = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/geolocation", () => ({ isNativeLocation }));
 
+// SVC-356: the Open-settings deeplink is native-only. Mocked here so the
+// denied-branch tests below can assert the button is shown or hidden, and
+// that tapping it fires the deeplink without reaching the real plugin.
+const { canOpenAppSettings, openAppSettings } = vi.hoisted(() => ({
+  canOpenAppSettings: vi.fn().mockReturnValue(true),
+  openAppSettings: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/open-app-settings", () => ({ canOpenAppSettings, openAppSettings }));
+
 // SVC-284: the search bar is its own unit, tested separately. Rendered here
 // as an empty passthrough — the locate-me tests below only care that the map
 // area renders and the button responds.
@@ -72,6 +81,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   // clearAllMocks drops the return value too, so re-assert the default.
   isNativeLocation.mockReturnValue(true);
+  canOpenAppSettings.mockReturnValue(true);
   reverseGeocode.mockResolvedValue({ formattedAddress: "", components: [] });
   vi.stubGlobal("navigator", { geolocation: { getCurrentPosition } });
   // If this is ever called the test must fail loudly: a native dialog freezes
@@ -165,5 +175,70 @@ describe("on a device with no geolocation at all", () => {
     await userEvent.click(screen.getByRole("button", { name: /use my current location/i }));
 
     expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/isn't available/i));
+  });
+});
+
+/**
+ * SVC-356: the Open-settings deeplink.
+ *
+ * The toast on a denied permission names "Settings" as the remedy, but Settings
+ * on Android is three to five taps away under the OEM skin and two under iOS,
+ * so the button exists to make the remedy a single tap. Native-only — on web
+ * there is no reliable deeplink to the browser's permission screen and a
+ * button that goes nowhere strands the user harder than the toast's copy
+ * already does.
+ */
+describe("the Open-settings deeplink (SVC-356)", () => {
+  it("shows the button after a native denial", async () => {
+    getCurrentPosition.mockImplementation((_ok, fail) => fail(DENIED));
+    renderPicker();
+
+    await userEvent.click(screen.getByRole("button", { name: /use my current location/i }));
+
+    // Keyboard-focusable `<Button>`, not a sonner action baked into a toast
+    // that may have dismissed by the time the user decides to tap.
+    expect(await screen.findByRole("button", { name: /open settings/i })).toBeEnabled();
+  });
+
+  it("deeplinks to the OS settings page when tapped", async () => {
+    getCurrentPosition.mockImplementation((_ok, fail) => fail(DENIED));
+    renderPicker();
+
+    await userEvent.click(screen.getByRole("button", { name: /use my current location/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /open settings/i }));
+
+    // The helper picks the per-platform URL (`app-settings:` on iOS,
+    // `package:com.eazyserv.app` on Android); the component only has to call
+    // it. Keeping the per-URL assertion in `open-app-settings` would double-
+    // mock the test without buying anything.
+    expect(openAppSettings).toHaveBeenCalledOnce();
+  });
+
+  it("stays hidden on web, where no cross-browser settings deeplink exists", async () => {
+    // Chrome has `chrome://settings/content/location`, which the URL bar
+    // refuses to navigate to from a script; Safari has nothing comparable.
+    // A button that goes nowhere is worse than the toast's existing copy.
+    isNativeLocation.mockReturnValue(false);
+    canOpenAppSettings.mockReturnValue(false);
+    getCurrentPosition.mockImplementation((_ok, fail) => fail(DENIED));
+    renderPicker();
+
+    await userEvent.click(screen.getByRole("button", { name: /use my current location/i }));
+
+    // The toast still fires with the web-flavoured copy; only the button hides.
+    await vi.waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: /open settings/i })).toBeNull();
+  });
+
+  it("stays hidden when the failure is not a denial", async () => {
+    // A timeout is not a permission problem — Settings cannot fix it, so the
+    // button would mis-name the remedy. The toast already handles this case.
+    getCurrentPosition.mockImplementation((_ok, fail) => fail(TIMED_OUT));
+    renderPicker();
+
+    await userEvent.click(screen.getByRole("button", { name: /use my current location/i }));
+
+    await vi.waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: /open settings/i })).toBeNull();
   });
 });

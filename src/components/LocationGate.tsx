@@ -52,7 +52,7 @@
  * permanently. Any change that can hide it is the bug.
  */
 import { useEffect, useState } from "react";
-import { Check, Home, Loader2, MapPin, Navigation, WifiOff } from "lucide-react";
+import { Check, Home, Loader2, MapPin, Navigation, Settings, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InUseBadge } from "@/components/InUseBadge";
 import {
@@ -62,6 +62,7 @@ import {
   peekLocationPermission,
   requestLocation,
 } from "@/lib/geolocation";
+import { canOpenAppSettings, openAppSettings } from "@/lib/open-app-settings";
 import type { LocationBlockedReason } from "@/hooks/useLocationAvailability";
 
 /** One place the user can pick without granting anything. */
@@ -373,6 +374,29 @@ export function LocationGate({
 
       {error && (
         <p className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
+      )}
+
+      {/* SVC-356: One-tap deeplink to the OS settings page for EazyServ, shown
+          when the app permission is denied on a native build. The remedy copy
+          elsewhere on this screen names "Settings" as the next step; this
+          button is the step itself — a `<Button>` so it is keyboard-focusable
+          and announced like every other action.
+
+          Native-only. On the PWA a browser-permission deeplink is not
+          available cross-browser — Chrome has `chrome://settings/...` which
+          the URL bar refuses to navigate to from a script, Safari has nothing
+          comparable — so this hides there and the banner copy stays the only
+          surface. See `lib/open-app-settings.ts`. */}
+      {denied && canOpenAppSettings() && (
+        <Button
+          variant="outline"
+          className="mb-4 w-full"
+          disabled={isSaving}
+          onClick={() => void openAppSettings()}
+        >
+          <Settings className="h-4 w-4" />
+          Open settings
+        </Button>
       )}
 
       <div className="space-y-3">

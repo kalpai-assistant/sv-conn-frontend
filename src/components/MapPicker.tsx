@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, useMapEvents, useMap } from "react-leaflet";
-import { MapPin, Navigation } from "lucide-react";
+import { MapPin, Navigation, Settings } from "lucide-react";
 import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
+import { Button } from "@/components/ui/button";
 import { GEOCODE_FAILED, GEOCODE_UNKNOWN } from "@/lib/geocode-result";
 import { isNativeLocation } from "@/lib/geolocation";
 import { reverseGeocode, type PlaceDetails } from "@/lib/google-maps";
+import { canOpenAppSettings, openAppSettings } from "@/lib/open-app-settings";
 import { PlacesSearchBar } from "@/components/PlacesSearchBar";
 
 const DEFAULT_CENTER: [number, number] = [12.9716, 77.5946];
@@ -59,6 +61,11 @@ export function MapPicker({
   const [center, setCenter] = useState<[number, number]>(initialCenter ?? DEFAULT_CENTER);
   const [address, setAddress] = useState("Fetching location...");
   const [isFetching, setIsFetching] = useState(false);
+  // SVC-356: a denial sticks around after the toast dismisses, because the
+  // remedy (Settings) is one tap away and the user may need a moment to find
+  // the button. The banner stays visible until the next locate attempt or
+  // user-driven pin move resets it below.
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   const fetchAddress = async (lat: number, lng: number) => {
     setIsFetching(true);
@@ -132,6 +139,10 @@ export function MapPicker({
     }
 
     setIsFetching(true);
+    // Clear a stale denial banner before trying again — the user may have
+    // granted permission in Settings and come back; if they refuse again the
+    // error callback below will put it back.
+    setPermissionDenied(false);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         handleCenterChanged(pos.coords.latitude, pos.coords.longitude);
@@ -156,6 +167,14 @@ export function MapPicker({
               : "Check that Location is on in your settings and allowed for this site, or move the pin."
             : "Couldn't get your location. Move the pin to set it instead.",
         );
+        // SVC-356: a denial on native raises the Open-settings banner, which
+        // deep-links to the EazyServ settings page so the user does not have
+        // to dig through two or three settings screens for the Location
+        // toggle. Web stays with the toast alone — browser-permission
+        // settings have no reliable cross-browser deeplink.
+        if (err.code === err.PERMISSION_DENIED && isNativeLocation()) {
+          setPermissionDenied(true);
+        }
       },
       // Bounded so a disabled toggle surfaces as a message rather than a
       // spinner that never resolves.
@@ -208,6 +227,34 @@ export function MapPicker({
           <Navigation className="h-5 w-5 text-primary" />
         </button>
       </div>
+
+      {/* SVC-356: Denied-permission banner with a one-tap deeplink to the OS
+          settings page for EazyServ. Native only — on web the browser-settings
+          deeplink is not reliable cross-browser and we would strand the user on
+          a tap that goes nowhere. See `lib/open-app-settings.ts`.
+
+          Rendered inline rather than inside the toast so the Settings control
+          is a real `<Button>` — keyboard-focusable, labelled, styled with the
+          rest of the app — not a secondary action baked into a transient
+          notification that may already have dismissed by the time the user
+          decides to act on it. */}
+      {permissionDenied && canOpenAppSettings() && (
+        <div
+          role="status"
+          className="z-20 flex items-start gap-3 border-t border-border bg-destructive/10 p-4"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground">Location is off for this app</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Turn it on in Settings, or move the pin to set it instead.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => void openAppSettings()}>
+            <Settings className="h-4 w-4" />
+            Open settings
+          </Button>
+        </div>
+      )}
 
       <div className="p-4 bg-card border-t border-border z-20">
         <div className="flex items-start gap-3">
