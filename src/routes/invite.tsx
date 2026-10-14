@@ -1,19 +1,21 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ClipboardPaste, Loader2, Users } from "lucide-react";
+import { Briefcase, ClipboardPaste, Loader2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { BackButton } from "@/components/BackButton";
 import { useAuth } from "@/lib/auth-context";
-import { isTeamPro, useAcceptInvite, useProMe } from "@/hooks/usePro";
+import { PRO_ME_QUERY_KEY, isTeamPro, useAcceptInvite, useProMe, type ProMe } from "@/hooks/usePro";
 import {
   INVITE_CODE_LENGTH,
   clearPendingInvite,
   inviteCodeFromClipboard,
   inviteErrorMessage,
   isAlreadyOnThisTeam,
+  joinedTeamMessage,
 } from "@/lib/invite";
 import {
   canPasteFromClipboard,
@@ -34,6 +36,7 @@ function InvitePage() {
   const { user } = useAuth();
   const { data: me } = useProMe(user?.id);
   const accept = useAcceptInvite();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -55,10 +58,11 @@ function InvitePage() {
   }, []);
 
   // Nothing left to come back for.
+  const isOwner = user?.role === "provider";
   const alreadyPro = isTeamPro(me);
   useEffect(() => {
-    if (alreadyPro) clearPendingInvite();
-  }, [alreadyPro]);
+    if (alreadyPro || isOwner) clearPendingInvite();
+  }, [alreadyPro, isOwner]);
 
   const paste = async () => {
     const read = await readClipboardOnTap();
@@ -84,7 +88,13 @@ function InvitePage() {
   const submit = () =>
     accept.mutate(code, {
       onSuccess: () => {
-        toast.success("You’ve joined the team.");
+        // Read from the cache, not `me`: this closure predates the accept,
+        // and the refetch it triggered has landed by now (see joinedTeamMessage).
+        toast.success(
+          joinedTeamMessage(
+            queryClient.getQueryData<ProMe | null>([...PRO_ME_QUERY_KEY, user?.id]),
+          ),
+        );
         joined();
       },
       onError: (err) => {
@@ -96,6 +106,31 @@ function InvitePage() {
         setError(inviteErrorMessage(err));
       },
     });
+
+  // SVC-354: an SP owner. Checked first, by role: `/pros/me` answers for them
+  // too, with their own Pro-for-self, and that row is why every accept would
+  // be refused (ALREADY_PRO_ELSEWHERE). A phone keeps its role for life, so
+  // there is nothing to submit — only something to explain. The root gate lets
+  // them see this screen for that reason (`providerSeesInviteRoute`).
+  if (isOwner) {
+    return (
+      <div className="min-h-screen p-6">
+        <BackButton fallbackTo="/provider" />
+        <div className="mt-6 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+          <Briefcase className="h-6 w-6 text-primary" />
+        </div>
+        <h1 className="mt-4 text-xl font-semibold text-foreground">This is a business account</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Your number is registered as a service provider, so it can’t join another team — a phone
+          keeps the role it signed up with. To work for another provider, sign up with a different
+          number.
+        </p>
+        <Button asChild className="mt-6 w-full">
+          <Link to="/provider">Open your business app</Link>
+        </Button>
+      </div>
+    );
+  }
 
   // Already a Pro: say so rather than offer a form whose every answer is a
   // refusal (409 on this team, 400 on any other).

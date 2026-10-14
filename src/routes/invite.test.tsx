@@ -8,8 +8,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ApiError } from "@/lib/api";
 
-const { acceptMutate, navigate, proMe, toast } = vi.hoisted(() => ({
+const { acceptMutate, authUser, getQueryData, navigate, proMe, toast } = vi.hoisted(() => ({
   acceptMutate: vi.fn(),
+  authUser: { value: { id: "u1", role: "consumer" } as { id: string; role: string } },
+  // The query cache as the accept leaves it: `useAcceptInvite` refetches
+  // `/pros/me` before its caller's onSuccess runs.
+  getQueryData: vi.fn(),
   navigate: vi.fn(),
   proMe: { value: null as unknown },
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
@@ -23,13 +27,17 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 vi.mock("@/components/BackButton", () => ({ BackButton: () => null }));
-vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { id: "u1" } }) }));
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: authUser.value }) }));
 vi.mock("@/hooks/usePro", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/hooks/usePro")>()),
   useProMe: () => ({ data: proMe.value }),
   useAcceptInvite: () => ({ mutate: acceptMutate, isPending: false }),
 }));
 vi.mock("sonner", () => ({ toast }));
+vi.mock("@tanstack/react-query", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-query")>()),
+  useQueryClient: () => ({ getQueryData }),
+}));
 
 import { Route } from "@/routes/invite";
 
@@ -64,6 +72,7 @@ const joinButton = () => screen.getByRole("button", { name: /join team/i });
 
 beforeEach(() => {
   vi.clearAllMocks();
+  authUser.value = { id: "u1", role: "consumer" };
   proMe.value = null;
   sessionStorage.clear();
   setClipboard("");
@@ -151,6 +160,30 @@ describe("joining", () => {
     expect(sessionStorage.getItem("eazyserv:pending-invite")).toBeNull();
   });
 
+  it("names the SP they just joined (AC1)", () => {
+    getQueryData.mockReturnValue({
+      is_self: false,
+      service_provider: { business_name: "Sharma Electricals" },
+    });
+    acceptMutate.mockImplementation((_code, { onSuccess }) => onSuccess({}));
+    enterAndJoin();
+
+    // This user's own /pros/me, refetched by the accept.
+    expect(getQueryData).toHaveBeenCalledWith(["pro-me", "u1"]);
+    expect(toast.success).toHaveBeenCalledWith("You’re now part of Sharma Electricals.");
+  });
+
+  it.each([
+    ["the SP has no business name", { is_self: false, service_provider: { business_name: " " } }],
+    ["the refetch didn't land", undefined],
+  ])("falls back to a plain welcome when %s", (_case, cached) => {
+    getQueryData.mockReturnValue(cached);
+    acceptMutate.mockImplementation((_code, { onSuccess }) => onSuccess({}));
+    enterAndJoin();
+    expect(toast.success).toHaveBeenCalledWith("You’ve joined the team.");
+    expect(navigate).toHaveBeenCalledWith({ to: "/pro", replace: true });
+  });
+
   it("treats 'already on this team' as joined", () => {
     acceptMutate.mockImplementation((_code, { onError }) =>
       onError(new ApiError(409, "x", undefined, "ALREADY_ON_TEAM")),
@@ -189,5 +222,38 @@ describe("someone already on a team", () => {
     expect(screen.getByText(/Sharma Electricals/)).toBeInTheDocument();
     expect(screen.queryByLabelText("Invite code")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /open pro app/i })).toHaveAttribute("href", "/pro");
+  });
+});
+
+describe("an SP owner (SVC-354)", () => {
+  // A provider-role account can never join a team: it has its own
+  // Pro-for-self, so every accept is an ALREADY_PRO_ELSEWHERE, and a phone
+  // keeps its role for life. The root gate lets an owner see /invite only so
+  // this screen can say so.
+  beforeEach(() => {
+    authUser.value = { id: "u1", role: "provider" };
+    // What /pros/me says for an owner: their own Pro-for-self.
+    proMe.value = { is_self: true, service_provider: { business_name: "Sharma Electricals" } };
+  });
+
+  it("is told why, and pointed back at their business app instead of a form", () => {
+    render(<InvitePage />);
+    expect(
+      screen.getByRole("heading", { name: /this is a business account/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/sign up with a different number/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Invite code")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /join team/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open your business app/i })).toHaveAttribute(
+      "href",
+      "/provider",
+    );
+    expect(acceptMutate).not.toHaveBeenCalled();
+  });
+
+  it("drops the pending invite, so nothing sends them back here later", () => {
+    sessionStorage.setItem("eazyserv:pending-invite", "1");
+    render(<InvitePage />);
+    expect(sessionStorage.getItem("eazyserv:pending-invite")).toBeNull();
   });
 });

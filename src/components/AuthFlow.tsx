@@ -77,6 +77,11 @@ export function AuthFlow({
    * (SVC-253). One tap on the provider link here would strand the invitee.
    * It is also the UX half of SVC-327: a consumer signup never meets the
    * payout (bank/UPI) step, which only provider onboarding has.
+   *
+   * One exception (SVC-354): a number the backend has just refused as a
+   * provider's (ROLE_MISMATCH) may sign in as that provider — on the same
+   * number, which is read-only meanwhile, so no new provider account can be
+   * made here. The owner then lands on /invite's "business account" screen.
    */
   invite?: boolean;
 }) {
@@ -258,6 +263,11 @@ export function AuthFlow({
   // the moment it matches and Policy A raises after that — so retrying these
   // same digits under the other role would only earn "OTP is incorrect or has
   // expired". Flip the role and return for a fresh code.
+  // SVC-354: on /invite, only ever reached from a ROLE_MISMATCH — the number is
+  // already a provider's. Read-only so it stays that way: a provider signup on
+  // a fresh number here would lock that invitee out of every team for life.
+  const inviteOwnerSignIn = invite && role === "provider";
+
   const retryAsOtherRole = () => {
     switchRole(role === "provider" ? "consumer" : "provider");
     goBackToPhone();
@@ -291,18 +301,22 @@ export function AuthFlow({
                 Policy A), so the commitment is restated in front of the user
                 while they type the number it will bind. */}
             <h1 className="text-2xl font-bold text-foreground">
-              {invite
-                ? "Sign in to join your team"
-                : role === "provider"
-                  ? "Join as a service provider"
-                  : "Enter your phone number"}
+              {inviteOwnerSignIn
+                ? "Sign in to your business account"
+                : invite
+                  ? "Sign in to join your team"
+                  : role === "provider"
+                    ? "Join as a service provider"
+                    : "Enter your phone number"}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              {invite
-                ? "Use the number your invite was sent to. We'll send you an OTP to verify it."
-                : role === "provider"
-                  ? "Earn on your schedule. We'll verify your number first."
-                  : "We'll send you an OTP to verify your identity"}
+              {inviteOwnerSignIn
+                ? "This number is a service provider's. We'll send you an OTP to sign in."
+                : invite
+                  ? "Use the number your invite was sent to. We'll send you an OTP to verify it."
+                  : role === "provider"
+                    ? "Earn on your schedule. We'll verify your number first."
+                    : "We'll send you an OTP to verify your identity"}
             </p>
             {errorMsg && (
               <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
@@ -316,6 +330,7 @@ export function AuthFlow({
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                readOnly={inviteOwnerSignIn}
                 placeholder="98765 43210"
                 className="flex-1 bg-transparent text-lg font-medium text-foreground outline-none placeholder:text-muted-foreground/50"
                 autoFocus
@@ -342,7 +357,15 @@ export function AuthFlow({
                 Quiet by design: providers are recruited and arrive knowing to
                 look for this, while consumers are the overwhelming majority
                 and should read straight past it. */}
-            {invite ? null : role === "consumer" ? (
+            {inviteOwnerSignIn ? (
+              <button
+                type="button"
+                onClick={() => switchRole("consumer")}
+                className="mt-6 self-center text-sm font-semibold text-primary"
+              >
+                Back to joining a team
+              </button>
+            ) : invite ? null : role === "consumer" ? (
               <>
                 <button
                   type="button"
@@ -411,10 +434,21 @@ export function AuthFlow({
                     remedy instead of two unrelated things stacked. */}
                 {/* On an invite there is no other role to offer: a provider
                     number cannot join a team, and saying so is the remedy. */}
-                {roleConflict && invite && (
-                  <span className="mt-2 block">
-                    This number is registered as a service provider, so it can’t join a team.
-                  </span>
+                {roleConflict && invite && !inviteOwnerSignIn && (
+                  <>
+                    <span className="mt-2 block">
+                      This number is registered as a service provider, so it can’t join a team.
+                    </span>
+                    {/* SVC-354: without this an owner was stuck here — invite
+                        mode has no provider link, and the only way out was to
+                        restart the app. */}
+                    <button
+                      onClick={retryAsOtherRole}
+                      className="mt-2 block font-semibold underline underline-offset-4"
+                    >
+                      Sign in to your business account
+                    </button>
+                  </>
                 )}
                 {roleConflict && !invite && (
                   <button

@@ -289,7 +289,7 @@ describe("AuthFlow on /invite (SVC-322)", () => {
     expect((await submitAndReadVerifyBody()).role).toBe("consumer");
   });
 
-  it("tells a provider number it can't join, instead of offering to switch roles", async () => {
+  it("tells a provider number it can't join, without offering provider signup", async () => {
     apiFetch.mockImplementation((path: string) => {
       if (path === "/auth/send-otp") return Promise.resolve({});
       if (path === "/auth/verify-otp") {
@@ -309,5 +309,67 @@ describe("AuthFlow on /invite (SVC-322)", () => {
     expect(
       screen.queryByRole("button", { name: /sign in as a service provider instead/i }),
     ).not.toBeInTheDocument();
+  });
+  // SVC-354: an SP owner who opened the invite link. Their number is a
+  // provider's, so the customer sign-in fails; without a way to sign in as
+  // what they are, /invite was a dead end until the app was restarted.
+  describe("a provider number on /invite (SVC-354)", () => {
+    async function failAsCustomer() {
+      apiFetch.mockImplementation((path: string, init?: { body?: string }) => {
+        if (path === "/auth/send-otp") return Promise.resolve({});
+        if (path === "/auth/verify-otp") {
+          return JSON.parse(init!.body!).role === "provider"
+            ? Promise.resolve({ access_token: "a", refresh_token: "r", is_new_user: false })
+            : Promise.reject(new ApiError(400, "x", undefined, "ROLE_MISMATCH"));
+        }
+        return Promise.reject(new Error(`unexpected call: ${path}`));
+      });
+      stubProfileFetch("provider");
+      const user = userEvent.setup();
+      render(<AuthFlow onComplete={() => {}} invite />);
+      await user.type(screen.getByPlaceholderText("98765 43210"), PHONE);
+      await user.click(screen.getByRole("button", { name: /send otp/i }));
+      await screen.findByText(/verify otp/i);
+      await user.type(document.querySelector("input[autocomplete='one-time-code']")!, OTP);
+      await screen.findByText(/registered as a service provider/i);
+      return user;
+    }
+
+    it("can sign in to their business account, on the same number", async () => {
+      const user = await failAsCustomer();
+      await user.click(screen.getByRole("button", { name: /sign in to your business account/i }));
+
+      expect(
+        await screen.findByRole("heading", { name: /sign in to your business account/i }),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /send otp/i }));
+      await screen.findByText(/verify otp/i);
+      await user.type(document.querySelector("input[autocomplete='one-time-code']")!, OTP);
+
+      await waitFor(() => expect(login).toHaveBeenCalled());
+      const bodies = apiFetch.mock.calls
+        .filter(([path]) => path === "/auth/verify-otp")
+        .map(([, init]) => JSON.parse(init.body));
+      expect(bodies.at(-1)).toMatchObject({ phone: `+91${PHONE}`, role: "provider" });
+    });
+
+    it("can't change the number while signing in as a provider — that would create one", async () => {
+      // A provider signup on a fresh number would give the invitee a
+      // Pro-for-self and lock them out of every team for life.
+      const user = await failAsCustomer();
+      await user.click(screen.getByRole("button", { name: /sign in to your business account/i }));
+      expect(await screen.findByPlaceholderText("98765 43210")).toHaveAttribute("readonly");
+    });
+
+    it("can go back to joining as a customer", async () => {
+      const user = await failAsCustomer();
+      await user.click(screen.getByRole("button", { name: /sign in to your business account/i }));
+      await user.click(await screen.findByRole("button", { name: /back to joining a team/i }));
+
+      expect(
+        screen.getByRole("heading", { name: /sign in to join your team/i }),
+      ).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("98765 43210")).not.toHaveAttribute("readonly");
+    });
   });
 });

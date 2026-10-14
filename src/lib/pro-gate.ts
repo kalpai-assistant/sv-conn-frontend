@@ -76,6 +76,20 @@ export function skipsLocationGate(pathname: string, proState: ProState): boolean
 }
 
 /**
+ * Whether a provider-role user (an SP owner) is shown this route as asked,
+ * instead of being moved into the provider app (SVC-354).
+ *
+ * `/invite` only, exactly. An owner can never join a team — their account has
+ * its own Pro-for-self, and a phone keeps its role for life — but one who
+ * taps an invite link was silently dropped on /provider with nothing saying
+ * why. The screen there tells them, and links back. No form: it could only
+ * fail. Every other route still moves them, as it always has.
+ */
+export function providerSeesInviteRoute(pathname: string): boolean {
+  return pathname === "/invite";
+}
+
+/**
  * Whether evaluating this route used up the launch landing.
  *
  * Only "/" and the Pro app count. A Pro whose first screen is something else —

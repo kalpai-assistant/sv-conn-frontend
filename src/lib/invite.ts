@@ -10,6 +10,7 @@
  * Backend: `POST /providers/me/accept-invite { token }`, `team_service.py`.
  */
 import { ApiError } from "@/lib/api";
+import type { ProMe } from "@/hooks/usePro";
 
 export const INVITE_CODE_LENGTH = 6;
 export const INVITE_CODE_RE = /^\d{6}$/;
@@ -52,6 +53,19 @@ export function inviteErrorMessage(err: unknown): string {
   if (err.status === 422) return "Enter the 6-digit code from your SMS.";
   if (err.status === 403) return "This account can’t join a team.";
   return err.message || "Something went wrong. Please try again.";
+}
+
+/**
+ * The welcome after a successful accept, naming the SP they joined (SVC-354).
+ *
+ * Takes `/pros/me`, not the accept response: that is the bare Pro row and
+ * carries no business name. `useAcceptInvite` refetches `/pros/me` before its
+ * caller's onSuccess runs, so it is already in the cache. Without a name — an
+ * SP who never set one, or a refetch that failed — the plain welcome.
+ */
+export function joinedTeamMessage(me: ProMe | null | undefined): string {
+  const name = me?.service_provider.business_name?.trim();
+  return name ? `You’re now part of ${name}.` : "You’ve joined the team.";
 }
 
 /**
