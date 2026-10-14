@@ -10,9 +10,21 @@
  * price on a provider's own screen, which is the app being wrong about their
  * earnings, so the amount is asserted here as carefully as the filtering.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+// The row's date comes from `endedAt`, which uses toLocaleDateString(undefined,
+// ...) — so the short-month spelling varies by host locale/ICU set. Build the
+// expected string with the same options to track the formatter rather than a
+// specific spelling.
+function formattedDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 const bookings = vi.fn();
 const totals = vi.fn(() => ({ total: 0, truncated: false }));
@@ -61,10 +73,17 @@ const DONE = job({
   ],
 });
 
+const ORIGINAL_TZ = process.env.TZ;
 beforeEach(() => {
   vi.clearAllMocks();
   totals.mockReturnValue({ total: 0, truncated: false });
   bookings.mockReturnValue([job(), DONE]);
+  // Pin TZ so timestamps near a day boundary don't shift the rendered date.
+  process.env.TZ = "Asia/Kolkata";
+});
+afterEach(() => {
+  process.env.TZ = ORIGINAL_TZ;
+  vi.useRealTimers();
 });
 
 async function openPast() {
@@ -133,7 +152,7 @@ describe("when a job ended", () => {
     render(<Page />);
     await openPast();
 
-    expect(screen.getByText(/12 Sept 2026/)).toBeInTheDocument();
+    expect(screen.getByText(formattedDate("2026-09-12T14:30:00Z"))).toBeInTheDocument();
   });
 
   it("falls back to the booking date when history is empty", async () => {
@@ -143,7 +162,7 @@ describe("when a job ended", () => {
     render(<Page />);
     await openPast();
 
-    expect(screen.getByText(/14 Sept 2026/)).toBeInTheDocument();
+    expect(screen.getByText(formattedDate("2026-09-14T18:26:18Z"))).toBeInTheDocument();
   });
 });
 
