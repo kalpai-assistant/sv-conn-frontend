@@ -100,7 +100,7 @@ never in the URL: the SMS template provider rejected that.
   1. role `provider` → **the business-account screen** (SVC-354). No form: an
      owner's Pro-for-self makes every accept an `ALREADY_PRO_ELSEWHERE`, and a
      phone keeps its role. It says to use a different number to work for
-     another SP, links to `/provider`, and clears the pending-invite flag.
+     another SP and links to `/provider`.
   2. `isTeamPro(me)` → "You're already on a team", with a link to `/pro`.
   3. Otherwise the form. Success toasts `joinedTeamMessage(me)`
      ([src/lib/invite.ts:66](../src/lib/invite.ts#L66)): "You're now part of
@@ -125,10 +125,14 @@ never in the URL: the SMS template provider rejected that.
 - **Surviving signup.** A new invitee is sent to `/profile` for their name;
   the backend takes the Pro's display name from `users.name` at accept time.
   A session flag (`syncPendingInvite`,
-  [src/lib/invite.ts:128](../src/lib/invite.ts#L128)) brings them back to
+  [src/lib/invite.ts:133](../src/lib/invite.ts#L133)) brings them back to
   `/invite` after saving. It is set on `/invite`. It is dropped signed-out
   anywhere else (#201: backing out must not leave it), on join, for a team
-  Pro, and for an owner.
+  Pro, and always for a provider. The provider rule is in `syncPendingInvite`
+  itself, not on the owner screen. Signing in on `/invite` runs the root
+  gate's sync _after_ that screen's effects (a parent's effects follow its
+  children's), so a clear on the screen was undone at once. This was found on
+  device; jsdom renders the page without the gate and never sees it.
 
 ## Pitfalls
 

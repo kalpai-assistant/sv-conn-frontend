@@ -124,14 +124,22 @@ export function clearPendingInvite(): void {
  * Signed in, it is left alone. Leaving /invite is not enough to drop it: a new
  * invitee is *sent* from /invite to Profile for their name, and needs it to come
  * back.
+ *
+ * Never kept for an SP owner (`provider`, SVC-354), who can't join a team. The
+ * rule lives here, not only on /invite's owner screen: signing in on /invite
+ * runs this after that screen's own effect (a parent's effects follow its
+ * children's), so clearing it there was undone at once — found on device.
  */
 export function syncPendingInvite({
   onInviteRoute,
   signedOut,
+  provider = false,
 }: {
   onInviteRoute: boolean;
   signedOut: boolean;
+  provider?: boolean;
 }): void {
-  if (onInviteRoute) rememberPendingInvite();
+  if (provider) clearPendingInvite();
+  else if (onInviteRoute) rememberPendingInvite();
   else if (signedOut) clearPendingInvite();
 }

@@ -115,6 +115,15 @@ describe("the pending invite", () => {
       expect(hasPendingInvite()).toBe(true);
     });
 
+    it("is never kept for an SP owner, even on /invite (SVC-354, found on device)", () => {
+      // An owner can't join a team, so there is nothing to come back for. Set
+      // here rather than only on /invite's owner screen: signing in on /invite
+      // re-runs this sync *after* that screen's effect, and re-set the flag.
+      rememberPendingInvite();
+      syncPendingInvite({ onInviteRoute: true, signedOut: false, provider: true });
+      expect(hasPendingInvite()).toBe(false);
+    });
+
     it("is dropped on logout, so the next signup on the phone starts clean", () => {
       syncPendingInvite({ onInviteRoute: true, signedOut: false });
       syncPendingInvite({ onInviteRoute: false, signedOut: false });

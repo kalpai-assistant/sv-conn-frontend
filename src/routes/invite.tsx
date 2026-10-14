@@ -57,12 +57,13 @@ function InvitePage() {
     };
   }, []);
 
-  // Nothing left to come back for.
+  // Nothing left to come back for. (An owner's flag is dropped by the root
+  // gate's syncPendingInvite, which runs after this screen's effects.)
   const isOwner = user?.role === "provider";
   const alreadyPro = isTeamPro(me);
   useEffect(() => {
-    if (alreadyPro || isOwner) clearPendingInvite();
-  }, [alreadyPro, isOwner]);
+    if (alreadyPro) clearPendingInvite();
+  }, [alreadyPro]);
 
   const paste = async () => {
     const read = await readClipboardOnTap();

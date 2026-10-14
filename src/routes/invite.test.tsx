@@ -250,10 +250,4 @@ describe("an SP owner (SVC-354)", () => {
     );
     expect(acceptMutate).not.toHaveBeenCalled();
   });
-
-  it("drops the pending invite, so nothing sends them back here later", () => {
-    sessionStorage.setItem("eazyserv:pending-invite", "1");
-    render(<InvitePage />);
-    expect(sessionStorage.getItem("eazyserv:pending-invite")).toBeNull();
-  });
 });

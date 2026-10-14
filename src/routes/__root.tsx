@@ -165,8 +165,8 @@ function AppGate({ children }: { children: React.ReactNode }) {
   const isInviteRoute = pathname === "/invite";
   const signedOut = !isAuthenticated && !isRestoring;
   useEffect(() => {
-    syncPendingInvite({ onInviteRoute: isInviteRoute, signedOut });
-  }, [isInviteRoute, signedOut]);
+    syncPendingInvite({ onInviteRoute: isInviteRoute, signedOut, provider: isProvider });
+  }, [isInviteRoute, signedOut, isProvider]);
 
   // SVC-322: an online team Pro sends their location every 30 s, on whatever
   // screen they are on — so it runs here, not on Pro Home.
