@@ -10,6 +10,7 @@ export const ADMIN_MENU_ITEMS = [
   { to: "/admin/kyc", label: "KYC" },
   { to: "/admin/payouts", label: "Payouts" },
   { to: "/admin/teams", label: "Teams" },
+  { to: "/admin/profile", label: "Profile" },
 ] as const;
 
 export type AdminGateVerdict =
