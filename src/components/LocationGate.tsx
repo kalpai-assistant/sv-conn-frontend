@@ -62,6 +62,7 @@ import {
   peekLocationPermission,
   requestLocation,
 } from "@/lib/geolocation";
+import { MAP_PICKER_LOCATE_TIMEOUT_MS } from "@/lib/map-picker-timeouts";
 import { canOpenAppSettings, openAppSettings } from "@/lib/open-app-settings";
 import type { LocationBlockedReason } from "@/hooks/useLocationAvailability";
 
@@ -90,9 +91,12 @@ export interface SavedLocation {
 
 /**
  * The user asked for this and is watching a spinner, so patience is expected —
- * unlike the launch check, this wait is one they chose.
+ * unlike the launch check, this wait is one they chose. Shared with the picker
+ * and the launch probe as `MAP_PICKER_LOCATE_TIMEOUT_MS` (SVC-357), so a future
+ * refactor cannot drift one caller's bound away from the others. Was 20s
+ * standalone; the shared value is 15s — see `lib/map-picker-timeouts.ts`.
  */
-const LOCATE_TIMEOUT_MS = 20_000;
+const LOCATE_TIMEOUT_MS = MAP_PICKER_LOCATE_TIMEOUT_MS;
 
 /**
  * How many times to re-ask after a timeout.
