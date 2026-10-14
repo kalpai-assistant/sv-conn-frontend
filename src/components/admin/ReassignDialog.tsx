@@ -96,7 +96,12 @@ export function ReassignDialog({
 
   return (
     <Dialog open={pro !== null} onOpenChange={(o) => !o && close()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      {/* minmax(0, 1fr) (SVC-355): DialogContent is a grid, and its default
+          track grows to the widest child's min-content. A long owner label in
+          the picker made it ~408px on a 340px phone, clipping the "KYC not
+          verified" / "Current team" labels and the KYC warning, because the
+          label's `truncate` never got a narrower box to cut against. */}
+      <DialogContent className="max-h-[90vh] grid-cols-[minmax(0,1fr)] overflow-y-auto">
         {done ? (
           <>
             <DialogHeader>
