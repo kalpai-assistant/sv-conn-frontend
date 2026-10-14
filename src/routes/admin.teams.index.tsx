@@ -34,7 +34,7 @@ function AdminTeamsPage() {
   const tooShort = q.trim().length === 1;
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
+    <div className="mx-auto max-w-6xl p-4 sm:p-6">
       <header className="mb-6 flex items-center gap-3">
         <Users className="h-6 w-6 text-primary" />
         <div>
@@ -89,8 +89,25 @@ function AdminTeamsPage() {
         </div>
       )}
 
+      {/* Phones get cards (SVC-355): at 340px Online and the team size were
+          off-screen behind a sideways swipe. */}
       {rows.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <ul aria-label="Owners" className="space-y-2 sm:hidden">
+          {rows.map((row) => (
+            <li key={row.user_id}>
+              <OwnerCard
+                row={row}
+                onOpen={() =>
+                  navigate({ to: "/admin/teams/$spUserId", params: { spUserId: row.user_id } })
+                }
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {rows.length > 0 && (
+        <div className="hidden overflow-x-auto rounded-lg border border-border sm:block">
           <table className="w-full text-sm">
             <thead className="bg-secondary/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -134,14 +151,22 @@ function AdminTeamsPage() {
   );
 }
 
+/** What one owner shows, shared by the table row and the phone card (SVC-355). */
+const ownerRowData = (row: API_AdminProviderRow) => ({
+  name: row.name ?? "(no name)",
+  online: row.is_online ? "Online" : "Offline",
+  members: `${row.active_pro_count} ${row.active_pro_count === 1 ? "member" : "members"}`,
+});
+
 function OwnerRow({ row, onOpen }: { row: API_AdminProviderRow; onOpen: () => void }) {
+  const { name, online, members } = ownerRowData(row);
   return (
     <tr
       className="cursor-pointer border-t border-border transition-colors hover:bg-secondary/40"
       onClick={onOpen}
     >
       <td className="px-3 py-2">
-        <div className="font-medium text-foreground">{row.name ?? "(no name)"}</div>
+        <div className="font-medium text-foreground">{name}</div>
         {row.business_name && (
           <div className="text-xs text-muted-foreground">{row.business_name}</div>
         )}
@@ -155,13 +180,41 @@ function OwnerRow({ row, onOpen }: { row: API_AdminProviderRow; onOpen: () => vo
       <td className="px-3 py-2">
         <KycBadge status={row.kyc_status} />
       </td>
-      <td className="px-3 py-2">{row.is_online ? "Online" : "Offline"}</td>
-      <td className="px-3 py-2 text-right tabular-nums">
-        {row.active_pro_count} {row.active_pro_count === 1 ? "member" : "members"}
-      </td>
+      <td className="px-3 py-2">{online}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{members}</td>
       <td className="px-3 py-2 text-right">
         <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
       </td>
     </tr>
+  );
+}
+
+/** One owner under `sm`: every table column; the whole card opens the team. */
+function OwnerCard({ row, onOpen }: { row: API_AdminProviderRow; onOpen: () => void }) {
+  const { name, online, members } = ownerRowData(row);
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      data-testid={`owner-card-${row.user_id}`}
+      className="flex w-full items-center gap-3 rounded-lg border border-border bg-card p-3 text-left text-sm transition-colors hover:bg-secondary/40"
+    >
+      <div className="min-w-0 flex-1 space-y-1">
+        <div>
+          <span className="font-medium text-foreground">{name}</span>
+          {row.business_name && (
+            <span className="text-muted-foreground"> · {row.business_name}</span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="tabular-nums">{row.phone}</span>
+          <KycBadge status={row.kyc_status} />
+          <Badge variant={row.is_online ? "default" : "outline"}>{online}</Badge>
+          {!row.user_is_active && <Badge variant="destructive">Deactivated</Badge>}
+        </div>
+        <div className="text-xs tabular-nums text-muted-foreground">{members}</div>
+      </div>
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+    </button>
   );
 }

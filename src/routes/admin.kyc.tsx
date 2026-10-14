@@ -86,7 +86,7 @@ function AdminKYCReviewPage() {
   const copy = tabCopy(activeTab);
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
+    <div className="mx-auto max-w-2xl p-4 sm:p-6">
       <header className="mb-6 flex items-center gap-3">
         <ShieldCheck className="h-6 w-6 text-primary" />
         <div>
@@ -412,8 +412,13 @@ function ComparisonTable({
   const dobMismatch = looksMismatched(providerStatedDob, extractedDob);
 
   return (
+    // `overflow-wrap: anywhere` on every cell (SVC-355): the sheet leaves this
+    // table 256px on a 340px phone. Ordinary values fit, but one long unbroken
+    // word (a long name in capitals) widened it to ~406px and the wrapper
+    // clipped the AI-extracted column. `break-words` would not help: it leaves
+    // the cell's min-content width alone, and that width is what overflows.
     <div className="mt-4 overflow-hidden rounded-lg border border-border">
-      <table className="w-full text-xs">
+      <table className="w-full text-xs [&_td]:[overflow-wrap:anywhere] [&_th]:[overflow-wrap:anywhere]">
         <thead className="bg-secondary/40 text-left uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-3 py-2 font-medium">Field</th>

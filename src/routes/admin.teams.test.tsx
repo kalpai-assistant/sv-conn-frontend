@@ -85,8 +85,10 @@ describe("/admin/teams search", () => {
   it("lists every owner with no query, then searches from 2 characters", async () => {
     apiFetch.mockResolvedValue([owner(1, { business_name: "Sparkle Co", active_pro_count: 2 })]);
     wrap(<ListPage />);
-    expect(await screen.findByText("Sparkle Co")).toBeInTheDocument();
-    expect(screen.getByText("2 members")).toBeInTheDocument();
+    // Cards render beside the table in jsdom (no CSS), so read the table.
+    const table = await screen.findByRole("table");
+    expect(within(table).getByText("Sparkle Co")).toBeInTheDocument();
+    expect(within(table).getByText("2 members")).toBeInTheDocument();
     expect(apiFetch).toHaveBeenLastCalledWith("/admin/providers?page=1&per_page=50");
 
     await userEvent.type(screen.getByLabelText("Search owners"), "9");
@@ -105,7 +107,9 @@ describe("/admin/teams search", () => {
     );
     wrap(<ListPage />);
     await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
-    expect(await screen.findByText("Owner 99")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(screen.getByRole("table")).getByText("Owner 99")).toBeInTheDocument(),
+    );
     expect(apiFetch).toHaveBeenLastCalledWith("/admin/providers?page=2&per_page=50");
     expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
     expect(screen.getByText("Showing 51")).toBeInTheDocument();
@@ -114,7 +118,25 @@ describe("/admin/teams search", () => {
   it("opens an owner's team from their row", async () => {
     apiFetch.mockResolvedValue([owner(4)]);
     wrap(<ListPage />);
-    await userEvent.click(await screen.findByText("Owner 4"));
+    await userEvent.click(within(await screen.findByRole("table")).getByText("Owner 4"));
+    expect(navigate).toHaveBeenCalledWith({
+      to: "/admin/teams/$spUserId",
+      params: { spUserId: "sp-4" },
+    });
+  });
+
+  it("shows team size, KYC and online on the phone card, which opens the team", async () => {
+    apiFetch.mockResolvedValue([
+      owner(4, { business_name: "Sparkle Co", active_pro_count: 3, is_online: true }),
+    ]);
+    wrap(<ListPage />);
+    const card = await screen.findByTestId("owner-card-sp-4");
+    expect(within(card).getByText("3 members")).toBeInTheDocument();
+    expect(within(card).getByText("KYC verified")).toBeInTheDocument();
+    expect(within(card).getByText("Online")).toBeInTheDocument();
+    expect(within(card).getByText("+919876500004")).toBeInTheDocument();
+    expect(card).toHaveTextContent("Owner 4 · Sparkle Co");
+    await userEvent.click(card);
     expect(navigate).toHaveBeenCalledWith({
       to: "/admin/teams/$spUserId",
       params: { spUserId: "sp-4" },
@@ -281,6 +303,33 @@ describe("/admin/teams/$spUserId", () => {
     expect(
       await screen.findByRole("alertdialog", { name: /Remove Test Pro Seven/ }),
     ).toBeInTheDocument();
+  });
+
+  it("puts Reassign / Force-remove on an active member's phone card, no swipe", async () => {
+    stubOwner();
+    wrap(<OwnerPage />);
+    const card = await screen.findByTestId("member-card-pro-7");
+    expect(within(card).getByText("+919876500050")).toBeInTheDocument();
+    expect(within(card).getByText("KYC verified")).toBeInTheDocument();
+    expect(within(card).getByText("Online")).toBeInTheDocument();
+    expect(within(card).getByText("1 active job")).toBeInTheDocument();
+    expect(within(card).queryByText(/Takes jobs themselves/)).toBeNull();
+    await userEvent.click(within(card).getByRole("button", { name: /Force-remove/ }));
+    expect(
+      await screen.findByRole("alertdialog", { name: /Remove Test Pro Seven/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("gives the owner's card the jobs flag and no actions, and a removed one none", async () => {
+    stubOwner();
+    wrap(<OwnerPage />);
+    const self = await screen.findByTestId("member-card-pro-self");
+    expect(within(self).getByText("Owner")).toBeInTheDocument();
+    expect(within(self).getByText("Takes jobs themselves: No")).toBeInTheDocument();
+    expect(within(self).queryByRole("button")).toBeNull();
+    const gone = screen.getByTestId("member-card-pro-old");
+    expect(within(gone).getByText("Removed")).toBeInTheDocument();
+    expect(within(gone).queryByRole("button")).toBeNull();
   });
 
   it("shows invite history with status and timestamps", async () => {

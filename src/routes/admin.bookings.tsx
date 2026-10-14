@@ -146,6 +146,19 @@ const summariseItems = (b: API_AdminBookingResponse) => {
 const totalCharged = (b: API_AdminBookingResponse) =>
   Math.max(0, b.service_amount - b.discount_amount + b.tip_amount);
 
+/** What one list row shows, shared by the table row and the phone card
+ *  (SVC-355) so the two can't drift apart on what a booking looks like. */
+const bookingRowData = (b: API_AdminBookingResponse) => ({
+  shortId: shortId(b.id),
+  disputed: b.is_disputed,
+  service: summariseItems(b),
+  consumer: b.consumer_phone ?? "—",
+  provider: b.provider_name ?? "—",
+  badge: STATUS_BADGE[b.status] ?? { label: b.status, variant: "outline" as const },
+  created: formatDistanceToNowStrict(new Date(b.created_at), { addSuffix: true }),
+  total: formatRupees(totalCharged(b)),
+});
+
 function AdminBookingsPage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const { booking: selectedId = null } = useSearch({ from: Route.fullPath });
@@ -213,7 +226,7 @@ function AdminBookingsPage() {
   const hasMore = accumulated.rows.length < totalKnown;
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
+    <div className="mx-auto max-w-6xl p-4 sm:p-6">
       <header className="mb-6 flex items-center gap-3">
         <ClipboardList className="h-6 w-6 text-primary" />
         <div>
@@ -295,8 +308,21 @@ function AdminBookingsPage() {
         </div>
       )}
 
+      {/* Phones get cards (SVC-355): the 8-column table showed only Booking,
+          Service and Consumer at 340px, and Status, Total and the rest were
+          clipped with no way to scroll to them. */}
       {visibleRows.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-border">
+        <ul aria-label="Bookings" className="space-y-2 sm:hidden">
+          {visibleRows.map((b) => (
+            <li key={b.id}>
+              <BookingCard booking={b} onOpen={() => setSelectedId(b.id)} />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {visibleRows.length > 0 && (
+        <div className="hidden overflow-x-auto rounded-lg border border-border sm:block">
           <table className="w-full text-sm">
             <thead className="bg-secondary/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -347,8 +373,7 @@ function BookingRow({
   booking: API_AdminBookingResponse;
   onOpen: () => void;
 }) {
-  const badge = STATUS_BADGE[booking.status] ?? { label: booking.status, variant: "outline" };
-  const created = new Date(booking.created_at);
+  const row = bookingRowData(booking);
   return (
     <tr
       className="cursor-pointer border-t border-border transition-colors hover:bg-secondary/40"
@@ -356,28 +381,64 @@ function BookingRow({
     >
       <td className="px-3 py-2 font-mono text-xs">
         <div className="flex items-center gap-2">
-          {booking.is_disputed && (
+          {row.disputed && (
             <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" aria-label="Disputed" />
           )}
-          {shortId(booking.id)}
+          {row.shortId}
         </div>
       </td>
-      <td className="px-3 py-2">{summariseItems(booking)}</td>
-      <td className="px-3 py-2 tabular-nums">{booking.consumer_phone ?? "—"}</td>
-      <td className="px-3 py-2">{booking.provider_name ?? "—"}</td>
+      <td className="px-3 py-2">{row.service}</td>
+      <td className="px-3 py-2 tabular-nums">{row.consumer}</td>
+      <td className="px-3 py-2">{row.provider}</td>
       <td className="px-3 py-2">
-        <Badge variant={badge.variant}>{badge.label}</Badge>
+        <Badge variant={row.badge.variant}>{row.badge.label}</Badge>
       </td>
-      <td className="px-3 py-2 text-muted-foreground">
-        {formatDistanceToNowStrict(created, { addSuffix: true })}
-      </td>
-      <td className="px-3 py-2 text-right font-medium tabular-nums">
-        {formatRupees(totalCharged(booking))}
-      </td>
+      <td className="px-3 py-2 text-muted-foreground">{row.created}</td>
+      <td className="px-3 py-2 text-right font-medium tabular-nums">{row.total}</td>
       <td className="px-3 py-2 text-right">
         <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
       </td>
     </tr>
+  );
+}
+
+/** One booking under `sm`: every table column, on three lines. */
+function BookingCard({
+  booking,
+  onOpen,
+}: {
+  booking: API_AdminBookingResponse;
+  onOpen: () => void;
+}) {
+  const row = bookingRowData(booking);
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      data-testid={`booking-card-${booking.id}`}
+      className="flex w-full items-center gap-3 rounded-lg border border-border bg-card p-3 text-left text-sm transition-colors hover:bg-secondary/40"
+    >
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex items-center gap-2">
+          {row.disputed && (
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" aria-label="Disputed" />
+          )}
+          <span className="font-mono text-xs">{row.shortId}</span>
+          <Badge variant={row.badge.variant}>{row.badge.label}</Badge>
+        </div>
+        <div className="break-words">
+          <span className="font-medium text-foreground">{row.service}</span>
+          <span className="text-muted-foreground"> · </span>
+          <span className="tabular-nums">{row.consumer}</span>
+        </div>
+        <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted-foreground">
+          <span>Provider: {row.provider}</span>
+          <span className="text-sm font-medium tabular-nums text-foreground">{row.total}</span>
+          <span>{row.created}</span>
+        </div>
+      </div>
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+    </button>
   );
 }
 
