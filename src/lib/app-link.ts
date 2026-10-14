@@ -35,6 +35,14 @@ export function appLinkPath(url: unknown): string | null {
   return path === "/" ? null : path;
 }
 
+/**
+ * How long a cold start waits for its URL's replay before treating a matching
+ * `appUrlOpen` as a real tap. The replay is a retained event, delivered the
+ * moment the listener registers, so this is generous; it exists so a platform
+ * that never replays can't swallow the next tap of the same link.
+ */
+export const LAUNCH_REPLAY_WINDOW_MS = 2000;
+
 /** The slice of `@capacitor/app`'s `App` this needs; injected for tests. */
 export interface AppLinkSource {
   getLaunchUrl(): Promise<{ url: string } | undefined>;
@@ -52,7 +60,8 @@ export interface AppLinkSource {
  * `appUrlOpen` — `BridgeActivity.onCreate` passes the launch intent through
  * `onNewIntent`, which the App plugin turns into the event. The first event
  * matching the launch URL is that replay and is skipped; a later tap on the
- * same link is a real one and opens it.
+ * same link is a real one and opens it. The skip lapses after
+ * `LAUNCH_REPLAY_WINDOW_MS`, in case no replay comes.
  */
 export async function startAppLinks(
   app: AppLinkSource,
@@ -82,5 +91,10 @@ export async function startAppLinks(
     }
     open(url);
   });
-  return () => void handle.remove();
+  const lapse =
+    launchReplay === null ? null : setTimeout(() => (launchReplay = null), LAUNCH_REPLAY_WINDOW_MS);
+  return () => {
+    if (lapse !== null) clearTimeout(lapse);
+    void handle.remove();
+  };
 }

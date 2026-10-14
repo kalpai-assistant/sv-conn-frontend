@@ -4,7 +4,7 @@
  * which Capacitor hands over twice — is opened once.
  */
 import { describe, expect, it, vi } from "vitest";
-import { appLinkPath, startAppLinks } from "@/lib/app-link";
+import { LAUNCH_REPLAY_WINDOW_MS, appLinkPath, startAppLinks } from "@/lib/app-link";
 
 describe("appLinkPath", () => {
   it("takes the path of an invite link", () => {
@@ -79,6 +79,20 @@ describe("startAppLinks", () => {
     fake.fire("https://app.eazyserv.com/invite"); // the replay
     fake.fire("https://app.eazyserv.com/invite"); // a real second tap
     expect(navigate).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops waiting for the replay after a moment, so a platform that never sends one doesn't swallow a real tap", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = fakeApp("https://app.eazyserv.com/invite");
+      const navigate = vi.fn();
+      await startAppLinks(fake.app, navigate);
+      vi.advanceTimersByTime(LAUNCH_REPLAY_WINDOW_MS);
+      fake.fire("https://app.eazyserv.com/invite"); // a real tap, no replay ever came
+      expect(navigate).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("leaves an ordinary launch, and foreign links, where they are", async () => {
