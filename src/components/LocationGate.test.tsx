@@ -31,6 +31,17 @@ vi.mock("@/lib/geolocation", () => ({
   peekBrowserPermission: () => peekBrowserPermission(),
 }));
 
+// SVC-356: the Open-settings deeplink helper. Mocked at the module boundary
+// so these tests never touch the real `@capacitor/app-launcher` plugin, which
+// has no web fallback for jsdom. Native by default — the web-hides case has
+// its own test under `on the web`.
+const canOpenAppSettings = vi.fn();
+const openAppSettings = vi.fn();
+vi.mock("@/lib/open-app-settings", () => ({
+  canOpenAppSettings: () => canOpenAppSettings(),
+  openAppSettings: () => openAppSettings(),
+}));
+
 import { LocationGate } from "@/components/LocationGate";
 
 const HOME = { id: "a1", label: "Karve Nagar", full: "Lane Number 7, Karve Nagar, Pune" };
@@ -52,6 +63,8 @@ beforeEach(() => {
   // Native by default: the existing cases below were all written against the
   // plugin's behaviour. The web differences get their own describe block.
   isNativeLocation.mockReturnValue(true);
+  canOpenAppSettings.mockReturnValue(true);
+  openAppSettings.mockResolvedValue(undefined);
   peekLocationPermission.mockResolvedValue("prompt");
   peekBrowserPermission.mockResolvedValue(null);
   requestLocation.mockResolvedValue({ ok: false, failure: "unavailable", coords: null });
@@ -485,5 +498,75 @@ describe("after a tap that the browser refused", () => {
     await userEvent.click(screen.getByRole("button", { name: /enable/i }));
 
     expect(await screen.findByText(/Location is off for this app/i)).toBeInTheDocument();
+  });
+});
+
+/**
+ * SVC-356: the Open-settings deeplink.
+ *
+ * The copy on the denied-permission branch names Settings as the next step
+ * ("Allow location for EazyServ in Settings…"), but on Android the Settings
+ * app is three to five taps away under the OEM skin and two under iOS. This
+ * button makes that remedy a single tap. Native-only — on the PWA there is
+ * no reliable cross-browser deeplink to the permission screen, and a button
+ * that goes nowhere strands the user harder than the banner copy already does.
+ */
+describe("the Open-settings deeplink (SVC-356)", () => {
+  it("appears on native when the permission is denied", async () => {
+    render(<LocationGate {...props({ reason: "permission-denied" })} />);
+
+    // A real `<Button>` — keyboard-focusable, labelled, part of the
+    // tab order on this screen alongside Enable / Enter address manually.
+    const button = await screen.findByRole("button", { name: /open settings/i });
+    expect(button).toBeEnabled();
+  });
+
+  it("deeplinks to the OS settings page when tapped", async () => {
+    render(<LocationGate {...props({ reason: "permission-denied" })} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /open settings/i }));
+
+    // The helper picks `app-settings:` on iOS, `package:com.eazyserv.app` on
+    // Android; the gate only has to call it. The per-URL assertion lives in
+    // `open-app-settings`'s own tests to avoid double-mocking the plugin.
+    expect(openAppSettings).toHaveBeenCalledOnce();
+  });
+
+  it("stays hidden on the web, where no cross-browser settings deeplink exists", async () => {
+    // Chrome has `chrome://settings/content/location`, which the URL bar
+    // refuses to navigate to from a script; Safari has nothing comparable.
+    isNativeLocation.mockReturnValue(false);
+    canOpenAppSettings.mockReturnValue(false);
+    render(<LocationGate {...props({ reason: "permission-denied" })} />);
+
+    // The banner copy names both remedies on web (SVC-318); only the button
+    // disappears. "Enable" and "Enter address manually" stay as the real exits.
+    await screen.findByRole("button", { name: /enter address manually/i });
+    expect(screen.queryByRole("button", { name: /open settings/i })).toBeNull();
+  });
+
+  it("appears after a live denial, not just a reason prop", async () => {
+    // The gate also lands on this branch when the user taps Enable on a
+    // `permission-prompt` and refuses — the local `permission` state flips
+    // to `denied` even though the `reason` prop was something else. The
+    // button has to track the live state, not just the initial prop, or the
+    // Settings exit would never appear for anyone who denied in-session.
+    requestLocation.mockResolvedValue({ ok: false, failure: "permission-denied", coords: null });
+    render(<LocationGate {...props({ reason: "permission-prompt" })} />);
+
+    expect(screen.queryByRole("button", { name: /open settings/i })).toBeNull();
+
+    await userEvent.click(await screen.findByRole("button", { name: /enable/i }));
+
+    expect(await screen.findByRole("button", { name: /open settings/i })).toBeInTheDocument();
+  });
+
+  it("stays hidden on reasons other than a denial", async () => {
+    // Settings cannot fix a switched-off device or a never-asked permission —
+    // the gate's existing CTAs (Enable / Turn on) are the right remedies.
+    render(<LocationGate {...props({ reason: "device-off" })} />);
+
+    await screen.findByRole("button", { name: /enable/i });
+    expect(screen.queryByRole("button", { name: /open settings/i })).toBeNull();
   });
 });
