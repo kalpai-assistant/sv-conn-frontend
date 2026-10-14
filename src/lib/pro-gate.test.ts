@@ -6,7 +6,12 @@
  * consumer let into it, or anyone sent somewhere on a network error.
  */
 import { describe, expect, it } from "vitest";
-import { consumesLanding, proGateVerdict, skipsLocationGate } from "@/lib/pro-gate";
+import {
+  consumesLanding,
+  proGateVerdict,
+  providerSeesInviteRoute,
+  skipsLocationGate,
+} from "@/lib/pro-gate";
 
 describe("the Pro app's routes", () => {
   it("let a Pro in", () => {
@@ -128,4 +133,17 @@ describe("the consumer location gate", () => {
   it("does not mistake /provider or /profile-like paths for the Pro app", () => {
     expect(skipsLocationGate("/profiles", "pro")).toBe(false);
   });
+});
+
+describe("an SP owner opening /invite (SVC-354)", () => {
+  it("is shown the screen, which tells them why it can't add them", () => {
+    expect(providerSeesInviteRoute("/invite")).toBe(true);
+  });
+
+  it.each(["/", "/bookings", "/profile", "/pro", "/invite/", "/invites", "/invite/abc"])(
+    "is still moved into the provider app from %s",
+    (pathname) => {
+      expect(providerSeesInviteRoute(pathname)).toBe(false);
+    },
+  );
 });

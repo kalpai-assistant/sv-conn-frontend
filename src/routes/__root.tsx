@@ -13,7 +13,13 @@ import { useProHeartbeatHost } from "@/hooks/useProHeartbeat";
 import { syncPendingInvite } from "@/lib/invite";
 import { adminGate } from "@/lib/admin";
 import { AdminMenu } from "@/components/admin/AdminMenu";
-import { consumesLanding, proGateVerdict, skipsLocationGate, type ProState } from "@/lib/pro-gate";
+import {
+  consumesLanding,
+  proGateVerdict,
+  providerSeesInviteRoute,
+  skipsLocationGate,
+  type ProState,
+} from "@/lib/pro-gate";
 import { BottomNav } from "@/components/BottomNav";
 import { CartFab } from "@/components/cart/CartFab";
 import { SplashGate } from "@/components/SplashGate";
@@ -159,8 +165,8 @@ function AppGate({ children }: { children: React.ReactNode }) {
   const isInviteRoute = pathname === "/invite";
   const signedOut = !isAuthenticated && !isRestoring;
   useEffect(() => {
-    syncPendingInvite({ onInviteRoute: isInviteRoute, signedOut });
-  }, [isInviteRoute, signedOut]);
+    syncPendingInvite({ onInviteRoute: isInviteRoute, signedOut, provider: isProvider });
+  }, [isInviteRoute, signedOut, isProvider]);
 
   // SVC-322: an online team Pro sends their location every 30 s, on whatever
   // screen they are on — so it runs here, not on Pro Home.
@@ -279,13 +285,17 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // main.mobile.tsx was unreachable, and the app could not be exited with the
   // back button at all.
   if (role === "provider") {
-    if (!isProviderRoute) {
+    // SVC-354: an owner who opens an invite link is shown /invite, which says
+    // why it can't add them, instead of a silent bounce. Nothing to onboard or
+    // locate for on that screen either. See `providerSeesInviteRoute`.
+    const ownerOnInvite = providerSeesInviteRoute(pathname);
+    if (!isProviderRoute && !ownerOnInvite) {
       return <Navigate to="/provider" replace />;
     }
     // Force incomplete providers through onboarding — name missing OR KYC
     // still pending (not submitted). Once KYC is submitted/verified/rejected
     // they're free to roam the provider surface.
-    if (!isProviderOnboardingRoute) {
+    if (!isProviderOnboardingRoute && !ownerOnInvite) {
       // Deliberately not waiting on the location probe (SVC-281). That call
       // can take seconds — it is what raises the native permission dialog —
       // and holding the app blank for it was a worse bug than the flicker it
