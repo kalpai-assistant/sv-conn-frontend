@@ -40,6 +40,7 @@ import {
   requestLocation,
   type LocationFailure,
 } from "@/lib/geolocation";
+import { MAP_PICKER_LOCATE_TIMEOUT_MS } from "@/lib/map-picker-timeouts";
 
 /**
  * Why we cannot locate them — the gate's copy turns on this, because the
@@ -76,8 +77,12 @@ export interface LocationAvailability {
  * Measured on device before the plugin, location on throughout: consecutive
  * cold starts answered in 1ms, 43ms, 836ms and 8256ms. Nothing shorter than
  * this covers that spread.
+ *
+ * Shared with the picker and gate as `MAP_PICKER_LOCATE_TIMEOUT_MS` (SVC-357)
+ * so no caller can drift to a bound of its own. Was 10s standalone; the shared
+ * value is 15s — see `lib/map-picker-timeouts.ts` for the rationale.
  */
-const PROBE_TIMEOUT_MS = 10_000;
+const PROBE_TIMEOUT_MS = MAP_PICKER_LOCATE_TIMEOUT_MS;
 
 const AVAILABLE: LocationAvailability = { isResolving: false, blocked: false, reason: null };
 

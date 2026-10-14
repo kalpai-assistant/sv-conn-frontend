@@ -1,14 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, useMapEvents, useMap } from "react-leaflet";
-import { MapPin, Navigation, Settings } from "lucide-react";
+import { MapPin, Navigation, Settings, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
 import { GEOCODE_FAILED, GEOCODE_UNKNOWN } from "@/lib/geocode-result";
-import { isNativeLocation } from "@/lib/geolocation";
+import { isNativeLocation, requestLocation } from "@/lib/geolocation";
 import { reverseGeocode, type PlaceDetails } from "@/lib/google-maps";
+import { MAP_PICKER_LOCATE_TIMEOUT_MS } from "@/lib/map-picker-timeouts";
 import { canOpenAppSettings, openAppSettings } from "@/lib/open-app-settings";
 import { PlacesSearchBar } from "@/components/PlacesSearchBar";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 const DEFAULT_CENTER: [number, number] = [12.9716, 77.5946];
 
@@ -66,8 +68,30 @@ export function MapPicker({
   // the button. The banner stays visible until the next locate attempt or
   // user-driven pin move resets it below.
   const [permissionDenied, setPermissionDenied] = useState(false);
+  // SVC-357: `=== false` is the only truth the browser's online boolean tells.
+  // A `true` from the hook does not mean the backend is reachable (measured on
+  // OEM Android WebViews — see `useOnlineStatus`), so we trust `false` and let
+  // a failed `reverseGeocode` do the rest. This is only the fast-path.
+  const isOnline = useOnlineStatus();
+
+  // SVC-357: `tileerror` fires per missing tile, which on an OSM CDN block is
+  // every tile at every zoom level. One toast per sheet-open is the ceiling —
+  // reset by component unmount, which is how the picker is torn down between
+  // sheet-open sessions. Guarded by a ref rather than state so the handler
+  // closure never re-reads a stale value.
+  const tileErrorToastedRef = useRef(false);
 
   const fetchAddress = async (lat: number, lng: number) => {
+    // SVC-357: offline — skip the round-trip and tell the user we will resolve
+    // the address when they reconnect. The alternative is a GEOCODE_FAILED
+    // toast + a blanked address line, both of which read as a bug on the pin
+    // the user just set. The sheet surfaces the status instead; see the
+    // offline affordance in the footer.
+    if (!isOnline) {
+      setAddress("");
+      onLocationSelected(lat, lng, "");
+      return;
+    }
     setIsFetching(true);
     try {
       // Google Geocoding via the shared SDK loader (SVC-284). Nominatim was
@@ -110,6 +134,23 @@ export function MapPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // SVC-357: when the user comes back online with no resolved address, honour
+  // the "we'll resolve the address when you reconnect" promise. Only fires on
+  // the offline-to-online transition, and only when there is nothing we have
+  // already resolved — a user who dragged the pin while offline and then
+  // reconnected should see the address they would have seen if they had never
+  // dropped offline, not a stale blank. Not a dependency of `fetchAddress`:
+  // the handler reads `isOnline` at call time and keeps the short-circuit.
+  const prevOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    const wasOffline = !prevOnlineRef.current;
+    prevOnlineRef.current = isOnline;
+    if (isOnline && wasOffline && !address) {
+      void fetchAddress(center[0], center[1]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline]);
+
   const handleCenterChanged = (lat: number, lng: number) => {
     onUserMoved?.();
     setCenter([lat, lng]);
@@ -117,69 +158,83 @@ export function MapPicker({
   };
 
   /**
-   * Locate-me, with the three ways this used to strand the user fixed.
+   * Locate-me, routed through the shared `requestLocation` (SVC-357).
    *
-   * It called `alert()`, which on Android is a **native modal that blocks the
-   * entire WebView** — nothing on the screen responds until someone taps OK.
-   * Found on device: the map sat behind an unanswered dialog with the pin
-   * mid-move. A toast says the same thing without seizing the app.
+   * Previously called `navigator.geolocation.getCurrentPosition` directly,
+   * which on native WebView bypasses the Capacitor plugin and loses the
+   * distinct Android error codes (`LOCATION_DISABLED` vs
+   * `LOCATION_PERMISSIONS_DENIED`) that let us name a real remedy — see
+   * `lib/geolocation.ts`. Using `requestLocation` gets the plugin on native
+   * and the same web `GeolocationPositionError` fallback on web.
    *
-   * It also passed no `timeout`, and Android does not fail fast when the OS
-   * location toggle is off — it simply never answers (measured: still silent at
-   * 20s; see useLocationAvailability). So "Locating…" could spin indefinitely
-   * and neither callback would ever run.
+   * The three strandings it used to produce are still fixed:
    *
-   * And a device without geolocation fell through the `if` entirely, leaving
-   * the button dead with no explanation.
+   *   - `alert()` is never called (toast only). On Android alert() blocks the
+   *     entire WebView until dismissed — the exact failure the picker test
+   *     file was written against.
+   *   - The request is bounded by `MAP_PICKER_LOCATE_TIMEOUT_MS`. Android does
+   *     not fail fast when the OS toggle is off; without a bound neither path
+   *     ever resolves.
+   *   - A device with no geolocation surfaces a message rather than a dead
+   *     button — `requestLocation` returns `unavailable` here.
+   *
+   * The SVC-179 denied-vs-device-off split survives the swap: `requestLocation`
+   * already returns `location-disabled` separately from `permission-denied`
+   * on native, and the web `GeolocationPositionError.code === 1` still maps to
+   * `permission-denied`. On web both causes still collapse to one code — the
+   * copy names both remedies in that branch, as it did before.
    */
-  const handleLocateMe = () => {
-    if (!("geolocation" in navigator)) {
-      toast.error("Location isn't available on this device. Move the pin instead.");
-      return;
-    }
-
+  const handleLocateMe = async () => {
     setIsFetching(true);
     // Clear a stale denial banner before trying again — the user may have
     // granted permission in Settings and come back; if they refuse again the
-    // error callback below will put it back.
+    // branch below will put it back.
     setPermissionDenied(false);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        handleCenterChanged(pos.coords.latitude, pos.coords.longitude);
-      },
-      (err) => {
-        setIsFetching(false);
-        // Naming the cause matters: "turn on location" is useless advice to
-        // someone who denied the permission, and vice versa.
-        //
-        // On web that distinction is not available (SVC-318). Measured on
-        // device: switching the OS toggle off makes the browser reject with
-        // PERMISSION_DENIED and report `permissions.query` as "prompt", which
-        // is indistinguishable from a refusal. This screen is where a blocked
-        // user lands after taking the gate's "Enter address manually" escape
-        // hatch, so sending them to the app-permission screen — where
-        // everything already looks correct — strands them a second time. The
-        // web copy names both remedies instead.
-        toast.error(
-          err.code === err.PERMISSION_DENIED
-            ? isNativeLocation()
-              ? "Location is off for this app. Turn it on in settings, or move the pin."
-              : "Check that Location is on in your settings and allowed for this site, or move the pin."
-            : "Couldn't get your location. Move the pin to set it instead.",
-        );
-        // SVC-356: a denial on native raises the Open-settings banner, which
-        // deep-links to the EazyServ settings page so the user does not have
-        // to dig through two or three settings screens for the Location
-        // toggle. Web stays with the toast alone — browser-permission
-        // settings have no reliable cross-browser deeplink.
-        if (err.code === err.PERMISSION_DENIED && isNativeLocation()) {
-          setPermissionDenied(true);
-        }
-      },
-      // Bounded so a disabled toggle surfaces as a message rather than a
-      // spinner that never resolves.
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
+
+    const result = await requestLocation(MAP_PICKER_LOCATE_TIMEOUT_MS);
+
+    if (result.ok && result.coords) {
+      handleCenterChanged(result.coords.lat, result.coords.lng);
+      return;
+    }
+
+    setIsFetching(false);
+
+    // Naming the cause matters: "turn on location" is useless advice to
+    // someone who denied the permission, and vice versa. The split from
+    // SVC-179 is preserved — `requestLocation` returns `location-disabled`
+    // and `permission-denied` as separate values on native, so the copy
+    // below can name the exact remedy.
+    //
+    // On web both causes still collapse to one code (SVC-318). Measured on
+    // device: switching the OS toggle off makes the browser reject with
+    // PERMISSION_DENIED and report `permissions.query` as "prompt", which is
+    // indistinguishable from a refusal. This screen is where a blocked user
+    // lands after taking the gate's "Enter address manually" escape hatch,
+    // so sending them to the app-permission screen — where everything
+    // already looks correct — strands them a second time. The web copy names
+    // both remedies instead.
+    const denied = result.failure === "permission-denied";
+    toast.error(
+      denied
+        ? isNativeLocation()
+          ? "Location is off for this app. Turn it on in settings, or move the pin."
+          : "Check that Location is on in your settings and allowed for this site, or move the pin."
+        : result.failure === "location-disabled"
+          ? "Your phone's location is off. Turn it on in settings, or move the pin."
+          : "Couldn't get your location. Move the pin to set it instead.",
     );
+
+    // SVC-356: a denial on native raises the Open-settings banner, which
+    // deep-links to the EazyServ settings page so the user does not have to
+    // dig through two or three settings screens for the Location toggle.
+    // Web stays with the toast alone — browser-permission settings have no
+    // reliable cross-browser deeplink. `location-disabled` is deliberately
+    // not here: the right screen for that is the device Location toggle, not
+    // the EazyServ settings page.
+    if (denied && isNativeLocation()) {
+      setPermissionDenied(true);
+    }
   };
 
   return (
@@ -195,6 +250,22 @@ export function MapPicker({
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            eventHandlers={{
+              // SVC-357: an OSM CDN block (seen on some corporate networks)
+              // renders a silent grey grid at every zoom level, with no
+              // indication the tiles are failing to load. `tileerror` fires
+              // per missing tile — one toast per sheet-open is the ceiling
+              // or the user drowns under duplicates. The ref resets on
+              // component unmount, which is how the picker is torn down
+              // between sheet-open sessions.
+              tileerror: () => {
+                if (tileErrorToastedRef.current) return;
+                tileErrorToastedRef.current = true;
+                toast.error(
+                  "Map tiles aren't loading. Check your connection or your network's content filter.",
+                );
+              },
+            }}
           />
           <MapEvents onCenterChanged={handleCenterChanged} />
           <RecenterMap center={center} />
@@ -221,12 +292,33 @@ export function MapPicker({
           type="button"
           aria-label="Use my current location"
           disabled={isFetching}
-          onClick={handleLocateMe}
+          onClick={() => void handleLocateMe()}
           className="absolute bottom-4 right-4 z-10 h-12 w-12 bg-card rounded-full shadow-lg border border-border flex items-center justify-center disabled:opacity-60"
         >
           <Navigation className="h-5 w-5 text-primary" />
         </button>
       </div>
+
+      {/* SVC-357: offline — tell the user we skipped the reverse-geocode, but
+          promise to resolve it when they reconnect. Rendered inside the sheet
+          rather than as a floating toast so it survives the whole offline
+          session instead of auto-dismissing. Separate from the SVC-356 denied
+          banner because the two can coexist (denied the permission, now also
+          offline) and lumping them would conflate two unrelated remedies. */}
+      {!isOnline && (
+        <div
+          role="status"
+          className="z-20 flex items-start gap-3 border-t border-border bg-muted p-4"
+        >
+          <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground">You're offline</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Drop the pin — we'll resolve the address when you reconnect.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* SVC-356: Denied-permission banner with a one-tap deeplink to the OS
           settings page for EazyServ. Native only — on web the browser-settings
