@@ -33,11 +33,7 @@ const CONSUMERS = [
  * every literal variant the codebase tends to use — bare `15000`, underscored
  * `15_000`, and the same for 20s / 10s.
  */
-const BANNED_LITERALS = [
-  /\b15[_,]?000\b/,
-  /\b20[_,]?000\b/,
-  /\b10[_,]?000\b/,
-] as const;
+const BANNED_LITERALS = [/\b15[_,]?000\b/, /\b20[_,]?000\b/, /\b10[_,]?000\b/] as const;
 
 describe("MAP_PICKER_LOCATE_TIMEOUT_MS (SVC-357)", () => {
   it("is the value SVC-357 picked", () => {

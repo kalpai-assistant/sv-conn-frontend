@@ -180,9 +180,7 @@ describe("when the location cannot be read", () => {
     await userEvent.click(screen.getByRole("button", { name: /use my current location/i }));
 
     await vi.waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith(
-        expect.stringMatching(/phone's location is off/i),
-      ),
+      expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/phone's location is off/i)),
     );
     // Also the SVC-356 deeplink must not appear — Settings is the wrong
     // remedy for a disabled OS toggle. See the deeplink describe below.
@@ -320,9 +318,7 @@ describe("offline-while-open (SVC-357)", () => {
 
     // The initial fetchAddress on mount must bail out; `reverseGeocode` is the
     // round-trip we promised not to make when there is no network to serve it.
-    await vi.waitFor(() =>
-      expect(screen.getByText(/you're offline/i)).toBeInTheDocument(),
-    );
+    await vi.waitFor(() => expect(screen.getByText(/you're offline/i)).toBeInTheDocument());
     expect(reverseGeocode).not.toHaveBeenCalled();
   });
 
@@ -350,8 +346,8 @@ describe("the tileerror toast (SVC-357)", () => {
     tileLayerProps.eventHandlers?.tileerror?.();
     tileLayerProps.eventHandlers?.tileerror?.();
 
-    const matching = toastError.mock.calls.filter(([msg]) =>
-      typeof msg === "string" && /map tiles aren't loading/i.test(msg),
+    const matching = toastError.mock.calls.filter(
+      ([msg]) => typeof msg === "string" && /map tiles aren't loading/i.test(msg),
     );
     expect(matching).toHaveLength(1);
   });
@@ -368,8 +364,8 @@ describe("the tileerror toast (SVC-357)", () => {
     render(<MapPicker onLocationSelected={vi.fn()} />);
     tileLayerProps.eventHandlers?.tileerror?.();
 
-    const matching = toastError.mock.calls.filter(([msg]) =>
-      typeof msg === "string" && /map tiles aren't loading/i.test(msg),
+    const matching = toastError.mock.calls.filter(
+      ([msg]) => typeof msg === "string" && /map tiles aren't loading/i.test(msg),
     );
     expect(matching).toHaveLength(2);
   });
