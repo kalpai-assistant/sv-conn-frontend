@@ -95,6 +95,19 @@ The SP's invite SMS carries a static link (`https://app.eazyserv.com/invite`,
 an Android App Link since SVC-343) and a separate 6-digit code. The code is
 never in the URL: the SMS template provider rejected that.
 
+- **The link opens `/invite` in the app** (SVC-354). Capacitor always loads
+  its own start page, so `startAppLinks`
+  ([src/lib/app-link.ts](../src/lib/app-link.ts)), wired in `initNative` in
+  [src/main.mobile.tsx](../src/main.mobile.tsx), passes the link's path to
+  the router (`replace`). It reads `getLaunchUrl` on a cold start and listens
+  for `appUrlOpen` while the app runs. It accepts only
+  `https://app.eazyserv.com`. A cold start delivers the URL twice
+  (`BridgeActivity.onCreate` replays the launch intent as `appUrlOpen`), so
+  that replay is skipped. The root gate still runs after the navigation.
+  Whether Android opens the app for the link at all is App Link
+  _verification_ (assetlinks.json + the release cert). A debug build can't
+  test that.
+
 - **`/invite`** ([src/routes/invite.tsx](../src/routes/invite.tsx)) is a
   code-entry screen. It branches in this order:
   1. role `provider` → **the business-account screen** (SVC-354). No form: an
@@ -173,5 +186,6 @@ never in the URL: the SMS template provider rejected that.
 | Location heartbeat (app-wide, online team Pros)                               | [src/hooks/useProHeartbeat.ts](../src/hooks/useProHeartbeat.ts)                                                                                                                                              |
 | Joining: screen, copy, pending flag, clipboard                                | [src/routes/invite.tsx](../src/routes/invite.tsx), [src/lib/invite.ts](../src/lib/invite.ts), [src/lib/invite-clipboard.ts](../src/lib/invite-clipboard.ts)                                                  |
 | Invite-mode sign-in                                                           | [src/components/AuthFlow.tsx](../src/components/AuthFlow.tsx) (`invite` prop)                                                                                                                                |
+| The invite SMS link → `/invite` in the native app                             | [src/lib/app-link.ts](../src/lib/app-link.ts), `initNative` in [src/main.mobile.tsx](../src/main.mobile.tsx)                                                                                                 |
 | Consumer side's link to the Pro app                                           | "Open Pro app" row in [src/routes/profile.tsx](../src/routes/profile.tsx)                                                                                                                                    |
 | SP side: team, invites, self-pro toggle, assigning                            | [src/hooks/useTeam.ts](../src/hooks/useTeam.ts), [src/routes/provider/team/](../src/routes/provider/team/), [src/components/provider/TeamPicker.tsx](../src/components/provider/TeamPicker.tsx)              |

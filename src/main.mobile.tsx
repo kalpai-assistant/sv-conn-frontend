@@ -24,6 +24,7 @@ import { initSentry } from "./lib/sentry";
 import { APP_VERSION } from "./lib/version";
 import { runBackInterceptors } from "./lib/back-interceptor";
 import { isProRoute, isProviderRoute } from "./lib/nav-visibility";
+import { startAppLinks } from "./lib/app-link";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles.css";
 
@@ -73,6 +74,15 @@ const EXIT_PROMPT_WINDOW_MS = 3000;
 
 async function initNative(router: ReturnType<typeof getRouter>) {
   if (!Capacitor.isNativePlatform()) return;
+
+  // SVC-354: open an App Link's page (the invite SMS → /invite) rather than the
+  // start page. First, before the awaits below, so a cold start's link is
+  // routed as early as possible. `replace` (SVC-273): the start page it
+  // replaces is not somewhere back should return to. Listens for the app's
+  // lifetime, like the back button below. See app-link.ts.
+  void startAppLinks(App, (path) => {
+    void router.navigate({ href: path, replace: true });
+  });
 
   try {
     await StatusBar.setStyle({ style: Style.Light });
