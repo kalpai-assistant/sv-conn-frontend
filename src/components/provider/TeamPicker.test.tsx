@@ -145,6 +145,16 @@ describe("assigning", () => {
     expect(screen.queryByRole("button", { name: /^Asha/ })).toBeNull();
   });
 
+  it("drops a Pro who already declined this booking, picker still open (SVC-361)", () => {
+    assignFails(new ApiError(409, "x", undefined, "PRO_DECLINED_THIS_BOOKING"));
+    renderPicker();
+    pickAndAssign("Asha");
+    expect(toast.error).toHaveBeenCalledWith("This Pro already declined this booking.");
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /^Asha/ })).toBeNull();
+    expect(row("Me")).toBeEnabled();
+  });
+
   it.each([
     [new ApiError(410, "gone"), "taken"],
     [new ApiError(404, "Booking not found"), "unavailable"],

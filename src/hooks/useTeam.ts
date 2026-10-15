@@ -98,11 +98,23 @@ export const TEAM_INVITES_QUERY_KEY = ["provider-team-invites"] as const;
  * Active Pros, the SP's own row first. `pollWhileSelfOff` (My Team): while the
  * SP has switched off taking jobs, poll with `useSelfPro`, so a Pro's dot turns
  * green when the "nobody available" banner clears, not on the next visit.
+ *
+ * `bookingId` (SVC-361): leave out the Pros who declined that booking, for a
+ * re-pick list. Cached under the team key, so every team invalidation refreshes
+ * it too. An older backend ignores the param and sends the whole team.
  */
-export function useTeam(enabled = true, { pollWhileSelfOff = false } = {}) {
+export function useTeam(
+  enabled = true,
+  { pollWhileSelfOff = false, bookingId }: { pollWhileSelfOff?: boolean; bookingId?: string } = {},
+) {
   return useQuery({
-    queryKey: TEAM_QUERY_KEY,
-    queryFn: () => apiFetch<TeamMember[]>("/providers/me/team"),
+    queryKey: bookingId ? [...TEAM_QUERY_KEY, "booking", bookingId] : TEAM_QUERY_KEY,
+    queryFn: () =>
+      apiFetch<TeamMember[]>(
+        bookingId
+          ? `/providers/me/team?booking_id=${encodeURIComponent(bookingId)}`
+          : "/providers/me/team",
+      ),
     enabled,
     refetchInterval: (query) =>
       pollWhileSelfOff && query.state.data?.find((m) => m.is_self)?.accepts_direct_jobs === false
@@ -220,6 +232,7 @@ const REPICK_CODES = new Set([
   "PRO_KYC_INCOMPLETE",
   "PRO_NOT_FOUND",
   "SELF_NOT_TAKING_JOBS",
+  "PRO_DECLINED_THIS_BOOKING",
 ]);
 
 /**
@@ -227,8 +240,8 @@ const REPICK_CODES = new Set([
  * first, because the status alone mixes booking-level and Pro-level answers:
  *
  * - `repick` — PRO_BUSY / PRO_OFFLINE / PRO_KYC_INCOMPLETE /
- *   SELF_NOT_TAKING_JOBS (409) or PRO_NOT_FOUND (404, the Pro was removed while
- *   the picker was open).
+ *   SELF_NOT_TAKING_JOBS / PRO_DECLINED_THIS_BOOKING (409, SVC-361) or
+ *   PRO_NOT_FOUND (404, the Pro was removed while the picker was open).
  *   Toast, refresh, keep picking.
  * - `taken` — 410: claimed by another SP, cancelled or expired. Quiet dismiss.
  * - `unavailable` — 403, a code-less 404 (no such booking) or a code-less 409
@@ -259,6 +272,8 @@ export function teamErrorMessage(error: unknown): string {
       return "They haven't finished KYC yet, so they can't take jobs. Pick someone else.";
     case "PRO_NOT_FOUND":
       return "That person is no longer on your team.";
+    case "PRO_DECLINED_THIS_BOOKING":
+      return "This Pro already declined this booking.";
     case "INVITER_PAYOUT_KYC_INCOMPLETE":
       return "Finish your KYC before inviting team members. Your team's earnings are paid to you.";
     case "CANNOT_INVITE_SELF":
