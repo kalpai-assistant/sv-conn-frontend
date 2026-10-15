@@ -14,7 +14,9 @@
  *              Render nothing; NEVER block the app on a failed check.
  *
  * The compare is per-platform: Android reads `latest.android`, PWA reads
- * `latest.pwa`. The `platform` module already knows which one we are.
+ * `latest.pwa`, and the native iOS app reads `latest.ios` (SVC-366). The
+ * `platform` module's UA sniff can't tell the native iOS app from iOS
+ * Safari — both say "iPhone" — so native iOS is detected via Capacitor.
  *
  * **Fetch failures are silent by design.** A dead backend, network blip,
  * or bad JSON must never surface to the user as a blocking error — the
@@ -36,6 +38,8 @@ export interface VersionInfo {
   minSupported?: string;
   url?: string;
   releaseNotes?: string;
+  /** Set only on the native iOS app, which has no APK and no /download page. */
+  platform?: "ios-native";
 }
 
 interface PlatformVersionResponse {
@@ -49,6 +53,8 @@ interface PlatformVersionResponse {
 interface LatestVersionResponse {
   android: PlatformVersionResponse;
   pwa: PlatformVersionResponse;
+  /** Optional so a backend from before SVC-366 still parses. */
+  ios?: PlatformVersionResponse;
 }
 
 /**
@@ -93,6 +99,17 @@ async function getInstalledVersion(): Promise<string> {
   return APP_VERSION;
 }
 
+/** True only inside the Capacitor iOS shell — never iOS Safari or the PWA. */
+async function isNativeIos(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  try {
+    const { Capacitor } = await import("@capacitor/core");
+    return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
+  } catch {
+    return false;
+  }
+}
+
 export function useAppVersionCheck(): VersionInfo {
   const [info, setInfo] = useState<VersionInfo>({ state: "unknown" });
 
@@ -100,6 +117,27 @@ export function useAppVersionCheck(): VersionInfo {
     try {
       const latest = await apiFetch<LatestVersionResponse>("/downloads/latest.json");
       const installed = await getInstalledVersion();
+
+      // Native iOS reads its own row and nothing else. Without one (an
+      // older backend), skip the check: the pwa row would nudge or block
+      // an iPhone that has no way to update.
+      if (await isNativeIos()) {
+        const ios = latest.ios;
+        if (!ios) {
+          setInfo({ state: "ok" });
+          return;
+        }
+        setInfo({
+          state: compareVersions(installed, ios.version, ios.min_supported_version),
+          latest: ios.version,
+          minSupported: ios.min_supported_version,
+          url: ios.url ?? undefined,
+          releaseNotes: ios.release_notes ?? undefined,
+          platform: "ios-native",
+        });
+        return;
+      }
+
       const platform = detectPlatform().platform;
 
       // Desktop doesn't have an "installed version" concept — the user is
