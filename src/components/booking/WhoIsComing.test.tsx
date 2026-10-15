@@ -94,6 +94,21 @@ describe("mapping", () => {
     });
     expect(JSON.stringify(b)).not.toContain("Assigned Partner");
   });
+
+  // SVC-360: the old placeholder number is gone; no phone means null.
+  it.each([
+    ["absent", {}],
+    ["null", { provider_phone: null }],
+  ])("never invents a provider phone when provider_phone is %s", (_, over) => {
+    const b = mapBooking(apiBooking(over));
+    expect(b.service.provider?.phone).toBeNull();
+    expect(JSON.stringify(b)).not.toContain("910000000000");
+  });
+
+  it("carries provider_phone through as given", () => {
+    const b = mapBooking(apiBooking({ provider_phone: "+919876500001" }));
+    expect(b.service.provider?.phone).toBe("+919876500001");
+  });
 });
 
 describe("whoIsComing", () => {
