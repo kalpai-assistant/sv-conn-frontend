@@ -19,6 +19,56 @@
 importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js");
 
+// Notification click → open the app and let it decide where to go.
+//
+// The right screen depends on who is signed in (a provider's job screen, a
+// consumer's tracking screen), and this worker can't know that: no
+// localStorage, no auth state. It used to send everyone to /tracking/{id},
+// which bounced providers to /provider and lost the job. So it hands the
+// payload over in the URL, and the app resolves it with the same
+// `routeForPayload` the native tap uses (`useNotificationRouter`,
+// src/lib/notifications.ts). The parameter names are that file's
+// PUSH_EVENT_PARAM / PUSH_BOOKING_PARAM; notifications.test.ts checks they match.
+//
+// Registered BEFORE `firebase.messaging()` on purpose (SVC-363). That call adds
+// the SDK's own click listener, which claims every notification the SDK showed
+// (data.FCM_MSG), stops propagation, and opens only `fcmOptions.link` — which
+// our backend doesn't send. Registered after it, this listener never ran, and a
+// tap did nothing. Running first, it claims the click instead.
+self.addEventListener("notificationclick", (event) => {
+  event.stopImmediatePropagation();
+  event.notification.close();
+
+  // The SDK shows a `notification` push itself and nests the message under
+  // FCM_MSG; a data-only push shown by onBackgroundMessage carries it flat.
+  const raw = event.notification.data || {};
+  const data = (raw.FCM_MSG && raw.FCM_MSG.data) || raw;
+  const params = new URLSearchParams();
+  if (data.event) params.set("push_event", data.event);
+  if (data.booking_id) params.set("push_booking_id", data.booking_id);
+  const query = params.toString();
+  const targetUrl = query ? `/?${query}` : "/";
+
+  // An open app tab is not controlled by this worker (the SDK registers it
+  // under /firebase-cloud-messaging-push-scope), so it only shows up with
+  // includeUncontrolled, and client.navigate() would reject. Focus it and let
+  // the app's router take the link. All of this stays inside waitUntil: Chrome
+  // allows focus()/openWindow() only while the click event is being handled.
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      const app = clients.find((client) => new URL(client.url).origin === self.location.origin);
+      if (app) {
+        return app.focus().then((focused) => {
+          (focused || app).postMessage({ type: "push_click", url: targetUrl });
+        });
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    }),
+  );
+});
+
 firebase.initializeApp({
   apiKey: "AIzaSyAxGY_THmmdj5_4sULnUFUt-UnCWCoUrs4",
   authDomain: "eazyserv-2024-a2eb1.firebaseapp.com",
@@ -31,51 +81,16 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 // Background handler — fires when the PWA is not in focus and an FCM
-// message arrives. We show a native notification either way, using the
-// booking id as a tag so the tray doesn't fill with duplicates on resend.
+// message arrives. A message with a `notification` block (every push our
+// backend sends today) has already been shown by the SDK before this runs;
+// showing it again put two in the tray (SVC-363). So only a data-only message
+// is shown here, tagged by booking id so a resend replaces rather than stacks.
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || "EazyServ";
-  const body = payload.notification?.body || "";
+  if (payload.notification) return;
 
-  self.registration.showNotification(title, {
-    body,
+  self.registration.showNotification("EazyServ", {
     icon: "/icons/icon-192.png",
     tag: payload.data?.booking_id || undefined,
     data: payload.data || {},
   });
-});
-
-// Notification click → open the app and let it decide where to go.
-//
-// The right screen depends on who is signed in (a provider's job screen, a
-// consumer's tracking screen), and this worker can't know that: no
-// localStorage, no auth state. It used to send everyone to /tracking/{id},
-// which bounced providers to /provider and lost the job. So it hands the
-// payload over in the URL, and the app resolves it with the same
-// `routeForPayload` the native tap uses (`useNotificationRouter`,
-// src/lib/notifications.ts). The parameter names are that file's
-// PUSH_EVENT_PARAM / PUSH_BOOKING_PARAM; notifications.test.ts checks they match.
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-
-  const data = event.notification.data || {};
-  const params = new URLSearchParams();
-  if (data.event) params.set("push_event", data.event);
-  if (data.booking_id) params.set("push_booking_id", data.booking_id);
-  const query = params.toString();
-  const targetUrl = query ? `/?${query}` : "/";
-
-  event.waitUntil(
-    self.clients.matchAll({ type: "window" }).then((clients) => {
-      for (const client of clients) {
-        if ("focus" in client && "navigate" in client) {
-          client.focus();
-          return client.navigate(targetUrl);
-        }
-      }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
-      }
-    }),
-  );
 });

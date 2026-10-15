@@ -13,7 +13,8 @@
  * 2. `useNotificationRouter()` — a React hook that wires the Capacitor
  *    PushNotifications listeners and routes via TanStack Router. Foreground
  *    + background + killed-state taps all funnel through this. A web-push tap
- *    (PWA) arrives as a URL from the service worker and is routed here too.
+ *    (PWA) arrives from the service worker as a URL, or as a message to an
+ *    already-open tab, and is routed here too.
  *
  * Out of scope (deferred): Universal Links / App Links (web URL → app), FCM
  * token registration (that's SC-16 / junior's work).
@@ -180,6 +181,26 @@ export function readPushLink(search: string): NotificationPayload | null {
   return { event, booking_id: params.get(PUSH_BOOKING_PARAM) ?? undefined };
 }
 
+/**
+ * A web-push tap while the app is already open (SVC-363). The service worker
+ * focuses the tab and posts `{ type: "push_click", url }`, `url` being the same
+ * `/?push_event=…` link it opens when no tab is open. It can't navigate the tab
+ * itself: the Firebase SDK registers it under its own scope, so it controls no
+ * app window. Anything else posted to the page is not ours: null.
+ */
+export function readPushClickMessage(data: unknown): NotificationPayload | null {
+  if (typeof data !== "object" || data === null) return null;
+  const { type, url } = data as { type?: unknown; url?: unknown };
+  if (type !== "push_click" || typeof url !== "string") return null;
+  return readPushLink(new URL(url, "https://app.invalid").search);
+}
+
+/** A push tap to route: from the launch URL (replaces it) or a message (pushes). */
+interface PushLink {
+  payload: NotificationPayload;
+  replace: boolean;
+}
+
 export function useNotificationRouter(): void {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -190,17 +211,34 @@ export function useNotificationRouter(): void {
   // child's effect, and __root's role redirects (a provider landing on "/" is
   // sent to /provider) would otherwise drop the query string first. Resolved
   // once the role is known, which is after the session restore, or after login
-  // when the tap opened a signed-out app.
-  const [pushLink] = useState(() =>
-    typeof window === "undefined" ? null : readPushLink(window.location.search),
-  );
-  const pushLinkHandled = useRef(false);
+  // when the tap opened a signed-out app. A tap on an already-open tab arrives
+  // as a service-worker message instead, and takes the same path from here.
+  const [pushLink, setPushLink] = useState<PushLink | null>(() => {
+    if (typeof window === "undefined") return null;
+    const payload = readPushLink(window.location.search);
+    return payload && { payload, replace: true };
+  });
+  const handledPushLink = useRef<PushLink | null>(null);
   useEffect(() => {
-    if (!pushLink || pushLinkHandled.current || role === null) return;
-    pushLinkHandled.current = true;
-    const target = routeForPayload(pushLink, role);
-    if (target) navigate({ to: target, replace: true });
+    if (!pushLink || handledPushLink.current === pushLink || role === null) return;
+    handledPushLink.current = pushLink;
+    const target = routeForPayload(pushLink.payload, role);
+    if (target) navigate({ to: target, replace: pushLink.replace });
   }, [pushLink, role, navigate]);
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform() || !("serviceWorker" in navigator)) return;
+    const container = navigator.serviceWorker;
+    const onMessage = (event: MessageEvent) => {
+      const payload = readPushClickMessage(event.data);
+      if (payload) setPushLink({ payload, replace: false });
+    };
+    container.addEventListener("message", onMessage);
+    // addEventListener alone leaves messages queued until DOMContentLoaded;
+    // a tap that cold-opens the tab can land before that.
+    container.startMessages();
+    return () => container.removeEventListener("message", onMessage);
+  }, []);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;

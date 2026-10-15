@@ -6,9 +6,9 @@
  * rather than on a phone.
  */
 import { readFileSync } from "node:fs";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement, type ReactNode } from "react";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // The module imports the router and auth context for its hook; the pure
@@ -23,6 +23,7 @@ vi.mock("@/lib/auth-context", () => ({ useAuth: () => auth }));
 import {
   PUSH_BOOKING_PARAM,
   PUSH_EVENT_PARAM,
+  readPushClickMessage,
   readPushLink,
   routeForPayload,
   useNotificationRouter,
@@ -230,5 +231,96 @@ describe("web push (PWA)", () => {
     // The role-blind route it used to build for everyone (its comments may
     // still name it, so match the template literal, not the words).
     expect(sw).not.toContain("`/tracking/");
+  });
+
+  it("claims the click before the Firebase SDK can (SVC-363)", () => {
+    const sw = readFileSync("public/firebase-messaging-sw.js", "utf-8");
+    // The SDK's own listener, added by firebase.messaging(), swallows every
+    // click on a notification it showed. Ours has to be registered first.
+    expect(sw.indexOf('addEventListener("notificationclick"')).toBeGreaterThan(-1);
+    expect(sw.indexOf('addEventListener("notificationclick"')).toBeLessThan(
+      sw.indexOf("const messaging = firebase.messaging()"),
+    );
+    expect(sw).toContain("stopImmediatePropagation");
+    // The open app tab isn't controlled by this worker's scope.
+    expect(sw).toContain("includeUncontrolled: true");
+    expect(sw).toContain('type: "push_click"');
+  });
+});
+
+describe("web push tap on an open tab (SVC-363)", () => {
+  // jsdom has no service worker; a stub container is enough for the hook.
+  const container = Object.assign(new EventTarget(), { startMessages: vi.fn() });
+  const tap = (data: unknown) =>
+    act(() => {
+      container.dispatchEvent(new MessageEvent("message", { data }));
+    });
+  const pushClick = (event: string) => ({
+    type: "push_click",
+    url: `/?${PUSH_EVENT_PARAM}=${event}&${PUSH_BOOKING_PARAM}=${ID}`,
+  });
+
+  beforeEach(() => {
+    Object.defineProperty(navigator, "serviceWorker", { value: container, configurable: true });
+  });
+
+  afterEach(() => {
+    // @ts-expect-error -- removing the stub put there above
+    delete navigator.serviceWorker;
+    navigate.mockReset();
+    container.startMessages.mockReset();
+    auth.user = null;
+  });
+
+  it("reads the payload from a push_click message", () => {
+    expect(readPushClickMessage(pushClick("cancelled"))).toEqual({
+      event: "cancelled",
+      booking_id: ID,
+    });
+  });
+
+  it.each([
+    ["another message type", { type: "something_else", url: "/?push_event=cancelled" }],
+    ["a push_click without a url", { type: "push_click" }],
+    ["a url without a push", { type: "push_click", url: "/" }],
+    ["the Firebase SDK's own message", { isFirebaseMessaging: true, messageType: "push-received" }],
+    ["no data", null],
+  ])("ignores %s", (_, data) => {
+    expect(readPushClickMessage(data)).toBeNull();
+  });
+
+  it("routes the tap by role, without replacing the current page", () => {
+    auth.user = { role: "provider" };
+    renderHook(() => useNotificationRouter(), { wrapper });
+    expect(container.startMessages).toHaveBeenCalled();
+
+    tap(pushClick("cancelled"));
+    expect(navigate).toHaveBeenCalledExactlyOnceWith({
+      to: `/provider/bookings/${ID}`,
+      replace: false,
+    });
+  });
+
+  it("routes a second tap too", () => {
+    auth.user = { role: "consumer" };
+    renderHook(() => useNotificationRouter(), { wrapper });
+    tap(pushClick("en_route"));
+    tap(pushClick("completed"));
+    expect(navigate).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores any other message", () => {
+    auth.user = { role: "consumer" };
+    renderHook(() => useNotificationRouter(), { wrapper });
+    tap({ type: "something_else", url: pushClick("cancelled").url });
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("stops listening on unmount", () => {
+    auth.user = { role: "consumer" };
+    const { unmount } = renderHook(() => useNotificationRouter(), { wrapper });
+    unmount();
+    tap(pushClick("cancelled"));
+    expect(navigate).not.toHaveBeenCalled();
   });
 });
