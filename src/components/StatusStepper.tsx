@@ -4,7 +4,18 @@ import type { BookingStatus, BookingStatusEvent } from "@/lib/mock-data";
 interface Step {
   status: BookingStatus;
   label: string;
+  // Set only on rows built from a history containing a reopen, where each row
+  // is one event and carries that event's own time. Rows without it look
+  // their time up in `reachedAt`, as they always have.
+  at?: string;
 }
+
+/**
+ * The row a reopen adds (SVC-362). Same words as the consumer push
+ * (backend notification_tasks.py), so the screen and the notification tell
+ * one story.
+ */
+const REOPEN_LABEL = "Finding another professional";
 
 /** The five stages a booking passes through when nothing goes wrong. */
 const HAPPY_PATH: Step[] = [
@@ -52,6 +63,43 @@ function formatReachedAt(iso: string): string | null {
   return `${at.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}, ${time}`;
 }
 
+/**
+ * One row per history event, oldest first, or null when nothing was reopened.
+ *
+ * A reopen is a REQUESTED event after an ACCEPTED one: the SP gave the job
+ * back (or their Pro declined) and the booking went looking again. The
+ * backend logs it as ACCEPTED → REQUESTED, but the stage map below keys by
+ * status, so it collapsed into the original "Requested" and the timeline
+ * jumped from "Accepted" to whatever came next while the push said
+ * "Finding another professional".
+ *
+ * Null on no reopen is deliberate: those bookings keep the stage-map
+ * rendering untouched. A history that skips a stage would otherwise reorder
+ * rows that have rendered the same way since SVC-248.
+ *
+ * Statuses outside HAPPY_PATH (the terminal ones) are not rows here; the
+ * caller appends the terminal row itself.
+ */
+function eventSteps(history: BookingStatusEvent[]): Step[] | null {
+  const steps: Step[] = [];
+  let accepted = false;
+  let reopened = false;
+
+  for (const event of history) {
+    const stage = HAPPY_PATH.find((s) => s.status === event.status);
+    if (!stage) continue;
+    if (event.status === "REQUESTED" && accepted) {
+      reopened = true;
+      steps.push({ status: "REQUESTED", label: REOPEN_LABEL, at: event.at });
+    } else {
+      steps.push({ ...stage, at: event.at });
+    }
+    if (event.status === "ACCEPTED") accepted = true;
+  }
+
+  return reopened ? steps : null;
+}
+
 export function StatusStepper({
   currentStatus,
   history = [],
@@ -82,23 +130,44 @@ export function StatusStepper({
   // predating `booking_status_logs` have no entries at all. Showing the one
   // stage every booking is known to have passed through beats showing none.
   const reachedStages = HAPPY_PATH.filter((s) => reachedAt.has(s.status));
-  const steps: Step[] = terminalLabel
-    ? [
-        ...(reachedStages.length > 0 ? reachedStages : [HAPPY_PATH[0]]),
-        { status: currentStatus, label: terminalLabel },
-      ]
-    : HAPPY_PATH;
+  const reopenedSteps = eventSteps(history);
 
-  // Clamped, not raw. An unrecognised status (a stage added backend-side
-  // before this map is updated) would otherwise land on -1 and reproduce the
-  // exact all-ghosted bug above. Falling back to the first stage shows
-  // something true — every booking was requested — rather than nothing.
-  const currentIndex = terminalLabel
-    ? steps.length - 1
-    : Math.max(
-        0,
-        steps.findIndex((s) => s.status === currentStatus),
-      );
+  let steps: Step[];
+  let currentIndex: number;
+  if (reopenedSteps) {
+    // A reopened booking reads in the order it happened, so "Accepted" can
+    // appear twice with "Finding another professional" between them.
+    if (terminalLabel) {
+      steps = [...reopenedSteps, { status: currentStatus, label: terminalLabel }];
+      currentIndex = steps.length - 1;
+    } else {
+      // Stages still ahead follow from the LAST row, not the first arrival:
+      // after a reopen the booking is back at Requested and has Accepted
+      // ahead of it again.
+      const last = reopenedSteps[reopenedSteps.length - 1];
+      const ahead = HAPPY_PATH.slice(HAPPY_PATH.findIndex((s) => s.status === last.status) + 1);
+      steps = [...reopenedSteps, ...ahead];
+      currentIndex = reopenedSteps.length - 1;
+    }
+  } else {
+    steps = terminalLabel
+      ? [
+          ...(reachedStages.length > 0 ? reachedStages : [HAPPY_PATH[0]]),
+          { status: currentStatus, label: terminalLabel },
+        ]
+      : HAPPY_PATH;
+
+    // Clamped, not raw. An unrecognised status (a stage added backend-side
+    // before this map is updated) would otherwise land on -1 and reproduce the
+    // exact all-ghosted bug above. Falling back to the first stage shows
+    // something true — every booking was requested — rather than nothing.
+    currentIndex = terminalLabel
+      ? steps.length - 1
+      : Math.max(
+          0,
+          steps.findIndex((s) => s.status === currentStatus),
+        );
+  }
 
   return (
     <div className="flex flex-col gap-0">
@@ -112,7 +181,7 @@ export function StatusStepper({
         // Only for stages already behind us. A future stage has no timestamp
         // to show, and a stage the history doesn't mention renders exactly as
         // it did before this component knew about timestamps.
-        const raw = isCompleted || isCurrent ? reachedAt.get(step.status) : undefined;
+        const raw = isCompleted || isCurrent ? (step.at ?? reachedAt.get(step.status)) : undefined;
         const reached = raw ? formatReachedAt(raw) : null;
 
         return (
@@ -121,7 +190,8 @@ export function StatusStepper({
           // timestamp under the label a row is two lines tall, and the fixed
           // connector this used to have left the dots drifting out of line
           // with their own text.
-          <div key={step.status} className="flex items-stretch gap-3">
+          // Index in the key: a reopened booking has two "Accepted" rows.
+          <div key={`${i}-${step.status}`} className="flex items-stretch gap-3">
             <div className="flex flex-col items-center">
               <div
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
