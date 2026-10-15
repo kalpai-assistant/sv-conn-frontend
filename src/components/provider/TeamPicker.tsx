@@ -147,8 +147,10 @@ export function TeamPicker({
           if (code === "PRO_OFFLINE") setLearned((l) => ({ ...l, [pro.id]: "offline" }));
           if (code === "PRO_KYC_INCOMPLETE") setLearned((l) => ({ ...l, [pro.id]: "kyc" }));
           if (code === "SELF_NOT_TAKING_JOBS") setLearned((l) => ({ ...l, [pro.id]: "self-off" }));
-          // Removed from the team while the picker was open.
-          if (code === "PRO_NOT_FOUND") setPros((list) => list.filter((p) => p.id !== pro.id));
+          // Removed from the team while the picker was open, or (SVC-361)
+          // already declined this booking and the list didn't know.
+          if (code === "PRO_NOT_FOUND" || code === "PRO_DECLINED_THIS_BOOKING")
+            setPros((list) => list.filter((p) => p.id !== pro.id));
         },
       },
     );

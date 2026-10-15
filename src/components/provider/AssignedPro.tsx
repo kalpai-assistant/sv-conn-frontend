@@ -26,7 +26,16 @@ const ACTIVE = new Set<Booking["status"]>(["ACCEPTED", "EN_ROUTE", "IN_PROGRESS"
 
 export function AssignedPro({ booking }: { booking: Booking }) {
   const team = useTeam();
+  // SVC-361: the re-pick list leaves out whoever declined this booking. The
+  // card itself still reads the whole team, so a decline doesn't hide it. If
+  // the filtered fetch fails, offer the whole team: /assign refuses a decliner.
+  const repickTeam = useTeam(true, { bookingId: booking.id });
   const [picking, setPicking] = useState(false);
+  // The list was fetched when this screen opened, and a decline that lands
+  // while it's open changes nothing the team query watches. The picker copies
+  // its list once, so refetch first and open it on the fresh answer. A local
+  // flag, not `isFetching`, so a background refetch can't close an open picker.
+  const [loadingList, setLoadingList] = useState(false);
 
   const pro = booking.professional;
   // An older backend doesn't send the field: show nothing rather than guess.
@@ -40,10 +49,11 @@ export function AssignedPro({ booking }: { booking: Booking }) {
 
   const canChange = booking.status === "ACCEPTED";
 
-  // Everyone active on the team, minus whoever is already on it. Busy isn't
-  // known here (the 202's flag only comes with accept); /assign answers
-  // PRO_BUSY, which the picker turns into a disabled row.
-  const pros: TeamPickPro[] = (team.data ?? [])
+  // Everyone active on the team, minus whoever is already on it and whoever
+  // declined it. Busy isn't known here (the 202's flag only comes with
+  // accept); /assign answers PRO_BUSY, which the picker turns into a disabled
+  // row.
+  const pros: TeamPickPro[] = ((repickTeam.isError ? team.data : repickTeam.data) ?? [])
     .filter((member) => member.id !== pro?.id)
     .map((member) => ({
       id: member.id,
@@ -54,6 +64,12 @@ export function AssignedPro({ booking }: { booking: Booking }) {
       // SVC-326: an SP who has switched off taking jobs sees "(You)" disabled.
       accepts_direct_jobs: member.accepts_direct_jobs,
     }));
+
+  const openPicker = () => {
+    setPicking(true);
+    setLoadingList(true);
+    void repickTeam.refetch().finally(() => setLoadingList(false));
+  };
 
   const handleDismiss = (reason: DismissReason) => {
     setPicking(false);
@@ -79,7 +95,7 @@ export function AssignedPro({ booking }: { booking: Booking }) {
             Your team member can't take it. Pick someone else, or the customer is left waiting.
           </p>
           {canChange && (
-            <Button className="mt-3 w-full" onClick={() => setPicking(true)}>
+            <Button className="mt-3 w-full" onClick={openPicker}>
               Assign someone
             </Button>
           )}
@@ -98,7 +114,7 @@ export function AssignedPro({ booking }: { booking: Booking }) {
             </p>
           </div>
           {canChange && (
-            <Button size="sm" onClick={() => setPicking(true)}>
+            <Button size="sm" onClick={openPicker}>
               Change
             </Button>
           )}
@@ -113,7 +129,12 @@ export function AssignedPro({ booking }: { booking: Booking }) {
           <DialogDescription className="sr-only">
             Pick a member of your team for this job.
           </DialogDescription>
-          {picking && (
+          {picking && loadingList && (
+            <p role="status" className="py-6 text-center text-sm text-muted-foreground">
+              Loading your team…
+            </p>
+          )}
+          {picking && !loadingList && (
             <TeamPicker
               mode="repick"
               bookingId={booking.id}

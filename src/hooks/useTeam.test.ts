@@ -15,6 +15,8 @@ describe("assignOutcomeForError", () => {
     [404, "PRO_NOT_FOUND", "repick"],
     // SVC-326: the SP picked themselves after switching off taking jobs.
     [409, "SELF_NOT_TAKING_JOBS", "repick"],
+    // SVC-361: this Pro declined this booking; the booking is still live.
+    [409, "PRO_DECLINED_THIS_BOOKING", "repick"],
     [410, undefined, "taken"],
     [403, undefined, "unavailable"],
     // BookingNotFound carries no code.
