@@ -21,6 +21,10 @@
  * ApkUpdater plugin. Non-Android (web/PWA/iOS) still uses the plain
  * `<a href>` fallback since neither Android's DownloadManager nor the
  * package installer exists off-Android.
+ *
+ * SVC-366: the native iOS app gets neither. Its url is an App Store link
+ * opened outside the app, and with no url (no iOS pipeline yet) there is
+ * no update button at all — never the APK flow, never "/download".
  */
 import { AlertCircle, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -61,6 +65,9 @@ export function AppVersionGate({ children }: { children: React.ReactNode }) {
 
   const showNudge = info.state === "nudge" && !nudgeDismissed;
   const showBlock = info.state === "block";
+  const nativeIos = info.platform === "ios-native";
+  // "/download" serves an APK — fine for Android and the PWA, never iOS.
+  const url = nativeIos ? info.url : (info.url ?? "/download");
 
   return (
     <>
@@ -69,7 +76,8 @@ export function AppVersionGate({ children }: { children: React.ReactNode }) {
         <NudgeToast
           latest={info.latest ?? ""}
           releaseNotes={info.releaseNotes}
-          url={info.url ?? "/download"}
+          url={url}
+          nativeIos={nativeIos}
           onDismiss={dismissNudge}
         />
       )}
@@ -77,7 +85,8 @@ export function AppVersionGate({ children }: { children: React.ReactNode }) {
         <BlockOverlay
           latest={info.latest ?? ""}
           minSupported={info.minSupported ?? ""}
-          url={info.url ?? "/download"}
+          url={url}
+          nativeIos={nativeIos}
         />
       )}
     </>
@@ -308,17 +317,52 @@ function UpdateCta({
   );
 }
 
+/**
+ * The update action for either container. Native iOS never mounts
+ * `UpdateCta`, so the APK updater is unreachable there; with no url it
+ * renders nothing rather than a button that leads nowhere.
+ */
+function UpdateAction({
+  url,
+  nativeIos,
+  variant,
+}: {
+  url?: string;
+  nativeIos: boolean;
+  variant: "nudge" | "block";
+}) {
+  if (!url) return null;
+  if (!nativeIos) return <UpdateCta url={url} variant={variant} />;
+  return (
+    // Leaves the app, so it opens in a new context rather than replacing it.
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={
+        variant === "nudge"
+          ? "rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          : "mt-5 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+      }
+    >
+      {variant === "nudge" ? "Update" : "Update now"}
+    </a>
+  );
+}
+
 // ---------------------------------------------------------------------------
 
 function NudgeToast({
   latest,
   releaseNotes,
   url,
+  nativeIos,
   onDismiss,
 }: {
   latest: string;
   releaseNotes?: string;
-  url: string;
+  url?: string;
+  nativeIos: boolean;
   onDismiss: () => void;
 }) {
   return (
@@ -327,7 +371,7 @@ function NudgeToast({
         <p className="text-sm font-semibold text-foreground">Update available (v{latest})</p>
         {releaseNotes && <p className="mt-1 text-xs text-muted-foreground">{releaseNotes}</p>}
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <UpdateCta url={url} variant="nudge" />
+          <UpdateAction url={url} nativeIos={nativeIos} variant="nudge" />
           <button
             onClick={onDismiss}
             className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
@@ -351,10 +395,12 @@ function BlockOverlay({
   latest,
   minSupported,
   url,
+  nativeIos,
 }: {
   latest: string;
   minSupported: string;
-  url: string;
+  url?: string;
+  nativeIos: boolean;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 p-4 backdrop-blur-sm">
@@ -366,7 +412,7 @@ function BlockOverlay({
         <p className="mt-3 text-xs text-muted-foreground">
           Minimum required: v{minSupported} · Latest: v{latest}
         </p>
-        <UpdateCta url={url} variant="block" />
+        <UpdateAction url={url} nativeIos={nativeIos} variant="block" />
       </div>
     </div>
   );
