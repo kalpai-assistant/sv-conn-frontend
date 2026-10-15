@@ -245,6 +245,7 @@ export const mapBooking = (
     }>;
     discount_amount?: number;
     tip_amount?: number;
+    provider_phone?: string | null;
   },
   services?: UI_Service[],
 ): UI_Booking => {
@@ -350,16 +351,19 @@ export const mapBooking = (
     serviceProvider: mapServiceProvider(b),
     // Who is coming is `professional` + `serviceProvider` (SVC-325); nothing
     // reads `provider.name` any more, so it carries no invented name. The
-    // object survives only for the tracking call button, which still dials
-    // this placeholder number by Tushar's call (SVC-325): BookingResponse has
-    // no phone by design, and a real contact path is a follow-up.
+    // object survives only for the tracking call button, which dials the
+    // assigned Pro directly (SVC-360, interim until a masked call path).
+    // The backend decides who may see the number — consumer only, Pro
+    // assigned, accepted/en_route/in_progress — and sends null otherwise,
+    // so null here means "no button", not "unknown". An older backend omits
+    // the field entirely; that also maps to null.
     service: b.provider_id
       ? {
           ...primaryService,
           provider: {
             id: b.provider_id,
             name: "",
-            phone: "+910000000000",
+            phone: b.provider_phone ?? null,
             rating: 5,
             reviewCount: 0,
             verified: true,

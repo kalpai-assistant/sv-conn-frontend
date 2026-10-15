@@ -20,7 +20,8 @@ export interface Category {
 export interface ServiceProvider {
   id: string;
   name: string;
-  phone: string;
+  /** null when the backend withholds it (SVC-360) — the call button hides. */
+  phone: string | null;
   rating: number;
   reviewCount: number;
   verified: boolean;

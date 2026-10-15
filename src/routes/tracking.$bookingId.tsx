@@ -286,15 +286,17 @@ function TrackingPage() {
             ("Deep Clean + 2 more"), matching PR #77's push-body summariser.
             REQUESTED keeps the searching block above.
 
-            The call button still dials the mapper's placeholder number —
-            Tushar's call on SVC-325: BookingResponse has no phone by design,
-            and a real contact path is a follow-up. */}
+            Call dials the assigned Pro directly (SVC-360, interim until a
+            masked call path). The backend sends provider_phone only while a
+            Pro is assigned and the job is live; otherwise it is null and
+            there is no button at all. A Pro declining shows up on the next
+            4s poll. The number lives only in the href, never as text. */}
         {!isSearching && (
           <WhoIsComingCard
             booking={booking}
             summary={summariseServices(booking.items, booking.service.name)}
             action={
-              booking.service.provider?.phone && (
+              booking.service.provider?.phone ? (
                 <a
                   href={`tel:${booking.service.provider.phone}`}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success/10"
@@ -302,7 +304,7 @@ function TrackingPage() {
                 >
                   <Phone className="h-4 w-4 text-success" />
                 </a>
-              )
+              ) : null
             }
           />
         )}
