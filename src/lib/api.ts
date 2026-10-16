@@ -133,12 +133,17 @@ async function refreshAccessToken(): Promise<boolean> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
-    if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
       // Refresh token expired or revoked — clear both so we don't keep
-      // retrying a dead token on every subsequent request, and so the
-      // AuthProvider's restore path drops back to the AuthFlow.
+      // retrying a dead token on every subsequent request, and sign out.
       clearTokens();
       onSessionLost?.();
+      return false;
+    }
+    if (!res.ok) {
+      // A 5xx (a deploy, a proxy blip) says nothing about the session. Keep
+      // the tokens, like a network error below: signing out here would wipe
+      // the cart and the device's push token for a hiccup.
       return false;
     }
     const data = await res.json();

@@ -214,4 +214,33 @@ describe("a session that already ended", () => {
     expect(hasStoredAuth()).toBe(false);
     expect(localStorage.getItem("eazyserv:user")).toBeNull();
   });
+
+  it("stays signed in when the refresh fails with a server error", async () => {
+    // A deploy or a proxy blip on /auth/refresh is not a refusal: signing out
+    // would wipe the cart and the push token for nothing.
+    const { result } = mount();
+    await act(async () => {
+      result.current.auth.login("at", "rt", USER);
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation((url: string) =>
+          Promise.resolve(
+            String(url).endsWith("/auth/refresh")
+              ? new Response("upstream", { status: 503 })
+              : new Response(JSON.stringify({ detail: "expired" }), { status: 401 }),
+          ),
+        ),
+    );
+    await act(async () => {
+      await expect(apiFetch("/users/me")).rejects.toThrow();
+    });
+
+    expect(result.current.auth.user).not.toBeNull();
+    expect(hasStoredAuth()).toBe(true);
+    expect(localStorage.getItem("eazyserv:user")).not.toBeNull();
+  });
 });
