@@ -46,10 +46,13 @@ export function whoIsComing(
   if (pro === null) return ACTIVE.has(booking.status) ? { kind: "finding" } : { kind: "hidden" };
 
   const businessName = booking.serviceProvider?.businessName?.trim();
-  const solo = pro.isSelf || !businessName || same(businessName, pro.displayName);
+  // Typed non-null, and a deleted Pro reads "Deleted professional" (SVC-367),
+  // but a null here would crash `initials` — never let a name take the card down.
+  const proName = (pro.displayName as string | null)?.trim() || "Your professional";
+  const solo = pro.isSelf || !businessName || same(businessName, proName);
   return {
     kind: "assigned",
-    name: pro.displayName,
+    name: proName,
     photoUrl: pro.photoUrl,
     business: solo
       ? null

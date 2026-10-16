@@ -33,3 +33,14 @@ export function initialsFrom(name: string | null | undefined): string | null {
   // person.
   return /[a-z]/i.test(letters) ? letters.toUpperCase() : null;
 }
+
+/**
+ * One letter for a team member's avatar fallback — never empty, never a crash.
+ *
+ * `display_name` is typed non-null, and a deleted Pro reads "Deleted
+ * professional" rather than null (SVC-367), but a bare `.charAt(0)` on a null
+ * that slips through would take the whole team list down with it.
+ */
+export function firstInitial(name: string | null | undefined): string {
+  return (name ?? "").trim().charAt(0).toUpperCase() || "?";
+}

@@ -15,6 +15,7 @@ import { formatRupees } from "@/lib/currency";
 import { RANGE_META } from "@/lib/earnings-ranges";
 import { cn } from "@/lib/utils";
 import { proName, type EarningsByProResponse, type ProEarningsItem } from "@/hooks/useProEarnings";
+import { firstInitial } from "@/lib/initials";
 
 /** The Pro's figure, or "No jobs yet" — never "₹0", which reads as unpaid work. */
 export function ProFigure({ item }: { item: ProEarningsItem | undefined }) {
@@ -96,7 +97,7 @@ function BreakdownRow({ item }: { item: ProEarningsItem }) {
       ) : (
         <Avatar className="h-8 w-8" aria-hidden>
           {item.profile_photo_url && <AvatarImage src={item.profile_photo_url} alt="" />}
-          <AvatarFallback>{item.display_name.charAt(0).toUpperCase()}</AvatarFallback>
+          <AvatarFallback>{firstInitial(item.display_name)}</AvatarFallback>
         </Avatar>
       )}
       <span className="min-w-0 flex-1">

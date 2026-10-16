@@ -101,6 +101,11 @@ export function getAccessToken() {
   return accessToken;
 }
 
+/** For `DELETE /users/me` (SVC-367), which blacklists the refresh token it is sent. */
+export function getRefreshToken() {
+  return refreshToken;
+}
+
 /** Whether the module found tokens in storage at boot. Used by the
  *  AuthProvider to render a splash instead of flashing the AuthFlow while
  *  the refresh probe runs. */
