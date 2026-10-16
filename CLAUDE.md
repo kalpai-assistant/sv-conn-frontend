@@ -328,6 +328,8 @@ Backend base URL: `VITE_API_BASE_URL` (defaults to `/api/v1`; dev proxies to `ht
 
 `capacitor.config.ts` targets `com.eazyserv.app`. Native project directories (`android/`, `ios/`) are generated — don't edit generated files directly. After any `build:mobile`, run `cap:sync` before opening in Android Studio / Xcode.
 
+> **Never run `npx cap sync ios` on Windows.** The Capacitor CLI uses `path.relative` without converting slashes, so `Package.swift` ends up with backslash paths that Swift refuses to parse. Sync must be run and committed from a Mac.
+
 ### Key environment variables
 
 ```
