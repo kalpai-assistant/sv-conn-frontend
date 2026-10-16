@@ -15,6 +15,7 @@ import { adminGate } from "@/lib/admin";
 import { AdminMenu } from "@/components/admin/AdminMenu";
 import {
   consumesLanding,
+  nextLandedFor,
   proGateVerdict,
   providerSeesInviteRoute,
   skipsLocationGate,
@@ -174,7 +175,8 @@ function AppGate({ children }: { children: React.ReactNode }) {
 
   // Which sign-in has had its launch landing in the Pro app. A ref keyed by
   // user rather than a boolean, so signing out and in as someone else lands
-  // them afresh.
+  // them afresh; cleared on sign-out, so the same person signing back in does
+  // too (see `nextLandedFor`).
   const landedFor = useRef<string | null>(null);
   const landed = !!user?.id && landedFor.current === user.id;
   // Whether this render actually reaches the Pro gate in the consumer branch
@@ -188,10 +190,12 @@ function AppGate({ children }: { children: React.ReactNode }) {
   const reachesProGate =
     isConsumer && !isRestoring && !isPublicRoute && !isAdminRoute && !needsProfileSetup;
   useEffect(() => {
-    if (user?.id && consumesLanding(pathname, proState, reachesProGate)) {
-      landedFor.current = user.id;
-    }
-  }, [user?.id, pathname, proState, reachesProGate]);
+    landedFor.current = nextLandedFor(landedFor.current, {
+      userId: user?.id,
+      signedOut,
+      consumes: consumesLanding(pathname, proState, reachesProGate),
+    });
+  }, [user?.id, signedOut, pathname, proState, reachesProGate]);
 
   // Wire push taps → in-app navigation: native taps through the Capacitor
   // plugin (lazy-loaded so the web bundle stays clean), web-push taps through
