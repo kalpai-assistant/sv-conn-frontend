@@ -1,6 +1,13 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { apiFetch, clearTokens, getAccessToken, hasStoredAuth, setTokens } from "./api";
+import {
+  apiFetch,
+  clearTokens,
+  getAccessToken,
+  hasStoredAuth,
+  setSessionLostHandler,
+  setTokens,
+} from "./api";
 import { setSentryUser } from "./sentry";
 import { clearFcmToken } from "./fcm";
 import { resetLocationGate } from "./location-gate";
@@ -78,7 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Seed from localStorage immediately so the very first render already
   // knows whether we THINK we're logged in. The probe below either
   // confirms it (network + token still valid) or clears everything.
-  const [user, setUser] = useState<User | null>(() => readStoredUser());
+  //
+  // Only with tokens to match: a cached user without them is a session that
+  // already ended (the refresh was refused while the app was open), and
+  // trusting it left the app "signed in" with nothing to sign requests with.
+  const [user, setUser] = useState<User | null>(() => (hasStoredAuth() ? readStoredUser() : null));
   // True when verify-otp reports a fresh registration; gates the user to /profile
   // setup before home. In-memory only — the `!user.name` fallback covers reloads.
   const [isNewUser, setIsNewUser] = useState(false);
@@ -102,6 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!hasStoredAuth()) {
       // Nothing to probe — the initial isRestoring guard was already false,
       // this is just defensive if the storage was mutated between reads.
+      // Drop any cached user left without tokens; see the useState above.
+      writeStoredUser(null);
       setIsRestoring(false);
       return;
     }
@@ -187,6 +200,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // to their home screen with no location confirmed.
     resetLocationGate();
   }, [queryClient]);
+
+  // A refused refresh mid-session signs the user out the normal way, so they
+  // land on the sign-in screen instead of a "signed in" app with no tokens.
+  useEffect(() => {
+    setSessionLostHandler(logout);
+    return () => setSessionLostHandler(null);
+  }, [logout]);
 
   const updateUser = useCallback((data: Partial<User>) => {
     setUser((prev) => {

@@ -113,6 +113,18 @@ export function hasStoredAuth(): boolean {
   return accessToken !== null && refreshToken !== null;
 }
 
+// Called when the session is lost mid-session: the refresh token was refused,
+// so the tokens are gone. The AuthProvider registers its logout here. Before,
+// nothing told it, so the user stayed "signed in" with no tokens: every call
+// got a 403, which is not a 401 and so never signed them out, and the cached
+// user outlived restarts too. Found on device after an account was deleted
+// elsewhere: the app sat on a spinner across relaunches.
+let onSessionLost: (() => void) | null = null;
+
+export function setSessionLostHandler(handler: (() => void) | null): void {
+  onSessionLost = handler;
+}
+
 async function refreshAccessToken(): Promise<boolean> {
   if (!refreshToken) return false;
   try {
@@ -121,11 +133,17 @@ async function refreshAccessToken(): Promise<boolean> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
-    if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
       // Refresh token expired or revoked — clear both so we don't keep
-      // retrying a dead token on every subsequent request, and so the
-      // AuthProvider's restore path drops back to the AuthFlow.
+      // retrying a dead token on every subsequent request, and sign out.
       clearTokens();
+      onSessionLost?.();
+      return false;
+    }
+    if (!res.ok) {
+      // A 5xx (a deploy, a proxy blip) says nothing about the session. Keep
+      // the tokens, like a network error below: signing out here would wipe
+      // the cart and the device's push token for a hiccup.
       return false;
     }
     const data = await res.json();

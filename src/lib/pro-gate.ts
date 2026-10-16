@@ -114,3 +114,32 @@ export function consumesLanding(
   if (proState === "loading" || proState === "error") return false;
   return pathname === "/" || isProRoute(pathname);
 }
+
+/**
+ * Whose sign-in has had its launch landing, after this render.
+ *
+ * Cleared on sign-out. It was keyed by user id so that signing in as someone
+ * else lands them afresh, but nothing ever cleared it, so the *same* Pro
+ * signing out and back in during one app run counted as landed already. Found
+ * on device: they were left on "/", and with no saved address the location
+ * gate covered the whole screen, with no way to Pro Home or Profile. Only a
+ * restart (which drops the ref) got them out.
+ */
+export function nextLandedFor(
+  current: string | null,
+  {
+    userId,
+    signedOut,
+    consumes,
+  }: {
+    userId: string | undefined;
+    /** Signed out for real: not restoring a session, and no user. */
+    signedOut: boolean;
+    /** What `consumesLanding` says about this render. */
+    consumes: boolean;
+  },
+): string | null {
+  if (signedOut) return null;
+  if (userId && consumes) return userId;
+  return current;
+}

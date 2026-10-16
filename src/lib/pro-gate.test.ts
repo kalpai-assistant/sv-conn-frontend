@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 import {
   consumesLanding,
+  nextLandedFor,
   proGateVerdict,
   providerSeesInviteRoute,
   skipsLocationGate,
@@ -146,4 +147,51 @@ describe("an SP owner opening /invite (SVC-354)", () => {
       expect(providerSeesInviteRoute(pathname)).toBe(false);
     },
   );
+});
+
+describe("signing out and back in", () => {
+  const RAVI = "user-ravi";
+
+  it("forgets the landing on sign-out", () => {
+    expect(nextLandedFor(RAVI, { userId: undefined, signedOut: true, consumes: false })).toBe(null);
+  });
+
+  it("keeps it while signed in, and while a session is being restored", () => {
+    // Restoring: no user yet, but not signed out. Clearing here would send a
+    // Pro back to the Pro app every time the app came to the foreground.
+    expect(nextLandedFor(RAVI, { userId: undefined, signedOut: false, consumes: false })).toBe(
+      RAVI,
+    );
+    expect(nextLandedFor(RAVI, { userId: RAVI, signedOut: false, consumes: false })).toBe(RAVI);
+  });
+
+  it("records it when a render uses it up", () => {
+    expect(nextLandedFor(null, { userId: RAVI, signedOut: false, consumes: true })).toBe(RAVI);
+  });
+
+  it("lands the same Pro in the Pro app again after signing back in", () => {
+    // Found on device: the same Pro signing out and in during one app run was
+    // left on "/" under the location gate, with no way out but a restart.
+    let landedFor: string | null = null;
+    const render = (userId: string | undefined, signedOut: boolean, pathname: string) => {
+      const verdict = proGateVerdict({
+        pathname,
+        proState: "pro",
+        landed: !!userId && landedFor === userId,
+      });
+      landedFor = nextLandedFor(landedFor, {
+        userId,
+        signedOut,
+        consumes: consumesLanding(pathname, "pro", !!userId),
+      });
+      return verdict;
+    };
+
+    expect(render(RAVI, false, "/")).toBe("to-pro");
+    expect(render(RAVI, false, "/pro")).toBe("pass");
+    // Pro Home links back to "/" to book as a customer: no bounce.
+    expect(render(RAVI, false, "/")).toBe("pass");
+    render(undefined, true, "/");
+    expect(render(RAVI, false, "/")).toBe("to-pro");
+  });
 });

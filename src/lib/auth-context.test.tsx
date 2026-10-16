@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { ReactNode } from "react";
+import { apiFetch, clearTokens, hasStoredAuth } from "./api";
 import { AuthProvider, useAuth } from "./auth-context";
 import { CartProvider, useCart } from "./cart-context";
 import type { Service } from "./mock-data";
@@ -159,5 +160,87 @@ describe("session teardown (SVC-350)", () => {
     // Exact equality, not a substring: a new file matching the pattern will
     // fail here and name itself in the diff.
     expect(offenders).toEqual(["lib/session.ts"]);
+  });
+});
+
+describe("a session that already ended", () => {
+  const USER = {
+    id: "u-ghost",
+    name: "Ghost",
+    phone: "+911111111111",
+    email: null,
+    role: "consumer" as const,
+  };
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("is not restored from a cached user with no tokens", () => {
+    // What a refused refresh used to leave behind: the tokens cleared, the
+    // cached user kept. Found on device, where the app then sat on a spinner
+    // across relaunches.
+    clearTokens();
+    localStorage.setItem("eazyserv:user", JSON.stringify(USER));
+    expect(hasStoredAuth()).toBe(false);
+
+    const { result } = mount();
+
+    expect(result.current.auth.user).toBeNull();
+    expect(result.current.auth.isAuthenticated).toBe(false);
+    expect(localStorage.getItem("eazyserv:user")).toBeNull();
+  });
+
+  it("signs out when the refresh is refused mid-session", async () => {
+    const { result } = mount();
+    await act(async () => {
+      result.current.auth.login("at", "rt", USER);
+    });
+    expect(result.current.auth.isAuthenticated).toBe(true);
+
+    // The account was deleted or deactivated elsewhere: the call is a 401 and
+    // so is the refresh.
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(new Response(JSON.stringify({ detail: "inactive" }), { status: 401 })),
+        ),
+    );
+    await act(async () => {
+      await expect(apiFetch("/users/me")).rejects.toThrow();
+    });
+
+    expect(result.current.auth.user).toBeNull();
+    expect(hasStoredAuth()).toBe(false);
+    expect(localStorage.getItem("eazyserv:user")).toBeNull();
+  });
+
+  it("stays signed in when the refresh fails with a server error", async () => {
+    // A deploy or a proxy blip on /auth/refresh is not a refusal: signing out
+    // would wipe the cart and the push token for nothing.
+    const { result } = mount();
+    await act(async () => {
+      result.current.auth.login("at", "rt", USER);
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation((url: string) =>
+          Promise.resolve(
+            String(url).endsWith("/auth/refresh")
+              ? new Response("upstream", { status: 503 })
+              : new Response(JSON.stringify({ detail: "expired" }), { status: 401 }),
+          ),
+        ),
+    );
+    await act(async () => {
+      await expect(apiFetch("/users/me")).rejects.toThrow();
+    });
+
+    expect(result.current.auth.user).not.toBeNull();
+    expect(hasStoredAuth()).toBe(true);
+    expect(localStorage.getItem("eazyserv:user")).not.toBeNull();
   });
 });
