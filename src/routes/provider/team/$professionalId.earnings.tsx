@@ -22,6 +22,7 @@ import { useEarningsByPro, useProEarnings } from "@/hooks/useProEarnings";
 import { ApiError } from "@/lib/api";
 import { formatRupees } from "@/lib/currency";
 import { WINDOW_RANGES } from "@/lib/earnings-ranges";
+import { firstInitial } from "@/lib/initials";
 
 export const Route = createFileRoute("/provider/team/$professionalId/earnings")({
   component: ProEarningsPage,
@@ -51,7 +52,7 @@ function ProEarningsPage() {
           <>
             <Avatar className="h-8 w-8" aria-hidden>
               {pro.profile_photo_url && <AvatarImage src={pro.profile_photo_url} alt="" />}
-              <AvatarFallback>{pro.display_name.charAt(0).toUpperCase()}</AvatarFallback>
+              <AvatarFallback>{firstInitial(pro.display_name)}</AvatarFallback>
             </Avatar>
             <h1 className="min-w-0 flex-1 truncate text-lg font-semibold text-foreground">
               {name}

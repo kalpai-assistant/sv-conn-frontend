@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, MapPin, Users, WalletCards } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
+import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationsRow } from "@/components/NotificationsRow";
 import { BusinessSection } from "@/components/provider/BusinessSection";
@@ -131,6 +132,12 @@ function ProviderProfilePage() {
           they can no longer receive. */}
       <div className="mt-8">
         <LogoutButton isOnline={profile?.is_online ?? false} />
+      </div>
+
+      {/* SVC-367, below Logout. No go-offline step: the delete itself sets
+          is_online false, and a refusal changes nothing. */}
+      <div className="mt-3">
+        <DeleteAccountButton persona="provider" />
       </div>
 
       {/* Running bundle version, same as the consumer profile. Doubles as a

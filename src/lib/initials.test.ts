@@ -5,7 +5,7 @@
  * a provider's is null whenever the onboarding upload is skipped.
  */
 import { describe, expect, it } from "vitest";
-import { initialsFrom } from "@/lib/initials";
+import { firstInitial, initialsFrom } from "@/lib/initials";
 
 describe("initials", () => {
   it("takes the first letter of the first two words", () => {
@@ -32,5 +32,18 @@ describe("initials", () => {
     expect(initialsFrom("")).toBeNull();
     expect(initialsFrom(null)).toBeNull();
     expect(initialsFrom(undefined)).toBeNull();
+  });
+});
+
+describe("firstInitial (SVC-367)", () => {
+  it.each([
+    ["Rohan Kumar", "R"],
+    ["Deleted professional", "D"],
+    ["  asha", "A"],
+    ["", "?"],
+    [null, "?"],
+    [undefined, "?"],
+  ])("%j → %s", (name, expected) => {
+    expect(firstInitial(name)).toBe(expected);
   });
 });

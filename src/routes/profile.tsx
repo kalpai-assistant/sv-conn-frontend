@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { LogoutButton } from "@/components/LogoutButton";
+import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { toast } from "sonner";
 import { useAddresses } from "@/hooks/useApi";
 import { isTeamPro, useProMe } from "@/hooks/usePro";
@@ -361,6 +362,16 @@ function ProfilePage() {
               signing out works cannot reach one persona and miss the other. */}
           <div className="px-4 pt-8 pb-4">
             <LogoutButton disabled={isEditing} />
+          </div>
+
+          {/* SVC-367: below Logout, last thing on the screen — both stores
+              require it, but it should never be where a thumb lands first. */}
+          <div className="px-4 pb-4">
+            <DeleteAccountButton
+              persona="consumer"
+              isTeamPro={isTeamPro(proMe)}
+              disabled={isEditing}
+            />
           </div>
 
           {/* Small footer with the running JS bundle version. Doubles as a

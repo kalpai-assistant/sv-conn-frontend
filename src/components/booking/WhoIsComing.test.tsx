@@ -265,3 +265,33 @@ describe("WhoIsComingLine", () => {
     expect(container.textContent).not.toContain("Assigned Partner");
   });
 });
+
+// SVC-367: after an account delete the backend writes placeholders and nulls
+// photos. Whatever it sends, the card must read like a sentence.
+describe("a deleted Pro or SP", () => {
+  it("renders the placeholders as plain names, no logo, no photo", () => {
+    render(
+      <WhoIsComingCard
+        booking={who({
+          professional: { ...rohan, displayName: "Deleted professional", photoUrl: null },
+          serviceProvider: { ...sparkle, businessName: "Deleted provider", businessImageUrl: null },
+        })}
+        summary="Deep Clean"
+      />,
+    );
+    expect(screen.getByText("Deleted professional")).toBeInTheDocument();
+    expect(screen.getByText("Deleted provider")).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/null|undefined/);
+  });
+
+  it("never crashes or prints null on a null name", () => {
+    const booking = who({
+      professional: { ...rohan, displayName: null as unknown as string },
+      serviceProvider: { ...sparkle, businessName: null, businessImageUrl: null },
+    });
+    render(<WhoIsComingCard booking={booking} summary="Deep Clean" />);
+    render(<WhoIsComingLine booking={booking} />);
+    expect(screen.getAllByText("Your professional").length).toBeGreaterThan(0);
+    expect(document.body).not.toHaveTextContent(/null|undefined/);
+  });
+});

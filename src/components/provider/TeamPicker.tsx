@@ -40,6 +40,7 @@ import {
 } from "@/hooks/useTeam";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { firstInitial } from "@/lib/initials";
 
 type Availability = "available" | "busy" | "offline" | "kyc" | "self-off" | "unknown";
 type Learned = "busy" | "offline" | "kyc" | "self-off";
@@ -189,7 +190,7 @@ export function TeamPicker({
               >
                 <Avatar className="h-10 w-10" aria-hidden>
                   {pro.profile_photo_url && <AvatarImage src={pro.profile_photo_url} alt="" />}
-                  <AvatarFallback>{pro.display_name.charAt(0).toUpperCase()}</AvatarFallback>
+                  <AvatarFallback>{firstInitial(pro.display_name)}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-foreground">

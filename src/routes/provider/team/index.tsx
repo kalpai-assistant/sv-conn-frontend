@@ -43,6 +43,7 @@ import {
 import { formatRupees } from "@/lib/currency";
 import { RANGE_META } from "@/lib/earnings-ranges";
 import { cn } from "@/lib/utils";
+import { firstInitial } from "@/lib/initials";
 
 const TEAM_RANGES: ByProRange[] = ["today", "week", "month", "all"];
 
@@ -436,7 +437,7 @@ function MemberRow({
       <div className="relative">
         <Avatar className="h-10 w-10" aria-hidden>
           {member.profile_photo_url && <AvatarImage src={member.profile_photo_url} alt="" />}
-          <AvatarFallback>{member.display_name.charAt(0).toUpperCase()}</AvatarFallback>
+          <AvatarFallback>{firstInitial(member.display_name)}</AvatarFallback>
         </Avatar>
         <span
           className={cn(
@@ -534,7 +535,7 @@ function PastMemberRow({ pro, figure }: { pro: ProEarningsItem; figure: ReactNod
       >
         <Avatar className="h-10 w-10" aria-hidden>
           {pro.profile_photo_url && <AvatarImage src={pro.profile_photo_url} alt="" />}
-          <AvatarFallback>{pro.display_name.charAt(0).toUpperCase()}</AvatarFallback>
+          <AvatarFallback>{firstInitial(pro.display_name)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-foreground">{pro.display_name}</p>
