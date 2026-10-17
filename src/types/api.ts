@@ -115,6 +115,7 @@ export interface paths {
          * @description Register the caller's FCM token, or clear it by sending `null` on sign-out.
          *
          *     The field is required, so an empty body is rejected — clearing must be explicit.
+         *     `platform` is optional (SVC-371); without it the token gets every release push.
          */
         patch: operations["update_fcm_token_api_v1_users_me_fcm_token_patch"];
         trace?: never;
@@ -2882,10 +2883,18 @@ export interface components {
          *     `fcm_token` is nullable but *required* — `null` clears the stored token
          *     (sign-out), while an omitted field is a 422. Without that distinction an
          *     empty body would silently wipe push for the user.
+         *
+         *     `platform` (SVC-371) says which app the token belongs to, so the release
+         *     push can skip other platforms. It is optional, unlike the ticket's wording:
+         *     installed APKs predate it and a required field would 422 their
+         *     registration, losing them push entirely. Omitted means stored as NULL,
+         *     which still gets every release push.
          */
         UpdateFCMTokenRequest: {
             /** Fcm Token */
             fcm_token: string | null;
+            /** Platform */
+            platform?: ("android" | "ios" | "web") | null;
         };
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
