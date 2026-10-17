@@ -277,6 +277,8 @@ CI runs three checks, and all three are worth running locally before pushing —
 npx tsc --noEmit && npm run lint && npm test
 ```
 
+A fourth check — **iOS build (macOS runner, only on native-config changes)** — runs via `.github/workflows/ios-build.yml` when a PR touches `ios/**`, `package.json`, `package-lock.json`, `capacitor.config.ts`, or the workflow itself. Frontend-only PRs skip it (macOS runners cost ~10x Linux).
+
 **What tests here cannot catch.** A recurring pattern in this repo is bugs that appear only on a real device: a button painted underneath the bottom nav, a `getCurrentPosition` mock that fails instantly where Android hangs indefinitely, an `alert()` that freezes the entire WebView. A unit test asserts the mock, and the mock encodes an assumption — so anything touching geolocation, native dialogs, or z-order needs a device pass before it ships.
 
 To drive a real device: build a debug APK (`npx cap sync android`, then `./gradlew assembleDebug` from `android/`), install it, and attach Chrome DevTools over `adb forward tcp:9222 localabstract:webview_devtools_remote_<pid>` — find the socket name with `adb shell cat /proc/net/unix`. Debug builds allow WebView debugging; release builds do not.

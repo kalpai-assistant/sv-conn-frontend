@@ -1,0 +1,75 @@
+name: iOS build (unsigned, macOS runner)
+
+# macOS runners cost ~10x Linux. The path filter is deliberately tight so a
+# frontend-only PR (src/**, routes, components) does NOT burn a mac runner.
+# The workflow's own path is included so this file can be updated in a PR
+# that does not touch any other native config.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'capacitor.config.ts'
+      - '.github/workflows/ios-build.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'capacitor.config.ts'
+      - '.github/workflows/ios-build.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: iOS build (unsigned, macOS runner)
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build mobile bundle
+        run: npm run build:mobile
+
+      - name: Capacitor sync (ios)
+        run: npx cap sync ios
+
+      # Unsigned build only — CODE_SIGNING_ALLOWED=NO is explicit so a
+      # missing provisioning profile in the runner tool-cache cannot cause
+      # a silent signed-build attempt. Signed TestFlight builds are
+      # tracked separately in SVC-77. Capacitor's iOS template here uses
+      # the SPM-embedded workspace inside App.xcodeproj (no CocoaPods),
+      # so we pass -project, not -workspace. Simulator destination is used
+      # since there is no provisioning profile for 'generic/platform=iOS'
+      # on an unsigned build; the compiler output is equivalent for the
+      # purpose of catching compile / link / plist errors.
+      - name: Xcode build (unsigned)
+        working-directory: ios/App
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
