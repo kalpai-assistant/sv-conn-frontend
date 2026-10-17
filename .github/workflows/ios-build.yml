@@ -53,18 +53,23 @@ jobs:
       # Unsigned build only — CODE_SIGNING_ALLOWED=NO is explicit so a
       # missing provisioning profile in the runner tool-cache cannot cause
       # a silent signed-build attempt. Signed TestFlight builds are
-      # tracked separately in SVC-77.
+      # tracked separately in SVC-77. Capacitor's iOS template here uses
+      # the SPM-embedded workspace inside App.xcodeproj (no CocoaPods),
+      # so we pass -project, not -workspace. Simulator destination is used
+      # since there is no provisioning profile for 'generic/platform=iOS'
+      # on an unsigned build; the compiler output is equivalent for the
+      # purpose of catching compile / link / plist errors.
       - name: Xcode build (unsigned)
         working-directory: ios/App
         run: |
           set -euo pipefail
           xcodebuild \
-            -workspace App.xcworkspace \
+            -project App.xcodeproj \
             -scheme App \
             -configuration Release \
-            -destination 'generic/platform=iOS' \
+            -destination 'generic/platform=iOS Simulator' \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build-for-testing
+            build
