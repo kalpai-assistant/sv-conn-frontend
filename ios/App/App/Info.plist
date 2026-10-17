@@ -59,5 +59,16 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>gpay</string>
+		<string>phonepe</string>
+		<string>paytmmp</string>
+		<string>bhim</string>
+		<string>upi</string>
+		<string>credpay</string>
+		<string>mobikwik</string>
+		<string>freecharge</string>
+	</array>
 </dict>
 </plist>
