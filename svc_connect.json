@@ -238,7 +238,7 @@
           "Users"
         ],
         "summary": "Update Fcm Token",
-        "description": "Register the caller's FCM token, or clear it by sending `null` on sign-out.\n\nThe field is required, so an empty body is rejected \u2014 clearing must be explicit.",
+        "description": "Register the caller's FCM token, or clear it by sending `null` on sign-out.\n\nThe field is required, so an empty body is rejected \u2014 clearing must be explicit.\n`platform` is optional (SVC-371); without it the token gets every release push.",
         "operationId": "update_fcm_token_api_v1_users_me_fcm_token_patch",
         "requestBody": {
           "content": {
@@ -6501,6 +6501,22 @@
               }
             ],
             "title": "Fcm Token"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "android",
+                  "ios",
+                  "web"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
           }
         },
         "type": "object",
@@ -6508,7 +6524,7 @@
           "fcm_token"
         ],
         "title": "UpdateFCMTokenRequest",
-        "description": "Register or clear the caller's FCM token.\n\n`fcm_token` is nullable but *required* \u2014 `null` clears the stored token\n(sign-out), while an omitted field is a 422. Without that distinction an\nempty body would silently wipe push for the user."
+        "description": "Register or clear the caller's FCM token.\n\n`fcm_token` is nullable but *required* \u2014 `null` clears the stored token\n(sign-out), while an omitted field is a 422. Without that distinction an\nempty body would silently wipe push for the user.\n\n`platform` (SVC-371) says which app the token belongs to, so the release\npush can skip other platforms. It is optional, unlike the ticket's wording:\ninstalled APKs predate it and a required field would 422 their\nregistration, losing them push entirely. Omitted means stored as NULL,\nwhich still gets every release push."
       },
       "UpdateProfileRequest": {
         "properties": {

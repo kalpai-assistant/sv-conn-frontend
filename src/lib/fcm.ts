@@ -46,6 +46,7 @@ import { apiFetch } from "./api";
 import { ensureJobRequestChannel } from "./notification-channels";
 import { detectPlatform } from "./platform";
 import { reportError } from "./sentry";
+import type { components } from "@/types/api";
 
 /**
  * `unsupported` covers browsers without the Push API (iOS Safari < 16.4,
@@ -70,6 +71,26 @@ export interface PushRegistrationResult {
  */
 let lastSentToken: string | null = null;
 
+type UpdateFcmTokenBody = components["schemas"]["UpdateFCMTokenRequest"];
+
+/**
+ * Which app this token belongs to. Native is the Capacitor shell (`android` or
+ * `ios`); everything else registered through the web SDK, which includes an
+ * iOS PWA — that one is `web` to the backend, since it updates with the site
+ * rather than through a store release.
+ *
+ * Any other native value comes back `undefined`, which `JSON.stringify` drops,
+ * so the field is omitted: the backend 422s a value outside its enum, and a
+ * failed registration would cost the device push entirely. Omitted is stored
+ * as NULL, which still gets every release push.
+ */
+function tokenPlatform(): UpdateFcmTokenBody["platform"] | undefined {
+  if (!Capacitor.isNativePlatform()) return "web";
+  const platform = Capacitor.getPlatform();
+  if (platform === "android" || platform === "ios") return platform;
+  return undefined;
+}
+
 /**
  * Store a device token against the current user. Requires a JWT; returns 204.
  *
@@ -77,12 +98,19 @@ let lastSentToken: string | null = null;
  * overwrites rather than appends — a second device displaces the first. That's
  * accepted for beta (multi-device storage is explicitly out of scope), but it
  * is why nothing here treats the remote value as a set.
+ *
+ * The platform goes with every token (SVC-371) so the "Update available" push
+ * only reaches the app that was released: an Android APK release used to ping
+ * web users too, and an iOS release would have pinged everyone. Worked out
+ * here rather than passed in, so neither caller can send a token without it.
+ * Clears don't send it — the backend nulls the platform with the token.
  */
 export async function sendFcmToken(token: string): Promise<void> {
   if (!token || token === lastSentToken) return;
+  const body: UpdateFcmTokenBody = { fcm_token: token, platform: tokenPlatform() };
   await apiFetch<void>("/users/me/fcm-token", {
     method: "PATCH",
-    body: JSON.stringify({ fcm_token: token }),
+    body: JSON.stringify(body),
   });
   lastSentToken = token;
   // The one moment we know push works end-to-end on this device: a real token
