@@ -48,4 +48,16 @@ void i18n.use(initReactI18next).init({
   react: { useSuspense: false },
 });
 
+/**
+ * A `t` as the lib copy helpers take it. They default to English, so a
+ * caller that passes nothing — the SP's own screens until SVC-376, and every
+ * existing test — gets exactly the strings it had before.
+ */
+export type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/** English `t` for one namespace: the lib helpers' default. */
+export function englishT(ns: Namespace = "common"): Translate {
+  return i18n.getFixedT("en", ns) as Translate;
+}
+
 export default i18n;

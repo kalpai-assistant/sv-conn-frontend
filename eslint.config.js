@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
 import globals from "globals";
+import i18next from "eslint-plugin-i18next";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
@@ -90,6 +91,24 @@ export default tseslint.config(
       // Razorpay window shim. Any new `any` requires either a type or
       // an explicit `// eslint-disable-next-line ...` with a reason.
       "@typescript-eslint/no-explicit-any": "error",
+    },
+  },
+  // SVC-375: the Pro app is translated, so a literal string in its JSX is a
+  // string Hindi/Marathi readers will see in English. Text children plus the
+  // attributes people read or hear; routes and variants stay literal. The
+  // provider folders join in SVC-376, when the SP's own screens are moved.
+  {
+    files: ["src/routes/pro/**/*.tsx", "src/components/pro/**/*.tsx"],
+    ignores: ["**/*.test.tsx"],
+    plugins: { i18next },
+    rules: {
+      "i18next/no-literal-string": [
+        "error",
+        {
+          mode: "jsx-only",
+          "jsx-attributes": { include: ["aria-label", "label", "title", "placeholder", "alt"] },
+        },
+      ],
     },
   },
   eslintPluginPrettier,

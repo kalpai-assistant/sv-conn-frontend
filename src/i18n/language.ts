@@ -19,7 +19,9 @@
  * should come back to their own language. No cookie, so the server render
  * stays as it was. The backend's `preferred_language` is copied in on every
  * sign-in and cold-start probe (see `auth-context`), which covers a new phone
- * or a reinstall.
+ * or a reinstall. A sign-in whose account never chose clears it instead (see
+ * `adoptSignInLanguage`), so a shared phone doesn't pass one person's
+ * language to the next.
  */
 import { useSyncExternalStore } from "react";
 import { isProRoute, isProviderRoute } from "@/lib/nav-visibility";
@@ -93,6 +95,34 @@ export function syncStoredLanguage(user: LanguageUser | null | undefined): void 
   if (isAppLanguage(user?.preferred_language)) setStoredLanguage(user.preferred_language);
 }
 
+/** Forget the device's language; every screen falls back to the account's. */
+export function clearStoredLanguage(): void {
+  if (current === null) return;
+  current = null;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }
+  listeners.forEach((listener) => listener());
+}
+
+/**
+ * A fresh sign-in takes the account's own choice, or none.
+ *
+ * Unlike `syncStoredLanguage`, a null clears the device: the stored language
+ * survives logout on purpose, and on a shared phone that would otherwise hand
+ * SP A's Marathi to Pro B, who never chose it — under a first-run prompt
+ * asking B to choose. Only for sign-in: on the cold-start probe and within a
+ * session the device's choice still wins (a save that failed offline).
+ */
+export function adoptSignInLanguage(user: LanguageUser | null | undefined): void {
+  if (isAppLanguage(user?.preferred_language)) setStoredLanguage(user.preferred_language);
+  else clearStoredLanguage();
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => {
@@ -142,13 +172,6 @@ export function shouldAskLanguage(
 
 /** Tests only: forget the stored language between cases. */
 export function resetStoredLanguageForTests(): void {
-  current = null;
-  if (typeof window !== "undefined") {
-    try {
-      window.localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // ignore
-    }
-  }
-  listeners.forEach((listener) => listener());
+  clearStoredLanguage();
+  askedFor = null;
 }

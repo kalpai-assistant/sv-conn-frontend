@@ -8,6 +8,7 @@ import { CameraCapture } from "@/components/CameraCapture";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useProMe, useSubmitProKyc } from "@/hooks/usePro";
+import { useT } from "@/i18n/LanguageProvider";
 
 export const Route = createFileRoute("/pro/kyc")({
   component: ProKycPage,
@@ -27,6 +28,8 @@ function ProKycPage() {
   const [aadhaarFront, setAadhaarFront] = useState<Blob | null>(null);
   const [aadhaarBack, setAadhaarBack] = useState<Blob | null>(null);
   const [selfie, setSelfie] = useState<Blob | null>(null);
+  const { t } = useT("pro");
+  const { t: tc } = useT();
 
   const ready = !!aadhaarFront && !!aadhaarBack && !!selfie;
 
@@ -34,15 +37,15 @@ function ProKycPage() {
     if (!aadhaarFront || !aadhaarBack || !selfie) return;
     try {
       await submitKyc.mutateAsync({ aadhaarFront, aadhaarBack, selfie });
-      toast.success("Documents sent. We’ll check them, usually within a day.");
+      toast.success(t("kyc.sent"));
       navigate({ to: "/pro", replace: true });
     } catch (err) {
       toast.error(
         err instanceof ApiError && err.code === "SELF_PRO_KYC_IS_SP_KYC"
-          ? "Your identity check is part of your business’s KYC."
+          ? tc("errors.SELF_PRO_KYC_IS_SP_KYC")
           : err instanceof Error
             ? err.message
-            : "Couldn’t send your documents. Please try again.",
+            : t("kyc.sendFailed"),
       );
     }
   };
@@ -54,44 +57,41 @@ function ProKycPage() {
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ChevronLeft className="h-4 w-4" />
-        Pro Home
+        {t("kyc.back")}
       </Link>
 
-      <h1 className="mt-3 text-lg font-semibold text-foreground">Verify your identity</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Take a live photo of your Aadhaar (front and back) and a selfie. Your team can give you jobs
-        once these are approved.
-      </p>
+      <h1 className="mt-3 text-lg font-semibold text-foreground">{t("kyc.title")}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">{t("kyc.intro")}</p>
 
       {me?.kyc_status === "rejected" && me.kyc_rejection_reason && (
         <p className="mt-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-          Last time: {me.kyc_rejection_reason}
+          {t("kyc.lastTime", { reason: me.kyc_rejection_reason })}
         </p>
       )}
 
       <div className="mt-5 space-y-5">
         <div className="space-y-2">
-          <Label>Aadhaar — front</Label>
+          <Label>{t("kyc.aadhaarFront")}</Label>
           <CameraCapture
-            label="Capture Aadhaar front"
+            label={t("kyc.captureFront")}
             file={aadhaarFront}
             onCapture={setAadhaarFront}
             direction="rear"
           />
         </div>
         <div className="space-y-2">
-          <Label>Aadhaar — back</Label>
+          <Label>{t("kyc.aadhaarBack")}</Label>
           <CameraCapture
-            label="Capture Aadhaar back"
+            label={t("kyc.captureBack")}
             file={aadhaarBack}
             onCapture={setAadhaarBack}
             direction="rear"
           />
         </div>
         <div className="space-y-2">
-          <Label>Live selfie</Label>
+          <Label>{t("kyc.selfie")}</Label>
           <CameraCapture
-            label="Take a live selfie"
+            label={t("kyc.captureSelfie")}
             file={selfie}
             onCapture={setSelfie}
             direction="front"
@@ -99,7 +99,7 @@ function ProKycPage() {
         </div>
 
         <Button className="w-full" disabled={!ready || submitKyc.isPending} onClick={submit}>
-          {submitKyc.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit documents"}
+          {submitKyc.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("kyc.submit")}
         </Button>
       </div>
     </div>

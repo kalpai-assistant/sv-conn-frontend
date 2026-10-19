@@ -16,12 +16,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ProHeader } from "@/components/pro/ProHeader";
 import { useAuth } from "@/lib/auth-context";
 import { useProJobs, useProMe, useSetProOnline, type ProMe } from "@/hooks/usePro";
-import { currentJob, dueIn, proStatusLabel, statusStyle } from "@/lib/job-status";
+import { currentJob, dueIn, statusStyle, statusText } from "@/lib/job-status";
 import { CompleteStep, DoorstepOtpStep, EnRouteStep } from "@/components/provider/JobActions";
 import { recheckProLocation, useProLocationStatus } from "@/hooks/useProHeartbeat";
 import { askForProLocation, locationNeedsAttention, locationWarning } from "@/lib/pro-location";
 import { proKycCopy, proOnlineSwitch } from "@/lib/pro-kyc";
 import type { Booking } from "@/lib/mock-data";
+import { useT } from "@/i18n/LanguageProvider";
 
 export const Route = createFileRoute("/pro/")({
   component: ProHomePage,
@@ -41,11 +42,12 @@ function ProHomePage() {
   const { data: me } = useProMe(user?.id);
   const { data, isLoading: jobsLoading, isError: jobsError } = useProJobs("active");
   const jobs = data?.jobs ?? [];
+  const { t } = useT("pro");
 
   return (
     <div className="min-h-screen p-6 pb-24">
       <ProHeader
-        title="Pro Home"
+        title={t("home.title")}
         name={user?.name}
         photoUrl={me?.profile_photo_url}
         team={me?.service_provider}
@@ -66,10 +68,8 @@ function ProHomePage() {
       >
         <ShoppingBag className="h-5 w-5 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-medium text-foreground">Book a service</span>
-          <span className="block text-xs text-muted-foreground">
-            Use EazyServ as a customer. Your Pro app is one tap away on Profile.
-          </span>
+          <span className="block text-sm font-medium text-foreground">{t("home.bookService")}</span>
+          <span className="block text-xs text-muted-foreground">{t("home.bookServiceDetail")}</span>
         </span>
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
       </Link>
@@ -87,10 +87,11 @@ function OnlineCard({ me }: { me: ProMe }) {
   // which is also what reverts a failed toggle (same rule as Provider Home).
   const [pending, setPending] = useState<boolean | null>(null);
   const isOnline = pending ?? me.is_online;
-  const { canToggle, detail } = proOnlineSwitch({
-    isOnline,
-    isVerified: me.kyc_status === "verified",
-  });
+  const { t } = useT("pro");
+  const { canToggle, detail } = proOnlineSwitch(
+    { isOnline, isVerified: me.kyc_status === "verified" },
+    t,
+  );
 
   // Driven by the switch and nothing else. Online means "give me jobs", not
   // "the app is open" (SVC-155 AC 3).
@@ -98,7 +99,7 @@ function OnlineCard({ me }: { me: ProMe }) {
     setPending(next);
     try {
       await setOnline.mutateAsync(next);
-      toast.success(next ? "You're online — your team can give you jobs" : "You're offline");
+      toast.success(next ? t("home.toastOnline") : t("home.toastOffline"));
       // Ask for location after going online, never before: a Pro who says no
       // is still online (warn, never block — Tushar, 2026-10-08), and the
       // banner keeps asking. The tap that got here is the user gesture the
@@ -109,9 +110,7 @@ function OnlineCard({ me }: { me: ProMe }) {
         await recheckProLocation();
       }
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Couldn't update your status. Please try again.",
-      );
+      toast.error(err instanceof Error ? err.message : t("home.toggleFailed"));
     } finally {
       setPending(null);
     }
@@ -121,14 +120,16 @@ function OnlineCard({ me }: { me: ProMe }) {
     <div className="mt-6 rounded-lg border border-border p-4">
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <p className="font-medium text-foreground">{isOnline ? "You're online" : "Offline"}</p>
+          <p className="font-medium text-foreground">
+            {isOnline ? t("home.online") : t("home.offline")}
+          </p>
           <p className="text-sm text-muted-foreground">{detail}</p>
         </div>
         <Switch
           checked={isOnline}
           onCheckedChange={handleToggle}
           disabled={!canToggle || setOnline.isPending}
-          aria-label="Available for jobs"
+          aria-label={t("home.availableForJobs")}
         />
       </div>
     </div>
@@ -136,7 +137,8 @@ function OnlineCard({ me }: { me: ProMe }) {
 }
 
 function KycCard({ me }: { me: ProMe }) {
-  const copy = proKycCopy(me);
+  const { t } = useT("pro");
+  const copy = proKycCopy(me, t);
   if (!copy) return null;
   const waiting = me.kyc_status === "submitted";
   return (
@@ -159,7 +161,7 @@ function KycCard({ me }: { me: ProMe }) {
             to="/pro/kyc"
             className="mt-1 inline-flex items-center gap-0.5 font-medium text-primary"
           >
-            {me.kyc_status === "rejected" ? "Submit again" : "Verify now"}
+            {me.kyc_status === "rejected" ? t("home.submitAgain") : t("home.verifyNow")}
             <ChevronRight className="h-4 w-4" />
           </Link>
         )}
@@ -176,8 +178,9 @@ function KycCard({ me }: { me: ProMe }) {
 function LocationBanner() {
   const status = useProLocationStatus();
   const [asking, setAsking] = useState(false);
+  const { t } = useT("pro");
   if (!status || !locationNeedsAttention(status)) return null;
-  const { title, detail } = locationWarning(status);
+  const { title, detail } = locationWarning(status, t);
 
   const fix = async () => {
     setAsking(true);
@@ -204,7 +207,7 @@ function LocationBanner() {
             className="mt-1 inline-flex items-center gap-1 font-medium text-primary disabled:opacity-60"
           >
             {asking && <Loader2 className="h-4 w-4 animate-spin" />}
-            Turn on location
+            {t("home.turnOnLocation")}
           </button>
         )}
       </div>
@@ -228,6 +231,8 @@ function CurrentJob({
 }) {
   const current = currentJob(jobs);
   const queued = jobs.filter((job) => job.id !== current?.id);
+  const { t, lang } = useT("pro");
+  const { t: tc } = useT();
 
   if (isLoading) return <Skeleton className="mt-6 h-32 w-full" />;
 
@@ -239,9 +244,9 @@ function CurrentJob({
         to="/pro/jobs"
         className="mt-6 flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4"
       >
-        <span className="text-sm text-muted-foreground">Couldn’t load your jobs</span>
+        <span className="text-sm text-muted-foreground">{t("home.loadFailed")}</span>
         <span className="flex shrink-0 items-center gap-0.5 text-sm font-medium text-primary">
-          Open Jobs
+          {t("home.openJobs")}
           <ChevronRight className="h-4 w-4" />
         </span>
       </Link>
@@ -256,10 +261,10 @@ function CurrentJob({
       >
         <span className="flex items-center gap-2 text-sm text-muted-foreground">
           <History className="h-4 w-4 shrink-0" />
-          No job right now
+          {t("home.noJob")}
         </span>
         <span className="flex shrink-0 items-center gap-0.5 text-sm font-medium text-primary">
-          View past jobs
+          {t("home.viewPast")}
           <ChevronRight className="h-4 w-4" />
         </span>
       </Link>
@@ -267,14 +272,16 @@ function CurrentJob({
   }
 
   return (
-    <section className="mt-6" aria-label="Your job">
+    <section className="mt-6" aria-label={t("home.yourJob")}>
       <div className="overflow-hidden rounded-xl border border-primary/40 bg-card">
         <div className="flex items-center justify-between gap-3 bg-primary px-4 py-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-primary-foreground">
-            {proStatusLabel[current.status] ?? current.status}
+            {statusText(current.status, tc, { pro: true })}
           </span>
-          {dueIn(current) && (
-            <span className="text-xs text-primary-foreground/85">{dueIn(current)}</span>
+          {dueIn(current, undefined, tc, lang) && (
+            <span className="text-xs text-primary-foreground/85">
+              {dueIn(current, undefined, tc, lang)}
+            </span>
           )}
         </div>
         <div className="p-4">
@@ -291,7 +298,7 @@ function CurrentJob({
               </span>
             )}
             <span className="mt-2 flex items-center justify-end gap-0.5 text-sm font-medium text-primary">
-              Open job
+              {t("home.openJob")}
               <ChevronRight className="h-4 w-4" />
             </span>
           </Link>
@@ -304,7 +311,7 @@ function CurrentJob({
       {queued.length > 0 && (
         <>
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Next up
+            {t("home.nextUp")}
           </p>
           <div className="mt-1.5 overflow-hidden rounded-xl border border-border bg-card">
             {queued.map((job, i) => (
@@ -324,9 +331,11 @@ function CurrentJob({
                         statusStyle[job.status] ?? "bg-gray-100 text-gray-700"
                       }`}
                     >
-                      {proStatusLabel[job.status] ?? job.status}
+                      {statusText(job.status, tc, { pro: true })}
                     </span>
-                    {dueIn(job) && <span className="truncate">{dueIn(job)}</span>}
+                    {dueIn(job, undefined, tc, lang) && (
+                      <span className="truncate">{dueIn(job, undefined, tc, lang)}</span>
+                    )}
                   </p>
                 </div>
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />

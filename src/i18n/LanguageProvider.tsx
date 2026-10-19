@@ -19,7 +19,7 @@ import { createContext, useContext, useEffect, type ReactNode } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth-context";
-import type { Namespace } from "./index";
+import type { Namespace, Translate } from "./index";
 import { activeLanguage, useStoredLanguage } from "./language";
 import type { AppLanguage } from "./languages";
 
@@ -38,14 +38,22 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   return <LanguageContext.Provider value={lang}>{children}</LanguageContext.Provider>;
 }
 
+/**
+ * Render a subtree in one language, whatever the route. For tests and
+ * previews; the app always goes through `LanguageProvider`.
+ */
+export function FixedLanguage({ lang, children }: { lang: AppLanguage; children: ReactNode }) {
+  return <LanguageContext.Provider value={lang}>{children}</LanguageContext.Provider>;
+}
+
 /** The language this screen renders in. */
 export function useLanguage(): AppLanguage {
   return useContext(LanguageContext);
 }
 
 /** `t` for one namespace, fixed to this screen's language. */
-export function useT(ns: Namespace = "common") {
+export function useT(ns: Namespace = "common"): { t: Translate; lang: AppLanguage } {
   const lang = useLanguage();
   const { t } = useTranslation(ns, { lng: lang });
-  return { t, lang };
+  return { t: t as Translate, lang };
 }

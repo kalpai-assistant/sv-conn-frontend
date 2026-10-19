@@ -27,11 +27,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useDeclineProJob } from "@/hooks/usePro";
 import { declineErrorMessage, declinedMessage } from "@/lib/pro-decline";
+import { useT } from "@/i18n/LanguageProvider";
 
 export function DeclineProJob({ bookingId }: { bookingId: string }) {
   const [open, setOpen] = useState(false);
   const decline = useDeclineProJob();
   const navigate = useNavigate();
+  const { t } = useT("pro");
   // On the job screen the job is about to stop being theirs (a 403 on the next
   // poll), so leave it. On Home the card simply drops out.
   const onJobScreen = useRouterState({
@@ -42,12 +44,12 @@ export function DeclineProJob({ bookingId }: { bookingId: string }) {
     decline.mutate(bookingId, {
       onSuccess: (result) => {
         setOpen(false);
-        toast.success(declinedMessage(result.outcome));
+        toast.success(declinedMessage(result.outcome, t));
         if (onJobScreen) navigate({ to: "/pro/jobs" });
       },
       onError: (err) => {
         setOpen(false);
-        toast.error(declineErrorMessage(err));
+        toast.error(declineErrorMessage(err, t));
       },
     });
 
@@ -58,19 +60,16 @@ export function DeclineProJob({ bookingId }: { bookingId: string }) {
         onClick={() => setOpen(true)}
         className="mt-3 w-full text-center text-sm font-medium text-destructive underline-offset-4 hover:underline"
       >
-        Can’t do this job?
+        {t("decline.link")}
       </button>
       <AlertDialog open={open} onOpenChange={(next) => !decline.isPending && setOpen(next)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Decline this job?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your team will be asked to give it to someone else. You can’t take it back once
-              declined.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("decline.title")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("decline.body")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={decline.isPending}>Keep the job</AlertDialogCancel>
+            <AlertDialogCancel disabled={decline.isPending}>{t("decline.keep")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -78,7 +77,7 @@ export function DeclineProJob({ bookingId }: { bookingId: string }) {
               }}
               disabled={decline.isPending}
             >
-              {decline.isPending ? "Declining…" : "Decline"}
+              {decline.isPending ? t("decline.declining") : t("decline.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

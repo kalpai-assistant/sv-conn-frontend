@@ -12,7 +12,7 @@ import { setSentryUser } from "./sentry";
 import { clearFcmToken } from "./fcm";
 import { resetLocationGate } from "./location-gate";
 import { clearSession } from "./session";
-import { resetLanguagePrompt, syncStoredLanguage } from "@/i18n/language";
+import { adoptSignInLanguage, resetLanguagePrompt, syncStoredLanguage } from "@/i18n/language";
 import type { AppLanguage } from "@/i18n/languages";
 
 // SVC-41 back-port: three roles the backend recognises. The client uses this
@@ -170,8 +170,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTokens(accessToken, refreshToken);
       setUser(u);
       writeStoredUser(u);
-      // SVC-375: `u` is the /users/me the sign-in just fetched.
-      syncStoredLanguage(u);
+      // SVC-375: `u` is the /users/me the sign-in just fetched. Adopted, not
+      // synced: an account that never chose clears the device's language, so
+      // a shared phone doesn't hand the last person's choice to this one.
+      adoptSignInLanguage(u);
       setIsNewUser(newUser);
       setSentryUser({ id: u.id });
     },

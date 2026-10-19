@@ -5,5 +5,51 @@
     "row": "Language",
     "note": "You can change this any time in Profile.",
     "saveFailed": "Couldn’t save your language. It’s set on this phone for now."
+  },
+  "jobStatus": {
+    "ACCEPTED": "Accepted",
+    "ASSIGNED": "Assigned to you",
+    "EN_ROUTE": "On the way",
+    "IN_PROGRESS": "In progress",
+    "COMPLETED": "Completed",
+    "CANCELLED": "Cancelled",
+    "EXPIRED": "Expired"
+  },
+  "due": {
+    "now": "now",
+    "inMinutes": "in {{count}} min",
+    "tomorrow": "tomorrow {{time}}"
+  },
+  "job": {
+    "enRouteHint": "Let the customer know you’ve set off. They’ll be able to track you from their app.",
+    "onMyWay": "I’m on my way",
+    "movedOn": "This job has already moved on. Pull up the latest state and try again.",
+    "updateFailed": "Couldn’t update the job. Please try again.",
+    "wrongPin": "Incorrect PIN, ask the customer again",
+    "pinTitleCompact": "Ask for the 4-digit PIN",
+    "pinTitle": "Ask the customer for their 4-digit PIN",
+    "pinHint": "It’s shown in their app. Entering it starts the job.",
+    "checking": "Checking…",
+    "startFailed": "Couldn’t start the job. Please try again.",
+    "completeFailed": "Couldn’t complete the job. Please try again.",
+    "completingToast": "Completing job",
+    "undo": "Undo",
+    "completing": "Completing…",
+    "inProgressTitle": "Job in progress",
+    "inProgressHint": "Mark it complete once you’ve finished the work.",
+    "markComplete": "Mark as Complete",
+    "navigate": "Navigate",
+    "giveBackLink": "Can’t make it?",
+    "giveBackTitle": "Give this job back?",
+    "giveBackBody": "We’ll offer it to other providers and tell the customer we’re finding someone else. No fee is charged, but you won’t be offered this job again.",
+    "keepJob": "Keep the job",
+    "givingBack": "Giving back…",
+    "giveBack": "Give it back",
+    "givenBack": "Job given back. We’ll find the customer someone else.",
+    "giveBackEnRoute": "You’re already on your way, so this needs support to cancel.",
+    "giveBackFailed": "Couldn’t give the job back. Please try again."
+  },
+  "errors": {
+    "SELF_PRO_KYC_IS_SP_KYC": "Your identity check is part of your business’s KYC."
   }
 }

@@ -14,6 +14,12 @@ import { apiFetch, clearTokens, hasStoredAuth } from "./api";
 import { AuthProvider, useAuth } from "./auth-context";
 import { CartProvider, useCart } from "./cart-context";
 import type { Service } from "./mock-data";
+import {
+  activeLanguage,
+  getStoredLanguage,
+  resetStoredLanguageForTests,
+  shouldAskLanguage,
+} from "@/i18n/language";
 
 // `clearFcmToken` awaits a dynamic import to `@capacitor/push-notifications`,
 // which jsdom can't resolve. Stubbed to a no-op so the logout path under
@@ -242,5 +248,50 @@ describe("a session that already ended", () => {
     expect(result.current.auth.user).not.toBeNull();
     expect(hasStoredAuth()).toBe(true);
     expect(localStorage.getItem("eazyserv:user")).not.toBeNull();
+  });
+});
+
+describe("a shared phone's language (SVC-375)", () => {
+  afterEach(() => resetStoredLanguageForTests());
+
+  it("does not hand one person's language to the next sign-in", async () => {
+    const { result } = mount();
+    await act(async () => {
+      result.current.auth.login("at", "rt", {
+        id: "sp-a",
+        name: "SP A",
+        phone: "+911111111111",
+        email: null,
+        role: "provider",
+        i18n_enabled: true,
+        preferred_language: "mr",
+      });
+    });
+    expect(getStoredLanguage()).toBe("mr");
+
+    await act(async () => {
+      result.current.auth.logout();
+    });
+    // Survives logout on purpose: SP A signing back in keeps Marathi.
+    expect(getStoredLanguage()).toBe("mr");
+
+    const proB = {
+      id: "pro-b",
+      name: "Pro B",
+      phone: "+911111111112",
+      email: null,
+      role: "consumer" as const,
+      i18n_enabled: true,
+      preferred_language: null,
+    };
+    await act(async () => {
+      result.current.auth.login("at", "rt", proB);
+    });
+
+    expect(getStoredLanguage()).toBeNull();
+    expect(activeLanguage({ pathname: "/pro", user: proB, stored: getStoredLanguage() })).toBe(
+      "en",
+    );
+    expect(shouldAskLanguage("/pro", proB)).toBe(true);
   });
 });
