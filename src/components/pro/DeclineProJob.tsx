@@ -33,7 +33,7 @@ export function DeclineProJob({ bookingId }: { bookingId: string }) {
   const [open, setOpen] = useState(false);
   const decline = useDeclineProJob();
   const navigate = useNavigate();
-  const { t } = useT("pro");
+  const { t, lang } = useT("pro");
   // On the job screen the job is about to stop being theirs (a 403 on the next
   // poll), so leave it. On Home the card simply drops out.
   const onJobScreen = useRouterState({
@@ -49,7 +49,7 @@ export function DeclineProJob({ bookingId }: { bookingId: string }) {
       },
       onError: (err) => {
         setOpen(false);
-        toast.error(declineErrorMessage(err, t));
+        toast.error(declineErrorMessage(err, t, lang));
       },
     });
 

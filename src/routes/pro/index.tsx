@@ -23,6 +23,7 @@ import { askForProLocation, locationNeedsAttention, locationWarning } from "@/li
 import { proKycCopy, proOnlineSwitch } from "@/lib/pro-kyc";
 import type { Booking } from "@/lib/mock-data";
 import { useT } from "@/i18n/LanguageProvider";
+import { errorText } from "@/i18n/errors";
 
 export const Route = createFileRoute("/pro/")({
   component: ProHomePage,
@@ -87,7 +88,7 @@ function OnlineCard({ me }: { me: ProMe }) {
   // which is also what reverts a failed toggle (same rule as Provider Home).
   const [pending, setPending] = useState<boolean | null>(null);
   const isOnline = pending ?? me.is_online;
-  const { t } = useT("pro");
+  const { t, lang } = useT("pro");
   const { canToggle, detail } = proOnlineSwitch(
     { isOnline, isVerified: me.kyc_status === "verified" },
     t,
@@ -110,7 +111,7 @@ function OnlineCard({ me }: { me: ProMe }) {
         await recheckProLocation();
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("home.toggleFailed"));
+      toast.error(errorText(err, t("home.toggleFailed"), lang));
     } finally {
       setPending(null);
     }

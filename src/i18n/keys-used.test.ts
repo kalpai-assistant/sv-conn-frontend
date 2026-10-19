@@ -26,6 +26,12 @@ const files = globSync(
     "lib/pro-kyc.ts",
     "lib/pro-location.ts",
     "lib/pro-decline.ts",
+    "components/BottomNav.tsx",
+    "components/LogoutButton.tsx",
+    "components/DeleteAccountButton.tsx",
+    "components/NotificationsRow.tsx",
+    "components/LocationGate.tsx",
+    "components/LocationGateHost.tsx",
   ],
   { cwd: SRC, ignore: ["**/*.test.{ts,tsx}"] },
 );
@@ -50,9 +56,10 @@ describe("translation keys used by the translated screens", () => {
       // t("…"), tc("…"), getFixedT(…)("…"). Template keys (jobStatus.${…}) are
       // checked by job-status.test instead.
       const keys = [...source.matchAll(/\bt[c]?\(\s*"([A-Za-z0-9_.]+)"/g)].map((m) => m[1]);
-      const missing = keys.filter(
-        (key) => !has(resources.en.common, key) && !has(resources.en.pro, key),
-      );
+      // A plural key is stored as key_one / key_other and asked for bare.
+      const exists = (key: string) =>
+        [key, `${key}_other`].some((k) => has(resources.en.common, k) || has(resources.en.pro, k));
+      const missing = keys.filter((key) => !exists(key));
       expect(missing).toEqual([]);
     });
   }

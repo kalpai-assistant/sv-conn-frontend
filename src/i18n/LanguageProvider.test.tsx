@@ -21,12 +21,25 @@ import {
 
 const useAuth = vi.fn();
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => useAuth() }));
+vi.mock("@/lib/cart-context", () => ({ useCart: () => ({ totalQuantity: 0 }) }));
 
+import { useLayoutEffect } from "react";
+import { BottomNav } from "@/components/BottomNav";
 import { LanguageProvider, useT } from "./LanguageProvider";
 import { resetStoredLanguageForTests, setStoredLanguage } from "./language";
 
 type Frame = { where: string; pathname: string; text: string };
 let frames: Frame[] = [];
+/** The real BottomNav's text after every commit, before paint. */
+let navFrames: { pathname: string; text: string }[] = [];
+
+function NavRecorder() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  useLayoutEffect(() => {
+    navFrames.push({ pathname, text: document.querySelector("nav")?.textContent ?? "" });
+  });
+  return null;
+}
 
 function Probe({ where }: { where: string }) {
   const { t } = useT();
@@ -47,6 +60,8 @@ function renderAt(initial: string) {
         <Outlet />
         {/* Where BottomNav sits in __root: beside the outlet, not in it. */}
         <Probe where="nav" />
+        <BottomNav />
+        <NavRecorder />
       </LanguageProvider>
     ),
   });
@@ -63,6 +78,7 @@ function renderAt(initial: string) {
 
 beforeEach(() => {
   frames = [];
+  navFrames = [];
   resetStoredLanguageForTests();
 });
 afterEach(() => resetStoredLanguageForTests());
@@ -85,6 +101,14 @@ describe("LanguageProvider", () => {
     expect(onProfile.length).toBeGreaterThan(0);
     expect(onProfile.filter((f) => f.text !== "Language")).toEqual([]);
     expect(screen.getByText("nav:Language")).toBeInTheDocument();
+
+    // The real BottomNav (SVC-375 review): Hindi Pro tabs on /pro, and never a
+    // committed frame of Hindi once the path is /profile.
+    expect(navFrames.find((f) => f.pathname === "/pro")?.text).toBe("होमकाम");
+    const navOnProfile = navFrames.filter((f) => f.pathname === "/profile");
+    expect(navOnProfile.length).toBeGreaterThan(0);
+    for (const f of navOnProfile) expect(f.text).not.toMatch(/[ऀ-ॿ]/);
+    expect(navOnProfile.at(-1)?.text).toBe("HomeBookingsCartActivity");
   });
 
   it("switches back to Hindi on the way back into the Pro app", async () => {

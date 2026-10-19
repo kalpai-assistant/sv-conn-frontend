@@ -8,6 +8,7 @@ import { statusText } from "@/lib/job-status";
 import { CompleteStep, DoorstepOtpStep, EnRouteStep } from "@/components/provider/JobActions";
 import { formatRupees } from "@/i18n/format";
 import { useT } from "@/i18n/LanguageProvider";
+import { errorText } from "@/i18n/errors";
 import type { Booking } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/pro/jobs/$bookingId")({
@@ -23,7 +24,7 @@ function ProJobPage() {
   const { bookingId } = Route.useParams();
   const { data: booking, isLoading, isError, error } = useBooking(bookingId);
   const gone = isError && isBookingGone(error);
-  const { t } = useT("pro");
+  const { t, lang } = useT("pro");
 
   return (
     <div className="min-h-screen p-6 pb-24">
@@ -57,7 +58,7 @@ function ProJobPage() {
 
       {isError && !gone && (
         <p className="mt-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-          {error instanceof Error ? error.message : t("jobDetail.loadFailed")}
+          {errorText(error, t("jobDetail.loadFailed"), lang)}
         </p>
       )}
 

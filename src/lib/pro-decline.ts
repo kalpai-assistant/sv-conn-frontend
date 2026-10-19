@@ -5,6 +5,8 @@
 import { ApiError } from "@/lib/api";
 import type { DeclineJobResult } from "@/hooks/usePro";
 import { englishT, type Translate } from "@/i18n";
+import { errorText } from "@/i18n/errors";
+import type { AppLanguage } from "@/i18n/languages";
 
 /** What the Pro is told once the decline lands, by where the job went. */
 export function declinedMessage(
@@ -15,10 +17,14 @@ export function declinedMessage(
 }
 
 /** Why a decline failed, in words a Pro can act on. */
-export function declineErrorMessage(err: unknown, t: Translate = englishT("pro")): string {
+export function declineErrorMessage(
+  err: unknown,
+  t: Translate = englishT("pro"),
+  lang: AppLanguage = "en",
+): string {
   if (err instanceof ApiError) {
     if (err.status === 409) return t("decline.enRoute");
     if (err.status === 404) return t("decline.gone");
   }
-  return err instanceof Error ? err.message : t("decline.failed");
+  return errorText(err, t("decline.failed"), lang);
 }

@@ -74,6 +74,8 @@ import { usePendingAction, UNDO_WINDOW_MS } from "@/hooks/usePendingAction";
 import { useProComplete, useProEnRoute, useProStart } from "@/hooks/usePro";
 import { DeclineProJob } from "@/components/pro/DeclineProJob";
 import { englishT, type Translate } from "@/i18n";
+import { errorText } from "@/i18n/errors";
+import type { AppLanguage } from "@/i18n/languages";
 import { useT } from "@/i18n/LanguageProvider";
 
 /** Whose endpoints a step calls: the SP's own, or a team Pro's (SVC-322). */
@@ -83,9 +85,14 @@ export type JobActor = "provider" | "pro";
 // message a provider should ever see for a wrong PIN — anything vaguer and they
 // retype the same wrong digits instead of asking the customer again.
 
-export function transitionMessage(err: unknown, fallback: string, t: Translate = englishT()) {
+export function transitionMessage(
+  err: unknown,
+  fallback: string,
+  t: Translate = englishT(),
+  lang: AppLanguage = "en",
+) {
   if (err instanceof ApiError && err.status === 409) return t("job.movedOn");
-  return err instanceof Error ? err.message : fallback;
+  return errorText(err, fallback, lang);
 }
 
 /** ACCEPTED → EN_ROUTE. A status change and nothing else (SVC-70). */
@@ -102,7 +109,7 @@ export function EnRouteStep({
   // passes a literal — so the hook order never changes between renders.
   const useEnRoute = actor === "pro" ? useProEnRoute : useMarkEnRoute;
   const markEnRoute = useEnRoute();
-  const { t } = useT();
+  const { t, lang } = useT();
 
   return (
     <div>
@@ -114,7 +121,7 @@ export function EnRouteStep({
           markEnRoute.mutate(
             { bookingId },
             {
-              onError: (err) => toast.error(transitionMessage(err, t("job.updateFailed"), t)),
+              onError: (err) => toast.error(transitionMessage(err, t("job.updateFailed"), t, lang)),
             },
           )
         }
@@ -157,7 +164,7 @@ export function GiveBackJob({ bookingId }: { bookingId: string }) {
   const [open, setOpen] = useState(false);
   const cancel = useCancelBooking();
   const navigate = useNavigate();
-  const { t } = useT();
+  const { t, lang } = useT();
   // On the job screen the job is about to stop being theirs (a 403 on the next
   // poll), so leave it. On Home the card simply drops out of the list.
   const onJobScreen = useRouterState({
@@ -178,7 +185,7 @@ export function GiveBackJob({ bookingId }: { bookingId: string }) {
           toast.error(
             err instanceof ApiError && err.code === "PROVIDER_EN_ROUTE"
               ? t("job.giveBackEnRoute")
-              : transitionMessage(err, t("job.giveBackFailed"), t),
+              : transitionMessage(err, t("job.giveBackFailed"), t, lang),
           );
         },
       },
@@ -238,7 +245,7 @@ export function DoorstepOtpStep({
   const [errorMsg, setErrorMsg] = useState("");
   const useStart = actor === "pro" ? useProStart : useStartBooking;
   const startBooking = useStart();
-  const { t } = useT();
+  const { t, lang } = useT();
 
   const submit = (value: string) => {
     if (startBooking.isPending) return;
@@ -252,7 +259,7 @@ export function DoorstepOtpStep({
           setErrorMsg(
             err instanceof ApiError && err.status === 400
               ? t("job.wrongPin")
-              : transitionMessage(err, t("job.startFailed"), t),
+              : transitionMessage(err, t("job.startFailed"), t, lang),
           );
           setOtp("");
         },
@@ -342,7 +349,7 @@ export function CompleteStep({
   const useComplete = actor === "pro" ? useProComplete : useCompleteBooking;
   const completeBooking = useComplete();
   const pending = usePendingAction();
-  const { t } = useT();
+  const { t, lang } = useT();
   // Local, because the row has to *look* finished the moment it is tapped even
   // though nothing has been sent. Pretending otherwise — leaving the button live
   // for seven seconds — would invite the second tap this exists to prevent.
@@ -354,7 +361,7 @@ export function CompleteStep({
       {
         onError: (err) => {
           setHeld(false);
-          toast.error(transitionMessage(err, t("job.completeFailed"), t));
+          toast.error(transitionMessage(err, t("job.completeFailed"), t, lang));
         },
       },
     );

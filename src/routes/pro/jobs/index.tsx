@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { PRO_JOBS_PER_PAGE, useProJobs } from "@/hooks/usePro";
 import { dueIn, endedAt, statusStyle, statusText } from "@/lib/job-status";
 import { useT } from "@/i18n/LanguageProvider";
+import { errorText } from "@/i18n/errors";
 import { formatNumber } from "@/i18n/format";
 
 export const Route = createFileRoute("/pro/jobs/")({
@@ -71,7 +72,7 @@ function ProJobsPage() {
 
       {isError && (
         <p className="mt-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-          {error instanceof Error ? error.message : t("jobs.loadFailed")}
+          {errorText(error, t("jobs.loadFailed"), lang)}
         </p>
       )}
 

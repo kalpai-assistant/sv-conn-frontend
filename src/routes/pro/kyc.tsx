@@ -9,6 +9,7 @@ import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useProMe, useSubmitProKyc } from "@/hooks/usePro";
 import { useT } from "@/i18n/LanguageProvider";
+import { errorText } from "@/i18n/errors";
 
 export const Route = createFileRoute("/pro/kyc")({
   component: ProKycPage,
@@ -28,7 +29,7 @@ function ProKycPage() {
   const [aadhaarFront, setAadhaarFront] = useState<Blob | null>(null);
   const [aadhaarBack, setAadhaarBack] = useState<Blob | null>(null);
   const [selfie, setSelfie] = useState<Blob | null>(null);
-  const { t } = useT("pro");
+  const { t, lang } = useT("pro");
   const { t: tc } = useT();
 
   const ready = !!aadhaarFront && !!aadhaarBack && !!selfie;
@@ -43,9 +44,7 @@ function ProKycPage() {
       toast.error(
         err instanceof ApiError && err.code === "SELF_PRO_KYC_IS_SP_KYC"
           ? tc("errors.SELF_PRO_KYC_IS_SP_KYC")
-          : err instanceof Error
-            ? err.message
-            : t("kyc.sendFailed"),
+          : errorText(err, t("kyc.sendFailed"), lang),
       );
     }
   };
