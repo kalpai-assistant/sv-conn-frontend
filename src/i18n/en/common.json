@@ -1,0 +1,9 @@
+{
+  "language": {
+    "title": "Choose your language",
+    "continue": "Continue",
+    "row": "Language",
+    "note": "You can change this any time in Profile.",
+    "saveFailed": "Couldn’t save your language. It’s set on this phone for now."
+  }
+}
