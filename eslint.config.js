@@ -77,6 +77,10 @@ export default tseslint.config(
             // providers (SVC-290) — same co-location pattern, edit-once files.
             "useCategorySheet",
             "useServiceSheet",
+            // SVC-375: the language hooks are co-located with LanguageProvider,
+            // which owns the context they read. Same edit-once pattern.
+            "useT",
+            "useLanguage",
           ],
         },
       ],
