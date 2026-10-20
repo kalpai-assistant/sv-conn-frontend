@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./i18n/devanagari.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -46,7 +47,11 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* Noto before the generic families: Android's `sans-serif` falls back to the
+     system's own Devanagari, so after it the bundled face would never be
+     reached. Its unicode-range keeps it off Latin text (see devanagari.css). */
+  --font-sans:
+    "Inter", "Noto Sans Devanagari", ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
 :root {

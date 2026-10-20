@@ -10,8 +10,12 @@
  * verified". Returns null once verified: there is nothing to say.
  */
 import type { ProMe } from "@/hooks/usePro";
+import { englishT, type Translate } from "@/i18n";
 
-export function proKycCopy(me: Pick<ProMe, "kyc_status" | "kyc_rejection_reason">): {
+export function proKycCopy(
+  me: Pick<ProMe, "kyc_status" | "kyc_rejection_reason">,
+  t: Translate = englishT("pro"),
+): {
   title: string;
   detail: string;
 } | null {
@@ -19,22 +23,20 @@ export function proKycCopy(me: Pick<ProMe, "kyc_status" | "kyc_rejection_reason"
     case "verified":
       return null;
     case "submitted":
-      return {
-        title: "Your identity is being checked",
-        detail: "This usually takes a day. You can take jobs once it's approved.",
-      };
+      return { title: t("kycStatus.submittedTitle"), detail: t("kycStatus.submittedDetail") };
     case "rejected":
       return {
-        title: "Your identity check didn't go through",
+        title: t("kycStatus.rejectedTitle"),
+        // The reason is the reviewer's own words, in English; it is quoted,
+        // not translated.
         detail: me.kyc_rejection_reason
-          ? `Reason: ${me.kyc_rejection_reason.trim().replace(/\.$/, "")}. Please submit your documents again.`
-          : "Please submit your documents again.",
+          ? t("kycStatus.rejectedWithReason", {
+              reason: me.kyc_rejection_reason.trim().replace(/\.$/, ""),
+            })
+          : t("kycStatus.rejectedNoReason"),
       };
     default:
-      return {
-        title: "Verify your identity to get jobs",
-        detail: "Your team can't give you a job until your Aadhaar is verified.",
-      };
+      return { title: t("kycStatus.pendingTitle"), detail: t("kycStatus.pendingDetail") };
   }
 }
 
@@ -48,21 +50,17 @@ export function proKycCopy(me: Pick<ProMe, "kyc_status" | "kyc_rejection_reason"
  * stays online — found on device, the switch then sat at "You're online",
  * greyed out, with no way to turn it off.
  */
-export function proOnlineSwitch({
-  isOnline,
-  isVerified,
-}: {
-  isOnline: boolean;
-  isVerified: boolean;
-}): { canToggle: boolean; detail: string } {
-  if (isVerified) {
-    return { canToggle: true, detail: "Your team can only give you jobs while this is on." };
-  }
-  if (isOnline) {
-    return {
-      canToggle: true,
-      detail: "Your team can't give you jobs until your identity is verified.",
-    };
-  }
-  return { canToggle: false, detail: "You can go online once your identity is verified." };
+export function proOnlineSwitch(
+  {
+    isOnline,
+    isVerified,
+  }: {
+    isOnline: boolean;
+    isVerified: boolean;
+  },
+  t: Translate = englishT("pro"),
+): { canToggle: boolean; detail: string } {
+  if (isVerified) return { canToggle: true, detail: t("onlineSwitch.verified") };
+  if (isOnline) return { canToggle: true, detail: t("onlineSwitch.unverifiedOnline") };
+  return { canToggle: false, detail: t("onlineSwitch.unverifiedOffline") };
 }

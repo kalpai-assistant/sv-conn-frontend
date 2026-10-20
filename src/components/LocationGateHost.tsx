@@ -19,6 +19,9 @@ import { dedupeByPlace } from "@/lib/nearby";
 import { useUpdateServiceArea } from "@/hooks/useApi";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import type { LocationBlockedReason } from "@/hooks/useLocationAvailability";
+import { useT } from "@/i18n/LanguageProvider";
+import { errorText } from "@/i18n/errors";
+import { formatNumber } from "@/i18n/format";
 
 /**
  * Consumer: pick a delivery address, or set a new one.
@@ -190,6 +193,8 @@ export function ProviderLocationGate({
   reason: LocationBlockedReason | null;
 }) {
   const { mutateAsync: updateServiceArea, isPending } = useUpdateServiceArea();
+  // SVC-375: shown on /provider, so in the SP's language.
+  const { t, lang } = useT();
   // A service area is a point, not an address — so the only way to name it is
   // to ask. Carries a status, not just a string, so a geocoder failure can be
   // told apart from a lookup still in flight; see useLocalityAt.
@@ -214,7 +219,7 @@ export function ProviderLocationGate({
   // Named when we know it. When we don't, this says so rather than inventing a
   // place — "a row the provider cannot disagree with is worse than one more
   // tap" still holds; the fix is to be honest, not to disappear.
-  const areaLabel = locality.name ?? "Your service area";
+  const areaLabel = locality.name ?? t("locationGate.yourArea");
 
   return (
     <LocationGate
@@ -226,16 +231,18 @@ export function ProviderLocationGate({
       // No service_area_center means the PostGIS dispatch query excludes them
       // from every broadcast: online, verified, subscribed, receiving nothing,
       // permanently. So the screen says what to do about *that*.
-      title={hasArea ? undefined : "Set your service area"}
-      subtitle={
-        hasArea
-          ? "Only jobs inside your service area reach you."
-          : "Only jobs inside your service area reach you. Set the centre, then choose your radius."
-      }
+      title={hasArea ? undefined : t("locationGate.setArea")}
+      subtitle={hasArea ? t("locationGate.areaSubtitle") : t("locationGate.noAreaSubtitle")}
       reason={reason}
       saved={
         showSavedArea
-          ? [{ id: "service-area", label: areaLabel, full: `Within ${radiusKm} km` }]
+          ? [
+              {
+                id: "service-area",
+                label: areaLabel,
+                full: t("locationGate.withinKm", { km: formatNumber(radiusKm, lang) }),
+              },
+            ]
           : []
       }
       isSaving={isPending}
@@ -250,7 +257,7 @@ export function ProviderLocationGate({
           });
           markLocationConfirmed();
         } catch (e) {
-          toast.error(e instanceof Error ? e.message : "Couldn't save your service area.");
+          toast.error(errorText(e, t("locationGate.areaSaveFailed"), lang));
         }
       }}
       // The full picker lives on the provider Location screen (SVC-279), which

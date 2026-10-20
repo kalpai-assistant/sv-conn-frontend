@@ -10,6 +10,9 @@
  * means the same colour on both sides of the app.
  */
 import type { Booking, BookingStatus } from "@/lib/mock-data";
+import { englishT, type Translate } from "@/i18n";
+import { formatDate, formatTime } from "@/i18n/format";
+import type { AppLanguage } from "@/i18n/languages";
 
 /**
  * A job the provider still has work to do on.
@@ -48,6 +51,23 @@ export const proStatusLabel: Partial<Record<BookingStatus, string>> = {
   ACCEPTED: "Assigned to you",
 };
 
+/**
+ * A status in words, in the screen's language (SVC-375). `pro` reads ACCEPTED
+ * as a team Pro does — "Assigned to you", see `proStatusLabel`. An unknown
+ * status renders as itself, as the maps' `?? status` fallbacks always did.
+ *
+ * The English maps above stay for the SP's own screens until SVC-376 moves
+ * them; `jobStatus.*` in en/common.json must say the same (job-status.test).
+ */
+export function statusText(
+  status: string,
+  t: Translate = englishT(),
+  { pro = false }: { pro?: boolean } = {},
+): string {
+  if (!(status in statusLabel)) return status;
+  return t(`jobStatus.${pro && status === "ACCEPTED" ? "ASSIGNED" : status}`);
+}
+
 export function isActive(job: Booking): boolean {
   return activeStatuses.includes(job.status as BookingStatus);
 }
@@ -60,17 +80,13 @@ export function isActive(job: Booking): boolean {
  * looking back is trying to find. Falls back to the booking date when the
  * history is missing rather than rendering an empty cell.
  */
-export function endedAt(job: Booking): string {
+export function endedAt(job: Booking, lang: AppLanguage = "en"): string {
   const terminal = [...(job.statusHistory ?? [])]
     .reverse()
     .find((entry) => !activeStatuses.includes(entry.status));
   const when = terminal?.at ?? job.createdAt ?? job.scheduledAt;
   if (!when) return "";
-  return new Date(when).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return formatDate(when, { day: "numeric", month: "short", year: "numeric" }, lang);
 }
 
 /**
@@ -84,25 +100,30 @@ export function endedAt(job: Booking): string {
  * reads as "now" rather than a negative: the job did not stop existing because
  * the slot passed, and "-12 min" tells them nothing they can act on.
  */
-export function dueIn(job: Booking, now: Date = new Date()): string {
+export function dueIn(
+  job: Booking,
+  now: Date = new Date(),
+  t: Translate = englishT(),
+  lang: AppLanguage = "en",
+): string {
   const when = job.scheduledAt;
   if (!when) return "";
   const at = new Date(when);
   if (Number.isNaN(at.getTime())) return "";
 
   const minutes = Math.round((at.getTime() - now.getTime()) / 60_000);
-  if (minutes <= 0) return "now";
-  if (minutes < 60) return `in ${minutes} min`;
+  if (minutes <= 0) return t("due.now");
+  if (minutes < 60) return t("due.inMinutes", { count: minutes });
 
   const sameDay = at.toDateString() === now.toDateString();
-  const clock = at.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const clock = formatTime(at, { hour: "numeric", minute: "2-digit" }, lang);
   if (sameDay) return clock;
 
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  if (at.toDateString() === tomorrow.toDateString()) return `tomorrow ${clock}`;
+  if (at.toDateString() === tomorrow.toDateString()) return t("due.tomorrow", { time: clock });
 
-  return at.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  return formatDate(at, { day: "numeric", month: "short" }, lang);
 }
 
 /**

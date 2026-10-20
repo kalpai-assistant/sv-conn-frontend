@@ -4,6 +4,8 @@ import { BackButton } from "@/components/BackButton";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationsRow } from "@/components/NotificationsRow";
+import { LanguageRow } from "@/components/language/LanguageRow";
+import { useAuth } from "@/lib/auth-context";
 import { BusinessSection } from "@/components/provider/BusinessSection";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
 import { useProviderProfile } from "@/hooks/useApi";
@@ -15,6 +17,7 @@ export const Route = createFileRoute("/provider/profile")({
 });
 
 function ProviderProfilePage() {
+  const { user } = useAuth();
   const { data: profile } = useProviderProfile();
   const { data: team } = useTeam();
   const teamSize = team?.filter((member) => !member.is_self).length ?? 0;
@@ -116,6 +119,14 @@ function ProviderProfilePage() {
       <div className="mt-4">
         <NotificationsRow />
       </div>
+
+      {/* SVC-375: the SP's language. Only while i18n_enabled — the wrapper too,
+          so with the switch off the screen's spacing is exactly as before. */}
+      {user?.i18n_enabled === true && (
+        <div className="mt-4">
+          <LanguageRow />
+        </div>
+      )}
 
       <ServicesPicker />
 
