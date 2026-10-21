@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { NotificationsRow } from "@/components/NotificationsRow";
-import { APP_VERSION } from "@/lib/version";
+import { displayVersion } from "@/lib/version";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -378,7 +378,7 @@ function ProfilePage() {
               live check that the auto-publish release pipeline (SVC-227.2)
               landed the intended bundle on the device. */}
           <p className="pb-6 text-center text-[10px] text-muted-foreground">
-            EazyServ · v{APP_VERSION}
+            EazyServ · v{displayVersion()}
           </p>
         </>
       )}

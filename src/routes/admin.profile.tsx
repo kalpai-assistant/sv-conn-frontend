@@ -19,7 +19,7 @@ import { LogOut, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
 import { initialsFrom } from "@/lib/initials";
-import { APP_VERSION } from "@/lib/version";
+import { displayVersion } from "@/lib/version";
 
 export const Route = createFileRoute("/admin/profile")({
   component: AdminProfilePage,
@@ -71,7 +71,7 @@ function AdminProfilePage() {
       </div>
 
       <p className="pb-6 pt-4 text-center text-[10px] text-muted-foreground">
-        EazyServ · v{APP_VERSION}
+        EazyServ · v{displayVersion()}
       </p>
     </div>
   );

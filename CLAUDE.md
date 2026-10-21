@@ -134,19 +134,22 @@ versionCode 5              // +1 every release — Android refuses to install a 
 versionName "1.0.4-beta"
 ```
 
-**1b. Bump the iOS version too** (SVC-366), in `ios/App/App.xcodeproj/project.pbxproj` — both build configs (Debug + Release). `Info.plist` only points at these via `$(MARKETING_VERSION)` / `$(CURRENT_PROJECT_VERSION)`; don't edit it.
+**1b. Bump the iOS version too** (SVC-366, SVC-372). iOS has its own version line, independent of Android: the shown label can carry `-beta` but Apple's `MARKETING_VERSION` can't, so the two live apart. Only touch these when an iOS build is actually going out — the Android/PWA release above does NOT change any iOS field.
 
-```
-MARKETING_VERSION = 1.0.4;       // numbers only — never "-beta"
-CURRENT_PROJECT_VERSION = 5;     // equal to Android's versionCode
-```
+| Where | Field | Rule | Example |
+| --- | --- | --- | --- |
+| `src/lib/version.ts` | `IOS_APP_VERSION` | the shown label, with `-beta` suffix | `"1.0.1-beta"` |
+| `project.pbxproj` (Debug **and** Release) | `MARKETING_VERSION` | the same number, **no suffix** | `1.0.1` |
+| `project.pbxproj` (Debug **and** Release) | `CURRENT_PROJECT_VERSION` | integer, +1 every upload — iOS keeps its own count, independent of Android's versionCode | `2` |
+| Backend `app_versions.ios` | `POST /admin/app-versions/ios/release` | **only after the build is live**, always with `"notify": false` | `1.0.1-beta` |
 
-- `MARKETING_VERSION` is numeric: App Store Connect rejects a suffix. The in-app check still compares it correctly against `1.0.4-beta` because `semver.coerce` drops the suffix.
-- `CURRENT_PROJECT_VERSION` is a monotonic integer — never regress it. Keep it equal to Android's `versionCode`.
-- On a Mac, prefer `agvtool` from `ios/App/` over hand edits: `agvtool new-marketing-version 1.0.4` then `agvtool new-version -all 5`.
-- Never run `npx cap sync ios` from Windows — it writes backslash paths into `Package.swift`.
-
-No iOS release pipeline yet (iOS CI is SVC-370; App Store upload is not yet ticketed). Once an iOS build actually ships, bump the backend `ios` row with `POST /admin/app-versions/ios/release` and pass `"notify": false` — the update push goes to every consumer token regardless of platform until SVC-371, so `notify` would ping Android users too. Until then, leave the `ios` row alone.
+- **How to edit.** On a Mac, use Xcode → App target → General → Identity → Version / Build; it writes both configs. Otherwise, hand-edit all four lines (`MARKETING_VERSION` × 2 + `CURRENT_PROJECT_VERSION` × 2) in `ios/App/App.xcodeproj/project.pbxproj`. The file lists Debug then Release, same shape in both.
+- **Don't use** `agvtool`. It needs `VERSIONING_SYSTEM = apple-generic`, which this project doesn't set; `agvtool new-marketing-version` also silently replaces the `$(MARKETING_VERSION)` reference in `Info.plist` with a hard-coded value, breaking the single-source-of-truth setup. Hand-edit `project.pbxproj` or use Xcode.
+- **Don't edit** `Info.plist`. It references `$(MARKETING_VERSION)` and `$(CURRENT_PROJECT_VERSION)`; the pbxproj edit propagates.
+- **`CURRENT_PROJECT_VERSION` starts at 1** and goes up by one per upload (SVC-372 decision: iOS keeps its own count rather than mirroring Android's versionCode, since the two platforms ship independently and matching jumps 1 → 13 the first time Android ran ahead). Apple only requires monotonic — never regress it within a given `MARKETING_VERSION`.
+- **Don't run `npx cap sync ios` from Windows** — it writes backslash paths into `Package.swift`. Sync must come from a Mac.
+- **Backend `ios` row.** Once a build is live, `POST /admin/app-versions/ios/release` with `"notify": false` — the update push goes to every consumer token regardless of platform until SVC-371, so `notify` would ping Android users too. Set the `url` field when a TestFlight / App Store link exists; the prompt shows an "Update" link instead of text only.
+- **No iOS release pipeline yet.** iOS CI is SVC-370 (merged); App Store upload is not yet ticketed. Until an iOS build ships, leave the backend `ios` row alone.
 
 **2. Dispatch the release**:
 
