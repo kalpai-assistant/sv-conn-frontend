@@ -326,7 +326,7 @@ Backend base URL: `VITE_API_BASE_URL` (defaults to `/api/v1`; dev proxies to `ht
 
 - Tailwind CSS 4 utility classes throughout.
 - shadcn/ui components (new-york style) live in `src/components/ui/`. Don't hand-roll UI primitives that shadcn already provides.
-- App is **mobile-first**, capped at `max-w-md`. Brand color is purple (`#7C3AED`).
+- App is **mobile-first**, capped at `max-w-md`. Brand color is blue, hue 262 in OKLCH (`--primary: oklch(0.5 0.2 262)` — see `src/styles.css`). Reference it via the `bg-primary` / `text-primary` token classes, never a literal hex. The marketing site shares the same `--primary` so the two surfaces stay on one identity.
 - Framer Motion (`AnimatePresence`, `motion.*`) for transitions; Lucide React for icons.
 
 ### Capacitor / native
