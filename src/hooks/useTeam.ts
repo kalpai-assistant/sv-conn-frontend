@@ -12,6 +12,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
+import { englishT, type Translate } from "@/i18n";
 import type { KycStatus } from "@/hooks/useApi";
 
 /** A member of the SP's team. `is_self` is the SP's own Pro-for-self. */
@@ -256,42 +257,34 @@ export function assignOutcomeForError(error: unknown): "repick" | "taken" | "una
   return null;
 }
 
+/** Codes with their own copy in provider.json `teamErrors.*`. */
+const TEAM_ERROR_CODES = new Set([
+  "PRO_BUSY",
+  "PRO_OFFLINE",
+  "PRO_KYC_INCOMPLETE",
+  "PRO_NOT_FOUND",
+  "PRO_DECLINED_THIS_BOOKING",
+  "INVITER_PAYOUT_KYC_INCOMPLETE",
+  "CANNOT_INVITE_SELF",
+  "ALREADY_ON_TEAM",
+  "INVITE_ALREADY_PENDING",
+  "INVITE_NOT_PENDING",
+  "CANNOT_REMOVE_SELF",
+  "SELF_NOT_TAKING_JOBS",
+  "NO_TEAM_TO_DISPATCH",
+]);
+
 /**
  * Friendly copy for a team-endpoint failure, keyed on the backend's stable
  * codes. Falls back to the server message, which is user-safe for 4xx.
+ *
+ * `t` is the screen's provider `t` (SVC-376); the English default keeps every
+ * other caller on exactly the strings it had.
  */
-export function teamErrorMessage(error: unknown): string {
-  if (!(error instanceof ApiError))
-    return "Something went wrong. Check your connection and try again.";
-  switch (error.code) {
-    case "PRO_BUSY":
-      return "They're on another job right now. Pick someone else.";
-    case "PRO_OFFLINE":
-      return "They've gone offline. Pick someone else.";
-    case "PRO_KYC_INCOMPLETE":
-      return "They haven't finished KYC yet, so they can't take jobs. Pick someone else.";
-    case "PRO_NOT_FOUND":
-      return "That person is no longer on your team.";
-    case "PRO_DECLINED_THIS_BOOKING":
-      return "This Pro already declined this booking.";
-    case "INVITER_PAYOUT_KYC_INCOMPLETE":
-      return "Finish your KYC before inviting team members. Your team's earnings are paid to you.";
-    case "CANNOT_INVITE_SELF":
-      return "That's your own number.";
-    case "ALREADY_ON_TEAM":
-      return "This person is already on your team.";
-    case "INVITE_ALREADY_PENDING":
-      return "You've already invited this number. Revoke that invite to send a new one.";
-    case "INVITE_NOT_PENDING":
-      return "This invite is no longer pending.";
-    case "CANNOT_REMOVE_SELF":
-      return "You can't remove yourself from your own team.";
-    case "SELF_NOT_TAKING_JOBS":
-      return "You're not taking jobs yourself. Pick someone on your team.";
-    case "NO_TEAM_TO_DISPATCH":
-      return "Add someone to your team before you stop taking jobs yourself.";
-  }
-  if (error.status === 429) return "Too many invites in the last hour. Try again later.";
+export function teamErrorMessage(error: unknown, t: Translate = englishT("provider")): string {
+  if (!(error instanceof ApiError)) return t("teamErrors.network");
+  if (error.code && TEAM_ERROR_CODES.has(error.code)) return t(`teamErrors.${error.code}`);
+  if (error.status === 429) return t("teamErrors.tooMany");
   return error.message;
 }
 

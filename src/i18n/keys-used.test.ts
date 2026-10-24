@@ -20,8 +20,12 @@ const files = globSync(
     "routes/pro/**/*.tsx",
     "components/pro/**/*.tsx",
     "components/language/**/*.tsx",
-    "components/provider/JobActions.tsx",
-    "components/provider/JobAddress.tsx",
+    // SVC-376: the SP's own screens. A file not yet moved has no t("…") and
+    // passes trivially.
+    "routes/provider/**/*.tsx",
+    "components/provider/**/*.tsx",
+    "hooks/useTeam.ts",
+    "hooks/useBookingOffer.ts",
     "lib/job-status.ts",
     "lib/pro-kyc.ts",
     "lib/pro-location.ts",
@@ -58,7 +62,12 @@ describe("translation keys used by the translated screens", () => {
       const keys = [...source.matchAll(/\bt[c]?\(\s*"([A-Za-z0-9_.]+)"/g)].map((m) => m[1]);
       // A plural key is stored as key_one / key_other and asked for bare.
       const exists = (key: string) =>
-        [key, `${key}_other`].some((k) => has(resources.en.common, k) || has(resources.en.pro, k));
+        [key, `${key}_other`].some(
+          (k) =>
+            has(resources.en.common, k) ||
+            has(resources.en.pro, k) ||
+            has(resources.en.provider, k),
+        );
       const missing = keys.filter((key) => !exists(key));
       expect(missing).toEqual([]);
     });

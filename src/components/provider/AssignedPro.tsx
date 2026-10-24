@@ -21,10 +21,12 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import type { DismissReason } from "@/hooks/useBookingOffer";
 import { useTeam, type TeamPickPro } from "@/hooks/useTeam";
 import type { Booking } from "@/lib/mock-data";
+import { useT } from "@/i18n/LanguageProvider";
 
 const ACTIVE = new Set<Booking["status"]>(["ACCEPTED", "EN_ROUTE", "IN_PROGRESS"]);
 
 export function AssignedPro({ booking }: { booking: Booking }) {
+  const { t } = useT("provider");
   const team = useTeam();
   // SVC-361: the re-pick list leaves out whoever declined this booking. The
   // card itself still reads the whole team, so a decline doesn't hide it. If
@@ -76,7 +78,7 @@ export function AssignedPro({ booking }: { booking: Booking }) {
     // The booking moved on under the picker (cancelled, or no longer theirs).
     // The job screen's own poll shows the new state.
     if (reason === "taken" || reason === "unavailable") {
-      toast("This job has changed. Showing the latest.");
+      toast(t("assigned.changed"));
     }
   };
 
@@ -89,14 +91,12 @@ export function AssignedPro({ booking }: { booking: Booking }) {
         >
           <p className="flex items-center gap-2 font-medium text-foreground">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
-            Nobody is on this job
+            {t("assigned.nobodyTitle")}
           </p>
-          <p className="mt-1 text-muted-foreground">
-            Your team member can't take it. Pick someone else, or the customer is left waiting.
-          </p>
+          <p className="mt-1 text-muted-foreground">{t("assigned.nobodyDetail")}</p>
           {canChange && (
             <Button className="mt-3 w-full" onClick={openPicker}>
-              Assign someone
+              {t("assigned.assignSomeone")}
             </Button>
           )}
         </div>
@@ -107,15 +107,15 @@ export function AssignedPro({ booking }: { booking: Booking }) {
             <AvatarFallback>{pro.displayName.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-muted-foreground">Doing this job</p>
+            <p className="text-xs text-muted-foreground">{t("assigned.doingThisJob")}</p>
             <p className="truncate font-medium text-foreground">
               {pro.displayName}
-              {pro.isSelf && <span className="text-muted-foreground"> (You)</span>}
+              {pro.isSelf && <span className="text-muted-foreground"> {t("picker.you")}</span>}
             </p>
           </div>
           {canChange && (
             <Button size="sm" onClick={openPicker}>
-              Change
+              {t("assigned.change")}
             </Button>
           )}
         </div>
@@ -125,13 +125,13 @@ export function AssignedPro({ booking }: { booking: Booking }) {
         <DialogContent className="max-w-md">
           {/* The picker draws its own heading; these name the dialog for
               screen readers. */}
-          <DialogTitle className="sr-only">Choose who does this job</DialogTitle>
+          <DialogTitle className="sr-only">{t("assigned.dialogTitle")}</DialogTitle>
           <DialogDescription className="sr-only">
-            Pick a member of your team for this job.
+            {t("assigned.dialogDescription")}
           </DialogDescription>
           {picking && loadingList && (
             <p role="status" className="py-6 text-center text-sm text-muted-foreground">
-              Loading your team…
+              {t("assigned.loadingTeam")}
             </p>
           )}
           {picking && !loadingList && (
