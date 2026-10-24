@@ -10,7 +10,7 @@ import { BusinessSection } from "@/components/provider/BusinessSection";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
 import { useProviderProfile } from "@/hooks/useApi";
 import { useTeam } from "@/hooks/useTeam";
-import { APP_VERSION } from "@/lib/version";
+import { displayVersion } from "@/lib/version";
 
 export const Route = createFileRoute("/provider/profile")({
   component: ProviderProfilePage,
@@ -156,7 +156,7 @@ function ProviderProfilePage() {
           bundle — worth having on the provider surface too, since providers are
           the ones we ask "which version are you on?" when a job goes missing. */}
       <p className="pb-6 pt-4 text-center text-[10px] text-muted-foreground">
-        EazyServ · v{APP_VERSION}
+        EazyServ · v{displayVersion()}
       </p>
     </div>
   );
