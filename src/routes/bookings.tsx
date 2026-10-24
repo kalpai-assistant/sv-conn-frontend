@@ -4,13 +4,13 @@ import type { BookingStatus, Booking } from "@/lib/mock-data";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 import { EmptyState } from "@/components/EmptyState";
+import { BookingsEmptyIllustration } from "@/components/EmptyStateIllustrations";
 import { ErrorState } from "@/components/ErrorState";
 import { BookingCardSkeleton } from "@/components/skeletons/BookingCardSkeleton";
 import { useBookings } from "@/hooks/useApi";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { WhoIsComingLine } from "@/components/booking/WhoIsComing";
 import { useAuth } from "@/lib/auth-context";
-import { CalendarClock, History } from "lucide-react";
 import { formatRupees } from "@/lib/currency";
 
 export const Route = createFileRoute("/bookings")({
@@ -106,9 +106,9 @@ function BookingsPage() {
           <ErrorState message="Couldn't load your bookings." onRetry={refetch} />
         ) : list.length === 0 ? (
           <EmptyState
-            icon={tab === "active" ? CalendarClock : History}
+            illustration={<BookingsEmptyIllustration />}
             title={tab === "active" ? "No active bookings" : "No past bookings"}
-            subtitle={
+            description={
               tab === "active"
                 ? "Book a service and track it here."
                 : "Once a booking is completed it'll show up here."

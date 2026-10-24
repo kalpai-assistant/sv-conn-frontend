@@ -154,9 +154,9 @@ function ServicesUnderCategory({ category }: { category: Category }) {
         services.map((s) => <ServiceCard key={s.id} service={s} />)
       ) : (
         <EmptyState
-          icon={PackageOpen}
+          icon={<PackageOpen aria-hidden="true" className="size-8" />}
           title={`No ${category.name.toLowerCase()} services yet`}
-          subtitle="We're adding more in your area soon."
+          description="We're adding more in your area soon."
         />
       )}
     </div>
