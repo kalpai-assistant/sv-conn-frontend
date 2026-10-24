@@ -6,7 +6,7 @@ import { CategoryRail } from "@/components/home/CategoryRail";
 import { PromoCarousel } from "@/components/home/PromoCarousel";
 import { BookAgainRow } from "@/components/home/BookAgainRow";
 import { PopularSection } from "@/components/home/PopularSection";
-import { TrustBar } from "@/components/home/TrustBar";
+import { TrustStrip } from "@/components/TrustStrip";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -39,6 +39,11 @@ function HomePage() {
 
       <HeroBanner />
 
+      {/* SVC-387: compact trust strip immediately above the service grid.
+          Edge-to-edge band — the compact variant uses `border-y` only, so
+          side rails would clash. Supersedes the old vertical TrustBar. */}
+      <TrustStrip variant="compact" />
+
       <section className="pb-4">
         <h2 className="px-4 pb-3 text-base font-semibold text-foreground">Services</h2>
         <CategoryRail />
@@ -47,7 +52,6 @@ function HomePage() {
       <PromoCarousel />
       <BookAgainRow />
       <PopularSection />
-      <TrustBar />
     </div>
   );
 }
