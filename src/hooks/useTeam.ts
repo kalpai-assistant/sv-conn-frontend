@@ -12,7 +12,8 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
-import { englishT, type Translate } from "@/i18n";
+import i18n, { englishT, type Translate } from "@/i18n";
+import type { AppLanguage } from "@/i18n/languages";
 import type { KycStatus } from "@/hooks/useApi";
 
 /** A member of the SP's team. `is_self` is the SP's own Pro-for-self. */
@@ -297,9 +298,18 @@ export function nationalDigits(raw: string): string {
 }
 
 /** What Copy/Share hands over: the code, and where to enter it. */
-export function inviteMessage(invite: Pick<TeamInvite, "token" | "invite_url">): string {
-  return (
+export function inviteMessage(
+  invite: Pick<TeamInvite, "token" | "invite_url">,
+  lang: AppLanguage = "en",
+): string {
+  const english =
     `You're invited to join my team on Eazyserv. ` +
-    `Your invite code is ${invite.token} (valid for 7 days). ${invite.invite_url}`
-  );
+    `Your invite code is ${invite.token} (valid for 7 days). ${invite.invite_url}`;
+  // SVC-376: in the sender's language, with today's English underneath — the
+  // recipient's language is unknown. English (and i18n off, which is always
+  // English) sends exactly the string above. The link appears once, in the
+  // English half, so WhatsApp previews a single URL.
+  if (lang === "en") return english;
+  const own = i18n.getFixedT(lang, "provider")("inviteShare.message", { code: invite.token });
+  return `${own}\n\n${english}`;
 }

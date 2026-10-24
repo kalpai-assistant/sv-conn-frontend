@@ -23,6 +23,9 @@ function ProviderProfilePage() {
   const { data: team } = useTeam();
   const teamSize = team?.filter((member) => !member.is_self).length ?? 0;
   const { t } = useT("provider");
+  // Brand + version, the same in every language — built here rather than as
+  // JSX text so the no-literal-string rule has nothing to translate (SVC-376).
+  const versionLabel = `EazyServ · v${displayVersion()}`;
 
   return (
     <div className="min-h-screen p-6 pb-24">
@@ -157,9 +160,7 @@ function ProviderProfilePage() {
           live check that the release pipeline (SVC-227.2) landed the intended
           bundle — worth having on the provider surface too, since providers are
           the ones we ask "which version are you on?" when a job goes missing. */}
-      <p className="pb-6 pt-4 text-center text-[10px] text-muted-foreground">
-        EazyServ · v{displayVersion()}
-      </p>
+      <p className="pb-6 pt-4 text-center text-[10px] text-muted-foreground">{versionLabel}</p>
     </div>
   );
 }
