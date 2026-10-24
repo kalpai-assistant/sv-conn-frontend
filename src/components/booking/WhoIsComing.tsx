@@ -10,11 +10,13 @@
  *
  * Solo SPs are the common case on beta: the SP is their own Pro and usually
  * has no business name, so "Rohan · Rohan" would be noise — one name it is.
+ *
+ * SVC-386: the "assigned" branch below hands off to `ProTrustCard`, which
+ * carries the richer trust surface (rating pill, verified badge, experience
+ * chips) when the backend lands those fields on `BookingResponse`. v1 ships
+ * with the credible subset: name + photo + business + verified + call.
  */
-import { useState, type ReactNode } from "react";
-import { Store } from "lucide-react";
-
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProTrustCard } from "@/components/tracking/ProTrustCard";
 import type { Booking } from "@/lib/mock-data";
 
 const ACTIVE = new Set<Booking["status"]>(["ACCEPTED", "EN_ROUTE", "IN_PROGRESS"]);
@@ -47,7 +49,7 @@ export function whoIsComing(
 
   const businessName = booking.serviceProvider?.businessName?.trim();
   // Typed non-null, and a deleted Pro reads "Deleted professional" (SVC-367),
-  // but a null here would crash `initials` — never let a name take the card down.
+  // but a null here would crash the initials helper — never let a name take the card down.
   const proName = (pro.displayName as string | null)?.trim() || "Your professional";
   const solo = pro.isSelf || !businessName || same(businessName, proName);
   return {
@@ -60,77 +62,39 @@ export function whoIsComing(
   };
 }
 
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase();
-
-/** Small brand mark; a missing or broken logo gets a deliberate shop tile. */
-function BusinessLogo({ url }: { url: string | null }) {
-  const [broken, setBroken] = useState(false);
-  if (url && !broken) {
-    return (
-      <img
-        src={url}
-        alt=""
-        onError={() => setBroken(true)}
-        className="h-4 w-4 shrink-0 rounded object-cover"
-      />
-    );
-  }
-  return (
-    <span
-      data-testid="business-logo-placeholder"
-      aria-hidden
-      className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-secondary"
-    >
-      <Store className="h-2.5 w-2.5 text-muted-foreground" />
-    </span>
-  );
-}
-
-/**
- * The business line. Long names truncate; a tap shows the whole name, since a
- * hover tooltip never fires on a phone.
- */
-function BusinessLine({ name, logoUrl }: { name: string; logoUrl: string | null }) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={() => setExpanded((e) => !e)}
-      aria-expanded={expanded}
-      title={name}
-      className="mt-0.5 flex w-full min-w-0 items-center gap-1.5 text-left"
-    >
-      <BusinessLogo url={logoUrl} />
-      <span
-        className={`min-w-0 text-xs text-muted-foreground ${expanded ? "break-words" : "truncate"}`}
-      >
-        {name}
-      </span>
-    </button>
-  );
-}
-
 /**
  * Tracking screen card. Renders only the assigned and finding states; the
  * screen keeps its own bigger searching block for REQUESTED.
+ *
+ * SVC-386: once a Pro is assigned, delegates to `ProTrustCard` for the full
+ * trust surface (rating, verified badge, experience chips). The `summary`
+ * line ("Deep Clean + 2 more") now sits in a small footer strip below the
+ * trust card — ProTrustCard itself is purely about WHO is coming, not WHAT
+ * they're doing.
  */
 export function WhoIsComingCard({
   booking,
   summary,
-  action,
+  phoneNumber,
+  // SVC-386 defaults — stub the fields that the backend doesn't yet expose
+  // on BookingResponse. "New pro" + "Background verified" is the v1 subset
+  // we can defend; rating + bookings count light up as the backend lands
+  // them (follow-up ticket). Caller can override to pass real data where
+  // available.
+  ratingAverage = 0,
+  ratingCount = 0,
+  bookingsCompletedCount = 0,
+  isBackgroundVerified = true,
 }: {
   booking: Pick<Booking, "status" | "professional" | "serviceProvider">;
   /** One line of what they're doing, e.g. "Deep Clean + 2 more". */
   summary: string;
-  /** Trailing slot (the call button). */
-  action?: ReactNode;
+  /** Direct-dial number; omitted when the backend hasn't exposed it yet. */
+  phoneNumber?: string | null;
+  ratingAverage?: number;
+  ratingCount?: number;
+  bookingsCompletedCount?: number;
+  isBackgroundVerified?: boolean;
 }) {
   const who = whoIsComing(booking);
   if (who.kind === "hidden") return null;
@@ -147,21 +111,20 @@ export function WhoIsComingCard({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 mb-4">
-      <div className="flex items-center gap-3">
-        <Avatar className="h-12 w-12" aria-hidden>
-          {who.photoUrl && <AvatarImage src={who.photoUrl} alt="" className="object-cover" />}
-          <AvatarFallback className="bg-accent text-sm font-bold text-accent-foreground">
-            {initials(who.name)}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{who.name}</p>
-          {who.business && <BusinessLine name={who.business.name} logoUrl={who.business.logoUrl} />}
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">{summary}</p>
-        </div>
-        {action}
-      </div>
+    <div className="mb-4 flex flex-col gap-2">
+      <ProTrustCard
+        proName={who.name}
+        businessName={who.business?.name}
+        phoneNumber={phoneNumber}
+        photoUrl={who.photoUrl}
+        ratingAverage={ratingAverage}
+        ratingCount={ratingCount}
+        bookingsCompletedCount={bookingsCompletedCount}
+        isBackgroundVerified={isBackgroundVerified}
+      />
+      {/* Service summary lives outside ProTrustCard — that card is "who",
+          this strip is "what". A small muted line, not a second card. */}
+      <p className="truncate px-1 text-xs text-muted-foreground">{summary}</p>
     </div>
   );
 }
