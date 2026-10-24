@@ -28,16 +28,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useMotionValue, type PanInfo } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  X,
-  ShieldCheck,
-  LockKeyhole,
-  Clock,
-  Loader2,
-  Check,
-  ChevronDown,
-  CircleX,
-} from "lucide-react";
+import { X, Clock, Loader2, Check, ChevronDown, CircleX } from "lucide-react";
+import { TrustStrip } from "@/components/TrustStrip";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
 import { useCategories, useServices, useServiceDetail } from "@/hooks/useApi";
@@ -240,33 +232,14 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
                 />
               )}
 
+              {/* SVC-387: trust strip supersedes the former KYC/OTP card
+                  at this position — one persistent credibility surface
+                  rather than two overlapping ones (the KYC + OTP card
+                  predated the strip and made its own claims; the strip
+                  owns the trust pattern across home, service detail, and
+                  tracking now). */}
               <div className="px-4 pt-5">
-                <div className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent">
-                      <ShieldCheck className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        KYC-verified professionals
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Every service pro on EazyServ has passed our identity + document check.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-start gap-3">
-                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent">
-                      <LockKeyhole className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Doorstep OTP required</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Service starts only after you share a 4-digit OTP at your door.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <TrustStrip variant="full" />
               </div>
 
               {/* SVC-341 scope clarity. Below the trust card rather than
