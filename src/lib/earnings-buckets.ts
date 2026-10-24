@@ -19,6 +19,9 @@
  * is where locale assumptions creep back in.
  */
 
+import { formatDate } from "@/i18n/format";
+import type { AppLanguage } from "@/i18n/languages";
+
 /** The server's earnings timezone. Matches `_IST` in `provider_service.py`. */
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 
@@ -49,6 +52,16 @@ const SHORT = ["M", "T", "W", "T", "F", "S", "S"];
 const FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 /**
+ * Day names in Hindi/Marathi (SVC-376), from `Intl` rather than hand-written
+ * lists: 1 Jan 2024 was a Monday, so day `i` of the week is 1 + i Jan, read in
+ * UTC so the device's zone cannot shift it a day. English keeps the arrays
+ * above, which are what the axis has always shown.
+ */
+function weekdayName(i: number, weekday: "narrow" | "long", lang: AppLanguage): string {
+  return formatDate(Date.UTC(2024, 0, 1 + i), { weekday, timeZone: "UTC" }, lang);
+}
+
+/**
  * Seven buckets, Monday first, always — including the days that have not
  * happened yet.
  *
@@ -63,12 +76,13 @@ const FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 export function bucketWeek(
   bookings: { completed_at: string; payout_amount: number }[],
   now: Date = new Date(),
+  lang: AppLanguage = "en",
 ): DayBucket[] {
   const todayIndex = istWeekdayIndex(now);
 
   const buckets: DayBucket[] = SHORT.map((label, i) => ({
-    label,
-    fullLabel: FULL[i],
+    label: lang === "en" ? label : weekdayName(i, "narrow", lang),
+    fullLabel: lang === "en" ? FULL[i] : weekdayName(i, "long", lang),
     total: 0,
     count: 0,
     isToday: i === todayIndex,
@@ -162,6 +176,7 @@ function istDaysInMonth(date: Date): number {
 export function bucketMonth(
   bookings: { completed_at: string; payout_amount: number }[],
   now: Date = new Date(),
+  lang: AppLanguage = "en",
 ): MonthDayBucket[] {
   const istNow = toIst(now);
   const todayDay = istNow.getUTCDate();
@@ -171,7 +186,16 @@ export function bucketMonth(
 
   const buckets: MonthDayBucket[] = Array.from({ length }, (_, i) => ({
     day: i + 1,
-    fullLabel: `${i + 1} ${MONTH_SHORT[month]}`,
+    // English keeps its own short months ("Sep", not en-IN's "Sept"); hi/mr
+    // read the month from Intl with Latin digits — "24 सित॰", never "२४".
+    fullLabel:
+      lang === "en"
+        ? `${i + 1} ${MONTH_SHORT[month]}`
+        : formatDate(
+            Date.UTC(year, month, i + 1),
+            { day: "numeric", month: "short", timeZone: "UTC" },
+            lang,
+          ),
     total: 0,
     count: 0,
     isToday: i + 1 === todayDay,

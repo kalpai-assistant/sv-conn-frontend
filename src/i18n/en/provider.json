@@ -140,5 +140,160 @@
     "undo": "Undo",
     "selfNotTaking": "You've switched off taking jobs yourself. Switch it back on in My Team to take this one.",
     "acceptFailed": "Could not accept this job."
+  },
+  "ranges": {
+    "today": {
+      "tab": "Today",
+      "heading": "TODAY",
+      "empty": "Nothing yet today",
+      "inline": "today"
+    },
+    "week": {
+      "tab": "This week",
+      "heading": "THIS WEEK",
+      "empty": "Nothing yet this week",
+      "inline": "this week"
+    },
+    "month": {
+      "tab": "This month",
+      "heading": "THIS MONTH",
+      "empty": "Nothing yet this month",
+      "inline": "this month"
+    },
+    "all": {
+      "tab": "All time",
+      "heading": "ALL TIME",
+      "empty": "Nothing yet",
+      "inline": "all time"
+    }
+  },
+  "earnings": {
+    "title": "Earnings",
+    "totalEarned": "Total earned",
+    "totalFailed": "Couldn’t load your total.",
+    "retry": "Retry",
+    "completed_one": "{{count}} job completed · all time",
+    "completed_other": "{{count}} jobs completed · all time",
+    "periodLabel": "Earnings period",
+    "windowLabel": "Earnings {{range}}",
+    "windowFailed": "Couldn’t load.",
+    "emptyHint": "Completed jobs show up here with what you earned on each.",
+    "tipIncluded": "incl. {{amount}} tip",
+    "byYou": "by you",
+    "byPro": "by {{name}}",
+    "notAssigned": "Not assigned",
+    "you": "You",
+    "comingToYou": "Coming to you",
+    "tapToSee": "Tap to see your earnings"
+  },
+  "chart": {
+    "byDay": "By day",
+    "noJobs": "No jobs",
+    "dayTotal_one": "{{amount}} · {{count}} job",
+    "dayTotal_other": "{{amount}} · {{count}} jobs",
+    "noJobsInline": " · no jobs",
+    "tapHint": "Tap a bar for that day"
+  },
+  "breakdown": {
+    "title": "By team member",
+    "people_one": "{{count}} person",
+    "people_other": "{{count}} people",
+    "noJobsYet": "No jobs yet",
+    "jobs_one": "{{count}} job",
+    "jobs_other": "{{count}} jobs",
+    "addsUp": "Adds up to {{amount}} {{range}}",
+    "pastMember": "Past member"
+  },
+  "payoutStatus": {
+    "cash": "Collected in cash",
+    "awaiting": "Awaiting payout",
+    "processing": "Payout in progress",
+    "paid": "Paid",
+    "failed": "Payout failed",
+    "reversed": "Payout reversed"
+  },
+  "payoutSummary": {
+    "loadFailed": "Couldn’t load your payout.",
+    "retry": "Retry",
+    "owesTitle": "Nothing to transfer this time",
+    "owesBefore": "You’ve done mostly cash work, so the commission owed (",
+    "owesAfter": ") is more than your online earnings. It comes off your next transfer — nothing to pay now.",
+    "waiting": "{{amount}} is waiting to be sent",
+    "waitingDetail": "We can’t pay you until you add a UPI ID or bank account.",
+    "addDetails": "Add payout details",
+    "comingToYou": "Coming to you",
+    "awaitingJobs_one": "{{count}} job awaiting payout",
+    "awaitingJobs_other": "{{count}} jobs awaiting payout",
+    "heldBack": "Held back",
+    "heldBackDetail": "Cash commission you owe, and any job the bank hasn’t settled with us yet.",
+    "paidOut": "Paid out",
+    "lastPaid": "last {{date}}",
+    "noPayouts": "no payouts yet"
+  },
+  "payouts": {
+    "back": "Back to earnings",
+    "title": "Payouts",
+    "allTime": "Paid out, all time",
+    "count_one": "{{count}} payout",
+    "count_other": "{{count}} payouts",
+    "lastPaid": " · last {{date}}",
+    "cashCommission": "− {{amount}} cash commission",
+    "loadFailed": "Couldn't load your payouts.",
+    "tryAgain": "Try again",
+    "emptyTitle": "No payouts yet",
+    "emptyDetail": "Your first payout will show here once it’s sent."
+  },
+  "payout": {
+    "back": "Profile",
+    "title": "Payout method",
+    "intro": "Where we send your earnings. Changing this affects future payouts only.",
+    "loadFailed": "Couldn’t load your payout details.",
+    "upi": "UPI ID",
+    "bank": "Bank account",
+    "yourUpi": "your upi id",
+    "yourBank": "your bank account",
+    "onFileUpi": "UPI ID on file",
+    "onFileBank": "Bank account on file",
+    "active": "Active",
+    "noneTitle": "No payout method yet",
+    "noneDetail": "Add a UPI ID or bank account below so we can send your earnings.",
+    "useSavedUpi": "Use my saved upi id",
+    "useSavedBank": "Use my saved bank account",
+    "nowGoesTo": "Payouts now go to {{destination}}",
+    "switchFailed": "Couldn’t switch your payout method. Try again.",
+    "saveFailed": "Couldn’t save your payout details. Try again.",
+    "changeTitle": "Change payout method",
+    "addTitle": "Add a payout method",
+    "saveHint": "Saving makes this your active method straight away. Your other saved method, if any, is kept so you can switch back.",
+    "save": "Save payout method",
+    "removed": "Payout details removed",
+    "removeFailed": "Couldn’t remove your payout details.",
+    "remove": "Remove payout details",
+    "removeTitle": "Remove payout details?",
+    "removeBody": "This deletes both your UPI ID and your bank account, not just the active one. We won’t be able to pay you until you add a payout method again.",
+    "cancel": "Cancel",
+    "removeConfirm": "Remove"
+  },
+  "payoutForm": {
+    "upi": "UPI ID",
+    "bank": "Bank account",
+    "vpaLabel": "UPI ID",
+    "accountLabel": "Account number",
+    "accountPlaceholder": "Account number",
+    "ifscLabel": "IFSC code",
+    "vpaEmpty": "Enter your UPI ID.",
+    "vpaInvalid": "Enter a valid UPI ID, e.g. name@bank.",
+    "accountEmpty": "Enter your account number.",
+    "accountInvalid": "Account number must be 5–34 digits.",
+    "ifscEmpty": "Enter the IFSC code.",
+    "ifscInvalid": "Enter a valid IFSC, e.g. HDFC0001234."
+  },
+  "payoutStep": {
+    "title": "How should we pay you?",
+    "intro": "Add a UPI ID or bank account so we can send your earnings. You can skip this and add it later.",
+    "alreadySet": "A payout method is already on file. Enter a new one to replace it, or skip.",
+    "back": "Back",
+    "save": "Save & continue",
+    "skip": "Skip for now"
   }
 }
