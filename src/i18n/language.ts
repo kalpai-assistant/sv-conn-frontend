@@ -156,9 +156,10 @@ export function resetLanguagePrompt(): void {
 
 /**
  * Whether to ask for a language now: kill switch on, never chosen, not yet
- * asked this sign-in, and on a provider/Pro screen other than onboarding (the
- * wizard stays English until SVC-376, and a Hindi picker before an English
- * wizard reads as broken).
+ * asked this sign-in, and on a provider/Pro screen.
+ *
+ * `/provider/onboarding` included (SVC-376): the wizard is translated, so a
+ * new SP is asked at its start and does the whole sign-up in their language.
  */
 export function shouldAskLanguage(
   pathname: string,
@@ -166,7 +167,6 @@ export function shouldAskLanguage(
 ): boolean {
   if (!user || user.i18n_enabled !== true || user.preferred_language != null) return false;
   if (askedFor === user.id) return false;
-  if (pathname.startsWith("/provider/onboarding")) return false;
   return isProviderRoute(pathname) || isProRoute(pathname);
 }
 
