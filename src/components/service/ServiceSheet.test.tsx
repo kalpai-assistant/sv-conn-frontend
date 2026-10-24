@@ -1,21 +1,24 @@
 /**
- * The service sheet's scope sections (SVC-341).
+ * The service sheet's catalogue surface (SVC-341 → SVC-392).
  *
- * "What's involved" (steps) is collapsed by default and says how many steps
- * are behind it; "Not included" (exclusions) is always open, because it is
- * the list that heads off a post-service dispute. Either section, or both,
- * may be absent — and an absent section must leave nothing behind, not an
- * orphan heading or an empty card.
+ * SVC-341 shipped the first scope sections (collapsible steps + an amber
+ * "Not included" card). SVC-392 overhauls the surface: steps become
+ * horizontal-scroll cards, "Not included" moves inside a two-column
+ * "What's covered" grid alongside "What's included", and new sections
+ * (Before/After, FAQ, Reviews) stack below.
  *
- * `useServiceDetail` is mocked with the shape it guarantees (always arrays —
- * its own tests cover null / [] / missing). What these tests cannot see:
- * whether expanding inside the sheet's scroll traps it on an Android WebView,
- * or how the amber reads in dark mode. Those need the debug APK.
+ * These tests pin ONLY what the sheet itself owns — section ordering,
+ * section-level empty-state hiding, and the title-card rating pill. The
+ * visual contract of each section (step-card shape, FAQ accordion, etc.)
+ * lives in the individual section files' own tests. Pinning both would
+ * couple two files to the same decisions.
+ *
+ * `useServiceDetail` is mocked with the shape it guarantees (always
+ * arrays; its own tests cover null / [] / missing).
  */
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen } from "@testing-library/react";
 import type { Service } from "@/lib/mock-data";
 import type { UI_ServiceDetail } from "@/hooks/useApi";
 
@@ -35,8 +38,36 @@ const SERVICE: Service = {
 // instance (service-sheet-context renders it without a key).
 const RELATED: Service = { ...SERVICE, id: "s2", name: "Single wall painting" };
 
-const STEPS = ["Inspect walls", "Cover furniture", "Sand + prime", "Two coats", "Clean up"];
+const STEPS = [
+  { title: "Inspect walls" },
+  { title: "Cover furniture" },
+  { title: "Sand + prime" },
+  { title: "Two coats" },
+  { title: "Clean up" },
+];
+const INCLUDED = ["Two coats of emulsion", "Furniture masking + protection", "Site clean-up"];
 const EXCLUSIONS = ["Ceiling painting", "Moving heavy furniture", "Crack repair"];
+const FAQS = [
+  { question: "Do I supply paint?", answer: "No — tell us the shade in the booking notes." },
+];
+
+const emptyDetail = (): UI_ServiceDetail => ({
+  related: { hook: [], upsell: [], related: [] },
+  steps: [],
+  exclusions: [],
+  includedItems: [],
+  heroImageUrl: null,
+  faqs: [],
+  beforeAfterPhotos: [],
+  ratingAverage: null,
+  ratingCount: null,
+  bookingsThisWeek: null,
+});
+
+const withDetail = (partial: Partial<UI_ServiceDetail>): UI_ServiceDetail => ({
+  ...emptyDetail(),
+  ...partial,
+});
 
 let detail: UI_ServiceDetail | undefined;
 
@@ -79,104 +110,122 @@ vi.mock("framer-motion", () => ({
 
 import { ServiceSheet } from "@/components/service/ServiceSheet";
 
-const withDetail = (steps: string[], exclusions: string[]): UI_ServiceDetail => ({
-  related: { hook: [], upsell: [], related: [] },
-  steps,
-  exclusions,
-});
-
 const renderSheet = () => render(<ServiceSheet serviceId="s1" onClose={vi.fn()} />);
 
 beforeEach(() => {
   detail = undefined;
-  // The sheet resets its scroll on every service swap; jsdom has no layout,
-  // so no Element.scrollTo either.
+  // The sheet resets its scroll on every service swap; jsdom has no layout.
   Element.prototype.scrollTo = vi.fn();
+  // jsdom doesn't ship matchMedia (TrustStrip subscribes to it).
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
 });
 
-describe("both populated", () => {
-  it("renders steps collapsed with a count, and exclusions open", () => {
-    detail = withDetail(STEPS, EXCLUSIONS);
+describe("section-level empty-state hiding", () => {
+  it("renders every section when the detail response is populated", () => {
+    detail = withDetail({
+      steps: STEPS,
+      exclusions: EXCLUSIONS,
+      includedItems: INCLUDED,
+      faqs: FAQS,
+    });
     renderSheet();
 
-    const trigger = screen.getByRole("button", { name: /what's involved/i });
-    expect(trigger).toHaveTextContent("5 steps");
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("Inspect walls")).not.toBeInTheDocument();
-
-    expect(screen.getByRole("heading", { name: "Not included" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /what's covered/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /here's what we'll do/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /frequently asked/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /recent reviews/i })).toBeInTheDocument();
+    for (const item of INCLUDED) expect(screen.getByText(item)).toBeInTheDocument();
     for (const item of EXCLUSIONS) expect(screen.getByText(item)).toBeInTheDocument();
   });
 
-  it("expands to the numbered steps, in order", async () => {
-    detail = withDetail(STEPS, EXCLUSIONS);
+  it("hides What's covered when both included and excluded lists are empty", () => {
+    detail = withDetail({ steps: STEPS });
     renderSheet();
 
-    const trigger = screen.getByRole("button", { name: /what's involved/i });
-    await userEvent.click(trigger);
-
-    expect(trigger).toHaveAttribute("aria-expanded", "true");
-    const ol = trigger.closest("section")!.querySelector("ol")!;
-    const items = within(ol).getAllByRole("listitem");
-    expect(items.map((li) => li.textContent)).toEqual(STEPS.map((s, i) => `${i + 1}${s}`));
-
-    await userEvent.click(trigger);
-    expect(screen.queryByText("Inspect walls")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /what's covered/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /here's what we'll do/i })).toBeInTheDocument();
   });
 
-  it("opens collapsed again after a related-service swap", async () => {
-    detail = withDetail(STEPS, EXCLUSIONS);
-    const { rerender } = renderSheet();
-    await userEvent.click(screen.getByRole("button", { name: /what's involved/i }));
-    expect(screen.getByText("Inspect walls")).toBeInTheDocument();
-
-    rerender(<ServiceSheet serviceId="s2" onClose={vi.fn()} />);
-
-    expect(screen.getByRole("button", { name: /what's involved/i })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
-    expect(screen.queryByText("Inspect walls")).not.toBeInTheDocument();
-  });
-
-  it("says '1 step', not '1 steps'", () => {
-    detail = withDetail(["Only step"], []);
+  it("hides Steps when no steps are supplied", () => {
+    detail = withDetail({ exclusions: EXCLUSIONS });
     renderSheet();
-    expect(screen.getByRole("button", { name: /what's involved/i })).toHaveTextContent(/1 step$/);
-  });
-});
 
-describe("one populated", () => {
-  it("renders only steps when there are no exclusions", () => {
-    detail = withDetail(STEPS, []);
+    expect(
+      screen.queryByRole("heading", { name: /here's what we'll do/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /what's covered/i })).toBeInTheDocument();
+  });
+
+  it("hides Before/After when no pairs are supplied", () => {
+    detail = withDetail({ steps: STEPS });
     renderSheet();
-    expect(screen.getByRole("button", { name: /what's involved/i })).toBeInTheDocument();
-    expect(screen.queryByText("Not included")).not.toBeInTheDocument();
+
+    expect(screen.queryByRole("heading", { name: /before.*after/i })).not.toBeInTheDocument();
   });
 
-  it("renders only exclusions when there are no steps", () => {
-    detail = withDetail([], EXCLUSIONS);
+  it("still renders FAQ and Reviews even on an otherwise-empty detail", () => {
+    // FAQ falls back to universal copy when the backend sends none, and
+    // Reviews ship with illustrative placeholders — both are deliberately
+    // persistent surfaces so the sheet never feels incomplete.
+    detail = emptyDetail();
     renderSheet();
-    expect(screen.queryByText(/what's involved/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Not included" })).toBeInTheDocument();
+
+    expect(screen.getByRole("heading", { name: /frequently asked/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /recent reviews/i })).toBeInTheDocument();
   });
-});
 
-describe("neither populated", () => {
-  it.each([
-    ["the detail response is empty", () => withDetail([], [])],
-    ["the detail query hasn't landed yet", () => undefined],
-  ])("leaves no heading, list or wrapper when %s", (_label, make) => {
-    detail = make();
-    const { container } = renderSheet();
+  it("renders the base sheet (title + description + price) when the detail query hasn't landed yet", () => {
+    detail = undefined;
+    renderSheet();
 
-    expect(screen.queryByText(/what's involved/i)).not.toBeInTheDocument();
-    expect(screen.queryByText("Not included")).not.toBeInTheDocument();
-    expect(screen.queryByRole("list")).not.toBeInTheDocument();
-    // The rest of the sheet still renders — this isn't an empty-sheet pass.
     expect(screen.getByText(SERVICE.description)).toBeInTheDocument();
-    // No leftover section shell: the only <section>s are related rails, and
-    // there are none here.
-    expect(container.querySelector("section")).toBeNull();
+    expect(screen.queryByRole("heading", { name: /what's covered/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /here's what we'll do/i }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("title-card rating pill", () => {
+  it("renders the rating + bookings when ratingCount is non-null", () => {
+    detail = withDetail({ ratingAverage: 4.7, ratingCount: 86, bookingsThisWeek: 12 });
+    renderSheet();
+
+    expect(screen.getByText("4.7")).toBeInTheDocument();
+    expect(screen.getByText("86 bookings")).toBeInTheDocument();
+    expect(screen.getByText("12 this week")).toBeInTheDocument();
+  });
+
+  it("omits the pill entirely when ratingCount is null — never '0.0 ⭐'", () => {
+    detail = withDetail({ ratingAverage: null, ratingCount: null });
+    renderSheet();
+
+    // The pill lives inside the service's description card, so we scope the
+    // query to that card to avoid false positives from the Reviews section
+    // (which carries its own illustrative star ratings).
+    const descriptionCard = screen.getByText(SERVICE.description).closest("div")!;
+    expect(descriptionCard.querySelector('[class*="bg-primary/10"]')).toBeNull();
+    expect(descriptionCard.textContent).not.toMatch(/bookings/);
+  });
+
+  it("omits 'this week' when bookingsThisWeek is null but keeps the rating", () => {
+    detail = withDetail({ ratingAverage: 4.6, ratingCount: 40, bookingsThisWeek: null });
+    renderSheet();
+
+    expect(screen.getByText("4.6")).toBeInTheDocument();
+    expect(screen.getByText("40 bookings")).toBeInTheDocument();
+    expect(screen.queryByText(/this week/)).not.toBeInTheDocument();
   });
 });

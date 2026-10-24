@@ -1,10 +1,16 @@
 /**
- * The service sheet's detail fetch (SVC-292, SVC-341).
+ * The service sheet's detail fetch (SVC-292, SVC-341, SVC-392).
  *
- * The sheet hides the steps / exclusions sections on an empty list, so the
- * one job here is that every "nothing to show" the backend can send — `null`,
- * `[]`, or no field at all from a build before SVC-340 — arrives as `[]`.
- * Anything else would either crash the sheet or draw an empty heading.
+ * The sheet hides each section on an empty list / null field, so the one
+ * job here is that every "nothing to show" the backend can send — `null`,
+ * `[]`, or no field at all from a build before each of SVC-340 / SVC-392 —
+ * arrives as `[]` / `null`. Anything else would either crash the sheet or
+ * draw an empty heading.
+ *
+ * SVC-392 enriches `steps` to accept rich objects (`{title, duration_minutes,
+ * icon}`) while keeping backward compat with the plain-string shape SVC-340
+ * shipped; the mapper normalises to the rich shape so the sheet only ever
+ * handles one representation.
  */
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -50,8 +56,23 @@ describe("useServiceDetail", () => {
       steps: ["Consult", "Wash", "Cut"],
       exclusions: ["Beard trim"],
     });
-    expect(detail.steps).toEqual(["Consult", "Wash", "Cut"]);
+    // Plain-string steps (SVC-340 shape) get normalised to `{title}` objects —
+    // this is the mapper's compatibility promise for older backends.
+    expect(detail.steps).toEqual([{ title: "Consult" }, { title: "Wash" }, { title: "Cut" }]);
     expect(detail.exclusions).toEqual(["Beard trim"]);
+  });
+
+  it("passes rich SVC-392 step objects through, keeping duration + icon", async () => {
+    const detail = await detailFor({
+      steps: [
+        { title: "Consult", duration_minutes: 10, icon: "search" },
+        { title: "Wash", duration_minutes: 15 },
+      ],
+    });
+    expect(detail.steps).toEqual([
+      { title: "Consult", durationMinutes: 10, icon: "search" },
+      { title: "Wash", durationMinutes: 15 },
+    ]);
   });
 
   it.each([
@@ -66,7 +87,7 @@ describe("useServiceDetail", () => {
 
   it("drops blank entries rather than drawing an empty row", async () => {
     const detail = await detailFor({ steps: ["Consult", "  ", ""], exclusions: [""] });
-    expect(detail.steps).toEqual(["Consult"]);
+    expect(detail.steps).toEqual([{ title: "Consult" }]);
     expect(detail.exclusions).toEqual([]);
   });
 
