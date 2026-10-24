@@ -68,7 +68,10 @@ export function PopularSection() {
           <div className="w-4 shrink-0" aria-hidden />
         </div>
       ) : (
-        <EmptyState icon={PackageOpen} title="No services yet" />
+        <EmptyState
+          icon={<PackageOpen aria-hidden="true" className="size-8" />}
+          title="No services yet"
+        />
       )}
     </section>
   );
