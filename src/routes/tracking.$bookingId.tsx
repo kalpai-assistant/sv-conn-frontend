@@ -7,6 +7,7 @@ import { ReviewSheet } from "@/components/ReviewSheet";
 import { TrackingMap } from "@/components/tracking/TrackingMap";
 import { TipSection } from "@/components/tracking/TipSection";
 import { WhoIsComingCard } from "@/components/booking/WhoIsComing";
+import { TrustStrip } from "@/components/TrustStrip";
 import {
   useBooking,
   useCancelBooking,
@@ -204,6 +205,11 @@ function TrackingPage() {
       </div>
 
       <div className="px-4 pt-6">
+        {/* SVC-387: persistent trust strip. Tracking is the post-booking
+            surface since no dedicated confirmation route exists today —
+            cart flows directly to tracking after Razorpay returns. */}
+        <TrustStrip variant="full" className="mb-4" />
+
         {/* Status Stepper */}
         <div className="rounded-xl border border-border bg-card p-4 mb-4">
           <StatusStepper currentStatus={booking.status} history={booking.statusHistory} />
