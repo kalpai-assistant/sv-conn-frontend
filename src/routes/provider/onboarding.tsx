@@ -13,6 +13,7 @@ import { BusinessNameField } from "@/components/provider/BusinessNameField";
 import { LogoPicker } from "@/components/provider/LogoPicker";
 import { useAuth } from "@/lib/auth-context";
 import { CameraCapture } from "@/components/CameraCapture";
+import { LanguageChip } from "@/components/language/LanguageChip";
 import { captureLivePhoto, captureNativePhoto, isNativePlatform } from "@/lib/camera";
 import {
   loadOnboardingDraft,
@@ -161,9 +162,13 @@ function ProviderOnboardingPage() {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col p-6">
       <header>
-        <p className="text-xs font-medium text-muted-foreground">
-          {t("onboarding.stepOf", { step, total: TOTAL_STEPS })}
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-medium text-muted-foreground">
+            {t("onboarding.stepOf", { step, total: TOTAL_STEPS })}
+          </p>
+          {/* SVC-395: no Profile to reach mid-wizard, so the switch is here. */}
+          <LanguageChip />
+        </div>
         <Progress value={(step / TOTAL_STEPS) * 100} className="mt-2" />
       </header>
 

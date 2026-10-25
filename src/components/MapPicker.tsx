@@ -4,7 +4,7 @@ import { MapPin, Navigation, Settings, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
-import { GEOCODE_FAILED, GEOCODE_UNKNOWN } from "@/lib/geocode-result";
+import { GEOCODE_FAILED, GEOCODE_UNKNOWN, addressForDisplay } from "@/lib/geocode-result";
 import { isNativeLocation, requestLocation } from "@/lib/geolocation";
 import { reverseGeocode, type PlaceDetails } from "@/lib/google-maps";
 import { MAP_PICKER_LOCATE_TIMEOUT_MS } from "@/lib/map-picker-timeouts";
@@ -74,7 +74,7 @@ export function MapPicker({
   // the SP's onboarding and location screens, English on the customer address
   // sheet. Geocoded addresses, place names and the GEOCODE_* sentinels (which
   // callers compare against) are passed through untouched.
-  const { t } = useT();
+  const { t, lang } = useT();
   const [address, setAddress] = useState(FETCHING);
   const [isFetching, setIsFetching] = useState(false);
   // SVC-356: a denial sticks around after the toast dismisses, because the
@@ -362,7 +362,11 @@ export function MapPicker({
           <div className="flex-1">
             <h3 className="font-semibold text-foreground text-sm">{t("map.selectLocation")}</h3>
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2 min-h-[32px]">
-              {isFetching ? t("map.locating") : address === FETCHING ? t("map.fetching") : address}
+              {isFetching
+                ? t("map.locating")
+                : address === FETCHING
+                  ? t("map.fetching")
+                  : addressForDisplay(address, lang)}
             </p>
           </div>
         </div>

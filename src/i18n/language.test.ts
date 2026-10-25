@@ -3,13 +3,21 @@
  * provider and Pro routes, and only while the backend's kill switch is on for
  * this user. Everything else is English, whatever was chosen.
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
+
+const apiFetch = vi.fn();
+vi.mock("@/lib/api", () => ({ apiFetch: (...args: unknown[]) => apiFetch(...args) }));
+
 import { clearSession } from "@/lib/session";
 import {
   activeLanguage,
+  adoptSignInLanguage,
   getStoredLanguage,
+  languageUnsavedFor,
+  markLanguageUnsaved,
   resetStoredLanguageForTests,
+  retryLanguageSave,
   setStoredLanguage,
   syncStoredLanguage,
 } from "./language";
@@ -107,5 +115,62 @@ describe("stored language", () => {
     expect(getStoredLanguage()).toBe("mr");
     syncStoredLanguage({ preferred_language: null });
     expect(getStoredLanguage()).toBe("mr");
+  });
+});
+
+describe("an unsaved pick (SVC-395)", () => {
+  afterEach(() => {
+    apiFetch.mockReset();
+    resetStoredLanguageForTests();
+  });
+
+  it("is not overwritten by the backend's older copy on the next start", () => {
+    setStoredLanguage("hi");
+    markLanguageUnsaved("u1");
+    syncStoredLanguage({ id: "u1", preferred_language: "mr" });
+    expect(getStoredLanguage()).toBe("hi");
+  });
+
+  it("survives the same account signing back in", () => {
+    setStoredLanguage("hi");
+    markLanguageUnsaved("u1");
+    adoptSignInLanguage({ id: "u1", preferred_language: "mr" });
+    expect(getStoredLanguage()).toBe("hi");
+    expect(languageUnsavedFor("u1")).toBe(true);
+  });
+
+  it("is dropped when another account signs in on the same phone", () => {
+    setStoredLanguage("hi");
+    markLanguageUnsaved("u1");
+    adoptSignInLanguage({ id: "u2", preferred_language: null });
+    expect(getStoredLanguage()).toBeNull();
+    expect(languageUnsavedFor("u1")).toBe(false);
+  });
+
+  it("is sent again, and the mark cleared once the backend takes it", async () => {
+    apiFetch.mockResolvedValue(undefined);
+    setStoredLanguage("hi");
+    markLanguageUnsaved("u1");
+    await expect(retryLanguageSave("u1")).resolves.toBe("hi");
+    expect(apiFetch).toHaveBeenCalledWith("/users/me/language", {
+      method: "PATCH",
+      body: JSON.stringify({ language: "hi" }),
+    });
+    expect(languageUnsavedFor("u1")).toBe(false);
+  });
+
+  it("stays marked when the retry fails too", async () => {
+    apiFetch.mockRejectedValue(new Error("offline"));
+    setStoredLanguage("hi");
+    markLanguageUnsaved("u1");
+    await expect(retryLanguageSave("u1")).resolves.toBeNull();
+    expect(languageUnsavedFor("u1")).toBe(true);
+  });
+
+  it("sends nothing when there is no unsaved pick for this account", async () => {
+    setStoredLanguage("hi");
+    markLanguageUnsaved("u2");
+    await expect(retryLanguageSave("u1")).resolves.toBeNull();
+    expect(apiFetch).not.toHaveBeenCalled();
   });
 });

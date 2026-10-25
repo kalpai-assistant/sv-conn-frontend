@@ -9,10 +9,13 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { GEOCODE_FAILED } from "@/lib/geocode-result";
 
-const { pathname, online } = vi.hoisted(() => ({
+const { pathname, online, geocode } = vi.hoisted(() => ({
   pathname: { current: "/" },
   online: { current: true },
+  // Never resolves by default: the address line stays on "Locating...".
+  geocode: { current: (): Promise<unknown> => new Promise(() => {}) },
 }));
 
 vi.mock("react-leaflet", () => ({
@@ -27,9 +30,7 @@ vi.mock("react-leaflet", () => ({
   }),
 }));
 vi.mock("@/lib/google-maps", () => ({
-  // Never resolves: the address line stays on "Locating...",
-  // which is the string under test.
-  reverseGeocode: () => new Promise(() => {}),
+  reverseGeocode: () => geocode.current(),
   createAutocompleteSession: () => Promise.resolve(null),
   queryPlaces: vi.fn().mockResolvedValue([]),
   placeDetails: vi.fn(),
@@ -56,11 +57,11 @@ import { MapPicker } from "@/components/MapPicker";
 import { LanguageProvider } from "@/i18n/LanguageProvider";
 import { resetStoredLanguageForTests, setStoredLanguage } from "@/i18n/language";
 
-function renderAt(path: string) {
+function renderAt(path: string, onLocationSelected = vi.fn()) {
   pathname.current = path;
   return render(
     <LanguageProvider>
-      <MapPicker initialCenter={[18.52, 73.85]} onLocationSelected={vi.fn()} />
+      <MapPicker initialCenter={[18.52, 73.85]} onLocationSelected={onLocationSelected} />
     </LanguageProvider>,
   );
 }
@@ -69,6 +70,7 @@ beforeEach(() => {
   resetStoredLanguageForTests();
   setStoredLanguage("hi");
   online.current = true;
+  geocode.current = () => new Promise(() => {});
 });
 afterEach(() => resetStoredLanguageForTests());
 
@@ -102,5 +104,20 @@ describe("MapPicker's language", () => {
     renderAt("/provider/onboarding");
     expect(screen.getByText("आप ऑफ़लाइन हैं")).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/You're offline/);
+  });
+
+  // SVC-395, found on device: a failed lookup showed the English sentinel on
+  // a Hindi screen. Shown translated; still reported in English, because
+  // callers compare against the sentinel.
+  it("shows a failed address lookup in the screen's language", async () => {
+    geocode.current = () => Promise.reject(new Error("no key"));
+    const onLocationSelected = vi.fn();
+    const sp = renderAt("/provider/location", onLocationSelected);
+    expect(await screen.findByText("पता नहीं मिल सका")).toBeInTheDocument();
+    expect(onLocationSelected).toHaveBeenCalledWith(18.52, 73.85, GEOCODE_FAILED);
+    sp.unmount();
+
+    renderAt("/");
+    expect(await screen.findByText("Could not fetch address")).toBeInTheDocument();
   });
 });

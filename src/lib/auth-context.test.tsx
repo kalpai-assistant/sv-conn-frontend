@@ -17,7 +17,10 @@ import type { Service } from "./mock-data";
 import {
   activeLanguage,
   getStoredLanguage,
+  languageUnsavedFor,
+  markLanguageUnsaved,
   resetStoredLanguageForTests,
+  setStoredLanguage,
   shouldAskLanguage,
 } from "@/i18n/language";
 
@@ -293,5 +296,38 @@ describe("a shared phone's language (SVC-375)", () => {
       "en",
     );
     expect(shouldAskLanguage("/pro", proB)).toBe(true);
+  });
+
+  // SVC-395, found on device: a pick made offline was replaced by the
+  // backend's older value on the next start.
+  it("sends an unsaved pick at sign-in instead of adopting the backend's older one", async () => {
+    // A fresh sign-in, so no cold-start probe of /users/me runs first.
+    clearTokens();
+    setStoredLanguage("hi");
+    markLanguageUnsaved("sp-a");
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    const { result } = mount();
+    await act(async () => {
+      result.current.auth.login("at", "rt", {
+        id: "sp-a",
+        name: "SP A",
+        phone: "+911111111111",
+        email: null,
+        role: "provider",
+        i18n_enabled: true,
+        preferred_language: "mr",
+      });
+    });
+
+    expect(getStoredLanguage()).toBe("hi");
+    const languageCall = fetchSpy.mock.calls.find(([url]) =>
+      String(url).endsWith("/users/me/language"),
+    );
+    expect(languageCall?.[1]).toMatchObject({ method: "PATCH", body: '{"language":"hi"}' });
+    expect(languageUnsavedFor("sp-a")).toBe(false);
+    expect(result.current.auth.user?.preferred_language).toBe("hi");
+    fetchSpy.mockRestore();
   });
 });

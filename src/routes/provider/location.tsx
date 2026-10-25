@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MapPicker } from "@/components/MapPicker";
+import { addressForDisplay } from "@/lib/geocode-result";
 import { isNativeLocation } from "@/lib/geolocation";
 import { useProviderProfile, useUpdateServiceArea } from "@/hooks/useApi";
 import { errorText } from "@/i18n/errors";
@@ -213,7 +214,9 @@ function ProviderLocationPage() {
                   {hasMoved ? t("location.newCentre") : t("location.yourCentre")}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {picked?.address ?? `${lat.toFixed(4)}, ${lng.toFixed(4)}`}
+                  {picked
+                    ? addressForDisplay(picked.address, lang)
+                    : `${lat.toFixed(4)}, ${lng.toFixed(4)}`}
                 </p>
               </div>
             </div>
