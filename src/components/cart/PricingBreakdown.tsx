@@ -71,12 +71,7 @@ type Line = {
   tone?: "default" | "success" | "total";
 };
 
-export function PricingBreakdown({
-  subtotal,
-  discount,
-  couponCode,
-  convenienceFee = 0,
-}: Props) {
+export function PricingBreakdown({ subtotal, discount, couponCode, convenienceFee = 0 }: Props) {
   const [open, setOpen] = useState(false);
   const reduceMotion = useReducedMotion();
 
@@ -165,9 +160,7 @@ export function PricingBreakdown({
                 }`}
               >
                 <span
-                  className={
-                    line.tone === "success" ? "text-success" : "text-muted-foreground"
-                  }
+                  className={line.tone === "success" ? "text-success" : "text-muted-foreground"}
                 >
                   {line.label}
                 </span>

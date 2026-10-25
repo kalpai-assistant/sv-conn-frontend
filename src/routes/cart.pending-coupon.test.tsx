@@ -86,33 +86,42 @@ vi.mock("@/components/cart/CouponsSheet", () => ({
   },
 }));
 
-vi.mock("framer-motion", () => ({
-  AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
-  // Pass-through for the SVC-384 pricing breakdown's chip/panel + stagger.
-  motion: new Proxy(
-    {},
-    {
-      get:
-        (_t, tag: string) =>
-        ({
-          children,
-          initial: _initial,
-          animate: _animate,
-          exit: _exit,
-          variants: _variants,
-          transition: _transition,
-          ...rest
-        }: Record<string, unknown> & { children?: ReactNode }) => {
-          const Tag = tag as keyof JSX.IntrinsicElements;
-          return <Tag {...rest}>{children}</Tag>;
-        },
-    },
-  ),
-  // Reduced motion is off in the test env unless a test opts in; the chip
-  // path doesn't branch on it, so stubbing to ``false`` is enough for this
-  // integration test.
-  useReducedMotion: () => false,
-}));
+vi.mock("framer-motion", async () => {
+  const React = await import("react");
+  type MotionProps = {
+    children?: ReactNode;
+    initial?: unknown;
+    animate?: unknown;
+    exit?: unknown;
+    variants?: unknown;
+    transition?: unknown;
+  } & Record<string, unknown>;
+  const strip = ({
+    initial: _initial,
+    animate: _animate,
+    exit: _exit,
+    variants: _variants,
+    transition: _transition,
+    ...rest
+  }: MotionProps) => rest;
+  return {
+    AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
+    // Pass-through for the SVC-384 pricing breakdown's chip/panel + stagger.
+    motion: new Proxy(
+      {},
+      {
+        get:
+          (_t, tag: string) =>
+          ({ children, ...rest }: MotionProps) =>
+            React.createElement(tag, strip({ children, ...rest }), children),
+      },
+    ),
+    // Reduced motion is off in the test env unless a test opts in; the chip
+    // path doesn't branch on it, so stubbing to ``false`` is enough for this
+    // integration test.
+    useReducedMotion: () => false,
+  };
+});
 
 vi.mock("@/components/AccountAvatar", () => ({
   AccountAvatar: () => null,
