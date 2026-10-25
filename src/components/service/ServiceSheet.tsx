@@ -294,7 +294,7 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
                   {/* "Update" not "Add" when the service is already in the cart
                       under another variant — tapping replaces the choice, it
                       does not add a second line. */}
-                  {inCartAsOtherVariant ? "Update to" : "Add to cart —"} {formatRupees(ctaPrice)}
+                  {inCartAsOtherVariant ? "Update to" : "Add to cart ·"} {formatRupees(ctaPrice)}
                 </button>
               )}
             </div>

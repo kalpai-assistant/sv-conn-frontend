@@ -437,7 +437,7 @@ export function CartPage() {
           {isBusy ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            `Book${paymentMethod === "online" ? " & Pay" : ""} — ${formatRupees(bill.total)}`
+            `Book${paymentMethod === "online" ? " & Pay" : ""} · ${formatRupees(bill.total)}`
           )}
         </button>
       </div>
