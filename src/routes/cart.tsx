@@ -26,6 +26,7 @@ import { useBookAndPay } from "@/hooks/useBookAndPay";
 import { SavedAddressesSheet } from "@/components/SavedAddressesSheet";
 import { SlotPickerSheet } from "@/components/cart/SlotPickerSheet";
 import { CouponsSheet } from "@/components/cart/CouponsSheet";
+import { PricingBreakdown } from "@/components/cart/PricingBreakdown";
 import { formatRupees } from "@/lib/currency";
 import { clearPendingCoupon, getPendingCoupon } from "@/lib/pending-coupon";
 
@@ -377,26 +378,16 @@ export function CartPage() {
         </div>
       </section>
 
-      {/* Bill breakdown */}
-      <section className="px-4 pt-4">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="pb-2 text-sm font-semibold text-foreground">Bill</p>
-          <div className="flex justify-between py-1 text-sm">
-            <span className="text-muted-foreground">Subtotal</span>
-            <span className="font-medium text-foreground">{formatRupees(subtotal)}</span>
-          </div>
-          {bill.discount > 0 && (
-            <div className="flex justify-between py-1 text-sm">
-              <span className="text-success">Discount ({coupon?.code})</span>
-              <span className="font-medium text-success">−{formatRupees(bill.discount)}</span>
-            </div>
-          )}
-          <div className="mt-2 flex justify-between border-t border-border pt-2 text-base">
-            <span className="font-semibold text-foreground">Total</span>
-            <span className="font-bold text-primary">{formatRupees(bill.total)}</span>
-          </div>
-        </div>
-      </section>
+      {/*
+        Bill breakdown — SVC-384 replaces the always-expanded card with a
+        chip that reveals the lines on tap. Shape is identical: Service
+        subtotal / Discount (if applied) / GST / Convenience fee / Total.
+      */}
+      <PricingBreakdown
+        subtotal={subtotal}
+        discount={bill.discount}
+        couponCode={coupon?.code ?? null}
+      />
 
       {/* Cancellation policy notice */}
       <p className="mx-4 mt-4 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">
