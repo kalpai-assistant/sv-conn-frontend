@@ -12,7 +12,12 @@ vi.mock("@/lib/api", () => ({ apiFetch: (...args: unknown[]) => apiFetch(...args
 vi.mock("sonner", () => ({ toast: { error: (...args: unknown[]) => toastError(...args) } }));
 
 import { LanguageSheet } from "./LanguageSheet";
-import { getStoredLanguage, resetStoredLanguageForTests } from "@/i18n/language";
+import {
+  getStoredLanguage,
+  languageUnsavedFor,
+  markLanguageUnsaved,
+  resetStoredLanguageForTests,
+} from "@/i18n/language";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -80,5 +85,18 @@ describe("LanguageSheet", () => {
     expect(toastError).toHaveBeenCalledWith(
       "तुमची भाषा सेव्ह होऊ शकली नाही. सध्या ती या फोनवर सेट आहे.",
     );
+    // SVC-395: marked, so the next start sends it instead of losing it.
+    expect(languageUnsavedFor("u1")).toBe(true);
+  });
+
+  it("clears an earlier unsaved mark once a save goes through", async () => {
+    markLanguageUnsaved("u1");
+    apiFetch.mockResolvedValue(undefined);
+    const onOpenChange = open();
+    await userEvent.click(screen.getByRole("button", { name: /Hindi/ }));
+    await userEvent.click(screen.getByRole("button", { name: "आगे बढ़ें" }));
+
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(languageUnsavedFor("u1")).toBe(false);
   });
 });

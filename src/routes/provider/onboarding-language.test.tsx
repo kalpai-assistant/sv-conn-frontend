@@ -151,5 +151,29 @@ describe("first-run language prompt at the start of onboarding", () => {
     expect(await screen.findByText("Tell us about you")).toBeInTheDocument();
     expect(screen.getByText("Step 1 of 5")).toBeInTheDocument();
     expect(screen.queryByText("Choose your language")).not.toBeInTheDocument();
+    // No language chip either (SVC-395).
+    expect(screen.queryByRole("button", { name: "Language" })).not.toBeInTheDocument();
+  });
+
+  // SVC-395, found on device: the wizard had no way to change language, so a
+  // wrong pick at the prompt stayed until onboarding was done.
+  it("lets the SP change language mid-wizard from the header chip", async () => {
+    window.localStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({ step: 2, name: "Rohan Kumar", languages: ["Marathi"], businessName: "RK" }),
+    );
+    authState.user.preferred_language = "hi";
+    const user = userEvent.setup();
+    renderOnboarding();
+
+    // Already chose Hindi, so no prompt — just the chip naming it.
+    expect(await screen.findByText("अपनी पहचान सत्यापित करें")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "भाषा" }));
+    await user.click(screen.getByRole("button", { name: /Marathi/ }));
+    await user.click(screen.getByRole("button", { name: "पुढे चला" }));
+
+    await waitFor(() => expect(screen.getByText("तुमची ओळख पडताळा")).toBeInTheDocument());
+    expect(screen.getByText("पायरी 2 / 5")).toBeInTheDocument();
+    expect(getStoredLanguage()).toBe("mr");
   });
 });

@@ -179,6 +179,8 @@
     "toastFailed": "Couldn't get your location. Move the pin to set it instead.",
     "tilesFailed": "Map tiles aren't loading. Check your connection or your network's content filter.",
     "searchPlaceholder": "Search area, street or landmark",
-    "searchLabel": "Search for a place"
+    "searchLabel": "Search for a place",
+    "unknownLocation": "Unknown Location",
+    "fetchFailed": "Could not fetch address"
   }
 }

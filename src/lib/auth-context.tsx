@@ -12,7 +12,12 @@ import { setSentryUser } from "./sentry";
 import { clearFcmToken } from "./fcm";
 import { resetLocationGate } from "./location-gate";
 import { clearSession } from "./session";
-import { adoptSignInLanguage, resetLanguagePrompt, syncStoredLanguage } from "@/i18n/language";
+import {
+  adoptSignInLanguage,
+  resetLanguagePrompt,
+  retryLanguageSave,
+  syncStoredLanguage,
+} from "@/i18n/language";
 import type { AppLanguage } from "@/i18n/languages";
 
 // SVC-41 back-port: three roles the backend recognises. The client uses this
@@ -84,6 +89,13 @@ function writeStoredUser(user: User | null): void {
   }
 }
 
+/** `prev` with a language the backend has just accepted (SVC-395), cached too. */
+function withSavedLanguage(prev: User | null, lang: AppLanguage): User | null {
+  const next = prev ? { ...prev, preferred_language: lang } : null;
+  writeStoredUser(next);
+  return next;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   // The QueryClient `logout` hands to `clearSession` (SVC-350). Grabbed via
   // the hook rather than imported from `__root.tsx` so this module stays
@@ -136,6 +148,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // SVC-375: the backend's language onto this device — a new phone or a
         // reinstall gets the Pro's language back here.
         syncStoredLanguage(me);
+        void retryLanguageSave(me.id).then((saved) => {
+          if (saved && !cancelled) setUser((prev) => withSavedLanguage(prev, saved));
+        });
         setSentryUser({ id: me.id });
       } catch (err) {
         if (cancelled) return;
@@ -174,6 +189,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // synced: an account that never chose clears the device's language, so
       // a shared phone doesn't hand the last person's choice to this one.
       adoptSignInLanguage(u);
+      void retryLanguageSave(u.id).then((saved) => {
+        if (saved) setUser((prev) => withSavedLanguage(prev, saved));
+      });
       setIsNewUser(newUser);
       setSentryUser({ id: u.id });
     },

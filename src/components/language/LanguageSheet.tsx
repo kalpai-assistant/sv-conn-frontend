@@ -8,8 +8,8 @@
  *
  * Continue remembers the choice on the device first and then saves it to
  * `PATCH /users/me/language`. A failed save keeps the device's choice (the
- * screens switch anyway) and says so; the next sign-in that finds the backend
- * still empty asks again.
+ * screens switch anyway), says so, and marks it unsaved: the next start sends
+ * it again rather than letting the backend's older value replace it.
  *
  * Shown only while `i18n_enabled`; callers decide that.
  */
@@ -17,7 +17,12 @@ import { useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import i18n from "@/i18n";
-import { getStoredLanguage, setStoredLanguage } from "@/i18n/language";
+import {
+  clearLanguageUnsaved,
+  getStoredLanguage,
+  markLanguageUnsaved,
+  setStoredLanguage,
+} from "@/i18n/language";
 import { LANGUAGES, LANGUAGE_NAMES, type AppLanguage } from "@/i18n/languages";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { apiFetch } from "@/lib/api";
@@ -59,8 +64,11 @@ export function LanguageSheet({
     try {
       const body: components["schemas"]["UpdateLanguageRequest"] = { language: picked };
       await apiFetch("/users/me/language", { method: "PATCH", body: JSON.stringify(body) });
+      clearLanguageUnsaved();
       updateUser({ preferred_language: picked });
     } catch {
+      // Kept on the device and sent again on the next start (SVC-395).
+      if (user) markLanguageUnsaved(user.id);
       toast.error(t("language.saveFailed"));
     } finally {
       setSaving(false);

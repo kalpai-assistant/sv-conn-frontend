@@ -24,13 +24,23 @@
  * language to the next.
  */
 import { useSyncExternalStore } from "react";
+import { apiFetch } from "@/lib/api";
 import { isProRoute, isProviderRoute } from "@/lib/nav-visibility";
+import type { components } from "@/types/api";
 import { isAppLanguage, type AppLanguage } from "./languages";
 
 const STORAGE_KEY = "eazyserv:language";
 
+/**
+ * The account whose last pick on this device never reached the backend
+ * (SVC-395). Holds a user id, so another account signing in on the same
+ * phone is not mistaken for the one who picked.
+ */
+const UNSAVED_KEY = "eazyserv:language-unsaved";
+
 /** What `activeLanguage` needs from the signed-in user. */
 export interface LanguageUser {
+  id?: string;
   i18n_enabled?: boolean;
   preferred_language?: AppLanguage | null;
 }
@@ -90,9 +100,66 @@ export function setStoredLanguage(lang: AppLanguage): void {
 /**
  * Copy the backend's language onto the device. A null means "never chosen",
  * which says nothing about this device, so it leaves the stored value alone.
+ *
+ * Skipped while this account has an unsaved pick: the backend still holds the
+ * old language, and copying it in would undo the pick on the next cold start
+ * (found on device, SVC-395). `retryLanguageSave` sends the pick instead.
  */
 export function syncStoredLanguage(user: LanguageUser | null | undefined): void {
+  if (user?.id && languageUnsavedFor(user.id)) return;
   if (isAppLanguage(user?.preferred_language)) setStoredLanguage(user.preferred_language);
+}
+
+function readUnsaved(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(UNSAVED_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** The pick for this account could not be saved; keep it until it can. */
+export function markLanguageUnsaved(userId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(UNSAVED_KEY, userId);
+  } catch {
+    // Private mode: the pick lasts for this session only, as before.
+  }
+}
+
+/** The device and the backend agree again, or the pick no longer applies. */
+export function clearLanguageUnsaved(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(UNSAVED_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/** Whether this account has a pick on this device the backend never got. */
+export function languageUnsavedFor(userId: string): boolean {
+  return readUnsaved() === userId;
+}
+
+/**
+ * Send this account's unsaved pick to the backend. Resolves to the language
+ * once saved, or null when there was nothing to send or it failed again (the
+ * marker stays, so the next start tries once more).
+ */
+export async function retryLanguageSave(userId: string): Promise<AppLanguage | null> {
+  const lang = current;
+  if (!lang || !languageUnsavedFor(userId)) return null;
+  try {
+    const body: components["schemas"]["UpdateLanguageRequest"] = { language: lang };
+    await apiFetch("/users/me/language", { method: "PATCH", body: JSON.stringify(body) });
+    clearLanguageUnsaved();
+    return lang;
+  } catch {
+    return null;
+  }
 }
 
 /** Forget the device's language; every screen falls back to the account's. */
@@ -119,6 +186,10 @@ export function clearStoredLanguage(): void {
  * session the device's choice still wins (a save that failed offline).
  */
 export function adoptSignInLanguage(user: LanguageUser | null | undefined): void {
+  // The same account signing back in keeps its unsaved pick (see
+  // `syncStoredLanguage`); anyone else starts from their own.
+  if (user?.id && languageUnsavedFor(user.id)) return;
+  clearLanguageUnsaved();
   if (isAppLanguage(user?.preferred_language)) setStoredLanguage(user.preferred_language);
   else clearStoredLanguage();
 }
@@ -173,5 +244,6 @@ export function shouldAskLanguage(
 /** Tests only: forget the stored language between cases. */
 export function resetStoredLanguageForTests(): void {
   clearStoredLanguage();
+  clearLanguageUnsaved();
   askedFor = null;
 }
