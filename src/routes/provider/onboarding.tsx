@@ -28,6 +28,8 @@ import {
   useUploadBusinessImage,
   useSubmitKyc,
 } from "@/hooks/useApi";
+import { errorText } from "@/i18n/errors";
+import { useT } from "@/i18n/LanguageProvider";
 
 export const Route = createFileRoute("/provider/onboarding")({
   component: ProviderOnboardingPage,
@@ -39,6 +41,10 @@ function ProviderOnboardingPage() {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
   const { data: profile } = useProviderProfile();
+  // SVC-376: the language is read from context on every render, so choosing
+  // one in the first-run prompt re-renders this wizard in place — same step,
+  // same typed fields — rather than remounting it.
+  const { t, lang } = useT("provider");
 
   const updateName = useUpdateName();
   const uploadPhoto = useUploadPhoto();
@@ -107,12 +113,12 @@ function ProviderOnboardingPage() {
   const handleStep1 = async () => {
     setError(null);
     if (!name.trim()) {
-      setError("Please enter your name.");
+      setError(t("onboarding.nameRequired"));
       return;
     }
     if (!businessName.trim()) {
       setBusinessNameInvalid(true);
-      setError("Please enter your business name.");
+      setError(t("onboarding.businessRequired"));
       return;
     }
     try {
@@ -129,21 +135,21 @@ function ProviderOnboardingPage() {
       if (languages.length) await updateLanguages.mutateAsync(languages);
       setStep(2);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn’t save your details. Try again.");
+      setError(errorText(err, t("onboarding.saveFailed"), lang));
     }
   };
 
   const handleStep2 = async () => {
     setError(null);
     if (!aadhaarFront || !aadhaarBack || !selfie) {
-      setError("Please capture the Aadhaar front, Aadhaar back, and a live selfie.");
+      setError(t("onboarding.docsRequired"));
       return;
     }
     try {
       await submitKyc.mutateAsync({ aadhaarFront, aadhaarBack, selfie });
       setStep(3);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn’t submit your documents. Try again.");
+      setError(errorText(err, t("onboarding.submitFailed"), lang));
     }
   };
 
@@ -156,7 +162,7 @@ function ProviderOnboardingPage() {
     <div className="mx-auto flex min-h-screen max-w-md flex-col p-6">
       <header>
         <p className="text-xs font-medium text-muted-foreground">
-          Step {step} of {TOTAL_STEPS}
+          {t("onboarding.stepOf", { step, total: TOTAL_STEPS })}
         </p>
         <Progress value={(step / TOTAL_STEPS) * 100} className="mt-2" />
       </header>
@@ -177,29 +183,29 @@ function ProviderOnboardingPage() {
             {step === 1 && (
               <div className="space-y-5">
                 <div>
-                  <h1 className="text-lg font-semibold text-foreground">Tell us about you</h1>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    This is what customers will see.
-                  </p>
+                  <h1 className="text-lg font-semibold text-foreground">
+                    {t("onboarding.aboutTitle")}
+                  </h1>
+                  <p className="mt-1 text-sm text-muted-foreground">{t("onboarding.aboutIntro")}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
+                  <Label htmlFor="name">{t("onboarding.nameLabel")}</Label>
                   <Input
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Your full name"
+                    placeholder={t("onboarding.namePlaceholder")}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Profile photo</Label>
-                  <ImageInput label="Add a profile photo" file={photo} onSelect={setPhoto} />
+                  <Label>{t("onboarding.photoLabel")}</Label>
+                  <ImageInput label={t("onboarding.photoAdd")} file={photo} onSelect={setPhoto} />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="lang">Languages</Label>
+                  <Label htmlFor="lang">{t("onboarding.languagesLabel")}</Label>
                   <div className="flex gap-2">
                     <Input
                       id="lang"
@@ -211,24 +217,24 @@ function ProviderOnboardingPage() {
                           addLanguage();
                         }
                       }}
-                      placeholder="e.g. Hindi"
+                      placeholder={t("onboarding.languagesPlaceholder")}
                     />
                     <Button type="button" variant="secondary" onClick={addLanguage}>
-                      Add
+                      {t("onboarding.add")}
                     </Button>
                   </div>
                   {languages.length > 0 && (
                     <div className="flex flex-wrap gap-2 pt-1">
-                      {languages.map((lang) => (
+                      {languages.map((spoken) => (
                         <span
-                          key={lang}
+                          key={spoken}
                           className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
                         >
-                          {lang}
+                          {spoken}
                           <button
                             type="button"
-                            onClick={() => setLanguages((prev) => prev.filter((l) => l !== lang))}
-                            aria-label={`Remove ${lang}`}
+                            onClick={() => setLanguages((prev) => prev.filter((l) => l !== spoken))}
+                            aria-label={t("onboarding.removeLanguage", { language: spoken })}
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -241,7 +247,7 @@ function ProviderOnboardingPage() {
                 {/* SVC-337: the business the provider trades as. */}
                 <div className="flex items-center gap-3 pt-1">
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Your business
+                    {t("onboarding.yourBusiness")}
                   </span>
                   <div className="h-px flex-1 bg-border" />
                 </div>
@@ -258,8 +264,10 @@ function ProviderOnboardingPage() {
 
                 <div className="space-y-2">
                   <Label>
-                    Business logo{" "}
-                    <span className="font-normal text-muted-foreground">(optional)</span>
+                    {t("onboarding.logoLabel")}{" "}
+                    <span className="font-normal text-muted-foreground">
+                      {t("onboarding.optional")}
+                    </span>
                   </Label>
                   <LogoPicker
                     currentUrl={profile?.business_image_url}
@@ -269,7 +277,7 @@ function ProviderOnboardingPage() {
                 </div>
 
                 <Button className="w-full" disabled={saving} onClick={handleStep1}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue"}
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("onboarding.continue")}
                 </Button>
               </div>
             )}
@@ -277,17 +285,16 @@ function ProviderOnboardingPage() {
             {step === 2 && (
               <div className="space-y-5">
                 <div>
-                  <h1 className="text-lg font-semibold text-foreground">Verify your identity</h1>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Take a live photo of your Aadhaar (front and back) and a selfie. These must be
-                    captured with your camera — they can’t be uploaded.
-                  </p>
+                  <h1 className="text-lg font-semibold text-foreground">
+                    {t("onboarding.kycTitle")}
+                  </h1>
+                  <p className="mt-1 text-sm text-muted-foreground">{t("onboarding.kycIntro")}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Aadhaar — front</Label>
+                  <Label>{t("onboarding.aadhaarFront")}</Label>
                   <CameraCapture
-                    label="Capture Aadhaar front"
+                    label={t("onboarding.captureFront")}
                     file={aadhaarFront}
                     onCapture={setAadhaarFront}
                     direction="rear"
@@ -295,9 +302,9 @@ function ProviderOnboardingPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Aadhaar — back</Label>
+                  <Label>{t("onboarding.aadhaarBack")}</Label>
                   <CameraCapture
-                    label="Capture Aadhaar back"
+                    label={t("onboarding.captureBack")}
                     file={aadhaarBack}
                     onCapture={setAadhaarBack}
                     direction="rear"
@@ -305,9 +312,9 @@ function ProviderOnboardingPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Live selfie</Label>
+                  <Label>{t("onboarding.selfie")}</Label>
                   <CameraCapture
-                    label="Take a live selfie"
+                    label={t("onboarding.captureSelfie")}
                     file={selfie}
                     onCapture={setSelfie}
                     direction="front"
@@ -316,10 +323,10 @@ function ProviderOnboardingPage() {
 
                 <div className="flex gap-3">
                   <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
-                    Back
+                    {t("onboarding.back")}
                   </Button>
                   <Button className="flex-1" disabled={saving} onClick={handleStep2}>
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit documents"}
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("onboarding.submit")}
                   </Button>
                 </div>
               </div>
@@ -343,20 +350,22 @@ function ProviderOnboardingPage() {
             {step === 5 && (
               <div className="space-y-5">
                 <div>
-                  <h1 className="text-lg font-semibold text-foreground">Choose your services</h1>
+                  <h1 className="text-lg font-semibold text-foreground">
+                    {t("onboarding.servicesTitle")}
+                  </h1>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Documents submitted. Services unlock once our team verifies your KYC.
+                    {t("onboarding.servicesIntro")}
                   </p>
                 </div>
 
                 <ServicesPicker
                   locked={profile?.kyc_status !== "verified"}
-                  title="Services"
-                  description="Pick the services you’ll offer once verified."
+                  title={t("onboarding.servicesPickerTitle")}
+                  description={t("onboarding.servicesPickerDescription")}
                 />
 
                 <Button className="w-full" onClick={finish}>
-                  Go to dashboard
+                  {t("onboarding.dashboard")}
                 </Button>
               </div>
             )}

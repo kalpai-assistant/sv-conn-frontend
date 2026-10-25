@@ -5,10 +5,10 @@
  * never chosen (`preferred_language` is null), and they are on a provider or
  * Pro screen — the only screens a choice changes. A customer is never asked.
  *
- * Not on `/provider/onboarding`: the wizard is still English until SVC-376
- * translates the SP's screens, and a Hindi picker followed by an English
- * wizard reads as broken. The SP is asked once they reach the rest of
- * `/provider`.
+ * A new SP is asked at the start of `/provider/onboarding` (SVC-376), so the
+ * whole sign-up is in their language. The wizard reads the language from
+ * context, so picking one re-renders the current step in place: nothing is
+ * remounted and nothing typed is lost.
  *
  * Once per sign-in, whether they pick or close it: `resetLanguagePrompt` (on
  * logout) re-arms it. The rule itself is `shouldAskLanguage` in i18n/language. A save that failed leaves the backend empty, so the next

@@ -19,6 +19,8 @@ import {
   type ProviderProfile,
 } from "@/hooks/useApi";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
+import { errorText } from "@/i18n/errors";
+import { useT } from "@/i18n/LanguageProvider";
 
 /**
  * "Your business" on the Provider Profile (SVC-337): the business name and logo,
@@ -33,20 +35,21 @@ export function BusinessSection({ profile }: { profile: ProviderProfile }) {
   // Bumped on every Edit, so each opening starts a fresh form (see the key below).
   const [editSession, setEditSession] = useState(0);
   const name = profile.business_name ?? "";
+  const { t } = useT("provider");
 
   return (
     <>
       <div className="mt-4 flex items-center gap-3 rounded-lg border border-border p-4">
         <BusinessLogo
           src={profile.business_image_url}
-          alt={name ? `${name} logo` : "Default business logo"}
+          alt={name ? t("business.logoAlt", { name }) : t("business.defaultLogo")}
           className="h-12 w-12"
         />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-foreground">
-            {name || "Add your business name"}
+            {name || t("business.addName")}
           </p>
-          <p className="text-sm text-muted-foreground">Your business</p>
+          <p className="text-sm text-muted-foreground">{t("business.yourBusiness")}</p>
         </div>
         <Button
           type="button"
@@ -56,7 +59,7 @@ export function BusinessSection({ profile }: { profile: ProviderProfile }) {
             setOpen(true);
           }}
         >
-          Edit
+          {t("business.edit")}
         </Button>
       </div>
 
@@ -86,6 +89,7 @@ function EditBusinessSheet({
   const updateBusinessName = useUpdateBusinessName();
   const uploadBusinessImage = useUploadBusinessImage();
   const saving = updateBusinessName.isPending || uploadBusinessImage.isPending;
+  const { t, lang } = useT("provider");
 
   // Hardware back closes the sheet (discarding the edit, like Cancel) before the
   // router pops the Profile page underneath — without this, back left the page
@@ -104,7 +108,7 @@ function EditBusinessSheet({
     const trimmed = businessName.trim();
     if (!trimmed) {
       setInvalid(true);
-      setError("Please enter your business name.");
+      setError(t("business.required"));
       return;
     }
     const nameChanged = trimmed !== savedName;
@@ -115,10 +119,10 @@ function EditBusinessSheet({
     try {
       if (nameChanged) await updateBusinessName.mutateAsync(trimmed);
       if (logo) await uploadBusinessImage.mutateAsync(logo);
-      toast.success("Business details updated");
+      toast.success(t("business.updated"));
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn’t save your changes. Try again.");
+      setError(errorText(err, t("business.saveFailed"), lang));
     }
   };
 
@@ -126,8 +130,8 @@ function EditBusinessSheet({
     <Sheet open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
       <SheetContent side="bottom" className="rounded-t-2xl">
         <SheetHeader>
-          <SheetTitle>Edit business</SheetTitle>
-          <SheetDescription>Changes are saved when you tap Save.</SheetDescription>
+          <SheetTitle>{t("business.editTitle")}</SheetTitle>
+          <SheetDescription>{t("business.editDescription")}</SheetDescription>
         </SheetHeader>
 
         <div className="mt-4 flex flex-col gap-5">
@@ -149,7 +153,8 @@ function EditBusinessSheet({
 
           <div className="space-y-2">
             <Label>
-              Business logo <span className="font-normal text-muted-foreground">(optional)</span>
+              {t("business.logoLabel")}{" "}
+              <span className="font-normal text-muted-foreground">{t("business.optional")}</span>
             </Label>
             <LogoPicker currentUrl={profile.business_image_url} file={logo} onSelect={setLogo} />
           </div>
@@ -162,10 +167,10 @@ function EditBusinessSheet({
               disabled={saving}
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {t("business.cancel")}
             </Button>
             <Button type="button" className="h-10 flex-1" disabled={saving} onClick={save}>
-              {saving ? <Loader2 className="animate-spin" /> : "Save"}
+              {saving ? <Loader2 className="animate-spin" /> : t("business.save")}
             </Button>
           </div>
         </div>

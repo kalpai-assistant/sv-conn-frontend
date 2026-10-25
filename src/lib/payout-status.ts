@@ -22,6 +22,7 @@
  * skim past is the wrong container for "your money did not arrive".
  */
 import type { ApiPaymentMethod, SettlementStatus } from "@/hooks/useApi";
+import { englishT, type Translate } from "@/i18n";
 
 export type PayoutStateKey = "cash" | "awaiting" | "processing" | "paid" | "failed" | "reversed";
 
@@ -94,6 +95,18 @@ const STATES: Record<PayoutStateKey, PayoutState> = {
  * better than a guessed label on a screen about money.
  */
 export function payoutState(
+  paymentMethod: ApiPaymentMethod | null | undefined,
+  settlementStatus: SettlementStatus | null | undefined,
+  t?: Translate,
+): PayoutState | null {
+  const state = payoutStateEn(paymentMethod, settlementStatus);
+  // SVC-376: the chip in the screen's language. Without a `t` the English
+  // label below is returned untouched.
+  if (!state || !t) return state;
+  return { ...state, label: t(`payoutStatus.${state.key}`) };
+}
+
+function payoutStateEn(
   paymentMethod: ApiPaymentMethod | null | undefined,
   settlementStatus: SettlementStatus | null | undefined,
 ): PayoutState | null {

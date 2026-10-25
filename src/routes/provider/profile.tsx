@@ -5,6 +5,7 @@ import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationsRow } from "@/components/NotificationsRow";
 import { LanguageRow } from "@/components/language/LanguageRow";
+import { useT } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/lib/auth-context";
 import { BusinessSection } from "@/components/provider/BusinessSection";
 import { ServicesPicker } from "@/components/provider/ServicesPicker";
@@ -21,6 +22,10 @@ function ProviderProfilePage() {
   const { data: profile } = useProviderProfile();
   const { data: team } = useTeam();
   const teamSize = team?.filter((member) => !member.is_self).length ?? 0;
+  const { t } = useT("provider");
+  // Brand + version, the same in every language — built here rather than as
+  // JSX text so the no-literal-string rule has nothing to translate (SVC-376).
+  const versionLabel = `EazyServ · v${displayVersion()}`;
 
   return (
     <div className="min-h-screen p-6 pb-24">
@@ -32,7 +37,7 @@ function ProviderProfilePage() {
           the whole point of SVC-278. */}
       <div className="flex items-center gap-3">
         <BackButton fallbackTo="/provider" />
-        <h1 className="text-lg font-semibold text-foreground">Provider Profile</h1>
+        <h1 className="text-lg font-semibold text-foreground">{t("profile.title")}</h1>
       </div>
 
       {/* The business the provider trades as, editable after onboarding
@@ -50,12 +55,14 @@ function ProviderProfilePage() {
         <div className="flex min-w-0 items-center gap-3">
           <WalletCards className="h-5 w-5 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">Payout method</p>
+            <p className="text-sm font-medium text-foreground">{t("profile.payout")}</p>
             <p className="truncate text-sm text-muted-foreground">
               {profile?.payout_set
                 ? (profile.payout_display ??
-                  (profile.payout_method === "bank" ? "Bank account on file" : "UPI ID on file"))
-                : "Not set up yet"}
+                  (profile.payout_method === "bank"
+                    ? t("payout.onFileBank")
+                    : t("payout.onFileUpi")))
+                : t("profile.payoutNone")}
             </p>
           </div>
         </div>
@@ -74,11 +81,11 @@ function ProviderProfilePage() {
         <div className="flex min-w-0 items-center gap-3">
           <MapPin className="h-5 w-5 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">Service location</p>
+            <p className="text-sm font-medium text-foreground">{t("profile.location")}</p>
             <p className="truncate text-sm text-muted-foreground">
               {profile?.service_area_lat != null && profile?.service_area_lng != null
-                ? `Within ${profile.service_area_radius_km ?? 10} km of your centre`
-                : "Not set — you won't receive jobs"}
+                ? t("profile.locationWithin", { km: profile.service_area_radius_km ?? 10 })
+                : t("profile.locationNone")}
             </p>
           </div>
         </div>
@@ -94,11 +101,9 @@ function ProviderProfilePage() {
         <div className="flex min-w-0 items-center gap-3">
           <Users className="h-5 w-5 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">My Team</p>
+            <p className="text-sm font-medium text-foreground">{t("profile.team")}</p>
             <p className="truncate text-sm text-muted-foreground">
-              {teamSize > 0
-                ? `${teamSize} ${teamSize === 1 ? "member" : "members"} besides you`
-                : "Invite people who work with you"}
+              {teamSize > 0 ? t("profile.teamCount", { count: teamSize }) : t("profile.teamNone")}
             </p>
           </div>
         </div>
@@ -155,9 +160,7 @@ function ProviderProfilePage() {
           live check that the release pipeline (SVC-227.2) landed the intended
           bundle — worth having on the provider surface too, since providers are
           the ones we ask "which version are you on?" when a job goes missing. */}
-      <p className="pb-6 pt-4 text-center text-[10px] text-muted-foreground">
-        EazyServ · v{displayVersion()}
-      </p>
+      <p className="pb-6 pt-4 text-center text-[10px] text-muted-foreground">{versionLabel}</p>
     </div>
   );
 }

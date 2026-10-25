@@ -93,12 +93,17 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "error",
     },
   },
-  // SVC-375: the Pro app is translated, so a literal string in its JSX is a
-  // string Hindi/Marathi readers will see in English. Text children plus the
-  // attributes people read or hear; routes and variants stay literal. The
-  // provider folders join in SVC-376, when the SP's own screens are moved.
+  // SVC-375/376: the Pro app and the SP's own screens are translated, so a
+  // literal string in their JSX is a string Hindi/Marathi readers will see in
+  // English. Text children plus the attributes people read or hear; routes and
+  // variants stay literal.
   {
-    files: ["src/routes/pro/**/*.tsx", "src/components/pro/**/*.tsx"],
+    files: [
+      "src/routes/pro/**/*.tsx",
+      "src/components/pro/**/*.tsx",
+      "src/routes/provider/**/*.tsx",
+      "src/components/provider/**/*.tsx",
+    ],
     ignores: ["**/*.test.tsx"],
     plugins: { i18next },
     rules: {

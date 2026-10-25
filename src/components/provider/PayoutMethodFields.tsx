@@ -2,6 +2,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { PayoutMethodFormState } from "@/hooks/usePayoutMethodForm";
+import { useT } from "@/i18n/LanguageProvider";
+
+const METHODS = ["upi", "bank"] as const;
+// Format examples, the same in every language.
+const VPA_EXAMPLE = "name@bank";
+const IFSC_EXAMPLE = "HDFC0001234";
 
 // The UPI / bank toggle and its inputs, extracted from the SVC-133 onboarding step
 // so the SVC-148 edit screen renders the identical fields instead of a copy that
@@ -17,13 +23,14 @@ export function PayoutMethodFields({
 }) {
   const { method, setMethod, vpa, setVpa, accountNumber, setAccountNumber, ifsc, setIfsc, error } =
     form;
+  const { t } = useT("provider");
 
   return (
     <div className="space-y-5">
       {/* Method toggle — a provider enters UPI or bank, not both. Sending both in
           one request is a 422, since "which one is active" would have no answer. */}
       <div className="grid grid-cols-2 gap-1 rounded-lg bg-secondary/50 p-1">
-        {(["upi", "bank"] as const).map((m) => (
+        {METHODS.map((m) => (
           <button
             key={m}
             type="button"
@@ -36,7 +43,7 @@ export function PayoutMethodFields({
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {m === "upi" ? "UPI ID" : "Bank account"}
+            {m === "upi" ? t("payoutForm.upi") : t("payoutForm.bank")}
           </button>
         ))}
       </div>
@@ -47,12 +54,12 @@ export function PayoutMethodFields({
 
       {method === "upi" ? (
         <div className="space-y-2">
-          <Label htmlFor={`${idPrefix}-vpa`}>UPI ID</Label>
+          <Label htmlFor={`${idPrefix}-vpa`}>{t("payoutForm.vpaLabel")}</Label>
           <Input
             id={`${idPrefix}-vpa`}
             value={vpa}
             onChange={(e) => setVpa(e.target.value)}
-            placeholder="name@bank"
+            placeholder={VPA_EXAMPLE}
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
@@ -63,19 +70,19 @@ export function PayoutMethodFields({
       ) : (
         <>
           <div className="space-y-2">
-            <Label htmlFor={`${idPrefix}-account`}>Account number</Label>
+            <Label htmlFor={`${idPrefix}-account`}>{t("payoutForm.accountLabel")}</Label>
             <Input
               id={`${idPrefix}-account`}
               value={accountNumber}
               onChange={(e) => setAccountNumber(e.target.value)}
-              placeholder="Account number"
+              placeholder={t("payoutForm.accountPlaceholder")}
               inputMode="numeric"
               autoComplete="off"
               disabled={disabled}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`${idPrefix}-ifsc`}>IFSC code</Label>
+            <Label htmlFor={`${idPrefix}-ifsc`}>{t("payoutForm.ifscLabel")}</Label>
             <Input
               id={`${idPrefix}-ifsc`}
               value={ifsc}
@@ -83,7 +90,7 @@ export function PayoutMethodFields({
               // validation regex is upper-only, so lowercase input would otherwise
               // fail client-side for something the backend would have accepted.
               onChange={(e) => setIfsc(e.target.value.toUpperCase())}
-              placeholder="HDFC0001234"
+              placeholder={IFSC_EXAMPLE}
               autoCapitalize="characters"
               autoCorrect="off"
               spellCheck={false}

@@ -8,6 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MapPicker } from "@/components/MapPicker";
 import { isNativeLocation } from "@/lib/geolocation";
 import { useProviderProfile, useUpdateServiceArea } from "@/hooks/useApi";
+import { errorText } from "@/i18n/errors";
+import { useT } from "@/i18n/LanguageProvider";
 
 export const Route = createFileRoute("/provider/location")({
   component: ProviderLocationPage,
@@ -46,6 +48,7 @@ function ProviderLocationPage() {
   const { data: profile, isLoading, isError } = useProviderProfile();
   const updateServiceArea = useUpdateServiceArea();
   const navigate = useNavigate();
+  const { t, lang } = useT("provider");
 
   // Null until the provider picks somewhere in this session; the saved centre
   // is read from `profile` so the map can open on it.
@@ -81,7 +84,7 @@ function ProviderLocationPage() {
 
   const useCurrentLocation = () => {
     if (!("geolocation" in navigator)) {
-      toast.error("Location isn't available on this device.");
+      toast.error(t("location.noGeolocation"));
       return;
     }
     setLocating(true);
@@ -92,7 +95,7 @@ function ProviderLocationPage() {
         setPicked({
           lat: Number(pos.coords.latitude.toFixed(6)),
           lng: Number(pos.coords.longitude.toFixed(6)),
-          address: "Your current location",
+          address: t("location.currentLocation"),
         });
       },
       (err) => {
@@ -108,9 +111,9 @@ function ProviderLocationPage() {
         toast.error(
           err.code === 1
             ? isNativeLocation()
-              ? "Location permission is off. Turn it on in your device settings."
-              : "Check that Location is on in your settings and allowed for this site."
-            : "Couldn't get your location. Drag the pin instead.",
+              ? t("location.deniedNative")
+              : t("location.deniedWeb")
+            : t("location.failed"),
         );
       },
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
@@ -119,7 +122,7 @@ function ProviderLocationPage() {
 
   const save = async () => {
     if (lat === null || lng === null) {
-      toast.error("Pick your location first.");
+      toast.error(t("location.pickFirst"));
       return;
     }
     try {
@@ -128,10 +131,10 @@ function ProviderLocationPage() {
         service_area_lng: lng,
         service_area_radius_km: effectiveRadius,
       });
-      toast.success("Service area saved");
+      toast.success(t("location.saved"));
       navigate({ to: "/provider/profile" });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't save. Please try again.");
+      toast.error(errorText(e, t("location.saveFailed"), lang));
     }
   };
 
@@ -141,11 +144,11 @@ function ProviderLocationPage() {
         <Link
           to="/provider/profile"
           className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary"
-          aria-label="Back"
+          aria-label={t("location.back")}
         >
           <ChevronLeft className="h-4 w-4 text-foreground" />
         </Link>
-        <h1 className="text-base font-semibold text-foreground">Service location</h1>
+        <h1 className="text-base font-semibold text-foreground">{t("location.title")}</h1>
       </div>
 
       {isLoading ? (
@@ -154,9 +157,7 @@ function ProviderLocationPage() {
           <Skeleton className="h-10 w-full" />
         </div>
       ) : isError ? (
-        <p className="p-4 text-sm text-muted-foreground">
-          Couldn&apos;t load your profile. Pull down to retry.
-        </p>
+        <p className="p-4 text-sm text-muted-foreground">{t("location.loadFailed")}</p>
       ) : (
         <div className="space-y-5 p-4">
           {/* Said out loud because the consequence is invisible: no centre means
@@ -164,8 +165,7 @@ function ProviderLocationPage() {
               nothing else in the app would tell them. */}
           {!hasSavedArea && !hasMoved && (
             <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-              You haven&apos;t set a service area yet, so job requests can&apos;t reach you. Pick
-              where you work to start receiving them.
+              {t("location.noArea")}
             </p>
           )}
 
@@ -202,7 +202,7 @@ function ProviderLocationPage() {
             ) : (
               <Navigation className="h-4 w-4" />
             )}
-            {locating ? "Locating…" : "Use my current location"}
+            {locating ? t("location.locating") : t("location.useCurrent")}
           </Button>
 
           {lat !== null && lng !== null && (
@@ -210,7 +210,7 @@ function ProviderLocationPage() {
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <div className="min-w-0">
                 <p className="text-sm font-medium text-foreground">
-                  {hasMoved ? "New centre" : "Your service centre"}
+                  {hasMoved ? t("location.newCentre") : t("location.yourCentre")}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {picked?.address ?? `${lat.toFixed(4)}, ${lng.toFixed(4)}`}
@@ -221,8 +221,10 @@ function ProviderLocationPage() {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="radius">How far will you travel?</Label>
-              <span className="text-sm font-medium text-foreground">{effectiveRadius} km</span>
+              <Label htmlFor="radius">{t("location.travel")}</Label>
+              <span className="text-sm font-medium text-foreground">
+                {t("location.km", { km: effectiveRadius })}
+              </span>
             </div>
             <input
               id="radius"
@@ -234,9 +236,7 @@ function ProviderLocationPage() {
               onChange={(e) => setRadiusKm(Number(e.target.value))}
               className="w-full accent-primary"
             />
-            <p className="text-xs text-muted-foreground">
-              Bookings outside this radius won&apos;t reach you.
-            </p>
+            <p className="text-xs text-muted-foreground">{t("location.outside")}</p>
           </div>
 
           {/* Inline, not a fixed footer. `__root.tsx` renders BottomNav over
@@ -252,7 +252,7 @@ function ProviderLocationPage() {
             {updateServiceArea.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              "Save service area"
+              t("location.save")
             )}
           </Button>
         </div>

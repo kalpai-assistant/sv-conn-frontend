@@ -48,6 +48,9 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiFetch, apiFetchWithStatus } from "@/lib/api";
+import { englishT, type Translate } from "@/i18n";
+import { errorText } from "@/i18n/errors";
+import type { AppLanguage } from "@/i18n/languages";
 import type { TeamPickPro, TeamPickResponse } from "@/hooks/useTeam";
 import type { components } from "@/types/api";
 
@@ -235,11 +238,15 @@ export function useDeclineOffer() {
  * is a plain accept by an SP who has switched off taking jobs themselves. Rare:
  * the card always sends `X-Team-Pick`, so a team SP gets the picker instead.
  */
-export function acceptErrorMessage(error: unknown): string {
+export function acceptErrorMessage(
+  error: unknown,
+  t: Translate = englishT("provider"),
+  lang: AppLanguage = "en",
+): string {
   if (error instanceof ApiError && error.code === "SELF_NOT_TAKING_JOBS") {
-    return "You've switched off taking jobs yourself. Switch it back on in My Team to take this one.";
+    return t("incoming.selfNotTaking");
   }
-  return error instanceof Error ? error.message : "Could not accept this job.";
+  return errorText(error, t("incoming.acceptFailed"), lang);
 }
 
 export type AcceptResult =

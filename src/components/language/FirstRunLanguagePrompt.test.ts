@@ -19,9 +19,15 @@ describe("shouldAskLanguage (SVC-375)", () => {
     expect(shouldAskLanguage("/pro", null)).toBe(false);
   });
 
-  it("waits until the SP is past onboarding", () => {
-    expect(shouldAskLanguage("/provider/onboarding", fresh)).toBe(false);
+  it("asks a new SP at the start of onboarding (SVC-376)", () => {
+    expect(shouldAskLanguage("/provider/onboarding", fresh)).toBe(true);
     expect(shouldAskLanguage("/provider", fresh)).toBe(true);
+  });
+
+  it("asks only once, so finishing onboarding does not ask again", () => {
+    expect(shouldAskLanguage("/provider/onboarding", fresh)).toBe(true);
+    markLanguageAsked("u1");
+    expect(shouldAskLanguage("/provider", fresh)).toBe(false);
   });
 
   it("asks once per sign-in, and again after logout re-arms it", () => {

@@ -26,25 +26,34 @@ import {
 } from "@/hooks/useApi";
 import { usePayoutMethodForm } from "@/hooks/usePayoutMethodForm";
 import { PayoutMethodFields } from "@/components/provider/PayoutMethodFields";
+import type { Translate } from "@/i18n";
+import { errorText } from "@/i18n/errors";
+import { useT } from "@/i18n/LanguageProvider";
 
 export const Route = createFileRoute("/provider/payout")({
   component: ProviderPayoutPage,
 });
 
-const methodLabel = (m: PayoutMethodKind) => (m === "upi" ? "UPI ID" : "Bank account");
+const methodLabel = (m: PayoutMethodKind, t: Translate) =>
+  m === "upi" ? t("payout.upi") : t("payout.bank");
 
 // Names the destination a write landed on, for the confirmation toast. Prefers the
 // server's label — "••••7890", or the VPA in full — because naming the actual account
 // is what lets a provider catch a wrong switch straight away. Falls back to the method
 // name when the label is null, which it is for providers whose method predates SVC-148
 // (the migration declined to decrypt every provider's PII just to backfill a label).
-const destinationLabel = (profile: ProviderProfile, fallback: PayoutMethodKind) =>
-  profile.payout_display ?? `your ${methodLabel(profile.payout_method ?? fallback).toLowerCase()}`;
+//
+// "your upi id" / "your bank account" in English: the lower-cased method name
+// it always was, now a key because Hindi and Marathi have no case to lower.
+const destinationLabel = (profile: ProviderProfile, fallback: PayoutMethodKind, t: Translate) =>
+  profile.payout_display ??
+  ((profile.payout_method ?? fallback) === "upi" ? t("payout.yourUpi") : t("payout.yourBank"));
 
 // SVC-148 — manage the payout method after onboarding: see what's on file, switch
 // between UPI and bank, replace either, or remove payout details entirely.
 function ProviderPayoutPage() {
   const { data: profile, isLoading, isError, error } = useProviderProfile();
+  const { t, lang } = useT("provider");
 
   return (
     <div className="min-h-screen p-6">
@@ -53,13 +62,11 @@ function ProviderPayoutPage() {
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ChevronLeft className="h-4 w-4" />
-        Profile
+        {t("payout.back")}
       </Link>
 
-      <h1 className="mt-3 text-lg font-semibold text-foreground">Payout method</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Where we send your earnings. Changing this affects future payouts only.
-      </p>
+      <h1 className="mt-3 text-lg font-semibold text-foreground">{t("payout.title")}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">{t("payout.intro")}</p>
 
       {isLoading && (
         <div className="mt-6 space-y-3">
@@ -70,7 +77,7 @@ function ProviderPayoutPage() {
 
       {isError && (
         <p className="mt-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-          {error instanceof Error ? error.message : "Couldn’t load your payout details."}
+          {errorText(error, t("payout.loadFailed"), lang)}
         </p>
       )}
 
@@ -81,6 +88,7 @@ function ProviderPayoutPage() {
 
 function PayoutManager({ profile }: { profile: ProviderProfile }) {
   const setPayoutMethod = useSetPayoutMethod();
+  const { t, lang } = useT("provider");
 
   const active = profile.payout_method;
   // The method that isn't active.
@@ -103,10 +111,9 @@ function PayoutManager({ profile }: { profile: ProviderProfile }) {
     setSwitchError(null);
     try {
       const switched = await setPayoutMethod.mutateAsync(other);
-      toast.success(`Payouts now go to ${destinationLabel(switched, other)}`);
+      toast.success(t("payout.nowGoesTo", { destination: destinationLabel(switched, other, t) }));
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Couldn’t switch your payout method. Try again.";
+      const message = errorText(err, t("payout.switchFailed"), lang);
       setSwitchError(message);
       // 400 means nothing is stored for that method. Since SVC-152 the button is only
       // shown when it is, so this is now a staleness guard rather than the way we find
@@ -124,25 +131,24 @@ function PayoutManager({ profile }: { profile: ProviderProfile }) {
         <div className="rounded-lg border border-border p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm text-muted-foreground">{methodLabel(active)}</p>
+              <p className="text-sm text-muted-foreground">{methodLabel(active, t)}</p>
               {/* payout_display is null for providers whose method predates SVC-148 —
                   the backfill set the method but deliberately left the label empty
                   rather than guess it, so this must not render blank. */}
               <p className="truncate font-medium text-foreground">
-                {profile.payout_display ?? `${methodLabel(active)} on file`}
+                {profile.payout_display ??
+                  (active === "upi" ? t("payout.onFileUpi") : t("payout.onFileBank"))}
               </p>
             </div>
-            <Badge>Active</Badge>
+            <Badge>{t("payout.active")}</Badge>
           </div>
         </div>
       ) : (
         <div className="flex items-start gap-3 rounded-lg border border-dashed border-border p-4">
           <WalletCards className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
           <div className="text-sm">
-            <p className="font-medium text-foreground">No payout method yet</p>
-            <p className="text-muted-foreground">
-              Add a UPI ID or bank account below so we can send your earnings.
-            </p>
+            <p className="font-medium text-foreground">{t("payout.noneTitle")}</p>
+            <p className="text-muted-foreground">{t("payout.noneDetail")}</p>
           </div>
         </div>
       )}
@@ -159,8 +165,10 @@ function PayoutManager({ profile }: { profile: ProviderProfile }) {
           >
             {setPayoutMethod.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
+            ) : other === "upi" ? (
+              t("payout.useSavedUpi")
             ) : (
-              `Use my saved ${methodLabel(other).toLowerCase()}`
+              t("payout.useSavedBank")
             )}
           </Button>
           {switchError && (
@@ -195,7 +203,8 @@ function SavePayoutForm({
   onSaved: () => void;
 }) {
   const updatePayout = useUpdatePayout();
-  const form = usePayoutMethodForm(initialMethod);
+  const { t, lang } = useT("provider");
+  const form = usePayoutMethodForm(initialMethod, t);
 
   const handleSave = async () => {
     const payload = form.buildPayload();
@@ -206,11 +215,11 @@ function SavePayoutForm({
       onSaved();
       // Saving activates the method immediately — there is no confirm step — so the
       // toast says it landed, not that it was merely stored.
-      toast.success(`Payouts now go to ${destinationLabel(saved, form.method)}`);
-    } catch (err) {
-      form.setError(
-        err instanceof Error ? err.message : "Couldn’t save your payout details. Try again.",
+      toast.success(
+        t("payout.nowGoesTo", { destination: destinationLabel(saved, form.method, t) }),
       );
+    } catch (err) {
+      form.setError(errorText(err, t("payout.saveFailed"), lang));
     }
   };
 
@@ -220,18 +229,15 @@ function SavePayoutForm({
     <div className="space-y-4 border-t border-border pt-6">
       <div>
         <h2 className="text-sm font-semibold text-foreground">
-          {hasActiveMethod ? "Change payout method" : "Add a payout method"}
+          {hasActiveMethod ? t("payout.changeTitle") : t("payout.addTitle")}
         </h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Saving makes this your active method straight away. Your other saved method, if any, is
-          kept so you can switch back.
-        </p>
+        <p className="mt-1 text-xs text-muted-foreground">{t("payout.saveHint")}</p>
       </div>
 
       <PayoutMethodFields form={form} disabled={saving} idPrefix="edit-payout" />
 
       <Button className="w-full" onClick={handleSave} disabled={saving}>
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save payout method"}
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("payout.save")}
       </Button>
     </div>
   );
@@ -241,6 +247,7 @@ function SavePayoutForm({
 // — not just the active one — so it gets an explicit confirmation that says so.
 function RemovePayoutSection() {
   const removePayout = useRemovePayoutMethod();
+  const { t, lang } = useT("provider");
   const [open, setOpen] = useState(false);
   const busy = removePayout.isPending;
 
@@ -248,9 +255,9 @@ function RemovePayoutSection() {
     try {
       await removePayout.mutateAsync();
       setOpen(false);
-      toast.success("Payout details removed");
+      toast.success(t("payout.removed"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn’t remove your payout details.");
+      toast.error(errorText(err, t("payout.removeFailed"), lang));
     }
   };
 
@@ -263,18 +270,15 @@ function RemovePayoutSection() {
           onClick={() => setOpen(true)}
         >
           <Trash2 className="mr-2 h-4 w-4" />
-          Remove payout details
+          {t("payout.remove")}
         </Button>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove payout details?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This deletes both your UPI ID and your bank account, not just the active one. We won’t
-              be able to pay you until you add a payout method again.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("payout.removeTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("payout.removeBody")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={busy}>{t("payout.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               disabled={busy}
               onClick={(e) => {
@@ -284,7 +288,7 @@ function RemovePayoutSection() {
                 void handleRemove();
               }}
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remove"}
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("payout.removeConfirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

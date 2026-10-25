@@ -11,24 +11,26 @@ import { ChevronRight } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { formatRupees } from "@/lib/currency";
-import { RANGE_META } from "@/lib/earnings-ranges";
+import { formatRupees } from "@/i18n/format";
+import { useT } from "@/i18n/LanguageProvider";
+import { rangeMeta } from "@/lib/earnings-ranges";
 import { cn } from "@/lib/utils";
 import { proName, type EarningsByProResponse, type ProEarningsItem } from "@/hooks/useProEarnings";
 import { firstInitial } from "@/lib/initials";
 
 /** The Pro's figure, or "No jobs yet" — never "₹0", which reads as unpaid work. */
 export function ProFigure({ item }: { item: ProEarningsItem | undefined }) {
+  const { t, lang } = useT("provider");
   if (!item || item.completed_count === 0) {
-    return <span className="text-xs text-muted-foreground">No jobs yet</span>;
+    return <span className="text-xs text-muted-foreground">{t("breakdown.noJobsYet")}</span>;
   }
   return (
     <span className="text-right">
       <span className="block text-sm font-semibold tabular-nums text-foreground">
-        {formatRupees(item.payout)}
+        {formatRupees(item.payout, lang)}
       </span>
       <span className="block text-xs text-muted-foreground">
-        {item.completed_count} {item.completed_count === 1 ? "job" : "jobs"}
+        {t("breakdown.jobs", { count: item.completed_count })}
       </span>
     </span>
   );
@@ -49,6 +51,7 @@ export function ProEarningsBreakdown({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t, lang } = useT("provider");
   const people = data.pros.filter((p) => p.professional_id !== null).length;
 
   return (
@@ -58,9 +61,9 @@ export function ProEarningsBreakdown({
       className="mt-3 overflow-hidden rounded-xl border border-border bg-card"
     >
       <CollapsibleTrigger className="flex w-full items-center gap-3 p-3.5 text-left">
-        <span className="flex-1 text-sm font-semibold text-foreground">By team member</span>
+        <span className="flex-1 text-sm font-semibold text-foreground">{t("breakdown.title")}</span>
         <span className="text-xs text-muted-foreground">
-          {people} {people === 1 ? "person" : "people"}
+          {t("breakdown.people", { count: people })}
         </span>
         <ChevronRight
           aria-hidden
@@ -83,13 +86,17 @@ export function ProEarningsBreakdown({
         </ul>
         {/* The sum, said out loud: the reason "Not assigned" is a row at all. */}
         <p className="border-t border-border px-3.5 py-2.5 text-xs text-muted-foreground">
-          Adds up to {formatRupees(data.total_payout)} {RANGE_META[data.range].tab.toLowerCase()}
+          {t("breakdown.addsUp", {
+            amount: formatRupees(data.total_payout, lang),
+            range: rangeMeta(data.range, t).inline,
+          })}
         </p>
       </CollapsibleContent>
     </Collapsible>
   );
 }
 function BreakdownRow({ item }: { item: ProEarningsItem }) {
+  const { t } = useT("provider");
   const body = (
     <>
       {item.professional_id === null ? (
@@ -101,9 +108,11 @@ function BreakdownRow({ item }: { item: ProEarningsItem }) {
         </Avatar>
       )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-foreground">{proName(item)}</span>
+        <span className="block truncate text-sm font-medium text-foreground">
+          {proName(item, t)}
+        </span>
         {item.professional_id !== null && !item.is_active && (
-          <span className="block text-xs text-muted-foreground">Past member</span>
+          <span className="block text-xs text-muted-foreground">{t("breakdown.pastMember")}</span>
         )}
       </span>
       <ProFigure item={item} />

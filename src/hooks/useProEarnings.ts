@@ -16,6 +16,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import { englishT, type Translate } from "@/i18n";
 import type { API_EarningsBookingItem, API_EarningsResponse, EarningsRange } from "@/hooks/useApi";
 
 /** The earnings windows plus `all`, which `/me/earnings/by-pro` alone accepts. */
@@ -101,13 +102,16 @@ export function hasTeam(data: EarningsByProResponse | undefined): boolean {
 }
 
 /** What a row's "by" line says: "you" for the SP, matching "(You)" elsewhere. */
-export function proLabel(pro: EarningsProfessional | null | undefined): string {
-  if (!pro) return "Not assigned";
-  return pro.is_self ? "by you" : `by ${pro.display_name}`;
+export function proLabel(
+  pro: EarningsProfessional | null | undefined,
+  t: Translate = englishT("provider"),
+): string {
+  if (!pro) return t("earnings.notAssigned");
+  return pro.is_self ? t("earnings.byYou") : t("earnings.byPro", { name: pro.display_name });
 }
 
 /** A by-Pro row's name: "You" for the SP's own Pro, matching "(You)" elsewhere. */
-export function proName(item: ProEarningsItem): string {
-  if (item.professional_id === null) return "Not assigned";
-  return item.is_self ? "You" : item.display_name;
+export function proName(item: ProEarningsItem, t: Translate = englishT("provider")): string {
+  if (item.professional_id === null) return t("earnings.notAssigned");
+  return item.is_self ? t("earnings.you") : item.display_name;
 }

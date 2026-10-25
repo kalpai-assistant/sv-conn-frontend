@@ -162,5 +162,23 @@
     "yourArea": "Your service area",
     "withinKm": "Within {{km}} km",
     "areaSaveFailed": "Couldn't save your service area."
+  },
+  "map": {
+    "fetching": "Fetching location...",
+    "locating": "Locating...",
+    "selectLocation": "Select Location",
+    "useCurrent": "Use my current location",
+    "offlineTitle": "You're offline",
+    "offlineDetail": "Drop the pin — we'll resolve the address when you reconnect.",
+    "deniedTitle": "Location is off for this app",
+    "deniedDetail": "Turn it on in Settings, or move the pin to set it instead.",
+    "openSettings": "Open settings",
+    "toastDeniedNative": "Location is off for this app. Turn it on in settings, or move the pin.",
+    "toastDeniedWeb": "Check that Location is on in your settings and allowed for this site, or move the pin.",
+    "toastDisabled": "Your phone's location is off. Turn it on in settings, or move the pin.",
+    "toastFailed": "Couldn't get your location. Move the pin to set it instead.",
+    "tilesFailed": "Map tiles aren't loading. Check your connection or your network's content filter.",
+    "searchPlaceholder": "Search area, street or landmark",
+    "searchLabel": "Search for a place"
   }
 }
