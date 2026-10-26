@@ -9,7 +9,7 @@
  * - the old made-up "Assigned Partner" never renders.
  */
 import { describe, expect, it } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 import { mapBooking, mapProfessional, mapServiceProvider } from "@/hooks/useApi";
 import type { Booking } from "@/lib/mock-data";
@@ -165,15 +165,25 @@ describe("whoIsComing", () => {
 });
 
 describe("WhoIsComingCard", () => {
-  it("renders the Pro, initials, business and the summary", () => {
+  // SVC-386: the "assigned" branch delegates to ProTrustCard, which owns the
+  // visual trust surface (photo, badges, call button). The assertions below
+  // only pin what WhoIsComingCard still OWNS: the state resolution, the
+  // "finding" placeholder, and that the summary line sits alongside the card.
+  // Deeper visual contract (badges, 99+ bounding, "New pro") is pinned in
+  // ProTrustCard's own test file — pinning it twice would couple two files
+  // to the same decisions.
+
+  it("renders the Pro, business line and the summary on an assigned job", () => {
     render(<WhoIsComingCard booking={who()} summary="Deep Clean + 1 more" />);
     expect(screen.getByText("Rohan Kumar")).toBeInTheDocument();
     expect(screen.getByText("RK")).toBeInTheDocument();
-    expect(screen.getByText("Sparkle Home")).toBeInTheDocument();
+    expect(screen.getByText(/Sparkle Home/)).toBeInTheDocument();
     expect(screen.getByText("Deep Clean + 1 more")).toBeInTheDocument();
   });
 
-  it("renders one name only on a solo job", () => {
+  it("drops the business line entirely on a solo job", () => {
+    // One name only: "Rohan · Rohan" would be noise, and no business logo
+    // should sneak in to re-create the two-identity feel.
     render(
       <WhoIsComingCard
         booking={who({ professional: { ...rohan, isSelf: true } })}
@@ -181,62 +191,22 @@ describe("WhoIsComingCard", () => {
       />,
     );
     expect(screen.getByText("Rohan Kumar")).toBeInTheDocument();
-    expect(screen.queryByText("Sparkle Home")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("business-logo-placeholder")).not.toBeInTheDocument();
-  });
-
-  it("gives a missing logo an intentional placeholder", () => {
-    render(<WhoIsComingCard booking={who()} summary="x" />);
-    expect(screen.getByTestId("business-logo-placeholder")).toBeInTheDocument();
-  });
-
-  it("shows the logo when there is one, and falls back if it fails to load", () => {
-    const { container } = render(
-      <WhoIsComingCard
-        booking={who({ serviceProvider: { ...sparkle, businessImageUrl: "https://x/logo.png" } })}
-        summary="x"
-      />,
-    );
-    const img = container.querySelector('img[src="https://x/logo.png"]');
-    expect(img).not.toBeNull();
-    fireEvent.error(img!);
-    expect(screen.getByTestId("business-logo-placeholder")).toBeInTheDocument();
-  });
-
-  it("truncates a long business name, and a tap shows it whole", () => {
-    const long = "Sparkle Home Cleaning and Deep Sanitisation Services of Greater Bangalore";
-    render(
-      <WhoIsComingCard
-        booking={who({ serviceProvider: { ...sparkle, businessName: long } })}
-        summary="x"
-      />,
-    );
-    const name = screen.getByText(long);
-    expect(name).toHaveClass("truncate");
-    const toggle = screen.getByRole("button", { name: long });
-    expect(toggle).toHaveAttribute("title", long);
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(name).not.toHaveClass("truncate");
+    expect(screen.queryByText(/Sparkle Home/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Professional at/)).not.toBeInTheDocument();
   });
 
   it("shows the finding state during a re-pick, never a stale name", () => {
     render(<WhoIsComingCard booking={who({ professional: null })} summary="x" />);
     expect(screen.getByText("Finding a professional for you")).toBeInTheDocument();
     expect(screen.queryByText("Rohan Kumar")).not.toBeInTheDocument();
-    expect(screen.queryByText("Sparkle Home")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sparkle Home/)).not.toBeInTheDocument();
   });
 
-  it("renders nothing for an older backend", () => {
+  it("renders nothing for an older backend that doesn't send `professional`", () => {
     const { container } = render(
       <WhoIsComingCard booking={who({ professional: undefined })} summary="x" />,
     );
     expect(container).toBeEmptyDOMElement();
-  });
-
-  it("renders the trailing action next to the Pro", () => {
-    render(<WhoIsComingCard booking={who()} summary="x" action={<a href="tel:1">Call</a>} />);
-    expect(screen.getByText("Call")).toBeInTheDocument();
   });
 });
 
@@ -280,7 +250,9 @@ describe("a deleted Pro or SP", () => {
       />,
     );
     expect(screen.getByText("Deleted professional")).toBeInTheDocument();
-    expect(screen.getByText("Deleted provider")).toBeInTheDocument();
+    // The business name is rendered inside "Professional at {name}", so match
+    // the substring rather than the whole text node.
+    expect(screen.getByText(/Deleted provider/)).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/null|undefined/);
   });
 

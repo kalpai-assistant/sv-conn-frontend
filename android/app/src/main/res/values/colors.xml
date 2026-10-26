@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SVC-383: brand colour referenced by the Android 12+ system splash theme
+  (values/styles.xml → AppTheme.NoActionBarLaunch →
+  android:windowSplashScreenBackground).
+
+  #1957D2 is OKLCH 0.5 0.2 262 in sRGB — the same brand blue the status
+  bar, the Capacitor splash in capacitor.config.ts, the HTML first-paint
+  skeleton in index.mobile.html and the theme-color meta all use, so the
+  launch sequence hands off cleanly between layers.
+-->
+<resources>
+    <color name="brand_primary">#1957D2</color>
+</resources>

@@ -2,10 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useBookings } from "@/hooks/useApi";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { useAuth } from "@/lib/auth-context";
-import { Activity } from "lucide-react";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 import { EmptyState } from "@/components/EmptyState";
+import { BookingsEmptyIllustration } from "@/components/EmptyStateIllustrations";
 import { ErrorState } from "@/components/ErrorState";
 import { BookingCardSkeleton } from "@/components/skeletons/BookingCardSkeleton";
 import { formatRupees } from "@/lib/currency";
@@ -58,9 +58,9 @@ function ActivityPage() {
           <ErrorState message="Couldn't load your activity." onRetry={refetch} />
         ) : sorted.length === 0 ? (
           <EmptyState
-            icon={Activity}
+            illustration={<BookingsEmptyIllustration />}
             title="No recent activity"
-            subtitle="Your bookings and their updates will show up here."
+            description="Your bookings and their updates will show up here."
           />
         ) : (
           sorted.map((b) => (

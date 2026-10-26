@@ -7,7 +7,7 @@ import { CategorySheetProvider } from "@/lib/category-sheet-context";
 import { ServiceSheetProvider } from "@/lib/service-sheet-context";
 import { useNotificationRouter } from "@/lib/notifications";
 import { useFcmRegistration } from "@/lib/fcm";
-import { useAddresses, useProviderProfile } from "@/hooks/useApi";
+import { useAddresses, useBookings, useProviderProfile } from "@/hooks/useApi";
 import { isTeamPro, useProMe } from "@/hooks/usePro";
 import { useProHeartbeatHost } from "@/hooks/useProHeartbeat";
 import { syncPendingInvite } from "@/lib/invite";
@@ -21,6 +21,13 @@ import {
   skipsLocationGate,
   type ProState,
 } from "@/lib/pro-gate";
+import {
+  bookingLandingVerdict,
+  consumesBookingLanding,
+  firstActiveBookingId,
+  nextBookingLandedFor,
+  type BookingLandingState,
+} from "@/lib/booking-landing";
 import { BottomNav } from "@/components/BottomNav";
 import { CartFab } from "@/components/cart/CartFab";
 import { SplashGate } from "@/components/SplashGate";
@@ -181,6 +188,33 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // too (see `nextLandedFor`).
   const landedFor = useRef<string | null>(null);
   const landed = !!user?.id && landedFor.current === user.id;
+
+  // SVC-385: a parallel ref for the "do we have a job in flight?" pre-empt.
+  // Separate from `landedFor` because the two decisions are independent — a
+  // Pro landing in /pro does not consume the consumer-side booking landing,
+  // and a consumer who navigates to tracking in-session does not consume the
+  // Pro-gate landing. One shared ref would conflate the two.
+  const bookingLandedForRef = useRef<string | null>(null);
+  const bookingLanded = !!user?.id && bookingLandedForRef.current === user.id;
+
+  // The query the booking-landing redirect reads. Enabled only for consumers
+  // past profile setup, so providers and new invitees don't fire the call. On
+  // other screens it is still enabled — the home nav tab + tracking screens
+  // read the same cache, so this is pre-fetching, not an extra round trip.
+  const {
+    data: userBookings,
+    isPending: bookingsPending,
+    isError: bookingsError,
+  } = useBookings(undefined, isConsumer && !isRestoring);
+  const bookingLandingState: BookingLandingState = !isConsumer
+    ? "none"
+    : bookingsError
+      ? "error"
+      : bookingsPending
+        ? "loading"
+        : firstActiveBookingId(userBookings) !== null
+          ? "has-active"
+          : "none";
   // Whether this render actually reaches the Pro gate in the consumer branch
   // below. The effect runs after *every* render, including the ones that
   // return early — and on device it used up the landing during the blank
@@ -198,6 +232,21 @@ function AppGate({ children }: { children: React.ReactNode }) {
       consumes: consumesLanding(pathname, proState, reachesProGate),
     });
   }, [user?.id, signedOut, pathname, proState, reachesProGate]);
+
+  // SVC-385: reaches the booking landing when the consumer is actually being
+  // shown their own home ("/"), or has already been redirected to tracking.
+  // A new invitee on /profile for name setup does not consume: they are not
+  // on home yet, and the first time they land on "/" after setup is their
+  // real cold-launch landing.
+  const reachesBookingLanding =
+    isConsumer && !isRestoring && !isPublicRoute && !isAdminRoute && !needsProfileSetup;
+  useEffect(() => {
+    bookingLandedForRef.current = nextBookingLandedFor(bookingLandedForRef.current, {
+      userId: user?.id,
+      signedOut,
+      consumes: consumesBookingLanding(pathname, bookingLandingState, reachesBookingLanding),
+    });
+  }, [user?.id, signedOut, pathname, bookingLandingState, reachesBookingLanding]);
 
   // Wire push taps → in-app navigation: native taps through the Capacitor
   // plugin (lazy-loaded so the web bundle stays clean), web-push taps through
@@ -378,6 +427,34 @@ function AppGate({ children }: { children: React.ReactNode }) {
     }
     if (proVerdict === "to-home") {
       return <Navigate to="/" replace />;
+    }
+
+    // SVC-385: a consumer whose last session left a booking in flight comes
+    // back to look at the tracker, not to shop. Pre-empt home ONCE per
+    // sign-in — later nav back to "/" during the same session respects user
+    // intent. The waiting spinner here is the same one proGate uses while
+    // deciding Pro-or-consumer; one shared "we're deciding where to send you"
+    // moment is honest, and racing the two decisions in parallel keeps the
+    // combined wait equal to whichever is slower rather than their sum.
+    const bookingVerdict = bookingLandingVerdict({
+      pathname,
+      state: bookingLandingState,
+      landed: bookingLanded,
+    });
+    if (bookingVerdict === "wait") {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+    if (bookingVerdict === "to-tracking") {
+      const activeId = firstActiveBookingId(userBookings);
+      // The verdict and the id-lookup read the same list, so an id must
+      // exist here — the type refinement is for TypeScript's benefit.
+      if (activeId) {
+        return <Navigate to="/tracking/$bookingId" params={{ bookingId: activeId }} replace />;
+      }
     }
 
     // SVC-281: ask for a location only when we cannot determine one.

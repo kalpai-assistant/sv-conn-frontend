@@ -28,7 +28,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useMotionValue, type PanInfo } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
-import { X, Clock, Loader2, Check, ChevronDown, CircleX } from "lucide-react";
+import { X, Clock, Loader2, Check, Star } from "lucide-react";
 import { TrustStrip } from "@/components/TrustStrip";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
@@ -38,10 +38,14 @@ import { useCart } from "@/lib/cart-context";
 import type { Service } from "@/lib/mock-data";
 import { VariantPicker } from "@/components/service/VariantPicker";
 import { ServiceBanner } from "@/components/service/ServiceBanner";
+import { IncludedExcludedSection } from "@/components/service/IncludedExcludedSection";
+import { RichStepsSection } from "@/components/service/RichStepsSection";
+import { BeforeAfterSection } from "@/components/service/BeforeAfterSection";
+import { FAQSection } from "@/components/service/FAQSection";
+import { ReviewSnippetsSection } from "@/components/service/ReviewSnippetsSection";
 import { ErrorState } from "@/components/ErrorState";
 import { ServiceCard } from "@/components/ServiceCard";
 import { ServiceCardCompact } from "@/components/home/ServiceCardCompact";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatRupees } from "@/lib/currency";
 
 interface ServiceSheetProps {
@@ -206,6 +210,28 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
               <div className="px-4 pt-4">
                 <div className="rounded-xl border border-border bg-card p-4">
                   <h3 className="text-lg font-semibold text-foreground">{service.name}</h3>
+                  {/* SVC-392: rating + bookings-this-week pill. Renders only
+                      when the backend sent `ratingCount` > 0 — a 0-review
+                      service shows nothing here rather than "0.0 ⭐", the
+                      same rule ProTrustCard follows for pros. */}
+                  {detail?.ratingCount && detail.ratingAverage ? (
+                    <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                      <Star aria-hidden="true" className="size-3.5 fill-current" />
+                      <span>{detail.ratingAverage.toFixed(1)}</span>
+                      <span aria-hidden="true" className="text-primary/60">
+                        ·
+                      </span>
+                      <span>{detail.ratingCount} bookings</span>
+                      {detail.bookingsThisWeek ? (
+                        <>
+                          <span aria-hidden="true" className="text-primary/60">
+                            ·
+                          </span>
+                          <span>{detail.bookingsThisWeek} this week</span>
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                     {service.description}
                   </p>
@@ -242,16 +268,24 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
                 <TrustStrip variant="full" />
               </div>
 
-              {/* SVC-341 scope clarity. Below the trust card rather than
-                  under the description: these arrive with the detail
-                  response, same as the rails, so landing here moves nothing
-                  already on screen — the variant picker never shifts under a
-                  finger mid-tap. Nothing renders while the query is loading
-                  or when the service has none. Keyed by service so a
-                  related-card swap re-opens it collapsed, like the variant
-                  reset above. */}
-              <StepsSection key={serviceId} steps={detail?.steps ?? []} />
-              <ExclusionsSection exclusions={detail?.exclusions ?? []} />
+              {/* SVC-392: catalogue-as-mini-magazine. Each section hides
+                  itself when its data is empty, so a service without copy
+                  renders what it has and nothing more.
+
+                  Ordering is deliberate — scope first (what you'll get +
+                  what you won't), then process (what we'll do + proof), then
+                  pre-booking questions (FAQ + reviews) right above the CTA.
+                  SVC-341 established that exclusions sit near the top of
+                  this section cluster to head off the "why wasn't this
+                  done?" dispute. */}
+              <IncludedExcludedSection
+                included={detail?.includedItems ?? []}
+                excluded={detail?.exclusions ?? []}
+              />
+              <RichStepsSection steps={detail?.steps ?? []} />
+              <BeforeAfterSection pairs={detail?.beforeAfterPhotos ?? []} />
+              <FAQSection faqs={detail?.faqs ?? []} />
+              <ReviewSnippetsSection />
 
               {/* SVC-292 related surfaces. Section titles are human — the
                   ticket calls out "Hooks / Upsells / Related" as internal
@@ -294,7 +328,7 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
                   {/* "Update" not "Add" when the service is already in the cart
                       under another variant — tapping replaces the choice, it
                       does not add a second line. */}
-                  {inCartAsOtherVariant ? "Update to" : "Add to cart —"} {formatRupees(ctaPrice)}
+                  {inCartAsOtherVariant ? "Update to" : "Add to cart ·"} {formatRupees(ctaPrice)}
                 </button>
               )}
             </div>
@@ -302,77 +336,6 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
         )}
       </motion.div>
     </>
-  );
-}
-
-/**
- * "What's involved" — the service's steps, numbered, collapsed by default so
- * the sheet stays scannable. The header carries a count hint so a collapsed
- * section still says how much is behind it. Radix Collapsible unmounts the
- * list while closed and animates nothing, so there is no inner overflow box
- * for an Android WebView to trap the sheet's scroll in.
- */
-function StepsSection({ steps }: { steps: string[] }) {
-  if (steps.length === 0) return null;
-  return (
-    <section className="px-4 pt-5">
-      <Collapsible className="rounded-xl border border-border bg-card">
-        <h4>
-          <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 p-4 text-left">
-            <span className="text-sm font-semibold text-foreground">
-              What's involved
-              <span className="ml-2 text-xs font-normal text-muted-foreground">
-                {steps.length} {steps.length === 1 ? "step" : "steps"}
-              </span>
-            </span>
-            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-          </CollapsibleTrigger>
-        </h4>
-        <CollapsibleContent>
-          <ol className="flex flex-col gap-3 px-4 pb-4">
-            {steps.map((step, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-primary">
-                  {i + 1}
-                </span>
-                <span className="pt-0.5 text-sm text-foreground">{step}</span>
-              </li>
-            ))}
-          </ol>
-        </CollapsibleContent>
-      </Collapsible>
-    </section>
-  );
-}
-
-/**
- * "Not included" — always open, because this is the list that heads off the
- * "why wasn't this done?" dispute. Amber, not red: it is a heads-up, not an
- * error. Same amber + dark: pairing InstallSheet and the download page use;
- * the theme has no warning token of its own.
- */
-function ExclusionsSection({ exclusions }: { exclusions: string[] }) {
-  if (exclusions.length === 0) return null;
-  return (
-    <section className="px-4 pt-5">
-      <div className="rounded-xl border border-amber-400/40 bg-amber-50 p-4 dark:bg-amber-950/40">
-        <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-100">Not included</h4>
-        <ul className="mt-3 flex flex-col gap-2">
-          {exclusions.map((item, i) => (
-            <li
-              key={i}
-              className="flex items-start gap-2 text-sm text-amber-900 dark:text-amber-100"
-            >
-              <CircleX
-                className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
-                aria-hidden
-              />
-              {item}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
   );
 }
 

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { formatRupees } from "@/lib/currency";
-import { ArrowLeft, Phone, Loader2, Search, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Search, CheckCircle2, XCircle } from "lucide-react";
 import { StatusStepper } from "@/components/StatusStepper";
 import { ErrorState } from "@/components/ErrorState";
 import { ReviewSheet } from "@/components/ReviewSheet";
@@ -296,22 +296,16 @@ function TrackingPage() {
             masked call path). The backend sends provider_phone only while a
             Pro is assigned and the job is live; otherwise it is null and
             there is no button at all. A Pro declining shows up on the next
-            4s poll. The number lives only in the href, never as text. */}
+            4s poll. The number lives only in the href, never as text.
+
+            SVC-386: WhoIsComingCard now delegates the "assigned" branch to
+            ProTrustCard, which owns the call button internally. We just
+            pass `phoneNumber` through — no `action` prop. */}
         {!isSearching && (
           <WhoIsComingCard
             booking={booking}
             summary={summariseServices(booking.items, booking.service.name)}
-            action={
-              booking.service.provider?.phone ? (
-                <a
-                  href={`tel:${booking.service.provider.phone}`}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success/10"
-                  aria-label="Call provider"
-                >
-                  <Phone className="h-4 w-4 text-success" />
-                </a>
-              ) : null
-            }
+            phoneNumber={booking.service.provider?.phone ?? null}
           />
         )}
 

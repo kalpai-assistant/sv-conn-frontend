@@ -78,9 +78,17 @@ function ProJobsPage() {
 
       {!isLoading && !isError && jobs.length === 0 && (
         <EmptyState
-          icon={tab === "active" ? CalendarDays : History}
+          icon={
+            tab === "active" ? (
+              <CalendarDays aria-hidden="true" className="size-8" />
+            ) : (
+              <History aria-hidden="true" className="size-8" />
+            )
+          }
           title={tab === "active" ? t("jobs.emptyActiveTitle") : t("jobs.emptyPastTitle")}
-          subtitle={tab === "active" ? t("jobs.emptyActiveSubtitle") : t("jobs.emptyPastSubtitle")}
+          description={
+            tab === "active" ? t("jobs.emptyActiveSubtitle") : t("jobs.emptyPastSubtitle")
+          }
         />
       )}
 

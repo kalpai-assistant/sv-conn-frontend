@@ -115,11 +115,17 @@ function ProviderBookingsPage() {
           below, and the subtitle already says so. */}
       {!isLoading && !isError && jobs.length === 0 && (
         <EmptyState
-          icon={tab === "active" ? CalendarDays : History}
+          icon={
+            tab === "active" ? (
+              <CalendarDays aria-hidden="true" className="size-8" />
+            ) : (
+              <History aria-hidden="true" className="size-8" />
+            )
+          }
           title={tab === "active" ? t("bookings.emptyActiveTitle") : t("bookings.emptyPastTitle")}
           // "the home tab" until SVC-273 — the tab is still there, but naming
           // the screen rather than the control survives the next nav change.
-          subtitle={
+          description={
             tab === "active" ? t("bookings.emptyActiveSubtitle") : t("bookings.emptyPastSubtitle")
           }
         />

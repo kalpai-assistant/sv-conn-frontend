@@ -217,12 +217,17 @@ function BootHeartbeat() {
  * Exported for the unit test in main.mobile.test.tsx.
  */
 export function renderBootFallback(root: HTMLElement) {
+  // #1957D2 = brand primary (OKLCH 0.5 0.2 262 → sRGB). Must be a literal
+  // hex here: this path runs when Vite's chunk JS failed to load, so the
+  // Tailwind token classes and the --primary CSS variable aren't guaranteed
+  // to resolve. Keep it in sync with capacitor.config.ts + the HTML
+  // first-paint skeleton.
   root.innerHTML = `
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:system-ui,-apple-system,sans-serif;background:#fff;color:#111">
       <div style="max-width:320px;text-align:center">
         <h2 style="margin:0 0 8px;font-size:18px;font-weight:600">Something went wrong</h2>
         <p style="margin:0 0 20px;font-size:14px;color:#666;line-height:1.4">The app failed to start. Reload to try again.</p>
-        <button onclick="location.reload()" style="padding:10px 20px;font-size:14px;font-family:inherit;background:#7C3AED;color:#fff;border:none;border-radius:6px;cursor:pointer">Reload</button>
+        <button onclick="location.reload()" style="padding:10px 20px;font-size:14px;font-family:inherit;background:#1957D2;color:#fff;border:none;border-radius:6px;cursor:pointer">Reload</button>
       </div>
     </div>
   `;

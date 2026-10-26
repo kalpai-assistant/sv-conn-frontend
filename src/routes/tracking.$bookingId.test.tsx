@@ -1,14 +1,20 @@
 /**
- * The consumer tracking screen's Call button (SVC-360). Pinned:
+ * The consumer tracking screen's Call button (SVC-360 + SVC-386). Pinned:
  *
  * - a provider_phone from the backend becomes a Call link with exactly that
  *   tel: href, and the number never shows as text;
  * - null (backend withheld it) and absent (older backend) both mean no
  *   button at all — not a greyed-out one, not a placeholder number.
  *
- * Rendered at the route, not just WhoIsComingCard, because the decision
- * lives in the route's `action` prop. Bookings go through the real
- * mapBooking so the mapper → button path is tested end to end.
+ * Rendered at the route, not just at the component, because the whole
+ * route → mapper → `WhoIsComingCard` → `ProTrustCard` path is what should
+ * decide whether the button exists. Bookings go through the real mapBooking
+ * so the mapper → button path is tested end to end.
+ *
+ * SVC-386 moved the Call affordance into `ProTrustCard`, which labels it
+ * "Call {proName}" (e.g. "Call Rohan Kumar") rather than the older generic
+ * "Call provider" — a /^Call / match covers both historical and current
+ * labels without pinning us to one phrasing.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -93,7 +99,7 @@ beforeEach(() => {
 describe("Call provider", () => {
   it("dials exactly the backend's provider_phone", () => {
     show({ provider_phone: "+919876500001" });
-    const call = screen.getByRole("link", { name: "Call provider" });
+    const call = screen.getByRole("link", { name: /^Call / });
     expect(call.getAttribute("href")).toBe("tel:+919876500001");
   });
 
@@ -104,12 +110,12 @@ describe("Call provider", () => {
 
   it("renders no button when the backend sends null", () => {
     show({ provider_phone: null });
-    expect(screen.queryByRole("link", { name: "Call provider" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^Call / })).toBeNull();
   });
 
   it("renders no button when the field is absent (older backend)", () => {
     show();
-    expect(screen.queryByRole("link", { name: "Call provider" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^Call / })).toBeNull();
     expect(document.body.innerHTML).not.toContain("910000000000");
   });
 });

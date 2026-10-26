@@ -63,6 +63,32 @@ describe("formatRupees", () => {
   it("renders zero as a whole amount", () => {
     expect(formatRupees(0)).toBe("₹0");
   });
+
+  describe("withSymbol: false", () => {
+    // Opt-out exists so a surface composing its own prefix (SVC-384 renders
+    // the discount line as `(−₹100)`) can get the grouped digits without a
+    // leading ₹. The default stays on so the SVC-297 lint keeps shouting at
+    // hand-rolled `₹{...}` interpolation elsewhere.
+
+    it("strips the symbol", () => {
+      expect(formatRupees(100000, { withSymbol: false })).toBe("1,00,000");
+    });
+
+    it("still groups the Indian way", () => {
+      expect(formatRupees(1000000, { withSymbol: false })).toBe("10,00,000");
+    });
+
+    it("still pads fractionals", () => {
+      expect(formatRupees(598.4, { withSymbol: false })).toBe("598.40");
+    });
+
+    it("defaults to withSymbol: true", () => {
+      // Pins the default so a future refactor cannot flip it silently and
+      // de-symbol every price on every screen.
+      expect(formatRupees(499, {})).toBe(formatRupees(499));
+      expect(formatRupees(499)).toBe("₹499");
+    });
+  });
 });
 
 describe("formatPaise", () => {

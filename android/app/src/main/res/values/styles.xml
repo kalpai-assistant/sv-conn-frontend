@@ -16,7 +16,17 @@
     </style>
 
 
+    <!--
+      SVC-383: Android 12+ system splash reads `windowSplashScreenBackground`
+      from the launch theme to fill the frame before the WebView is handed
+      the splash drawable. Without it the system paints the launcher's
+      default (window/task background), which on most devices is white — a
+      visible flash before the brand drawable swaps in. `android:background`
+      stays as a fallback for pre-12 (API ≤ 30) devices that honour the
+      drawable directly.
+    -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <item name="android:windowSplashScreenBackground">@color/brand_primary</item>
     </style>
 </resources>
