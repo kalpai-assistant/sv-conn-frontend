@@ -481,4 +481,19 @@ describe("what the form will not send (SVC-287)", () => {
     // Seeded from the signed-in user, stored as +91XXXXXXXXXX.
     expect(addAddress.mock.calls[0][0].contact_phone).toBe("+919322398902");
   });
+
+  it("seeds the contact name from the signed-in user on a new address (SVC-385)", async () => {
+    // Part of the SVC-385 "the app remembers me" sweep: the common case is
+    // "I'm the one meeting the provider" and typing your own name in your
+    // own account is the kind of friction that compounds.
+    const user = userEvent.setup();
+    render(<AddAddressSheet onClose={vi.fn()} />);
+
+    await reach(user);
+    await user.type(screen.getByLabelText(/house no\. & floor/i), "Flat 302");
+    await user.click(screen.getByRole("button", { name: /save address/i }));
+
+    await waitFor(() => expect(addAddress).toHaveBeenCalled());
+    expect(addAddress.mock.calls[0][0].contact_name).toBe("Tushar");
+  });
 });
