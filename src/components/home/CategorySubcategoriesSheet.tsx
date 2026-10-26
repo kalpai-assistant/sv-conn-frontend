@@ -117,14 +117,17 @@ export function CategorySubcategoriesSheet({
             </div>
           ) : !category ? (
             <div className="px-4 py-8">
-              <EmptyState icon={PackageOpen} title="This category doesn't exist." />
+              <EmptyState
+                icon={<PackageOpen aria-hidden="true" className="size-8" />}
+                title="This category doesn't exist."
+              />
             </div>
           ) : subCategories.length === 0 ? (
             <div className="px-4 py-8">
               <EmptyState
-                icon={PackageOpen}
+                icon={<PackageOpen aria-hidden="true" className="size-8" />}
                 title={`No ${category.name.toLowerCase()} sub-categories yet`}
-                subtitle="We're adding more in your area soon."
+                description="We're adding more in your area soon."
               />
             </div>
           ) : (

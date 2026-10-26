@@ -72,9 +72,15 @@ function ProJobsPage() {
 
       {!isLoading && !isError && jobs.length === 0 && (
         <EmptyState
-          icon={tab === "active" ? CalendarDays : History}
+          icon={
+            tab === "active" ? (
+              <CalendarDays aria-hidden="true" className="size-8" />
+            ) : (
+              <History aria-hidden="true" className="size-8" />
+            )
+          }
           title={tab === "active" ? "No jobs right now" : "No past jobs yet"}
-          subtitle={
+          description={
             tab === "active"
               ? "Stay online from Home. When your team gives you a job, it shows up here."
               : "Jobs you finish will be listed here."

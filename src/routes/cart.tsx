@@ -13,11 +13,12 @@ import {
   CreditCard,
   Banknote,
   Loader2,
-  ShoppingCart,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/EmptyState";
+import { CartEmptyIllustration } from "@/components/EmptyStateIllustrations";
+import { Celebration } from "@/components/Celebration";
 import { useCart } from "@/lib/cart-context";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { useAuth } from "@/lib/auth-context";
@@ -185,6 +186,13 @@ export function CartPage() {
 
   const canBook = items.length > 0 && !!selectedAddress && !isBusy;
 
+  // SVC-390: celebration overlay bridges the gap between "payment succeeded"
+  // and "tracking page loads". The cart isn't cleared and nav isn't fired
+  // until the overlay's 1.5s hold ends — a user who kills the app during
+  // the celebration still has an intact cart and a valid booking to resume
+  // from, same as before.
+  const [celebratingBookingId, setCelebratingBookingId] = useState<string | null>(null);
+
   const handleBookAndPay = async () => {
     if (!selectedAddress) {
       toast.error("Add an address first.");
@@ -219,15 +227,24 @@ export function CartPage() {
         // thing they tried. The on-mount read in state init picks this up
         // on the next cart open.
         writeLastPaymentMethod(paymentMethod);
-        clear();
-        navigate({
-          to: "/tracking/$bookingId",
-          params: { bookingId },
-          // The cart was just cleared, so backing into it renders EmptyCart.
-          // Replace it: back from tracking returns where the user came from.
-          replace: true,
-        });
+        // SVC-390: trigger the celebration overlay. The overlay unmounts
+        // via its own 1.5s timer and fires handleCelebrationComplete below,
+        // which clears the cart and navigates to tracking.
+        setCelebratingBookingId(bookingId);
       },
+    });
+  };
+
+  const handleCelebrationComplete = () => {
+    const bookingId = celebratingBookingId;
+    if (!bookingId) return;
+    clear();
+    void navigate({
+      to: "/tracking/$bookingId",
+      params: { bookingId },
+      // The cart was just cleared, so backing into it renders EmptyCart.
+      // Replace it: back from tracking returns where the user came from.
+      replace: true,
     });
   };
 
@@ -256,9 +273,9 @@ export function CartPage() {
           />
         )}
         <EmptyState
-          icon={ShoppingCart}
+          illustration={<CartEmptyIllustration />}
           title="Your cart is empty"
-          subtitle="Browse services and add them to get started."
+          description="Add services to see pricing and book."
           action={{ label: "Browse services", to: "/" }}
         />
       </div>
@@ -515,6 +532,9 @@ export function CartPage() {
           />
         )}
       </AnimatePresence>
+
+      {/* SVC-390: celebration overlay bridges payment success and tracking. */}
+      {celebratingBookingId && <Celebration onComplete={handleCelebrationComplete} />}
     </div>
   );
 }

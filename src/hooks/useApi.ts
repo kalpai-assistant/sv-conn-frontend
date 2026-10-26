@@ -446,6 +446,22 @@ interface API_RelatedEntry {
   base_price: number;
   sort_order: number;
 }
+interface API_ServiceStep {
+  title: string;
+  duration_minutes?: number | null;
+  icon?: string | null;
+}
+
+interface API_ServiceFAQ {
+  question: string;
+  answer: string;
+}
+
+interface API_BeforeAfterPair {
+  before_url: string;
+  after_url: string;
+}
+
 interface API_ServiceDetail extends API_ServiceResponse {
   related?: {
     hook?: API_RelatedEntry[];
@@ -453,18 +469,58 @@ interface API_ServiceDetail extends API_ServiceResponse {
     related?: API_RelatedEntry[];
   };
   // SVC-340: detail-only, absent from GET /services. `null` when the service
-  // has none, and missing entirely on a backend from before SVC-340.
-  steps?: string[] | null;
+  // has none, and missing entirely on a backend from before SVC-340. Steps
+  // may land either as `string[]` (SVC-340 shipped shape) or as the richer
+  // SVC-392 object shape with duration + icon — mapper accepts both.
+  steps?: string[] | API_ServiceStep[] | null;
   exclusions?: string[] | null;
+  // SVC-392: rich catalogue surface. All fields optional on the response —
+  // a backend from before SVC-392 omits them, and even once the schema
+  // lands the content pipeline is populated per-service, so a service
+  // without copy sends an empty array / null and the UI hides the section.
+  included_items?: string[] | null;
+  hero_image_url?: string | null;
+  faqs?: API_ServiceFAQ[] | null;
+  before_after_photos?: API_BeforeAfterPair[] | null;
+  rating_average?: number | null;
+  rating_count?: number | null;
+  bookings_this_week?: number | null;
+}
+
+export interface UI_ServiceStep {
+  title: string;
+  /** Minutes the step takes; omitted when the backend hasn't tracked it. */
+  durationMinutes?: number;
+  /** Keyword mapped to a Lucide icon in `RichStepsSection`. */
+  icon?: string;
+}
+
+export interface UI_ServiceFAQ {
+  question: string;
+  answer: string;
+}
+
+export interface UI_BeforeAfterPair {
+  beforeUrl: string;
+  afterUrl: string;
 }
 
 /** What the service sheet needs beyond the cached list entry (SVC-292,
- *  SVC-341). `steps` / `exclusions` are always arrays — empty means "render
- *  no section", whichever of null / [] / missing the backend sent. */
+ *  SVC-341, SVC-392). All list fields default to `[]` when the backend sends
+ *  null / missing / malformed; `heroImageUrl` + the rating fields fall back
+ *  to null for the same reason. The sheet hides each section when its data
+ *  is empty. */
 export interface UI_ServiceDetail {
   related: UI_RelatedServicesBucket;
-  steps: string[];
+  steps: UI_ServiceStep[];
   exclusions: string[];
+  includedItems: string[];
+  heroImageUrl: string | null;
+  faqs: UI_ServiceFAQ[];
+  beforeAfterPhotos: UI_BeforeAfterPair[];
+  ratingAverage: number | null;
+  ratingCount: number | null;
+  bookingsThisWeek: number | null;
 }
 
 const mapRelatedEntry = (e: API_RelatedEntry): UI_RelatedServiceEntry => ({
@@ -476,6 +532,51 @@ const mapRelatedEntry = (e: API_RelatedEntry): UI_RelatedServiceEntry => ({
 
 const toTextList = (v: string[] | null | undefined): string[] =>
   Array.isArray(v) ? v.filter((s) => typeof s === "string" && s.trim() !== "") : [];
+
+// Steps may arrive as `string[]` (SVC-340 shipped shape) or `{title, …}[]`
+// (SVC-392 enriched shape). Normalise to the latter so callers only ever
+// deal with one shape, and drop any entry that has no title to display.
+const toStepList = (v: API_ServiceDetail["steps"]): UI_ServiceStep[] => {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map((entry) => {
+      if (typeof entry === "string") {
+        const title = entry.trim();
+        return title ? { title } : null;
+      }
+      const title = typeof entry?.title === "string" ? entry.title.trim() : "";
+      if (!title) return null;
+      return {
+        title,
+        durationMinutes:
+          typeof entry.duration_minutes === "number" && entry.duration_minutes > 0
+            ? entry.duration_minutes
+            : undefined,
+        icon: typeof entry.icon === "string" && entry.icon.trim() !== "" ? entry.icon : undefined,
+      };
+    })
+    .filter((s): s is UI_ServiceStep => s !== null);
+};
+
+const toFaqList = (v: API_ServiceFAQ[] | null | undefined): UI_ServiceFAQ[] => {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map((f) => ({
+      question: typeof f?.question === "string" ? f.question.trim() : "",
+      answer: typeof f?.answer === "string" ? f.answer.trim() : "",
+    }))
+    .filter((f) => f.question && f.answer);
+};
+
+const toBeforeAfterList = (v: API_BeforeAfterPair[] | null | undefined): UI_BeforeAfterPair[] => {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map((p) => ({
+      beforeUrl: typeof p?.before_url === "string" ? p.before_url.trim() : "",
+      afterUrl: typeof p?.after_url === "string" ? p.after_url.trim() : "",
+    }))
+    .filter((p) => p.beforeUrl && p.afterUrl);
+};
 
 /** Fetch the sheet-only detail for a service: the related-services bucket
  * (SVC-292) plus steps + exclusions (SVC-341). One request per sheet open.
@@ -502,8 +603,25 @@ export const useServiceDetail = (serviceId: string | undefined) => {
           upsell: (bucket.upsell ?? []).map(mapRelatedEntry),
           related: (bucket.related ?? []).map(mapRelatedEntry),
         },
-        steps: toTextList(data.steps),
+        steps: toStepList(data.steps),
         exclusions: toTextList(data.exclusions),
+        includedItems: toTextList(data.included_items),
+        heroImageUrl:
+          typeof data.hero_image_url === "string" && data.hero_image_url.trim() !== ""
+            ? data.hero_image_url
+            : null,
+        faqs: toFaqList(data.faqs),
+        beforeAfterPhotos: toBeforeAfterList(data.before_after_photos),
+        ratingAverage:
+          typeof data.rating_average === "number" && data.rating_average > 0
+            ? data.rating_average
+            : null,
+        ratingCount:
+          typeof data.rating_count === "number" && data.rating_count > 0 ? data.rating_count : null,
+        bookingsThisWeek:
+          typeof data.bookings_this_week === "number" && data.bookings_this_week > 0
+            ? data.bookings_this_week
+            : null,
       };
     },
   });
