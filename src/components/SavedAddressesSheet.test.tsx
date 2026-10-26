@@ -32,6 +32,10 @@ vi.mock("@/components/AddAddressSheet", () => ({
 }));
 vi.mock("framer-motion", () => ({
   motion: { div: (props: Record<string, unknown>) => <div {...props} /> },
+  // SVC-391: the sheet now opts into drag-dismiss via useDragDismiss, which
+  // reaches for useMotionValue. A tiny stub is enough — the hook's commit
+  // heuristic is tested in isolation in src/hooks/useDragDismiss.test.ts.
+  useMotionValue: () => ({ set: () => {}, get: () => 0 }),
 }));
 vi.mock("@/hooks/useLockBodyScroll", () => ({ useLockBodyScroll: vi.fn() }));
 

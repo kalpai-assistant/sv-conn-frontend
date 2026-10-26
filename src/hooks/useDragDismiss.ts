@@ -46,7 +46,7 @@ export const DRAG_DISMISS_COMMIT = {
 export function useDragDismiss(onDismiss: () => void) {
   const y = useMotionValue(0);
   const onDragEnd = (_: unknown, info: PanInfo) => {
-    if (info.offset.y > DRAG_DISMISS_COMMIT.offsetPx || info.velocity.y > DRAG_DISMISS_COMMIT.velocityPx) {
+    if (shouldDismissFromDrag(info)) {
       onDismiss();
     }
   };
@@ -60,9 +60,9 @@ export function useDragDismiss(onDismiss: () => void) {
 }
 
 /**
- * The pure heuristic, exposed for unit tests — identical to the branch
- * inside `useDragDismiss`'s `onDragEnd` so a change there must change here
- * too, or a test will catch the drift.
+ * The pure heuristic, exposed so unit tests can nail down the commit curve
+ * without going through framer-motion's drag machinery. `useDragDismiss`
+ * calls this directly, so the hook and the test agree by construction.
  */
 export function shouldDismissFromDrag(info: Pick<PanInfo, "offset" | "velocity">): boolean {
   return (
