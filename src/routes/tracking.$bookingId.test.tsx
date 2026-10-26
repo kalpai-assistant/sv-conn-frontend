@@ -19,7 +19,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-const { booking } = vi.hoisted(() => ({ booking: { value: undefined as unknown } }));
+const { booking } = vi.hoisted(() => ({
+  booking: { value: undefined as unknown, loading: false },
+}));
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (opts: object) => ({
@@ -41,7 +43,7 @@ vi.mock("@/hooks/useApi", async (importOriginal) => {
     ...(await importOriginal<typeof import("@/hooks/useApi")>()),
     useBooking: () => ({
       data: booking.value,
-      isLoading: false,
+      isLoading: booking.loading,
       isError: false,
       refetch: vi.fn(),
     }),
@@ -94,6 +96,7 @@ const show = (over: Record<string, unknown> = {}) => {
 
 beforeEach(() => {
   booking.value = undefined;
+  booking.loading = false;
 });
 
 describe("Call provider", () => {
@@ -117,5 +120,33 @@ describe("Call provider", () => {
     show();
     expect(screen.queryByRole("link", { name: /^Call / })).toBeNull();
     expect(document.body.innerHTML).not.toContain("910000000000");
+  });
+});
+
+// SVC-397: the full-screen spinner became the page's own frame, with the
+// cards it will hold drawn as skeletons — and still announced as loading.
+describe("while the booking loads", () => {
+  it("shows the header and an announced skeleton, not a verdict on the booking", () => {
+    booking.loading = true;
+    render(<TrackingPage />);
+
+    expect(screen.getByText("Booking Status")).toBeInTheDocument();
+    const region = screen.getByRole("status");
+    expect(region).toHaveAttribute("aria-busy", "true");
+    expect(region).toHaveTextContent("Loading…");
+    expect(screen.queryByText("Booking not found.")).not.toBeInTheDocument();
+  });
+
+  // Found on device: wrapped around the trust strip too, the region's text was
+  // "Background-verified pros / Full refund guarantee / … / Loading…", and
+  // TalkBack read the claims as part of the loading announcement.
+  it("announces only 'Loading…' — the trust strip sits outside the region", () => {
+    booking.loading = true;
+    render(<TrackingPage />);
+
+    const region = screen.getByRole("status");
+    expect(region.textContent).toBe("Loading…");
+    const claim = screen.getByText(/background-verified/i);
+    expect(region).not.toContainElement(claim);
   });
 });

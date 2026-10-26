@@ -19,7 +19,9 @@
 import { useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
-import { X, Loader2, PackageOpen } from "lucide-react";
+import { X, PackageOpen } from "lucide-react";
+import { LoadingRegion } from "@/components/skeletons/LoadingRegion";
+import { TileGridSkeleton } from "@/components/skeletons/TileGridSkeleton";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { useDragDismiss } from "@/hooks/useDragDismiss";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
@@ -100,9 +102,9 @@ export function CategorySubcategoriesSheet({
 
         <div className="flex-1 overflow-y-auto pb-6">
           {isLoading ? (
-            <div className="flex flex-1 items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <LoadingRegion>
+              <TileGridSkeleton className="px-4 pt-2" />
+            </LoadingRegion>
           ) : isError ? (
             <div className="px-4 py-8">
               <ErrorState message="Couldn't load categories." onRetry={refetch} />

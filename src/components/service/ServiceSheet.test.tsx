@@ -70,11 +70,12 @@ const withDetail = (partial: Partial<UI_ServiceDetail>): UI_ServiceDetail => ({
 });
 
 let detail: UI_ServiceDetail | undefined;
+let servicesLoading = false;
 
 vi.mock("@/hooks/useApi", () => ({
   useServices: () => ({
-    data: [SERVICE, RELATED],
-    isLoading: false,
+    data: servicesLoading ? undefined : [SERVICE, RELATED],
+    isLoading: servicesLoading,
     isError: false,
     refetch: vi.fn(),
   }),
@@ -114,6 +115,7 @@ const renderSheet = () => render(<ServiceSheet serviceId="s1" onClose={vi.fn()} 
 
 beforeEach(() => {
   detail = undefined;
+  servicesLoading = false;
   // The sheet resets its scroll on every service swap; jsdom has no layout.
   Element.prototype.scrollTo = vi.fn();
   // jsdom doesn't ship matchMedia (TrustStrip subscribes to it).
@@ -227,5 +229,19 @@ describe("title-card rating pill", () => {
     expect(screen.getByText("4.6")).toBeInTheDocument();
     expect(screen.getByText("40 bookings")).toBeInTheDocument();
     expect(screen.queryByText(/this week/)).not.toBeInTheDocument();
+  });
+});
+
+// SVC-397: the body's spinner became the summary card's shape, announced.
+describe("while the service loads", () => {
+  it("shows an announced skeleton under the real header", () => {
+    servicesLoading = true;
+    renderSheet();
+
+    const region = screen.getByRole("status");
+    expect(region).toHaveAttribute("aria-busy", "true");
+    expect(region).toHaveTextContent("Loading…");
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /add to cart/i })).not.toBeInTheDocument();
   });
 });

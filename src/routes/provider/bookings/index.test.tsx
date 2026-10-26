@@ -27,10 +27,11 @@ function formattedDate(iso: string): string {
 }
 
 const bookings = vi.fn();
+const loading = vi.fn(() => false);
 const totals = vi.fn(() => ({ total: 0, truncated: false }));
 
 vi.mock("@/hooks/useApi", () => ({
-  useBookings: () => ({ data: bookings(), isLoading: false, isError: false, error: null }),
+  useBookings: () => ({ data: bookings(), isLoading: loading(), isError: false, error: null }),
   useBookingsTotal: () => totals(),
 }));
 vi.mock("@/lib/auth-context", () => ({
@@ -78,6 +79,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   totals.mockReturnValue({ total: 0, truncated: false });
   bookings.mockReturnValue([job(), DONE]);
+  loading.mockReturnValue(false);
   // Pin TZ so timestamps near a day boundary don't shift the rendered date.
   process.env.TZ = "Asia/Kolkata";
 });
@@ -223,5 +225,21 @@ describe("more rows than one response carries", () => {
     render(<Page />);
 
     expect(screen.queryByText(/most recent jobs/i)).toBeNull();
+  });
+});
+
+// SVC-397: job-row skeletons in place of two plain boxes, announced as
+// loading, and no "no jobs" verdict before the list has arrived.
+describe("while the list loads", () => {
+  it("announces loading and claims neither jobs nor their absence", () => {
+    loading.mockReturnValue(true);
+    bookings.mockReturnValue(undefined);
+    render(<Page />);
+
+    const region = screen.getByRole("status");
+    expect(region).toHaveAttribute("aria-busy", "true");
+    expect(region).toHaveTextContent("Loading…");
+    expect(screen.queryByText("Bathroom deep cleaning")).not.toBeInTheDocument();
+    expect(screen.queryByText("No jobs right now")).not.toBeInTheDocument();
   });
 });

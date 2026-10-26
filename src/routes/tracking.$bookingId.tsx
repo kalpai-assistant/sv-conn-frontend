@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { formatRupees } from "@/lib/currency";
-import { ArrowLeft, Loader2, Search, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, Search, CheckCircle2, XCircle } from "lucide-react";
+import { TrackingSkeleton } from "@/components/skeletons/TrackingSkeleton";
 import { StatusStepper } from "@/components/StatusStepper";
 import { ErrorState } from "@/components/ErrorState";
 import { ReviewSheet } from "@/components/ReviewSheet";
@@ -77,11 +78,7 @@ function TrackingPage() {
   }, [booking?.status, bookingId]);
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <TrackingSkeleton />;
   }
 
   // Ahead of the not-found branch. This is the worst instance of the pattern:
