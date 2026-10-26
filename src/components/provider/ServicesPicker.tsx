@@ -5,6 +5,9 @@ import { useT } from "@/i18n/LanguageProvider";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowLeft, Check, Loader2, Lock, Search, X } from "lucide-react";
 import { ApiError } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingRegion } from "@/components/skeletons/LoadingRegion";
+import { TileGridSkeleton } from "@/components/skeletons/TileGridSkeleton";
 import { categoryIcon, categoryColor } from "@/lib/category-icons";
 import {
   useCategories,
@@ -165,9 +168,12 @@ export function ServicesPicker({ locked = false, title, description }: ServicesP
       )}
 
       {loading && (
-        <div className="mt-6 flex items-center justify-center py-8 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-        </div>
+        // What loads first is the search field and the category grid, so
+        // that is what this stands in for (input: py-2.5 text-sm + border).
+        <LoadingRegion>
+          <Skeleton className="mt-4 h-[42px] w-full rounded-xl" />
+          <TileGridSkeleton className="mt-4" />
+        </LoadingRegion>
       )}
 
       {hasError && !loading && (

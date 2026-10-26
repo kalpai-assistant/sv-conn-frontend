@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { toast } from "sonner";
-import { CheckCircle2, ChevronLeft, Loader2, Navigation } from "lucide-react";
+import { CheckCircle2, ChevronLeft, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";

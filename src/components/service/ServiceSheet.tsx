@@ -28,8 +28,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
-import { X, Clock, Loader2, Check, Star } from "lucide-react";
+import { X, Clock, Check, Star } from "lucide-react";
 import { TrustStrip } from "@/components/TrustStrip";
+import { ServiceSheetSkeleton } from "@/components/skeletons/ServiceSheetSkeleton";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { useDragDismiss } from "@/hooks/useDragDismiss";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
@@ -177,9 +178,7 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
         </div>
 
         {isLoading ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <ServiceSheetSkeleton />
         ) : isError ? (
           <div className="flex flex-1 items-center justify-center px-4">
             <ErrorState message="Couldn't load this service." onRetry={refetch} />

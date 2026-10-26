@@ -200,5 +200,8 @@
     "requiredTitle": "अपडेट ज़रूरी है",
     "requiredBody": "EazyServ का यह वर्ज़न अब नहीं चलेगा। आगे बढ़ने के लिए कृपया अपडेट करें।",
     "requiredVersions": "कम से कम ज़रूरी: v{{min}} · नया: v{{latest}}"
+  },
+  "skeleton": {
+    "loading": "लोड हो रहा है…"
   }
 }

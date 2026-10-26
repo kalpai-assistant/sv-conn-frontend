@@ -18,6 +18,8 @@ import { useDragDismiss } from "@/hooks/useDragDismiss";
 import { motion } from "framer-motion";
 import { X, Ticket, Loader2 } from "lucide-react";
 import { useAvailableCoupons, useValidateCoupon } from "@/hooks/useCoupons";
+import { LoadingRegion } from "@/components/skeletons/LoadingRegion";
+import { CouponCardSkeleton } from "@/components/skeletons/ListRowSkeletons";
 import { formatRupees } from "@/lib/currency";
 
 interface CouponsSheetProps {
@@ -183,9 +185,10 @@ export function CouponsSheet({
             Available for you
           </p>
           {isLoading ? (
-            <div className="flex justify-center py-6">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
+            <LoadingRegion className="flex flex-col gap-3">
+              <CouponCardSkeleton />
+              <CouponCardSkeleton />
+            </LoadingRegion>
           ) : (available ?? []).length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               No coupons available right now.

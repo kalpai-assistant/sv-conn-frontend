@@ -3,7 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, ChevronRight, History, MapPin } from "lucide-react";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { EmptyState } from "@/components/EmptyState";
-import { Skeleton } from "@/components/ui/skeleton";
+import { JobRowSkeleton } from "@/components/skeletons/JobRowSkeleton";
+import { LoadingRegion } from "@/components/skeletons/LoadingRegion";
 import { useAuth } from "@/lib/auth-context";
 import { useBookings, useBookingsTotal } from "@/hooks/useApi";
 // Shared with Provider Home (SVC-274). One definition, so a status cannot mean
@@ -93,10 +94,10 @@ function ProviderBookingsPage() {
       </p>
 
       {isLoading && (
-        <div className="mt-6 space-y-3">
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-20 w-full" />
-        </div>
+        <LoadingRegion className="mt-6 flex flex-col gap-3">
+          <JobRowSkeleton />
+          <JobRowSkeleton />
+        </LoadingRegion>
       )}
 
       {isError && (

@@ -200,5 +200,8 @@
     "requiredTitle": "Update required",
     "requiredBody": "This version of EazyServ is no longer supported. Please update to continue.",
     "requiredVersions": "Minimum required: v{{min}} · Latest: v{{latest}}"
+  },
+  "skeleton": {
+    "loading": "Loading…"
   }
 }

@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CurrentJobSkeleton } from "@/components/skeletons/CurrentJobSkeleton";
 import { ProHeader } from "@/components/pro/ProHeader";
 import { useAuth } from "@/lib/auth-context";
 import { useProJobs, useProMe, useSetProOnline, type ProMe } from "@/hooks/usePro";
@@ -235,7 +236,7 @@ function CurrentJob({
   const { t, lang } = useT("pro");
   const { t: tc } = useT();
 
-  if (isLoading) return <Skeleton className="mt-6 h-32 w-full" />;
+  if (isLoading) return <CurrentJobSkeleton />;
 
   // A failed fetch must not claim there is no work: a Pro who believes it
   // stops looking.

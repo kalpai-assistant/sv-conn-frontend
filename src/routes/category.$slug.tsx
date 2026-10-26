@@ -1,9 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { ArrowLeft, Loader2, PackageOpen } from "lucide-react";
+import { ArrowLeft, PackageOpen } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
+import { LoadingRegion } from "@/components/skeletons/LoadingRegion";
 import { ServiceCardSkeleton } from "@/components/skeletons/ServiceCardSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCategories, useServices } from "@/hooks/useApi";
 import { ServiceCard } from "@/components/ServiceCard";
 import type { Category } from "@/lib/mock-data";
@@ -59,10 +61,29 @@ function CategoryPage() {
     void navigate({ to: "/", replace: true });
   }, [category, isL1WithChildren, openCategory, navigate]);
 
+  // The page's own frame — header bar, then the same list skeleton the
+  // services load shows below — with the category's icon and name still
+  // unknown. An L1 deep-link sees this briefly before the redirect above.
   if (categoriesLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen pb-20">
+        <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card px-4">
+          <Link
+            to="/"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary"
+            aria-label="Back"
+          >
+            <ArrowLeft className="h-4 w-4 text-foreground" />
+          </Link>
+          <Skeleton className="h-8 w-8 rounded-lg" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <LoadingRegion className="flex flex-col gap-3 px-4 pt-4">
+          <ServiceCardSkeleton />
+          <ServiceCardSkeleton />
+          <ServiceCardSkeleton />
+          <ServiceCardSkeleton />
+        </LoadingRegion>
       </div>
     );
   }
