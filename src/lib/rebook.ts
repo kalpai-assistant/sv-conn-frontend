@@ -31,8 +31,10 @@ import type { Booking, Service, Address } from "./mock-data";
 import { isActiveBookingStatus } from "./booking-landing";
 import type { PrefillItem } from "@/components/home/banner-destination";
 
-/** Items the cart will see, in prefill order. */
-export interface RebookPrefill extends PrefillItem {}
+/** Items the cart will see, in prefill order. Aliased to the cart's own
+ *  `PrefillItem` so a change to one keeps the other in step without a
+ *  shim type. */
+export type RebookPrefill = PrefillItem;
 
 export interface AddressChoice {
   /** The address to pre-select on the cart. */
@@ -159,9 +161,7 @@ export function prepareRebook(input: RebookInput): RebookOutcome {
   // — same rule `useSelectedAddress` uses — and flag the caller to show a
   // "please confirm" sticky row at the top of the cart.
   const list = addresses ?? [];
-  const resolved = booking.address.id
-    ? list.find((a) => a.id === booking.address.id)
-    : undefined;
+  const resolved = booking.address.id ? list.find((a) => a.id === booking.address.id) : undefined;
   const fallback = list[0];
   const address: AddressChoice = resolved
     ? { id: resolved.id, fellBack: false }

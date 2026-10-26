@@ -50,7 +50,7 @@ function statusColor(status: string) {
   }
 }
 
-function BookingsPage() {
+export function BookingsPage() {
   const [tab, setTab] = useState<"active" | "past">("active");
   const { data: allBookings, isLoading, isError, refetch } = useBookings();
   const { user } = useAuth();
@@ -176,15 +176,8 @@ function BookingsPage() {
           />
         ) : (
           list.map((b) => (
-            <div
-              key={b.id}
-              className="rounded-xl border border-border bg-card p-4"
-            >
-              <Link
-                to="/tracking/$bookingId"
-                params={{ bookingId: b.id }}
-                className="block"
-              >
+            <div key={b.id} className="rounded-xl border border-border bg-card p-4">
+              <Link to="/tracking/$bookingId" params={{ bookingId: b.id }} className="block">
                 <div className="flex items-start justify-between gap-3">
                   {/* min-w-0 so the truncate above actually clamps: a flex
                       item defaults to min-width:auto and refuses to shrink

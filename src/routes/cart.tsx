@@ -30,10 +30,7 @@ import { CouponsSheet } from "@/components/cart/CouponsSheet";
 import { PricingBreakdown } from "@/components/cart/PricingBreakdown";
 import { formatRupees } from "@/lib/currency";
 import { clearPendingCoupon, getPendingCoupon } from "@/lib/pending-coupon";
-import {
-  clearRebookAddressConfirm,
-  getRebookAddressConfirm,
-} from "@/lib/rebook-address-confirm";
+import { clearRebookAddressConfirm, getRebookAddressConfirm } from "@/lib/rebook-address-confirm";
 import { readLastPaymentMethod, writeLastPaymentMethod } from "@/lib/last-payment-method";
 import { hapticSuccess } from "@/lib/haptics";
 
@@ -115,8 +112,8 @@ export function CartPage() {
   // the time this component mounts the sessionStorage slot is populated.
   // `useState` initialiser form keeps the read out of render and lets a
   // "Looks good" tap clear it without racing a re-read.
-  const [rebookAddressConfirmLabel, setRebookAddressConfirmLabel] = useState<string | null>(
-    () => getRebookAddressConfirm(userId),
+  const [rebookAddressConfirmLabel, setRebookAddressConfirmLabel] = useState<string | null>(() =>
+    getRebookAddressConfirm(userId),
   );
   const dismissRebookAddressConfirm = () => {
     clearRebookAddressConfirm(userId);
