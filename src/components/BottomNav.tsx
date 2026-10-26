@@ -1,5 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { Home, CalendarDays, Clock, User, IndianRupee, ShoppingCart } from "lucide-react";
+import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 import { isBottomNavHidden, isProRoute } from "@/lib/nav-visibility";
@@ -78,13 +79,25 @@ export function BottomNav() {
               // taps stack up, so back walked the pile and read as a two-page
               // loop (SVC-230).
               replace
-              className={`flex flex-col items-center gap-1 px-3 py-1 transition-colors ${
+              className={`relative flex flex-col items-center gap-1 px-3 py-1 transition-colors ${
                 active ? "text-primary" : "text-muted-foreground"
               }`}
               aria-label={
                 cartCount > 0 ? t("nav.withItems", { label, count: cartCount }) : undefined
               }
             >
+              {/* SVC-391: animated active indicator. One `layoutId` for the
+                  whole bar — framer-motion slides the pill from the previous
+                  active tab to the new one, which reads as the active state
+                  moving rather than snapping. */}
+              {active && (
+                <motion.span
+                  layoutId="bottom-nav-active"
+                  aria-hidden="true"
+                  className="absolute inset-x-2 top-0 h-0.5 rounded-full bg-primary"
+                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                />
+              )}
               <span className="relative">
                 <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
                 {cartCount > 0 && (
