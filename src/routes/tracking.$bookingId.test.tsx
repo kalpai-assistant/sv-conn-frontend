@@ -136,4 +136,17 @@ describe("while the booking loads", () => {
     expect(region).toHaveTextContent("Loading…");
     expect(screen.queryByText("Booking not found.")).not.toBeInTheDocument();
   });
+
+  // Found on device: wrapped around the trust strip too, the region's text was
+  // "Background-verified pros / Full refund guarantee / … / Loading…", and
+  // TalkBack read the claims as part of the loading announcement.
+  it("announces only 'Loading…' — the trust strip sits outside the region", () => {
+    booking.loading = true;
+    render(<TrackingPage />);
+
+    const region = screen.getByRole("status");
+    expect(region.textContent).toBe("Loading…");
+    const claim = screen.getByText(/background-verified/i);
+    expect(region).not.toContainElement(claim);
+  });
 });
