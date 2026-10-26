@@ -23,6 +23,7 @@
  */
 import { Minus, Plus } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
+import { hapticImpactLight } from "@/lib/haptics";
 import type { Service } from "@/lib/mock-data";
 
 interface QuickAddButtonProps {
@@ -47,6 +48,10 @@ export function QuickAddButton({ service, compact = false }: QuickAddButtonProps
     event.stopPropagation();
     event.preventDefault();
     cart.add(service, 1);
+    // SVC-398: confirming "that landed" tap. The stepper's increment path
+    // deliberately does NOT fire — the ticket calls out add-to-cart as a
+    // primary success moment, and buzzing on every 1→2→3 would dull it.
+    hapticImpactLight();
   };
 
   const handleDecrement = (event: React.MouseEvent) => {
