@@ -17,10 +17,11 @@
  * dismiss, backdrop tap, X button, and Android hardware back all close it.
  */
 import { useEffect, useMemo } from "react";
-import { motion, useMotionValue, type PanInfo } from "framer-motion";
+import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 import { X, Loader2, PackageOpen } from "lucide-react";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
+import { useDragDismiss } from "@/hooks/useDragDismiss";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
 import { useCategories } from "@/hooks/useApi";
 import { categoryIcon, categoryColor } from "@/lib/category-icons";
@@ -59,12 +60,7 @@ export function CategorySubcategoriesSheet({
     [onClose],
   );
 
-  const y = useMotionValue(0);
-  const handleDragEnd = (_: unknown, info: PanInfo) => {
-    if (info.offset.y > 100 || info.velocity.y > 500) {
-      onClose();
-    }
-  };
+  const drag = useDragDismiss(onClose);
 
   return (
     <>
@@ -80,11 +76,7 @@ export function CategorySubcategoriesSheet({
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        drag="y"
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={{ top: 0, bottom: 0.4 }}
-        onDragEnd={handleDragEnd}
-        style={{ y }}
+        {...drag}
         className="fixed bottom-0 left-0 right-0 z-50 mx-auto flex max-h-[85vh] max-w-md flex-col rounded-t-3xl border-t border-border bg-card shadow-2xl safe-bottom"
       >
         {/* Drag handle — visual affordance for drag-to-dismiss. */}
