@@ -26,11 +26,12 @@
  * constraint. Backdrop tap + hardware back also close it.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion, useMotionValue, type PanInfo } from "framer-motion";
+import { motion } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
 import { X, Clock, Loader2, Check, Star } from "lucide-react";
 import { TrustStrip } from "@/components/TrustStrip";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
+import { useDragDismiss } from "@/hooks/useDragDismiss";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
 import { useCategories, useServices, useServiceDetail } from "@/hooks/useApi";
 import type { UI_RelatedServiceEntry } from "@/hooks/useApi";
@@ -116,15 +117,9 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
     void navigate({ to: "/cart" });
   };
 
-  // Drag-to-dismiss: framer-motion drags the sheet by `y`, snap back if the
-  // gesture is short and slow, close if it's long or fast. Numbers copied from
-  // the drawer-close heuristic in shadcn/ui: 100px OR >500px/s.
-  const y = useMotionValue(0);
-  const handleDragEnd = (_: unknown, info: PanInfo) => {
-    if (info.offset.y > 100 || info.velocity.y > 500) {
-      onClose();
-    }
-  };
+  // Drag-to-dismiss. The heuristic + bindings live in `useDragDismiss`
+  // (SVC-391) so every drag-dismissible sheet shares the same feel.
+  const drag = useDragDismiss(onClose);
 
   // Resolve related entries → full Service objects from the cached catalogue
   // so the rails / list can reuse ServiceCard(Compact). An entry not in the
@@ -158,11 +153,7 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        drag="y"
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={{ top: 0, bottom: 0.4 }}
-        onDragEnd={handleDragEnd}
-        style={{ y }}
+        {...drag}
         className="fixed bottom-0 left-0 right-0 z-50 mx-auto flex h-[85vh] max-w-md flex-col rounded-t-3xl border-t border-border bg-card shadow-2xl safe-bottom"
       >
         {/* Drag handle. Visual affordance for the drag-to-dismiss gesture —
