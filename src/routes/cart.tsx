@@ -26,8 +26,10 @@ import { useBookAndPay } from "@/hooks/useBookAndPay";
 import { SavedAddressesSheet } from "@/components/SavedAddressesSheet";
 import { SlotPickerSheet } from "@/components/cart/SlotPickerSheet";
 import { CouponsSheet } from "@/components/cart/CouponsSheet";
+import { PricingBreakdown } from "@/components/cart/PricingBreakdown";
 import { formatRupees } from "@/lib/currency";
 import { clearPendingCoupon, getPendingCoupon } from "@/lib/pending-coupon";
+import { readLastPaymentMethod, writeLastPaymentMethod } from "@/lib/last-payment-method";
 
 // SVC-310: the hero banner's "coupon" destination hands off the code
 // through this param so the cart opens with the coupons sheet pre-filled.
@@ -80,7 +82,12 @@ export function CartPage() {
   // Only for the header avatar's initials.
   const { user } = useAuth();
   const userId = user?.id;
-  const { selected: selectedAddress, setSelectedId } = useSelectedAddress();
+  const {
+    selected: selectedAddress,
+    setSelectedId,
+    addresses: savedAddresses,
+    isLoading: addressesLoading,
+  } = useSelectedAddress();
   const { bookAndPay, isBusy } = useBookAndPay();
 
   // Slot state — null = "Now (instant)", non-null = scheduled datetime.
@@ -94,6 +101,27 @@ export function CartPage() {
 
   const [addressPickerOpen, setAddressPickerOpen] = useState(false);
   const [slotPickerOpen, setSlotPickerOpen] = useState(false);
+
+  // SVC-385: open the picker on cart entry only when the user has no address
+  // on file — the smart-defaults "the app remembers me" rule is pre-select,
+  // never auto-expand for a returning user. `useSelectedAddress` already
+  // resolves the stored id (or `addresses[0]`) as the pre-selection, so the
+  // row paints with that label without any work here; this effect only
+  // handles the empty-list case, where there is nothing to pre-select and
+  // the user has to add one before Book is reachable.
+  //
+  // Guarded by a ref so dismissing the sheet without adding does not reopen
+  // it on the next render — the row below is a tap target, and a sheet that
+  // reappears every time the user dismisses it is an app you cannot escape.
+  const autoOpenedAddressRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedAddressRef.current) return;
+    if (addressesLoading) return;
+    if ((savedAddresses?.length ?? 0) === 0) {
+      autoOpenedAddressRef.current = true;
+      setAddressPickerOpen(true);
+    }
+  }, [addressesLoading, savedAddresses]);
 
   // SVC-347: coupon code the user tapped a banner for on Home, waiting to
   // auto-apply here. Two entry points, same slot:
@@ -114,7 +142,12 @@ export function CartPage() {
   const [couponsSheetOpen, setCouponsSheetOpen] = useState(
     () => Boolean(pendingCouponCode) && items.length > 0,
   );
-  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">("online");
+  // SVC-385: default to whatever the user last paid with. Falls back to
+  // "online" when the memory is empty (fresh install, cleared on logout) —
+  // same business-preferred default this toggle always had.
+  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">(
+    () => readLastPaymentMethod() ?? "online",
+  );
 
   // Consume the ?coupon= handoff once, then scrub it from the URL. ``replace``
   // so the pre-handoff URL doesn't live in the back stack as its own entry.
@@ -180,6 +213,12 @@ export function CartPage() {
       // Only once the money is in (or the booking is cash) — a dismissed
       // checkout must leave the cart intact to retry from.
       onComplete: (bookingId) => {
+        // SVC-385: remember the method the user actually went through with.
+        // Written here (not on toggle tap) because a tap the user then
+        // dismissed off the Razorpay sheet is not a preference — it is a
+        // thing they tried. The on-mount read in state init picks this up
+        // on the next cart open.
+        writeLastPaymentMethod(paymentMethod);
         clear();
         navigate({
           to: "/tracking/$bookingId",
@@ -377,26 +416,16 @@ export function CartPage() {
         </div>
       </section>
 
-      {/* Bill breakdown */}
-      <section className="px-4 pt-4">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="pb-2 text-sm font-semibold text-foreground">Bill</p>
-          <div className="flex justify-between py-1 text-sm">
-            <span className="text-muted-foreground">Subtotal</span>
-            <span className="font-medium text-foreground">{formatRupees(subtotal)}</span>
-          </div>
-          {bill.discount > 0 && (
-            <div className="flex justify-between py-1 text-sm">
-              <span className="text-success">Discount ({coupon?.code})</span>
-              <span className="font-medium text-success">−{formatRupees(bill.discount)}</span>
-            </div>
-          )}
-          <div className="mt-2 flex justify-between border-t border-border pt-2 text-base">
-            <span className="font-semibold text-foreground">Total</span>
-            <span className="font-bold text-primary">{formatRupees(bill.total)}</span>
-          </div>
-        </div>
-      </section>
+      {/*
+        Bill breakdown — SVC-384 replaces the always-expanded card with a
+        chip that reveals the lines on tap. Shape is identical: Service
+        subtotal / Discount (if applied) / GST / Convenience fee / Total.
+      */}
+      <PricingBreakdown
+        subtotal={subtotal}
+        discount={bill.discount}
+        couponCode={coupon?.code ?? null}
+      />
 
       {/* Cancellation policy notice */}
       <p className="mx-4 mt-4 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">
@@ -437,7 +466,7 @@ export function CartPage() {
           {isBusy ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            `Book${paymentMethod === "online" ? " & Pay" : ""} — ${formatRupees(bill.total)}`
+            `Book${paymentMethod === "online" ? " & Pay" : ""} · ${formatRupees(bill.total)}`
           )}
         </button>
       </div>

@@ -630,10 +630,14 @@ const BOOKINGS_PER_PAGE = 50;
  */
 const bookingsTotals = new Map<string, number>();
 
-export const useBookings = (status?: string) => {
+export const useBookings = (status?: string, enabled: boolean = true) => {
   const { data: services } = useServices(); // leverage cached services
 
   return useQuery({
+    // `enabled` lets the root gate ask "does this user have an in-flight
+    // booking?" without a provider or a logged-out visitor firing the call.
+    // Defaults true — every existing caller already knows it wants bookings.
+    enabled,
     queryKey: ["bookings", status],
     queryFn: async () => {
       const params = new URLSearchParams({ per_page: String(BOOKINGS_PER_PAGE) });
