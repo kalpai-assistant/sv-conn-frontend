@@ -27,9 +27,16 @@ interface ErrorStateProps {
    *  surfaces the outcome through the same isError this component reads. */
   onRetry?: () => unknown;
   fullScreen?: boolean;
+  /** The retry button's text. Only the SP's translated screens pass it (SVC-376). */
+  retryLabel?: string;
 }
 
-export function ErrorState({ message, onRetry, fullScreen = false }: ErrorStateProps) {
+export function ErrorState({
+  message,
+  onRetry,
+  fullScreen = false,
+  retryLabel = "Try again",
+}: ErrorStateProps) {
   return (
     <div
       className={`flex flex-col items-center justify-center gap-3 px-8 text-center ${
@@ -43,7 +50,7 @@ export function ErrorState({ message, onRetry, fullScreen = false }: ErrorStateP
           onClick={() => onRetry()}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
         >
-          Try again
+          {retryLabel}
         </button>
       )}
     </div>

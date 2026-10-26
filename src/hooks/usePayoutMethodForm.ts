@@ -1,13 +1,17 @@
 import { useState } from "react";
 import type { PayoutInput, PayoutMethodKind } from "@/hooks/useApi";
 import { validateVpa, validateAccountNumber, validateIfsc } from "@/lib/payout-validation";
+import type { Translate } from "@/i18n";
 
 // Shared state + validation behind the payout entry fields, used by both the
 // onboarding step (SVC-133) and the edit screen (SVC-148). Lives apart from the
 // markup so each screen can keep its own buttons — onboarding has Back / Save &
 // continue / Skip, the edit screen has Save / Cancel — while the rules that decide
 // what reaches the API stay in exactly one place.
-export function usePayoutMethodForm(initialMethod: PayoutMethodKind = "upi") {
+//
+// `t` (SVC-376) puts the validation messages in the screen's language; the
+// validators default to English without it.
+export function usePayoutMethodForm(initialMethod: PayoutMethodKind = "upi", t?: Translate) {
   const [method, setMethodState] = useState<PayoutMethodKind>(initialMethod);
   const [vpa, setVpa] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
@@ -35,19 +39,19 @@ export function usePayoutMethodForm(initialMethod: PayoutMethodKind = "upi") {
   const buildPayload = (): PayoutInput | null => {
     setError(null);
     if (method === "upi") {
-      const err = validateVpa(vpa);
+      const err = validateVpa(vpa, t);
       if (err) {
         setError(err);
         return null;
       }
       return { payout_vpa: vpa.trim() };
     }
-    const accErr = validateAccountNumber(accountNumber);
+    const accErr = validateAccountNumber(accountNumber, t);
     if (accErr) {
       setError(accErr);
       return null;
     }
-    const ifscErr = validateIfsc(ifsc);
+    const ifscErr = validateIfsc(ifsc, t);
     if (ifscErr) {
       setError(ifscErr);
       return null;

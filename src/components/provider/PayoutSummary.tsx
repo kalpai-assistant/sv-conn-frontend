@@ -34,18 +34,24 @@ import { Link } from "@tanstack/react-router";
 import { AlertCircle, ChevronRight } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatRupees } from "@/lib/currency";
+import { formatDate, formatRupees } from "@/i18n/format";
+import { useT } from "@/i18n/LanguageProvider";
+import type { AppLanguage } from "@/i18n/languages";
 import { useProviderPayoutSummary } from "@/hooks/useApi";
 
-/** "14 Sept" — a past payout date is a fact and safe to print. */
-function formatPaidAt(iso: string): string {
+/** "14 Sept" — a past payout date is a fact and safe to print. English stays en-IN. */
+function formatPaidAt(iso: string, lang: AppLanguage = "en"): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  const options = { day: "numeric", month: "short" } as const;
+  return lang === "en"
+    ? date.toLocaleDateString("en-IN", options)
+    : formatDate(date, options, lang);
 }
 
 export function PayoutSummary() {
   const { data, isLoading, isError, refetch } = useProviderPayoutSummary();
+  const { t, lang } = useT("provider");
 
   if (isLoading) {
     return (
@@ -64,8 +70,8 @@ export function PayoutSummary() {
           className="flex items-center gap-2 text-sm text-muted-foreground"
         >
           <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
-          Couldn&rsquo;t load your payout.
-          <span className="font-medium text-primary">Retry</span>
+          {t("payoutSummary.loadFailed")}
+          <span className="font-medium text-primary">{t("payoutSummary.retry")}</span>
         </button>
       </div>
     );
@@ -85,12 +91,13 @@ export function PayoutSummary() {
           // Not an error, and deliberately not styled as one: this is ordinary
           // accounting after a run of cash work.
           <>
-            <p className="text-sm font-semibold text-foreground">Nothing to transfer this time</p>
+            <p className="text-sm font-semibold text-foreground">{t("payoutSummary.owesTitle")}</p>
             <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-              You&rsquo;ve done mostly cash work, so the commission owed (
-              <span className="font-medium text-foreground">{formatRupees(data.balance_owed)}</span>
-              ) is more than your online earnings. It comes off your next transfer — nothing to pay
-              now.
+              {t("payoutSummary.owesBefore")}
+              <span className="font-medium text-foreground">
+                {formatRupees(data.balance_owed, lang)}
+              </span>
+              {t("payoutSummary.owesAfter")}
             </p>
           </>
         ) : !data.payout_set && data.pending_amount > 0 ? (
@@ -99,24 +106,24 @@ export function PayoutSummary() {
           // a bare amount here would look like money on its way.
           <>
             <p className="text-sm font-semibold text-foreground">
-              {formatRupees(data.pending_amount)} is waiting to be sent
+              {t("payoutSummary.waiting", { amount: formatRupees(data.pending_amount, lang) })}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              We can&rsquo;t pay you until you add a UPI ID or bank account.
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("payoutSummary.waitingDetail")}</p>
             <Link
               to="/provider/payout"
               className="mt-3 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
             >
-              Add payout details
+              {t("payoutSummary.addDetails")}
             </Link>
           </>
         ) : (
           <>
             <div className="flex items-baseline justify-between gap-3">
-              <p className="text-sm font-semibold text-foreground">Coming to you</p>
+              <p className="text-sm font-semibold text-foreground">
+                {t("payoutSummary.comingToYou")}
+              </p>
               <p className="text-xl font-bold tabular-nums text-emerald-600">
-                {formatRupees(data.pending_amount)}
+                {formatRupees(data.pending_amount, lang)}
               </p>
             </div>
 
@@ -126,21 +133,20 @@ export function PayoutSummary() {
               <div className="mt-3 space-y-1.5 border-t border-dashed border-border pt-3">
                 <div className="flex items-baseline justify-between text-xs">
                   <span className="text-muted-foreground">
-                    {data.pending_booking_count} {data.pending_booking_count === 1 ? "job" : "jobs"}{" "}
-                    awaiting payout
+                    {t("payoutSummary.awaitingJobs", { count: data.pending_booking_count })}
                   </span>
                   <span className="tabular-nums text-muted-foreground">
-                    {formatRupees(data.gross_amount)}
+                    {formatRupees(data.gross_amount, lang)}
                   </span>
                 </div>
                 <div className="flex items-baseline justify-between text-xs">
-                  <span className="text-muted-foreground">Held back</span>
+                  <span className="text-muted-foreground">{t("payoutSummary.heldBack")}</span>
                   <span className="tabular-nums text-amber-600">
-                    &minus; {formatRupees(data.gross_amount - data.pending_amount)}
+                    &minus; {formatRupees(data.gross_amount - data.pending_amount, lang)}
                   </span>
                 </div>
                 <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground">
-                  Cash commission you owe, and any job the bank hasn&rsquo;t settled with us yet.
+                  {t("payoutSummary.heldBackDetail")}
                 </p>
               </div>
             )}
@@ -155,9 +161,11 @@ export function PayoutSummary() {
         className="flex items-center justify-between gap-3 border-t border-border p-3.5 transition-colors hover:bg-accent"
       >
         <div className="min-w-0">
-          <p className="text-sm text-foreground">Paid out</p>
+          <p className="text-sm text-foreground">{t("payoutSummary.paidOut")}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {data.last_paid_at ? `last ${formatPaidAt(data.last_paid_at)}` : "no payouts yet"}
+            {data.last_paid_at
+              ? t("payoutSummary.lastPaid", { date: formatPaidAt(data.last_paid_at, lang) })
+              : t("payoutSummary.noPayouts")}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -165,7 +173,7 @@ export function PayoutSummary() {
               claiming a ₹0 payout happened. */}
           {data.last_paid_amount != null && (
             <span className="text-sm font-semibold tabular-nums text-foreground">
-              {formatRupees(data.last_paid_amount)}
+              {formatRupees(data.last_paid_amount, lang)}
             </span>
           )}
           <ChevronRight className="h-4 w-4 text-muted-foreground" />

@@ -8,13 +8,17 @@ import { useAuth } from "@/lib/auth-context";
 import { useBookings, useBookingsTotal } from "@/hooks/useApi";
 // Shared with Provider Home (SVC-274). One definition, so a status cannot mean
 // one thing on the Jobs page and another on Home.
-import { activeStatuses, endedAt, statusLabel, statusStyle } from "@/lib/job-status";
+import { activeStatuses, endedAt, statusStyle, statusText } from "@/lib/job-status";
 import type { Booking, BookingStatus } from "@/lib/mock-data";
-import { formatRupees } from "@/lib/currency";
+import { formatRupees } from "@/i18n/format";
+import { errorText } from "@/i18n/errors";
+import { useT } from "@/i18n/LanguageProvider";
 
 export const Route = createFileRoute("/provider/bookings/")({
   component: ProviderBookingsPage,
 });
+
+const TABS = ["active", "past"] as const;
 
 // SVC-70 — the provider's list of jobs in flight. Each row opens the job screen,
 // which is where the en-route / OTP / complete transitions actually happen.
@@ -30,6 +34,8 @@ export const Route = createFileRoute("/provider/bookings/")({
 // mean "your jobs" make the provider guess which holds a given job, and Profile
 // is where settings live (payout, service area), not a work record.
 function ProviderBookingsPage() {
+  const { t, lang } = useT("provider");
+  const { t: tc } = useT();
   const [tab, setTab] = useState<"active" | "past">("active");
   const { data, isLoading, isError, error } = useBookings();
   const { total, truncated } = useBookingsTotal();
@@ -55,7 +61,7 @@ function ProviderBookingsPage() {
           it here Profile would be reachable only from Home — a regression in
           reach rather than a relocation. */}
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-foreground">Your jobs</h1>
+        <h1 className="text-lg font-semibold text-foreground">{t("bookings.title")}</h1>
         <AccountAvatar to="/provider/profile" name={user?.name} />
       </div>
 
@@ -66,26 +72,24 @@ function ProviderBookingsPage() {
           card on grey: the old treatment distinguished the two only by a
           shadow, which on a phone in daylight is close to no signal at all. */}
       <div className="mt-4 flex gap-1 rounded-lg bg-secondary p-1">
-        {(["active", "past"] as const).map((t) => (
+        {TABS.map((key) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            aria-pressed={tab === t}
+            key={key}
+            onClick={() => setTab(key)}
+            aria-pressed={tab === key}
             className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
-              tab === t
+              tab === key
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t}
+            {key === "active" ? t("bookings.tabActive") : t("bookings.tabPast")}
           </button>
         ))}
       </div>
 
       <p className="mt-3 text-sm text-muted-foreground">
-        {tab === "active"
-          ? "Jobs you’ve accepted and haven’t finished yet."
-          : "Jobs you’ve finished, and ones that were cancelled."}
+        {tab === "active" ? t("bookings.activeHint") : t("bookings.pastHint")}
       </p>
 
       {isLoading && (
@@ -97,7 +101,7 @@ function ProviderBookingsPage() {
 
       {isError && (
         <p className="mt-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-          {error instanceof Error ? error.message : "Couldn’t load your jobs."}
+          {errorText(error, t("bookings.loadFailed"), lang)}
         </p>
       )}
 
@@ -118,13 +122,11 @@ function ProviderBookingsPage() {
               <History aria-hidden="true" className="size-8" />
             )
           }
-          title={tab === "active" ? "No jobs right now" : "No past jobs yet"}
+          title={tab === "active" ? t("bookings.emptyActiveTitle") : t("bookings.emptyPastTitle")}
           // "the home tab" until SVC-273 — the tab is still there, but naming
           // the screen rather than the control survives the next nav change.
           description={
-            tab === "active"
-              ? "Go online from Home and accepted jobs will show up here."
-              : "Jobs you finish will be listed here."
+            tab === "active" ? t("bookings.emptyActiveSubtitle") : t("bookings.emptyPastSubtitle")
           }
         />
       )}
@@ -154,7 +156,7 @@ function ProviderBookingsPage() {
                     statusStyle[job.status] ?? "bg-gray-100 text-gray-700"
                   }`}
                 >
-                  {statusLabel[job.status] ?? job.status}
+                  {statusText(job.status, tc)}
                 </span>
                 {/* The provider's own take, not the customer's price (SVC-296).
                     This row used to render `totalAmount` — ₹499 on a job that
@@ -163,10 +165,10 @@ function ProviderBookingsPage() {
                     show payout for the same reason: split across the two, the
                     figure would appear to drop the moment a job finished. */}
                 <span className="text-xs font-medium text-foreground">
-                  You earn {formatRupees(job.providerPayout)}
+                  {t("bookings.youEarn", { amount: formatRupees(job.providerPayout, lang) })}
                 </span>
                 {tab === "past" && (
-                  <span className="text-xs text-muted-foreground">{endedAt(job)}</span>
+                  <span className="text-xs text-muted-foreground">{endedAt(job, lang)}</span>
                 )}
               </div>
             </div>
@@ -181,7 +183,7 @@ function ProviderBookingsPage() {
           exists — the very complaint SVC-296 is about. */}
       {truncated && !isLoading && (
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          Showing your 50 most recent jobs of {total}.
+          {t("bookings.showingRecent", { count: 50, total })}
         </p>
       )}
     </div>

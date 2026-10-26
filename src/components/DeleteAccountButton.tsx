@@ -40,6 +40,8 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError, apiFetch, getRefreshToken } from "@/lib/api";
 import { useProJobs } from "@/hooks/usePro";
+import { useT } from "@/i18n/LanguageProvider";
+import { errorText } from "@/i18n/errors";
 
 const CONFIRM_WORD = "DELETE";
 
@@ -96,6 +98,8 @@ export function DeleteAccountButton({
   const [typed, setTyped] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
+  // SVC-375: translated on /provider/profile; /profile is English.
+  const { t, lang } = useT();
 
   // Only asked for once a team Pro is actually shown a booking refusal.
   const { data: proJobs } = useProJobs("active", isTeamPro && refusal?.code === "ACTIVE_BOOKINGS");
@@ -128,9 +132,7 @@ export function DeleteAccountButton({
         setRefusal(r);
         return;
       }
-      toast.error("Couldn't delete your account", {
-        description: "Nothing was deleted. Check your connection and try again.",
-      });
+      toast.error(t("deleteAccount.failed"), { description: t("deleteAccount.failedDetail") });
       return;
     }
     setIsBusy(false);
@@ -138,8 +140,8 @@ export function DeleteAccountButton({
     logout();
     // Replace: back must not return to a profile that no longer exists.
     navigate({ to: "/", replace: true });
-    toast.success("Your account has been deleted.");
-  }, [logout, navigate]);
+    toast.success(t("deleteAccount.deleted"));
+  }, [logout, navigate, t]);
 
   return (
     <>
@@ -149,7 +151,7 @@ export function DeleteAccountButton({
         className="flex w-full items-center justify-center gap-2 rounded-xl p-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
       >
         <Trash2 className="h-4 w-4" />
-        Delete my account
+        {t("deleteAccount.button")}
       </button>
 
       <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -157,8 +159,14 @@ export function DeleteAccountButton({
           {refusal ? (
             <>
               <AlertDialogHeader>
-                <AlertDialogTitle>You can't delete your account yet</AlertDialogTitle>
-                <AlertDialogDescription>{refusal.message}</AlertDialogDescription>
+                <AlertDialogTitle>{t("deleteAccount.refusedTitle")}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {errorText(
+                    new ApiError(409, refusal.message, undefined, refusal.code),
+                    refusal.message,
+                    lang,
+                  )}
+                </AlertDialogDescription>
               </AlertDialogHeader>
 
               {refusal.code === "ACTIVE_BOOKINGS" && refusal.bookingIds.length > 0 && (
@@ -167,7 +175,7 @@ export function DeleteAccountButton({
                     <li key={id}>
                       <OpenBookingLink
                         bookingId={id}
-                        label={`Booking ${i + 1}`}
+                        label={t("deleteAccount.booking", { n: i + 1 })}
                         target={
                           persona === "provider"
                             ? "provider"
@@ -186,27 +194,26 @@ export function DeleteAccountButton({
                   to="/provider/team"
                   className="flex items-center justify-between rounded-lg border border-border p-3 text-sm font-medium text-foreground hover:bg-secondary/50"
                 >
-                  Go to My Team
+                  {t("deleteAccount.goToTeam")}
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </Link>
               )}
 
               <AlertDialogFooter>
-                <AlertDialogCancel>Close</AlertDialogCancel>
+                <AlertDialogCancel>{t("deleteAccount.close")}</AlertDialogCancel>
               </AlertDialogFooter>
             </>
           ) : (
             <>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete your account?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This cannot be undone. Your profile, addresses, and personal data will be deleted.
-                  Past bookings will remain in anonymized form for financial records.
-                </AlertDialogDescription>
+                <AlertDialogTitle>{t("deleteAccount.title")}</AlertDialogTitle>
+                <AlertDialogDescription>{t("deleteAccount.body")}</AlertDialogDescription>
               </AlertDialogHeader>
 
               <label className="flex flex-col gap-1.5 text-sm text-foreground">
-                Type {CONFIRM_WORD} to confirm
+                {/* The word itself stays English in every language: it is what
+                    the Pro types, and every keyboard has these letters. */}
+                {t("deleteAccount.typeToConfirm", { word: CONFIRM_WORD })}
                 <Input
                   value={typed}
                   onChange={(e) => setTyped(e.target.value)}
@@ -217,7 +224,7 @@ export function DeleteAccountButton({
               </label>
 
               <AlertDialogFooter>
-                <AlertDialogCancel disabled={isBusy}>Keep my account</AlertDialogCancel>
+                <AlertDialogCancel disabled={isBusy}>{t("deleteAccount.keep")}</AlertDialogCancel>
                 {/* A plain button, not AlertDialogAction: that closes the dialog on
                     click, and a refusal has to be shown in it. */}
                 <button
@@ -227,7 +234,7 @@ export function DeleteAccountButton({
                   className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
                 >
                   {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Delete account
+                  {t("deleteAccount.confirm")}
                 </button>
               </AlertDialogFooter>
             </>
@@ -247,13 +254,14 @@ function OpenBookingLink({
   label: string;
   target: "consumer" | "provider" | "pro";
 }) {
+  const { t } = useT();
   const className =
     "flex items-center justify-between rounded-lg border border-border p-3 text-sm text-foreground hover:bg-secondary/50";
   const body = (
     <>
       <span>{label}</span>
       <span className="flex items-center gap-1 font-medium text-primary">
-        Open booking
+        {t("deleteAccount.openBooking")}
         <ChevronRight className="h-4 w-4" />
       </span>
     </>

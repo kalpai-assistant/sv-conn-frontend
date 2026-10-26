@@ -15,6 +15,9 @@
  * component module having to export non-components.
  */
 
+import i18n from "@/i18n";
+import type { AppLanguage } from "@/i18n/languages";
+
 /** No `display_name` came back, but the request itself succeeded. */
 export const GEOCODE_UNKNOWN = "Unknown Location";
 /** The request failed outright — offline, rate-limited, blocked. */
@@ -24,6 +27,20 @@ export const GEOCODE_FAILED = "Could not fetch address";
 export function isGeocodeFailure(address: string): boolean {
   const trimmed = address.trim();
   return trimmed === "" || trimmed === GEOCODE_UNKNOWN || trimmed === GEOCODE_FAILED;
+}
+
+/**
+ * An address line as shown on screen (SVC-395): the two sentinels in the
+ * screen's language, anything else — a real place — exactly as given.
+ *
+ * Display only. The sentinels themselves stay English in state and in what
+ * `onLocationSelected` reports, because callers compare against them. English
+ * returns the sentinel unchanged, so the customer address sheet is untouched.
+ */
+export function addressForDisplay(address: string, lang: AppLanguage = "en"): string {
+  if (address === GEOCODE_UNKNOWN) return i18n.getFixedT(lang, "common")("map.unknownLocation");
+  if (address === GEOCODE_FAILED) return i18n.getFixedT(lang, "common")("map.fetchFailed");
+  return address;
 }
 
 /** A six-digit Indian PIN code as its own comma-separated part. */

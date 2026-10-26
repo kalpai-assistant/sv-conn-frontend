@@ -30,7 +30,8 @@
 import { Bar, BarChart, Cell, XAxis } from "recharts";
 
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
-import { formatRupees } from "@/lib/currency";
+import { formatRupees } from "@/i18n/format";
+import { useT } from "@/i18n/LanguageProvider";
 import { bucketWeek, isWeekChartWorthShowing, type DayBucket } from "@/lib/earnings-buckets";
 import type { API_EarningsBookingItem } from "@/hooks/useApi";
 
@@ -46,6 +47,7 @@ function WeekTooltip({
   active?: boolean;
   payload?: { payload: DayBucket }[];
 }) {
+  const { t, lang } = useT("provider");
   if (!active || !payload?.length) return null;
   const day = payload[0].payload;
 
@@ -54,15 +56,16 @@ function WeekTooltip({
       <p className="font-medium text-foreground">{day.fullLabel}</p>
       <p className="mt-0.5 tabular-nums text-muted-foreground">
         {day.count === 0
-          ? "No jobs"
-          : `${formatRupees(day.total)} · ${day.count} ${day.count === 1 ? "job" : "jobs"}`}
+          ? t("chart.noJobs")
+          : t("chart.dayTotal", { amount: formatRupees(day.total, lang), count: day.count })}
       </p>
     </div>
   );
 }
 
 export function WeekEarningsChart({ bookings }: { bookings: API_EarningsBookingItem[] }) {
-  const buckets = bucketWeek(bookings);
+  const { t, lang } = useT("provider");
+  const buckets = bucketWeek(bookings, undefined, lang);
 
   if (!isWeekChartWorthShowing(buckets)) return null;
 
@@ -70,7 +73,9 @@ export function WeekEarningsChart({ bookings }: { bookings: API_EarningsBookingI
 
   return (
     <div className="mt-3 rounded-xl border border-border bg-card p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">By day</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {t("chart.byDay")}
+      </p>
 
       {/* A plain-language summary for anyone who cannot see the bars. The chart
           itself is decorative once this is present — the amounts are all in the
@@ -78,7 +83,7 @@ export function WeekEarningsChart({ bookings }: { bookings: API_EarningsBookingI
       <p className="sr-only">
         {buckets
           .filter((b) => b.count > 0)
-          .map((b) => `${b.fullLabel}: ${formatRupees(b.total)}`)
+          .map((b) => `${b.fullLabel}: ${formatRupees(b.total, lang)}`)
           .join(". ")}
       </p>
 

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   GEOCODE_FAILED,
   GEOCODE_UNKNOWN,
+  addressForDisplay,
   isGeocodeFailure,
   withoutPinCode,
 } from "@/lib/geocode-result";
@@ -57,5 +58,24 @@ describe("dropping the PIN code", () => {
     // Degenerate, but returning "" here would hand an empty address to the
     // form and look like a geocode failure when it was not one.
     expect(withoutPinCode("411001")).toBe("411001");
+  });
+});
+
+describe("showing an address line (SVC-395)", () => {
+  it("leaves English exactly as it was", () => {
+    expect(addressForDisplay(GEOCODE_FAILED)).toBe("Could not fetch address");
+    expect(addressForDisplay(GEOCODE_UNKNOWN, "en")).toBe("Unknown Location");
+  });
+
+  it("words the two failures in Hindi and Marathi", () => {
+    expect(addressForDisplay(GEOCODE_FAILED, "hi")).toBe("पता नहीं मिल सका");
+    expect(addressForDisplay(GEOCODE_UNKNOWN, "hi")).toBe("अनजान जगह");
+    expect(addressForDisplay(GEOCODE_FAILED, "mr")).toBe("पत्ता मिळू शकला नाही");
+    expect(addressForDisplay(GEOCODE_UNKNOWN, "mr")).toBe("अज्ञात जागा");
+  });
+
+  it("never touches a real address", () => {
+    const place = "Lane 7, Karvenagar, Pune";
+    expect(addressForDisplay(place, "hi")).toBe(place);
   });
 });

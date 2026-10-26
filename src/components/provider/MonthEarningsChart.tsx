@@ -28,7 +28,8 @@ import { useState } from "react";
 import { Bar, BarChart, Cell } from "recharts";
 
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
-import { formatRupees } from "@/lib/currency";
+import { formatRupees } from "@/i18n/format";
+import { useT } from "@/i18n/LanguageProvider";
 import { bucketMonth, isMonthChartWorthShowing, type MonthDayBucket } from "@/lib/earnings-buckets";
 import type { API_EarningsBookingItem } from "@/hooks/useApi";
 
@@ -41,8 +42,9 @@ export function MonthEarningsChart({ bookings }: { bookings: API_EarningsBooking
   // then names the best day, so the strip is never blank and the tallest bar
   // is explained without needing a tap at all.
   const [selected, setSelected] = useState<number | null>(null);
+  const { t, lang } = useT("provider");
 
-  const buckets = bucketMonth(bookings);
+  const buckets = bucketMonth(bookings, undefined, lang);
 
   if (!isMonthChartWorthShowing(buckets)) return null;
 
@@ -52,20 +54,21 @@ export function MonthEarningsChart({ bookings }: { bookings: API_EarningsBooking
 
   const lastDay = buckets[buckets.length - 1].day;
   const midDay = Math.ceil(lastDay / 2);
-  const monthName = buckets[0].fullLabel.split(" ")[1];
+  // "1 Sep" — the first day's own label, so it is in the screen's language.
+  const firstLabel = buckets[0].fullLabel;
 
   return (
     <div className="mt-3 rounded-xl border border-border bg-card p-4">
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          By day
+          {t("chart.byDay")}
         </p>
         {/* The readout, where a 9px bar cannot carry its own label. Shows the
             best day until one is tapped, so it is informative at rest. */}
         {shown && (
           <p className="truncate text-xs tabular-nums text-muted-foreground">
             <span className="font-medium text-foreground">{shown.fullLabel}</span>
-            {shown.count > 0 ? ` · ${formatRupees(shown.total)}` : " · no jobs"}
+            {shown.count > 0 ? ` · ${formatRupees(shown.total, lang)}` : t("chart.noJobsInline")}
           </p>
         )}
       </div>
@@ -74,7 +77,7 @@ export function MonthEarningsChart({ bookings }: { bookings: API_EarningsBooking
       <p className="sr-only">
         {buckets
           .filter((b) => b.count > 0)
-          .map((b) => `${b.fullLabel}: ${formatRupees(b.total)}`)
+          .map((b) => `${b.fullLabel}: ${formatRupees(b.total, lang)}`)
           .join(". ")}
       </p>
 
@@ -113,12 +116,12 @@ export function MonthEarningsChart({ bookings }: { bookings: API_EarningsBooking
 
       {/* Endpoints only. Three dates anchor the span; the rest come from tapping. */}
       <div className="mt-1.5 flex justify-between text-[10px] tabular-nums text-muted-foreground">
-        <span>1 {monthName}</span>
+        <span>{firstLabel}</span>
         <span>{midDay}</span>
         <span>{lastDay}</span>
       </div>
 
-      <p className="mt-2 text-[11px] text-muted-foreground">Tap a bar for that day</p>
+      <p className="mt-2 text-[11px] text-muted-foreground">{t("chart.tapHint")}</p>
     </div>
   );
 }

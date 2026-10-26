@@ -4,13 +4,22 @@ import { MapPin, Navigation, Settings, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
-import { GEOCODE_FAILED, GEOCODE_UNKNOWN } from "@/lib/geocode-result";
+import { GEOCODE_FAILED, GEOCODE_UNKNOWN, addressForDisplay } from "@/lib/geocode-result";
 import { isNativeLocation, requestLocation } from "@/lib/geolocation";
 import { reverseGeocode, type PlaceDetails } from "@/lib/google-maps";
 import { MAP_PICKER_LOCATE_TIMEOUT_MS } from "@/lib/map-picker-timeouts";
 import { canOpenAppSettings, openAppSettings } from "@/lib/open-app-settings";
 import { PlacesSearchBar } from "@/components/PlacesSearchBar";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useT } from "@/i18n/LanguageProvider";
+
+/**
+ * The address line before the first reverse geocode lands. Kept as the state's
+ * value, not translated into it: the reconnect retry below keys off `address`
+ * being non-empty, and that must not change with the language. Only the
+ * displayed line is translated (SVC-376).
+ */
+const FETCHING = "Fetching location...";
 
 const DEFAULT_CENTER: [number, number] = [12.9716, 77.5946];
 
@@ -61,7 +70,12 @@ export function MapPicker({
   initialCenter?: [number, number] | null;
 }) {
   const [center, setCenter] = useState<[number, number]>(initialCenter ?? DEFAULT_CENTER);
-  const [address, setAddress] = useState("Fetching location...");
+  // SVC-376: our own chrome follows the route's language — Hindi/Marathi on
+  // the SP's onboarding and location screens, English on the customer address
+  // sheet. Geocoded addresses, place names and the GEOCODE_* sentinels (which
+  // callers compare against) are passed through untouched.
+  const { t, lang } = useT();
+  const [address, setAddress] = useState(FETCHING);
   const [isFetching, setIsFetching] = useState(false);
   // SVC-356: a denial sticks around after the toast dismisses, because the
   // remedy (Settings) is one tap away and the user may need a moment to find
@@ -218,11 +232,11 @@ export function MapPicker({
     toast.error(
       denied
         ? isNativeLocation()
-          ? "Location is off for this app. Turn it on in settings, or move the pin."
-          : "Check that Location is on in your settings and allowed for this site, or move the pin."
+          ? t("map.toastDeniedNative")
+          : t("map.toastDeniedWeb")
         : result.failure === "location-disabled"
-          ? "Your phone's location is off. Turn it on in settings, or move the pin."
-          : "Couldn't get your location. Move the pin to set it instead.",
+          ? t("map.toastDisabled")
+          : t("map.toastFailed"),
     );
 
     // SVC-356: a denial on native raises the Open-settings banner, which
@@ -261,9 +275,7 @@ export function MapPicker({
               tileerror: () => {
                 if (tileErrorToastedRef.current) return;
                 tileErrorToastedRef.current = true;
-                toast.error(
-                  "Map tiles aren't loading. Check your connection or your network's content filter.",
-                );
+                toast.error(t("map.tilesFailed"));
               },
             }}
           />
@@ -290,7 +302,7 @@ export function MapPicker({
             without one a screen reader announces "button" and nothing else. */}
         <button
           type="button"
-          aria-label="Use my current location"
+          aria-label={t("map.useCurrent")}
           disabled={isFetching}
           onClick={() => void handleLocateMe()}
           className="absolute bottom-4 right-4 z-10 h-12 w-12 bg-card rounded-full shadow-lg border border-border flex items-center justify-center disabled:opacity-60"
@@ -312,10 +324,8 @@ export function MapPicker({
         >
           <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground">You're offline</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Drop the pin — we'll resolve the address when you reconnect.
-            </p>
+            <p className="text-sm font-medium text-foreground">{t("map.offlineTitle")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("map.offlineDetail")}</p>
           </div>
         </div>
       )}
@@ -336,14 +346,12 @@ export function MapPicker({
           className="z-20 flex items-start gap-3 border-t border-border bg-destructive/10 p-4"
         >
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground">Location is off for this app</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Turn it on in Settings, or move the pin to set it instead.
-            </p>
+            <p className="text-sm font-medium text-foreground">{t("map.deniedTitle")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("map.deniedDetail")}</p>
           </div>
           <Button size="sm" variant="outline" onClick={() => void openAppSettings()}>
             <Settings className="h-4 w-4" />
-            Open settings
+            {t("map.openSettings")}
           </Button>
         </div>
       )}
@@ -352,9 +360,13 @@ export function MapPicker({
         <div className="flex items-start gap-3">
           <div className="mt-1 h-2 w-2 bg-success rounded-full animate-pulse shrink-0" />
           <div className="flex-1">
-            <h3 className="font-semibold text-foreground text-sm">Select Location</h3>
+            <h3 className="font-semibold text-foreground text-sm">{t("map.selectLocation")}</h3>
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2 min-h-[32px]">
-              {isFetching ? "Locating..." : address}
+              {isFetching
+                ? t("map.locating")
+                : address === FETCHING
+                  ? t("map.fetching")
+                  : addressForDisplay(address, lang)}
             </p>
           </div>
         </div>

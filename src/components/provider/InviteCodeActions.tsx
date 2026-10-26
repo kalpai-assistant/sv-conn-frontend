@@ -15,31 +15,33 @@ import { Check, Copy, Share2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { inviteMessage, type TeamInvite } from "@/hooks/useTeam";
+import { useT } from "@/i18n/LanguageProvider";
 
 export function InviteCodeActions({
   invite,
 }: {
   invite: Pick<TeamInvite, "token" | "invite_url">;
 }) {
+  const { t, lang } = useT("provider");
   const [copied, setCopied] = useState(false);
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
   const copy = () => {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
-      toast.error(`Couldn't copy. The code is ${invite.token}.`);
+      toast.error(t("inviteActions.copyFailed", { code: invite.token }));
       return;
     }
     navigator.clipboard
-      .writeText(inviteMessage(invite))
+      .writeText(inviteMessage(invite, lang))
       .then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       })
-      .catch(() => toast.error(`Couldn't copy. The code is ${invite.token}.`));
+      .catch(() => toast.error(t("inviteActions.copyFailed", { code: invite.token })));
   };
 
   const share = () => {
-    navigator.share({ text: inviteMessage(invite) }).catch(() => {
+    navigator.share({ text: inviteMessage(invite, lang) }).catch(() => {
       // Cancelled from the share sheet: not an error.
     });
   };
@@ -48,12 +50,12 @@ export function InviteCodeActions({
     <div className="flex gap-2">
       <Button type="button" variant="outline" size="sm" onClick={copy}>
         {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-        {copied ? "Copied" : "Copy invite"}
+        {copied ? t("inviteActions.copied") : t("inviteActions.copy")}
       </Button>
       {canShare && (
         <Button type="button" variant="outline" size="sm" onClick={share}>
           <Share2 className="h-4 w-4" />
-          Share
+          {t("inviteActions.share")}
         </Button>
       )}
     </div>
@@ -62,10 +64,11 @@ export function InviteCodeActions({
 
 /** The code itself, spaced so it can be read out over the phone. */
 export function InviteCode({ token }: { token: string }) {
+  const { t } = useT("provider");
   return (
     <p
       className="font-mono text-2xl font-bold tracking-[0.3em] text-foreground"
-      aria-label={`Invite code ${token.split("").join(" ")}`}
+      aria-label={t("inviteActions.codeLabel", { code: token.split("").join(" ") })}
     >
       {token}
     </p>

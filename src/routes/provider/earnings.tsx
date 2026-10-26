@@ -38,7 +38,8 @@ import { EarningsWindow, RangeTabs } from "@/components/provider/EarningsWindow"
 import { PayoutSummary } from "@/components/provider/PayoutSummary";
 import { ProEarningsBreakdown } from "@/components/provider/ProEarningsBreakdown";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatRupees } from "@/lib/currency";
+import { formatRupees } from "@/i18n/format";
+import { useT } from "@/i18n/LanguageProvider";
 import { WINDOW_RANGES } from "@/lib/earnings-ranges";
 import { useAuth } from "@/lib/auth-context";
 import { useEarnings, useEarningsSummary, type EarningsRange } from "@/hooks/useApi";
@@ -51,6 +52,7 @@ export const Route = createFileRoute("/provider/earnings")({
 function ProviderEarningsPage() {
   // Only for the header avatar's initials.
   const { user } = useAuth();
+  const { t, lang } = useT("provider");
   const [range, setRange] = useState<EarningsRange>("week");
 
   const summary = useEarningsSummary();
@@ -66,7 +68,7 @@ function ProviderEarningsPage() {
   return (
     <div className="min-h-screen p-6 pb-24">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-foreground">Earnings</h1>
+        <h1 className="text-lg font-semibold text-foreground">{t("earnings.title")}</h1>
         {/* Present even here: Profile left the tab bar, so an absent avatar
             would strand a provider who landed on this tab. */}
         <AccountAvatar to="/provider/profile" name={user?.name} />
@@ -75,9 +77,9 @@ function ProviderEarningsPage() {
       {/* ---- Lifetime hero -------------------------------------------------
           The reason the tab exists. Deliberately the only thing at this size:
           a second figure this large turns a headline into a comparison. */}
-      <section className="mt-6" aria-label="Total earned">
+      <section className="mt-6" aria-label={t("earnings.totalEarned")}>
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Total earned
+          {t("earnings.totalEarned")}
         </p>
         {summary.isLoading ? (
           <>
@@ -92,17 +94,16 @@ function ProviderEarningsPage() {
             className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"
           >
             <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
-            Couldn&rsquo;t load your total.
-            <span className="font-medium text-primary">Retry</span>
+            {t("earnings.totalFailed")}
+            <span className="font-medium text-primary">{t("earnings.retry")}</span>
           </button>
         ) : (
           <>
             <p className="mt-1 text-4xl font-bold tabular-nums tracking-tight text-foreground">
-              {formatRupees(summary.data?.lifetime_payout ?? 0)}
+              {formatRupees(summary.data?.lifetime_payout ?? 0, lang)}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {summary.data?.completed_count ?? 0}{" "}
-              {summary.data?.completed_count === 1 ? "job" : "jobs"} completed &middot; all time
+              {t("earnings.completed", { count: summary.data?.completed_count ?? 0 })}
             </p>
           </>
         )}

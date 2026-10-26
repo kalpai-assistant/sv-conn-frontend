@@ -41,11 +41,13 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight, Wallet } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatRupees } from "@/lib/currency";
+import { formatRupees } from "@/i18n/format";
+import { useT } from "@/i18n/LanguageProvider";
 import { useProviderPayoutSummary } from "@/hooks/useApi";
 
 export function EarningsRow() {
   const { data, isLoading, isError } = useProviderPayoutSummary();
+  const { t, lang } = useT("provider");
 
   return (
     <Link
@@ -58,7 +60,7 @@ export function EarningsRow() {
 
       <span className="min-w-0 flex-1">
         <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Coming to you
+          {t("earnings.comingToYou")}
         </span>
         {isLoading ? (
           <Skeleton className="mt-1 h-6 w-24" />
@@ -66,11 +68,11 @@ export function EarningsRow() {
           // Deliberately not ₹0 — see the note above. The row stays tappable;
           // the tab has its own retry.
           <span className="mt-0.5 block text-sm text-muted-foreground">
-            Tap to see your earnings
+            {t("earnings.tapToSee")}
           </span>
         ) : (
           <span className="mt-0.5 block text-xl font-bold tabular-nums text-foreground">
-            {formatRupees(data?.pending_amount ?? 0)}
+            {formatRupees(data?.pending_amount ?? 0, lang)}
           </span>
         )}
       </span>

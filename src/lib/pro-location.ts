@@ -21,6 +21,7 @@ import {
   requestLocation,
   type LocationResult,
 } from "@/lib/geolocation";
+import { englishT, type Translate } from "@/i18n";
 
 export type ProLocationStatus =
   /** We have a fix. */
@@ -81,16 +82,12 @@ export function locationNeedsAttention(status: ProLocationStatus | null): boolea
 }
 
 /** The banner's words for each problem. */
-export function locationWarning(status: ProLocationStatus): { title: string; detail: string } {
+export function locationWarning(
+  status: ProLocationStatus,
+  t: Translate = englishT("pro"),
+): { title: string; detail: string } {
   if (status === "denied") {
-    return {
-      title: "Location is blocked for EazyServ",
-      detail:
-        "Allow location for EazyServ in your phone’s settings so your team can see where you are.",
-    };
+    return { title: t("location.deniedTitle"), detail: t("location.deniedDetail") };
   }
-  return {
-    title: "Location is off",
-    detail: "Turn it on so your team can see where you are while you’re online.",
-  };
+  return { title: t("location.offTitle"), detail: t("location.offDetail") };
 }

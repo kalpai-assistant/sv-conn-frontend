@@ -41,16 +41,18 @@ import {
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { firstInitial } from "@/lib/initials";
+import { useT } from "@/i18n/LanguageProvider";
 
 type Availability = "available" | "busy" | "offline" | "kyc" | "self-off" | "unknown";
 type Learned = "busy" | "offline" | "kyc" | "self-off";
 
-const LABEL: Record<Exclude<Availability, "unknown">, string> = {
-  available: "Available",
-  busy: "On a job",
-  offline: "Offline",
-  kyc: "KYC pending",
-  "self-off": "You're not taking jobs yourself",
+/** provider.json `picker.*` key for each shown state. */
+const LABEL_KEY: Record<Exclude<Availability, "unknown">, string> = {
+  available: "picker.available",
+  busy: "picker.busy",
+  offline: "picker.offline",
+  kyc: "picker.kyc",
+  "self-off": "picker.selfOff",
 };
 
 const DOT: Record<Exclude<Availability, "unknown">, string> = {
@@ -85,6 +87,7 @@ export function TeamPicker({
   mode = "claim",
 }: TeamPickerProps) {
   const repick = mode === "repick";
+  const { t } = useT("provider");
   const navigate = useNavigate();
   const team = useTeam();
   const assign = useAssignPro();
@@ -124,23 +127,27 @@ export function TeamPicker({
         onSuccess: () => {
           if (repick) {
             toast.success(
-              pro.is_self ? "You're doing this job" : `${pro.display_name} is doing this job`,
+              pro.is_self
+                ? t("picker.selfDoing")
+                : t("picker.proDoing", { name: pro.display_name }),
             );
             onDismiss("accepted");
             return;
           }
-          toast.success(pro.is_self ? "Job accepted" : `Job assigned to ${pro.display_name}`);
+          toast.success(
+            pro.is_self ? t("picker.accepted") : t("picker.assignedTo", { name: pro.display_name }),
+          );
           onDismiss("accepted");
           navigate({ to: "/provider/bookings/$bookingId", params: { bookingId } });
         },
         onError: (error) => {
           const outcome = assignOutcomeForError(error);
           if (outcome === "taken" || outcome === "unavailable") {
-            if (outcome === "taken") toast("This job is no longer available");
+            if (outcome === "taken") toast(t("picker.taken"));
             onDismiss(outcome);
             return;
           }
-          toast.error(teamErrorMessage(error));
+          toast.error(teamErrorMessage(error, t));
           if (outcome !== "repick") return;
           setSelectedId(null);
           const code = error instanceof ApiError ? error.code : undefined;
@@ -161,16 +168,14 @@ export function TeamPicker({
     <div className="space-y-4">
       <div>
         <h2 id="incoming-request-title" className="text-xl font-bold text-foreground">
-          Who's doing this job?
+          {t("picker.title")}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          {repick
-            ? "The job stays yours. This changes who goes."
-            : "The job isn't yours until you assign it."}
+          {repick ? t("picker.repickHint") : t("picker.claimHint")}
         </p>
       </div>
 
-      <ul className="max-h-[45vh] space-y-2 overflow-y-auto" aria-label="Your team">
+      <ul className="max-h-[45vh] space-y-2 overflow-y-auto" aria-label={t("picker.listLabel")}>
         {pros.map((pro) => {
           const state = availability(pro);
           const enabled = pickable(pro);
@@ -195,12 +200,14 @@ export function TeamPicker({
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-foreground">
                     {pro.display_name}
-                    {pro.is_self && <span className="text-muted-foreground"> (You)</span>}
+                    {pro.is_self && (
+                      <span className="text-muted-foreground"> {t("picker.you")}</span>
+                    )}
                   </p>
                   {state !== "unknown" && (
                     <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <span className={cn("h-2 w-2 rounded-full", DOT[state])} aria-hidden />
-                      {LABEL[state]}
+                      {t(LABEL_KEY[state])}
                     </p>
                   )}
                 </div>
@@ -213,7 +220,7 @@ export function TeamPicker({
 
       {expired && (
         <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-          This request has expired.
+          {t("picker.expired")}
         </p>
       )}
 
@@ -225,16 +232,16 @@ export function TeamPicker({
           disabled={!selected || assign.isPending || expired}
         >
           {assign.isPending
-            ? "Assigning…"
+            ? t("picker.assigning")
             : selected
               ? selected.is_self
-                ? "Do it myself"
-                : `Assign to ${selected.display_name}`
-              : "Pick someone"}
+                ? t("picker.doItMyself")
+                : t("picker.assignTo", { name: selected.display_name })
+              : t("picker.pickSomeone")}
         </Button>
         <Button variant="ghost" className="w-full" onClick={onBack} disabled={assign.isPending}>
           {!repick && <ArrowLeft className="h-4 w-4" />}
-          {repick ? "Cancel" : "Back"}
+          {repick ? t("picker.cancel") : t("picker.back")}
         </Button>
       </div>
     </div>

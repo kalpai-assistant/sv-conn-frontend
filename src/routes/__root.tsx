@@ -40,6 +40,8 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { readSelectedAddressCache } from "@/hooks/useSelectedAddress";
 import { shouldGateLocation } from "@/lib/should-gate-location";
 import { AppVersionGate } from "@/components/AppVersionGate";
+import { FirstRunLanguagePrompt } from "@/components/language/FirstRunLanguagePrompt";
+import { LanguageProvider } from "@/i18n/LanguageProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -550,7 +552,13 @@ function AppGate({ children }: { children: React.ReactNode }) {
     );
   }
   return (
-    <div className="safe-top mx-auto max-w-md min-h-screen bg-background pb-20">{children}</div>
+    <div className="safe-top mx-auto max-w-md min-h-screen bg-background pb-20">
+      {children}
+      {/* SVC-375: asks a provider or Pro for a language once after sign-in,
+          only while i18n_enabled. Here, in the app shell, so it never stacks
+          on a gate; the rules are in `shouldAskLanguage`. */}
+      <FirstRunLanguagePrompt />
+    </div>
   );
 }
 
@@ -566,45 +574,51 @@ function RootComponent() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          {/* CartProvider sits inside AuthProvider so the cart can be
+          {/* SVC-375: the language each screen renders in, decided from the
+              route during render — Hindi/Marathi only on /provider and /pro
+              while i18n_enabled. Inside AuthProvider for the user, and above
+              everything that renders copy, the overlays included. */}
+          <LanguageProvider>
+            {/* CartProvider sits inside AuthProvider so the cart can be
               scoped by user id (see cart-context.tsx). Outside the
               version gate so a version-blocked user's cart still
               survives an update. */}
-          <CartProvider>
-            {/* SVC-290 sheets: CategorySheetProvider hosts the L1 →
+            <CartProvider>
+              {/* SVC-290 sheets: CategorySheetProvider hosts the L1 →
                 sub-categories picker; ServiceSheetProvider hosts the
                 service detail sheet. Both sit above SplashGate so a
                 deep-link redirect (either /category/{L1-slug} or
                 /service/{id}) can safely open its sheet before the
                 splash lifts. */}
-            <CategorySheetProvider>
-              <ServiceSheetProvider>
-                {/* SplashGate is the outermost UI concern: the animated
+              <CategorySheetProvider>
+                <ServiceSheetProvider>
+                  {/* SplashGate is the outermost UI concern: the animated
                     launch splash covers everything for ~2s on cold app
                     open, then swaps in the app shell. Sits inside all the
                     providers so the app underneath is fully hydrated by
                     the time the splash lifts. */}
-                <SplashGate>
-                  {/* SVC-162: version-check nudge/block overlays. Wraps
+                  <SplashGate>
+                    {/* SVC-162: version-check nudge/block overlays. Wraps
                       the whole tree so the block state can cover
                       everything below it. */}
-                  <AppVersionGate>
-                    <AppGate>
-                      <Outlet />
-                      <BottomNav />
-                      <CartFab />
-                    </AppGate>
-                    {/* SVC-69: full-screen overlay for an incoming
+                    <AppVersionGate>
+                      <AppGate>
+                        <Outlet />
+                        <BottomNav />
+                        <CartFab />
+                      </AppGate>
+                      {/* SVC-69: full-screen overlay for an incoming
                         broadcast job. Sits outside AppGate so it can
                         cover the whole shell; renders nothing unless a
                         booking id is supplied. */}
-                    <IncomingRequestHost />
-                    <Toaster />
-                  </AppVersionGate>
-                </SplashGate>
-              </ServiceSheetProvider>
-            </CategorySheetProvider>
-          </CartProvider>
+                      <IncomingRequestHost />
+                      <Toaster />
+                    </AppVersionGate>
+                  </SplashGate>
+                </ServiceSheetProvider>
+              </CategorySheetProvider>
+            </CartProvider>
+          </LanguageProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

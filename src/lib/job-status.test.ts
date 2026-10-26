@@ -6,7 +6,17 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Booking } from "@/lib/mock-data";
-import { currentJob, dueIn, endedAt, isActive } from "@/lib/job-status";
+import {
+  currentJob,
+  dueIn,
+  endedAt,
+  isActive,
+  proStatusLabel,
+  statusLabel,
+  statusText,
+} from "@/lib/job-status";
+import i18n from "@/i18n";
+import type { Translate } from "@/i18n";
 
 // Source formats with `toLocaleDateString(undefined, ...)`, so the exact
 // short-month spelling ("Sep" vs "Sept") depends on which locale and ICU set
@@ -131,5 +141,54 @@ describe("when a job ended", () => {
     expect(endedAt(at({ status: "COMPLETED", statusHistory: [] }))).toBe(
       formattedDate("2026-09-14T10:00:00Z"),
     );
+  });
+});
+
+describe("job status in the screen's language (SVC-375)", () => {
+  const hi = i18n.getFixedT("hi", "common") as Translate;
+  const mr = i18n.getFixedT("mr", "common") as Translate;
+  const DEVANAGARI_DIGIT = /[\u0966-\u096F]/;
+
+  it("says in English exactly what the English maps say", () => {
+    for (const status of Object.keys(statusLabel)) {
+      expect(statusText(status)).toBe(statusLabel[status as keyof typeof statusLabel]);
+      expect(statusText(status, undefined, { pro: true })).toBe(
+        proStatusLabel[status as keyof typeof proStatusLabel],
+      );
+    }
+  });
+
+  it("translates every status, and Assigned for the Pro", () => {
+    for (const status of Object.keys(statusLabel)) {
+      expect(statusText(status, hi)).not.toBe(statusLabel[status as keyof typeof statusLabel]);
+      expect(statusText(status, hi)).not.toMatch(/jobStatus\./);
+    }
+    expect(statusText("ACCEPTED", mr, { pro: true })).toBe("तुम्हाला दिले");
+  });
+
+  it("renders an unknown status as itself", () => {
+    expect(statusText("SOMETHING_NEW", hi)).toBe("SOMETHING_NEW");
+  });
+
+  it("says when a job is due in hi and mr, with Latin digits", () => {
+    expect(dueIn(at({ scheduledAt: "2026-09-16T12:40:00Z" }), NOW, hi, "hi")).toBe("40 मिनट में");
+    expect(dueIn(at({ scheduledAt: "2026-09-16T12:40:00Z" }), NOW, mr, "mr")).toBe("40 मिनिटांत");
+    expect(dueIn(at({ scheduledAt: "2026-09-16T11:00:00Z" }), NOW, mr, "mr")).toBe("आता");
+    for (const scheduledAt of [
+      "2026-09-16T18:00:00Z",
+      "2026-09-17T09:00:00Z",
+      "2026-09-25T09:00:00Z",
+    ]) {
+      const due = dueIn(at({ scheduledAt }), NOW, mr, "mr");
+      expect(due).toMatch(/\d/);
+      expect(due).not.toMatch(DEVANAGARI_DIGIT);
+    }
+    expect(dueIn(at({ scheduledAt: "2026-09-17T09:00:00Z" }), NOW, hi, "hi")).toMatch(/^कल /);
+  });
+
+  it("dates a finished job in mr with Latin digits", () => {
+    const ended = endedAt(job(), "mr");
+    expect(ended).toMatch(/2026/);
+    expect(ended).not.toMatch(DEVANAGARI_DIGIT);
   });
 });
