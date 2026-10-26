@@ -43,6 +43,9 @@ const files = globSync(
     "components/NotificationsRow.tsx",
     "components/LocationGate.tsx",
     "components/LocationGateHost.tsx",
+    // SVC-395: the Pro's foreground push toasts and the app-update nudge.
+    "lib/notifications.ts",
+    "components/AppVersionGate.tsx",
   ],
   { cwd: SRC, ignore: ["**/*.test.{ts,tsx}"] },
 );

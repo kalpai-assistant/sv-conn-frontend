@@ -26,6 +26,8 @@ import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import type { PluginListenerHandle } from "@capacitor/core";
 import { useAuth } from "@/lib/auth-context";
+import i18n from "@/i18n";
+import { useLanguage } from "@/i18n/LanguageProvider";
 
 export type NotificationEvent =
   | "new_request" // dispatch broadcast → provider should see Incoming Request Card
@@ -137,20 +139,19 @@ export function routeForPayload(data: NotificationPayload, role: ViewerRole): st
 }
 
 /**
- * What the Pro is told when a job goes away with the app open (SVC-348). Word
- * for word the push's own title and body (backend NOTIFICATION_TEMPLATES), so
- * the toast and the notification never disagree. Not "reassigned": a release
- * or give-back sends the job back to searching, to nobody.
+ * What the Pro is told when a job goes away with the app open (SVC-348), as
+ * keys under `pushToast` in pro.json. Word for word the push's own title and
+ * body (backend NOTIFICATION_TEMPLATES, and its PROVIDER_PUSH_TRANSLATIONS in
+ * Hindi/Marathi), so the toast and the notification never disagree. Not
+ * "reassigned": a release or give-back sends the job back to searching, to
+ * nobody.
  */
 const PRO_JOB_GONE_TOAST: Record<string, { title: string; description: string }> = {
   job_cancelled: {
-    title: "Job cancelled",
-    description: "This job has been cancelled. Please don't travel to it.",
+    title: "pushToast.jobCancelledTitle",
+    description: "pushToast.jobCancelledBody",
   },
-  unassigned: {
-    title: "Job removed",
-    description: "This job is no longer assigned to you. Please don't travel to it.",
-  },
+  unassigned: { title: "pushToast.unassignedTitle", description: "pushToast.unassignedBody" },
 };
 
 /**
@@ -206,6 +207,15 @@ export function useNotificationRouter(): void {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const role: ViewerRole = (user as UserWithMaybeRole | null)?.role ?? null;
+  // The foreground toasts speak the screen's language (SVC-395), read when a
+  // push arrives. A ref, not a dependency: the listeners below are added once
+  // per role, and re-adding them on every /pro ↔ /profile move would leave a
+  // gap where a push goes unheard.
+  const lang = useLanguage();
+  const langRef = useRef(lang);
+  useEffect(() => {
+    langRef.current = lang;
+  }, [lang]);
 
   // Web push (PWA). Read once, on the first render: that runs before any
   // child's effect, and __root's role redirects (a provider landing on "/" is
@@ -270,6 +280,7 @@ export function useNotificationRouter(): void {
         "pushNotificationReceived",
         (notification) => {
           const data = notification.data as NotificationPayload;
+          const t = i18n.getFixedT(langRef.current, "pro");
           // A job assigned while the Pro has the app open (SVC-322). Android
           // shows no notification in the foreground, so without this nothing
           // happened at all: found on device, Pro Home kept saying "No job
@@ -278,9 +289,9 @@ export function useNotificationRouter(): void {
           if (data.event === "assigned" && role === "consumer" && data.booking_id) {
             const target = proJob(data.booking_id);
             void queryClient.invalidateQueries({ queryKey: ["pro-jobs"] });
-            toast("New job assigned", {
-              description: "Your team gave you a job.",
-              action: { label: "Open", onClick: () => navigate({ to: target }) },
+            toast(t("pushToast.assignedTitle"), {
+              description: t("pushToast.assignedBody"),
+              action: { label: t("pushToast.open"), onClick: () => navigate({ to: target }) },
             });
             return;
           }
@@ -291,7 +302,7 @@ export function useNotificationRouter(): void {
           if (gone && role === "consumer" && data.booking_id) {
             void queryClient.invalidateQueries({ queryKey: ["pro-jobs"] });
             void queryClient.invalidateQueries({ queryKey: ["booking", data.booking_id] });
-            toast(gone.title, { description: gone.description });
+            toast(t(gone.title), { description: t(gone.description) });
             return;
           }
           if (!shouldAutoRouteForeground(data, role)) return;
