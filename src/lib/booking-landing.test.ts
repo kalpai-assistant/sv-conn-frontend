@@ -140,13 +140,15 @@ describe("nextBookingLandedFor", () => {
     // Pro-gate's SVC-322 bug: the ref was keyed by user but never cleared,
     // so sign-out and sign-in during one run counted as already-landed and
     // the Pro was stuck on consumer home. This mirror avoids it.
-    expect(nextBookingLandedFor("user-a", { userId: undefined, signedOut: true, consumes: true })).toBeNull();
+    expect(
+      nextBookingLandedFor("user-a", { userId: undefined, signedOut: true, consumes: true }),
+    ).toBeNull();
   });
 
   it("stamps the user id when this render consumed the landing", () => {
-    expect(
-      nextBookingLandedFor(null, { userId: "user-a", signedOut: false, consumes: true }),
-    ).toBe("user-a");
+    expect(nextBookingLandedFor(null, { userId: "user-a", signedOut: false, consumes: true })).toBe(
+      "user-a",
+    );
   });
 
   it("keeps the current value when nothing consumed this render", () => {

@@ -451,13 +451,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
       // The verdict and the id-lookup read the same list, so an id must
       // exist here — the type refinement is for TypeScript's benefit.
       if (activeId) {
-        return (
-          <Navigate
-            to="/tracking/$bookingId"
-            params={{ bookingId: activeId }}
-            replace
-          />
-        );
+        return <Navigate to="/tracking/$bookingId" params={{ bookingId: activeId }} replace />;
       }
     }
 
