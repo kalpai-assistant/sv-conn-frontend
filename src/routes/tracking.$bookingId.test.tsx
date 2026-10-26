@@ -19,8 +19,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-const { booking } = vi.hoisted(() => ({
+const { booking, auth } = vi.hoisted(() => ({
   booking: { value: undefined as unknown, loading: false },
+  auth: { user: { id: "c1" } as { id: string } | null },
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -34,16 +35,13 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 
-// SVC-393: the tracking screen now reads `useAuth` to key the favorites
-// store by user id. The real context needs a provider; a tiny stub keeps
-// every test in this file consistent and avoids a wrapper per render.
-vi.mock("@/lib/auth-context", () => ({
-  useAuth: () => ({ user: { id: "u-1", name: "Vipul" } }),
-}));
 // Leaflet does not survive jsdom; the map is irrelevant to the button.
 vi.mock("@/components/tracking/TrackingMap", () => ({ TrackingMap: () => null }));
 vi.mock("@/components/tracking/TipSection", () => ({ TipSection: () => null }));
-vi.mock("@/components/ReviewSheet", () => ({ ReviewSheet: () => null }));
+vi.mock("@/components/ReviewSheet", () => ({
+  ReviewSheet: ({ open }: { open: boolean }) => (open ? <div>Rate your service</div> : null),
+}));
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => auth }));
 vi.mock("@/hooks/useApi", async (importOriginal) => {
   const idle = () => ({ mutateAsync: vi.fn(), isPending: false });
   return {
@@ -70,6 +68,7 @@ const TrackingPage = (Route as unknown as { component: () => React.ReactElement 
 const apiBooking = (over: Record<string, unknown> = {}) =>
   ({
     id: "b1",
+    consumer_id: "c1",
     status: "accepted",
     provider_id: "sp1",
     service_amount: 500,
@@ -104,6 +103,8 @@ const show = (over: Record<string, unknown> = {}) => {
 beforeEach(() => {
   booking.value = undefined;
   booking.loading = false;
+  auth.user = { id: "c1" };
+  localStorage.clear();
 });
 
 describe("Call provider", () => {
@@ -198,5 +199,21 @@ describe("Save for next time prompt", () => {
 
     expect(screen.queryByText(/book this service again next time/i)).not.toBeInTheDocument();
     expect(window.localStorage.length).toBe(0);
+  });
+});
+
+// A Pro can open the job they did on this same screen. Only the customer who
+// booked may rate it: the backend refuses anyone else ("You can only review
+// your own bookings"), so the Pro must never be offered the sheet.
+describe("the review sheet on a completed booking", () => {
+  it("opens for the customer who booked", () => {
+    show({ status: "completed" });
+    expect(screen.getByText("Rate your service")).toBeInTheDocument();
+  });
+
+  it("never opens for anyone else, such as the Pro who did the job", () => {
+    auth.user = { id: "pro-user" };
+    show({ status: "completed" });
+    expect(screen.queryByText("Rate your service")).toBeNull();
   });
 });
