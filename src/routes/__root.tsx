@@ -1,4 +1,11 @@
-import { Outlet, Link, createRootRoute, useRouterState, Navigate } from "@tanstack/react-router";
+import {
+  Outlet,
+  Link,
+  createRootRoute,
+  useRouter,
+  useRouterState,
+  Navigate,
+} from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
@@ -37,6 +44,7 @@ import { ConsumerLocationGate, ProviderLocationGate } from "@/components/Locatio
 import { useLocationConfirmed } from "@/hooks/useLocationConfirmed";
 import { useLocationAvailability } from "@/hooks/useLocationAvailability";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useEdgeSwipeBack } from "@/hooks/useEdgeSwipeBack";
 import { readSelectedAddressCache } from "@/hooks/useSelectedAddress";
 import { shouldGateLocation } from "@/lib/should-gate-location";
 import { AppVersionGate } from "@/components/AppVersionGate";
@@ -266,6 +274,15 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // in RootComponent so it inherits the same router context every other
   // AppGate hook does.
   useSentryNavigationBreadcrumbs();
+
+  // SVC-391: iOS left-edge-swipe → back, routed through the same interceptor
+  // chain the hardware back button uses so open sheets and the AuthFlow OTP
+  // step claim the gesture the same way. No-op on Android (system owns the
+  // gesture) and on the web (browser does). Pathname-aware so routes where
+  // back is wrong — mid-payment on /cart, the public /invite landing — stay
+  // out of it.
+  const edgeSwipeRouter = useRouter();
+  useEdgeSwipeBack(edgeSwipeRouter, pathname);
 
   // Every branch below carries `safe-top` (SVC-285), and a new one must too.
   //
