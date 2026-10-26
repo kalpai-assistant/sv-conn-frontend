@@ -130,6 +130,13 @@ export interface BookingItem {
   id: string;
   serviceId: string;
   serviceName: string;
+  // SVC-393: variant snapshot. The backend already stores
+  // `service_variant_id` + `variant_label` on booking items; we were
+  // dropping both at the UI mapper. Carrying them through lets rebook
+  // re-prefill the exact variant the user originally paid for instead
+  // of silently falling back to the service's first active variant.
+  variantId?: string;
+  variantLabel?: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
