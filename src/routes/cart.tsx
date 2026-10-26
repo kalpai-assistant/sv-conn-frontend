@@ -31,6 +31,7 @@ import { PricingBreakdown } from "@/components/cart/PricingBreakdown";
 import { formatRupees } from "@/lib/currency";
 import { clearPendingCoupon, getPendingCoupon } from "@/lib/pending-coupon";
 import { readLastPaymentMethod, writeLastPaymentMethod } from "@/lib/last-payment-method";
+import { hapticSuccess } from "@/lib/haptics";
 
 // SVC-310: the hero banner's "coupon" destination hands off the code
 // through this param so the cart opens with the coupons sheet pre-filled.
@@ -227,6 +228,11 @@ export function CartPage() {
         // thing they tried. The on-mount read in state init picks this up
         // on the next cart open.
         writeLastPaymentMethod(paymentMethod);
+        // SVC-398: server-confirmed success → triple-buzz. The Light impact
+        // fired earlier (Razorpay handler for online, cash branch of
+        // useBookAndPay for cash) was "payment posted"; this is "booking
+        // live", paired with the SVC-390 celebration overlay.
+        hapticSuccess();
         // SVC-390: trigger the celebration overlay. The overlay unmounts
         // via its own 1.5s timer and fires handleCelebrationComplete below,
         // which clears the cart and navigates to tracking.

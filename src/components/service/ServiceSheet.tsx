@@ -34,6 +34,7 @@ import { ServiceSheetSkeleton } from "@/components/skeletons/ServiceSheetSkeleto
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { useDragDismiss } from "@/hooks/useDragDismiss";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
+import { hapticImpactLight } from "@/lib/haptics";
 import { useCategories, useServices, useServiceDetail } from "@/hooks/useApi";
 import type { UI_RelatedServiceEntry } from "@/hooks/useApi";
 import { useCart } from "@/lib/cart-context";
@@ -111,6 +112,10 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
   const handleAddToCart = () => {
     if (!service) return;
     cart.add(service, 1, selectedVariant?.id);
+    // SVC-398: single Light tap confirming the line landed. Fired here, not
+    // in cart-context's `add`, because `addMany` (SVC-347 bulk prefill) runs
+    // through the same reducer and must not buzz once per restored line.
+    hapticImpactLight();
   };
 
   const handleGoToCart = () => {

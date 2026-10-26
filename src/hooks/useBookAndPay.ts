@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import type { RazorpayCheckoutOptions, RazorpaySuccessResponse } from "@/types/razorpay";
 import { useCreatePaymentOrder, useVerifyPayment } from "@/hooks/useApi";
 import { useCreateBookingFromCart } from "@/hooks/useCreateBookingFromCart";
+import { hapticImpactLight } from "@/lib/haptics";
 import type { CartLineItem } from "@/lib/cart-context";
 
 type CreateBookingArgs = Parameters<ReturnType<typeof useCreateBookingFromCart>["mutateAsync"]>[0];
@@ -104,6 +105,10 @@ export function useBookAndPay() {
 
         // Cash: nothing to charge, so the booking IS the outcome.
         if (!isOnline) {
+          // SVC-398: Light impact at the "booking posted" moment, mirroring
+          // the one in the Razorpay handler below so cash and online feel
+          // the same up to the point the cash branch skips the gateway.
+          hapticImpactLight();
           heldBooking.current = null;
           onComplete(bookingId);
           return;
@@ -143,6 +148,13 @@ export function useBookAndPay() {
           // ordinary external navigation).
           webview_intent: true,
           handler: (response: RazorpaySuccessResponse) => {
+            // SVC-398: Light "payment posted" tap, fired as soon as the
+            // gateway hands control back — not after our verify call. The
+            // user felt their tap when they pressed Pay in Razorpay; this
+            // confirms it landed before the ~500ms server round-trip.
+            // The stronger Success triple-buzz follows at
+            // `setCelebratingBookingId` in cart.tsx once the server confirms.
+            hapticImpactLight();
             void (async () => {
               try {
                 await verifyPayment.mutateAsync({
