@@ -272,6 +272,46 @@
         ]
       }
     },
+    "/api/v1/users/me/language": {
+      "patch": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update Language",
+        "description": "Save the caller's language: ``en``, ``hi`` or ``mr`` (SVC-374).\n\nOpen to every role: a Pro's account is a consumer account. It changes the\nlanguage of provider/Pro pushes only; customer pushes stay English. Read\nit back as ``preferred_language`` on ``GET /users/me``.",
+        "operationId": "update_language_api_v1_users_me_language_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLanguageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/users/me/push-capability": {
       "post": {
         "tags": [
@@ -6526,6 +6566,25 @@
         "title": "UpdateFCMTokenRequest",
         "description": "Register or clear the caller's FCM token.\n\n`fcm_token` is nullable but *required* \u2014 `null` clears the stored token\n(sign-out), while an omitted field is a 422. Without that distinction an\nempty body would silently wipe push for the user.\n\n`platform` (SVC-371) says which app the token belongs to, so the release\npush can skip other platforms. It is optional, unlike the ticket's wording:\ninstalled APKs predate it and a required field would 422 their\nregistration, losing them push entirely. Omitted means stored as NULL,\nwhich still gets every release push."
       },
+      "UpdateLanguageRequest": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "hi",
+              "mr"
+            ],
+            "title": "Language"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language"
+        ],
+        "title": "UpdateLanguageRequest",
+        "description": "Body for ``PATCH /users/me/language`` (SVC-374).\n\nRequired and never null: there is no way back to \"never chosen\", which\nwould re-show the app's one-time prompt. Anything but the three codes is\na 422."
+      },
       "UpdateProfileRequest": {
         "properties": {
           "name": {
@@ -6662,6 +6721,22 @@
             "type": "boolean",
             "title": "Is Active"
           },
+          "preferred_language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "en",
+                  "hi",
+                  "mr"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Language"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -6671,6 +6746,11 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "i18n_enabled": {
+            "type": "boolean",
+            "title": "I18N Enabled",
+            "readOnly": true
           }
         },
         "type": "object",
@@ -6681,8 +6761,10 @@
           "email",
           "role",
           "is_active",
+          "preferred_language",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "i18n_enabled"
         ],
         "title": "UserResponse"
       },

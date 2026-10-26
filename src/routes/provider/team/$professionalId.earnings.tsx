@@ -20,7 +20,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { EarningsRange } from "@/hooks/useApi";
 import { useEarningsByPro, useProEarnings } from "@/hooks/useProEarnings";
 import { ApiError } from "@/lib/api";
-import { formatRupees } from "@/lib/currency";
+import { formatRupees } from "@/i18n/format";
+import { useT } from "@/i18n/LanguageProvider";
 import { WINDOW_RANGES } from "@/lib/earnings-ranges";
 import { firstInitial } from "@/lib/initials";
 
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/provider/team/$professionalId/earnings")(
 function ProEarningsPage() {
   const { professionalId } = Route.useParams();
   const [range, setRange] = useState<EarningsRange>("week");
+  const { t, lang } = useT("provider");
 
   const lifetime = useEarningsByPro("all");
   const period = useProEarnings(range, professionalId);
@@ -42,7 +44,7 @@ function ProEarningsPage() {
     (period.error instanceof ApiError && period.error.status === 404) ||
     (lifetime.isSuccess && !pro);
 
-  const name = pro ? (pro.is_self ? "You" : pro.display_name) : "";
+  const name = pro ? (pro.is_self ? t("earnings.you") : pro.display_name) : "";
 
   return (
     <div className="min-h-screen p-6 pb-24">
@@ -57,31 +59,29 @@ function ProEarningsPage() {
             <h1 className="min-w-0 flex-1 truncate text-lg font-semibold text-foreground">
               {name}
             </h1>
-            {!pro.is_active && <Badge variant="outline">Removed</Badge>}
+            {!pro.is_active && <Badge variant="outline">{t("teamEarnings.removed")}</Badge>}
           </>
         ) : lifetime.isLoading ? (
           <Skeleton className="h-6 w-32" />
         ) : (
-          <h1 className="text-lg font-semibold text-foreground">Earnings</h1>
+          <h1 className="text-lg font-semibold text-foreground">{t("earnings.title")}</h1>
         )}
       </div>
 
       {notOnTeam ? (
         <div className="mt-8 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-6 py-10 text-center">
           <UserX className="h-6 w-6 text-muted-foreground" />
-          <p className="font-medium text-foreground">Not on your team</p>
-          <p className="text-sm text-muted-foreground">
-            This person isn&rsquo;t one of your team members.
-          </p>
+          <p className="font-medium text-foreground">{t("teamEarnings.notOnTeam")}</p>
+          <p className="text-sm text-muted-foreground">{t("teamEarnings.notOnTeamDetail")}</p>
           <Link to="/provider/team" className="mt-2 text-sm font-medium text-primary">
-            Back to My Team
+            {t("teamEarnings.backToTeam")}
           </Link>
         </div>
       ) : (
         <>
-          <section className="mt-6" aria-label="Total earned">
+          <section className="mt-6" aria-label={t("earnings.totalEarned")}>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Total earned
+              {t("earnings.totalEarned")}
             </p>
             {lifetime.isLoading ? (
               <>
@@ -94,19 +94,20 @@ function ProEarningsPage() {
                 className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"
               >
                 <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
-                Couldn&rsquo;t load the total.
-                <span className="font-medium text-primary">Retry</span>
+                {t("teamEarnings.totalFailed")}
+                <span className="font-medium text-primary">{t("earnings.retry")}</span>
               </button>
             ) : pro.completed_count === 0 ? (
-              <p className="mt-1 text-lg font-medium text-muted-foreground">No jobs yet</p>
+              <p className="mt-1 text-lg font-medium text-muted-foreground">
+                {t("breakdown.noJobsYet")}
+              </p>
             ) : (
               <>
                 <p className="mt-1 text-4xl font-bold tabular-nums tracking-tight text-foreground">
-                  {formatRupees(pro.payout)}
+                  {formatRupees(pro.payout, lang)}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {pro.completed_count} {pro.completed_count === 1 ? "job" : "jobs"} completed
-                  &middot; all time
+                  {t("earnings.completed", { count: pro.completed_count })}
                 </p>
               </>
             )}
@@ -117,11 +118,7 @@ function ProEarningsPage() {
           <EarningsWindow
             range={range}
             period={period}
-            emptyHint={
-              pro?.is_self
-                ? "Jobs you complete yourself show up here."
-                : "Jobs they complete show up here with what each one earned."
-            }
+            emptyHint={pro?.is_self ? t("teamEarnings.emptySelf") : t("teamEarnings.emptyPro")}
           />
         </>
       )}

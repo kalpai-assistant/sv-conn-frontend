@@ -32,8 +32,9 @@ import { ChevronRight, History, MapPin } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { CompleteStep, DoorstepOtpStep, EnRouteStep } from "@/components/provider/JobActions";
-import { currentJob, dueIn, isActive, statusLabel, statusStyle } from "@/lib/job-status";
-import { formatRupees } from "@/lib/currency";
+import { currentJob, dueIn, isActive, statusStyle, statusText } from "@/lib/job-status";
+import { formatRupees } from "@/i18n/format";
+import { useT } from "@/i18n/LanguageProvider";
 import type { Booking } from "@/lib/mock-data";
 
 /** The action for the stage this job is at. Total over the active statuses. */
@@ -53,7 +54,10 @@ export function LiveJobs({
   isLoading: boolean;
   isError: boolean;
 }) {
+  const { t, lang } = useT("provider");
+  const { t: tc } = useT();
   const active = jobs.filter(isActive);
+  const due = (job: Booking) => dueIn(job, undefined, tc, lang);
   const current = currentJob(active);
   const queued = active.filter((job) => job.id !== current?.id);
 
@@ -74,9 +78,9 @@ export function LiveJobs({
         to="/provider/bookings"
         className="mt-6 flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4"
       >
-        <span className="text-sm text-muted-foreground">Couldn’t load your jobs</span>
+        <span className="text-sm text-muted-foreground">{t("liveJobs.loadFailed")}</span>
         <span className="flex shrink-0 items-center gap-0.5 text-sm font-medium text-primary">
-          Open Jobs
+          {t("liveJobs.openJobs")}
           <ChevronRight className="h-4 w-4" />
         </span>
       </Link>
@@ -93,10 +97,10 @@ export function LiveJobs({
       >
         <span className="flex items-center gap-2 text-sm text-muted-foreground">
           <History className="h-4 w-4 shrink-0" />
-          No jobs right now
+          {t("liveJobs.noJobs")}
         </span>
         <span className="flex shrink-0 items-center gap-0.5 text-sm font-medium text-primary">
-          View past jobs
+          {t("liveJobs.viewPast")}
           <ChevronRight className="h-4 w-4" />
         </span>
       </Link>
@@ -104,14 +108,14 @@ export function LiveJobs({
   }
 
   return (
-    <section className="mt-6" aria-label="Your jobs">
+    <section className="mt-6" aria-label={t("liveJobs.sectionLabel")}>
       <div className="overflow-hidden rounded-xl border border-primary/40 bg-card">
         <div className="flex items-center justify-between gap-3 bg-primary px-4 py-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-primary-foreground">
-            {statusLabel[current.status] ?? current.status}
+            {statusText(current.status, tc)}
           </span>
-          {dueIn(current) && (
-            <span className="text-xs text-primary-foreground/85">{dueIn(current)}</span>
+          {due(current) && (
+            <span className="text-xs text-primary-foreground/85">{due(current)}</span>
           )}
         </div>
 
@@ -139,7 +143,7 @@ export function LiveJobs({
               <NextAction job={current} />
             </div>
             <span className="shrink-0 text-xs font-medium text-muted-foreground">
-              {formatRupees(current.providerPayout)}
+              {formatRupees(current.providerPayout, lang)}
             </span>
           </div>
         </div>
@@ -148,7 +152,7 @@ export function LiveJobs({
       {queued.length > 0 && (
         <>
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Next up
+            {t("liveJobs.nextUp")}
           </p>
           <div className="mt-1.5 overflow-hidden rounded-xl border border-border bg-card">
             {queued.map((job, i) => (
@@ -168,9 +172,9 @@ export function LiveJobs({
                         statusStyle[job.status] ?? "bg-gray-100 text-gray-700"
                       }`}
                     >
-                      {statusLabel[job.status] ?? job.status}
+                      {statusText(job.status, tc)}
                     </span>
-                    {dueIn(job) && <span className="truncate">{dueIn(job)}</span>}
+                    {due(job) && <span className="truncate">{due(job)}</span>}
                   </p>
                 </div>
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -184,7 +188,7 @@ export function LiveJobs({
         to="/provider/bookings"
         className="mt-3 flex items-center justify-end gap-0.5 text-sm font-medium text-primary"
       >
-        View all jobs
+        {t("liveJobs.viewAll")}
         <ChevronRight className="h-4 w-4" />
       </Link>
     </section>

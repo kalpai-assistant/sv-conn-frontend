@@ -20,6 +20,10 @@
  * The *poll* is gated on role and on being online, but only to avoid asking a
  * question whose answer is a guaranteed empty list — the server enforces the
  * same rule regardless.
+ *
+ * Its copy follows the route's language (SVC-376), not `preferred_language`:
+ * it sits inside `LanguageProvider`, so a card that opens over a customer
+ * screen renders English, the same as the screen under it.
  */
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { useRouterState } from "@tanstack/react-router";
@@ -37,12 +41,14 @@ import {
 import { useDeclineOffer, useProviderOffers, type DismissReason } from "@/hooks/useBookingOffer";
 import { useProviderProfile } from "@/hooks/useApi";
 import { usePendingAction, UNDO_WINDOW_MS } from "@/hooks/usePendingAction";
+import { useT } from "@/i18n/LanguageProvider";
 
 /** The search param the merged `routeForPayload()` navigates to. */
 const SEARCH_PARAM = "incomingBookingId";
 
 export function IncomingRequestHost() {
   const { isAuthenticated, user } = useAuth();
+  const { t } = useT("provider");
 
   const imperativeId = useSyncExternalStore(
     subscribeIncomingRequest,
@@ -132,10 +138,10 @@ export function IncomingRequestHost() {
         if (reason === "ignored") {
           const id = bookingId;
           pendingDeclines.schedule(id, () => declineOffer(id));
-          toast("Job ignored", {
+          toast(t("incoming.ignored"), {
             duration: UNDO_WINDOW_MS,
             action: {
-              label: "Undo",
+              label: t("incoming.undo"),
               onClick: () => {
                 pendingDeclines.cancel(id);
                 // Order matters: clear the local suppression *before* asking
@@ -164,7 +170,7 @@ export function IncomingRequestHost() {
         console.error(`Incoming request could not be opened (403/404).`);
       }
     },
-    [searchId, bookingId, declineOffer, pendingDeclines],
+    [searchId, bookingId, declineOffer, pendingDeclines, t],
   );
 
   if (!isAuthenticated || !bookingId) return null;

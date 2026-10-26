@@ -41,6 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useT } from "@/i18n/LanguageProvider";
 
 export function NotificationsRow() {
   const [permission, setPermission] = useState<PushPermission | null>(null);
@@ -62,6 +63,8 @@ export function NotificationsRow() {
   const [isOff, setIsOff] = useState(false);
   const [confirmOff, setConfirmOff] = useState(false);
   const { state: installState, promptInstall } = useInstallState();
+  // SVC-375: translated on /provider/profile; English on /profile.
+  const { t } = useT();
 
   // Why push is unavailable, when it is. `unsupported` is one value from
   // `getPushPermission()` but it covers two very different situations, and only
@@ -101,9 +104,7 @@ export function NotificationsRow() {
     // it. Re-calling requestPermission() here would resolve "denied" instantly
     // and look like a no-op button, so say what actually needs to happen.
     if (permission === "denied") {
-      toast.error("Notifications are blocked", {
-        description: "Turn them back on for EazyServ in your browser or device settings.",
-      });
+      toast.error(t("notifications.blocked"), { description: t("notifications.blockedDetail") });
       return;
     }
     // No API can trigger Add to Home Screen — Apple only offers it through the
@@ -113,9 +114,8 @@ export function NotificationsRow() {
       // A browser that genuinely cannot do this gets a straight answer; the
       // rest get the walkthrough, because for them there is something to do.
       if (installState === "unavailable" || installState === "installed") {
-        toast.error("This browser can’t receive job alerts", {
-          description:
-            "Private windows and in-app browsers block notifications. Use the EazyServ app, or open the site in your normal browser.",
+        toast.error(t("notifications.browserCant"), {
+          description: t("notifications.browserCantDetail"),
         });
         return;
       }
@@ -139,21 +139,19 @@ export function NotificationsRow() {
       if (result.error) {
         // Registration got far enough to try and then broke — config gap, or a
         // failed PATCH. Already in Sentry; this is the human-facing half.
-        toast.error("Couldn't turn on notifications", {
-          description: "We've logged the problem. Please try again shortly.",
+        toast.error(t("notifications.enableFailed"), {
+          description: t("notifications.enableFailedDetail"),
         });
       } else if (result.status === "granted") {
         setIsOff(false);
-        toast.success("Notifications are on");
+        toast.success(t("notifications.nowOn"));
       } else if (result.status === "denied") {
-        toast.error("Permission denied", {
-          description: "You won't be alerted about booking updates.",
-        });
+        toast.error(t("notifications.denied"), { description: t("notifications.deniedDetail") });
       }
     } finally {
       setIsBusy(false);
     }
-  }, [isBusy, permission, isOff, hasFailed, installState]);
+  }, [isBusy, permission, isOff, hasFailed, installState, t]);
 
   const turnOff = useCallback(async () => {
     setConfirmOff(false);
@@ -161,17 +159,15 @@ export function NotificationsRow() {
     try {
       await disablePushNotifications();
       setIsOff(true);
-      toast.success("Notifications are off", {
-        description: "We won't send you any until you turn them back on here.",
-      });
+      toast.success(t("notifications.nowOff"), { description: t("notifications.nowOffDetail") });
     } catch {
-      toast.error("Couldn't turn notifications off", {
-        description: "Please try again in a moment.",
+      toast.error(t("notifications.offFailed"), {
+        description: t("notifications.offFailedDetail"),
       });
     } finally {
       setIsBusy(false);
     }
-  }, []);
+  }, [t]);
 
   const handleInstall = useCallback(async () => {
     const accepted = await promptInstall();
@@ -183,9 +179,9 @@ export function NotificationsRow() {
       const result = await enablePushNotifications();
       setPermission(result.status);
       setHasFailed(!!result.error);
-      if (result.status === "granted" && !result.error) toast.success("Notifications are on");
+      if (result.status === "granted" && !result.error) toast.success(t("notifications.nowOn"));
     }
-  }, [promptInstall]);
+  }, [promptInstall, t]);
 
   // Still reading the permission — render nothing rather than flashing a
   // wrong state for a frame.
@@ -202,19 +198,19 @@ export function NotificationsRow() {
       // the problem. Everywhere else "Unavailable" is the honest word: an
       // in-app browser or a private tab cannot be talked into it.
       unsupportedReason === "ios-add-to-home"
-      ? "Add to Home Screen"
-      : "Unavailable"
+      ? t("notifications.status.addToHome")
+      : t("notifications.status.unavailable")
     : hasFailed
-      ? "Retry"
+      ? t("notifications.status.retry")
       : isOn
-        ? "On"
+        ? t("notifications.status.on")
         : isOff
           ? // The user's own choice, deliberately not "Blocked": nothing is
             // wrong and the OS permission is still granted. Tapping restores it.
-            "Off"
+            t("notifications.status.off")
           : permission === "denied"
-            ? "Blocked"
-            : "Enable";
+            ? t("notifications.status.blocked")
+            : t("notifications.status.enable");
 
   // Colour the word, not just the icon — the status is what gets read. Green
   // matches the readiness ticks on Provider Home so the row belongs to that
@@ -233,15 +229,14 @@ export function NotificationsRow() {
       <AlertDialog open={confirmOff} onOpenChange={setConfirmOff}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Turn off notifications?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You won&apos;t be alerted about booking updates or job requests until you turn them
-              back on here.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("notifications.confirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("notifications.confirmBody")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => void turnOff()}>Turn off</AlertDialogCancel>
-            <AlertDialogAction>Keep them on</AlertDialogAction>
+            <AlertDialogCancel onClick={() => void turnOff()}>
+              {t("notifications.turnOff")}
+            </AlertDialogCancel>
+            <AlertDialogAction>{t("notifications.keepOn")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -258,7 +253,9 @@ export function NotificationsRow() {
         className="flex w-full items-center gap-3 rounded-xl p-3 transition-colors hover:bg-secondary disabled:opacity-50"
       >
         <Icon className={`h-5 w-5 ${isBad ? "text-destructive" : "text-muted-foreground"}`} />
-        <span className="flex-1 text-left text-sm font-medium text-foreground">Notifications</span>
+        <span className="flex-1 text-left text-sm font-medium text-foreground">
+          {t("notifications.row")}
+        </span>
         <span className={`text-xs font-medium ${statusColor}`}>{isBusy ? "" : status}</span>
         {isBusy ? (
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />

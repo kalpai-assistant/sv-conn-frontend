@@ -33,16 +33,20 @@ import {
   type PlaceDetails,
   type PlacePrediction,
 } from "@/lib/google-maps";
+import { useT } from "@/i18n/LanguageProvider";
 
 const DEBOUNCE_MS = 200;
 
 export function PlacesSearchBar({
   onPick,
-  placeholder = "Search area, street or landmark",
+  placeholder,
 }: {
   onPick: (details: PlaceDetails) => void;
   placeholder?: string;
 }) {
+  // SVC-376: route-gated like MapPicker — English on customer routes. The
+  // suggestions themselves are Google's and pass through untouched.
+  const { t } = useT();
   const [query, setQuery] = useState("");
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -135,8 +139,8 @@ export function PlacesSearchBar({
           // A short delay so a click on a suggestion registers before the blur
           // closes the dropdown. Without it the click races and cancels.
           onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder={placeholder}
-          aria-label="Search for a place"
+          placeholder={placeholder ?? t("map.searchPlaceholder")}
+          aria-label={t("map.searchLabel")}
           role="combobox"
           aria-expanded={open && predictions.length > 0}
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"

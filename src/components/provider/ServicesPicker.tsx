@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import { formatRupees } from "@/lib/currency";
+import { formatRupees } from "@/i18n/format";
+import { errorText } from "@/i18n/errors";
+import { useT } from "@/i18n/LanguageProvider";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowLeft, Check, Loader2, Lock, Search, X } from "lucide-react";
 import { ApiError } from "@/lib/api";
@@ -44,11 +46,8 @@ interface ServicesPickerProps {
  * Icons come from `lib/category-icons`, the same derivation the consumer grid
  * uses — the backend supplies no imagery for either side.
  */
-export function ServicesPicker({
-  locked = false,
-  title = "Services I offer",
-  description = "Pick the categories you work in, then the services you offer.",
-}: ServicesPickerProps) {
+export function ServicesPicker({ locked = false, title, description }: ServicesPickerProps) {
+  const { t, lang } = useT("provider");
   const {
     data: services,
     isLoading: servicesLoading,
@@ -121,7 +120,7 @@ export function ServicesPicker({
           if (err instanceof ApiError && err.status === 403) {
             setKycBlocked(true);
           } else {
-            toast.error(err instanceof Error ? err.message : "Something went wrong");
+            toast.error(errorText(err, t("services.toggleFailed"), lang));
           }
         },
         onSettled: () => setPendingId(null),
@@ -137,12 +136,16 @@ export function ServicesPicker({
     <section className="mt-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-foreground">{title}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          <h2 className="text-base font-semibold text-foreground">
+            {title ?? t("services.title")}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {description ?? t("services.description")}
+          </p>
         </div>
         {subscribedIds.length > 0 && (
           <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-            {subscribedIds.length} selected
+            {t("services.selected", { count: subscribedIds.length })}
           </span>
         )}
       </div>
@@ -150,18 +153,14 @@ export function ServicesPicker({
       {locked && (
         <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
           <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-          <p className="text-sm font-medium text-amber-900">
-            Services unlock once your KYC is verified.
-          </p>
+          <p className="text-sm font-medium text-amber-900">{t("services.locked")}</p>
         </div>
       )}
 
       {kycBlocked && !locked && (
         <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-          <p className="text-sm font-medium text-amber-900">
-            Complete KYC to start receiving jobs.
-          </p>
+          <p className="text-sm font-medium text-amber-900">{t("services.kycBlocked")}</p>
         </div>
       )}
 
@@ -173,7 +172,7 @@ export function ServicesPicker({
 
       {hasError && !loading && (
         <div className="mt-6 flex flex-col items-center gap-3 py-6 text-center">
-          <p className="text-sm text-destructive">Couldn’t load your services.</p>
+          <p className="text-sm text-destructive">{t("services.loadFailed")}</p>
           <button
             type="button"
             onClick={() => {
@@ -183,7 +182,7 @@ export function ServicesPicker({
             }}
             className="rounded-md bg-secondary px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary/80"
           >
-            Try again
+            {t("services.tryAgain")}
           </button>
         </div>
       )}
@@ -200,15 +199,15 @@ export function ServicesPicker({
               inputMode="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search services"
-              aria-label="Search services"
+              placeholder={t("services.search")}
+              aria-label={t("services.search")}
               className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-9 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                aria-label="Clear search"
+                aria-label={t("services.clear")}
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground"
               >
                 <X className="h-4 w-4" />
@@ -262,7 +261,7 @@ export function ServicesPicker({
                   onClick={() => setOpenCategoryId(null)}
                   className="mt-4 flex items-center gap-1 text-sm font-semibold text-primary"
                 >
-                  <ArrowLeft className="h-4 w-4" /> All categories
+                  <ArrowLeft className="h-4 w-4" /> {t("services.allCategories")}
                 </button>
               )}
 
@@ -306,8 +305,8 @@ export function ServicesPicker({
                                 catalogue has priced no variant yet, and "from
                                 ₹0" would be a worse answer than none. */}
                             {service.payout > 0
-                              ? `from ${formatRupees(service.payout)}`
-                              : "Payout not set"}
+                              ? t("services.from", { amount: formatRupees(service.payout, lang) })
+                              : t("services.payoutNotSet")}
                           </span>
                         </span>
                       </button>
@@ -318,8 +317,8 @@ export function ServicesPicker({
                 {visibleServices.length === 0 && (
                   <li className="p-4 text-sm text-muted-foreground">
                     {trimmedQuery
-                      ? `No services match “${query.trim()}”.`
-                      : "No active services in this category."}
+                      ? t("services.noMatch", { query: query.trim() })
+                      : t("services.noActive")}
                   </li>
                 )}
               </ul>

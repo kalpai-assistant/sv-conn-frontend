@@ -120,6 +120,30 @@ export interface paths {
         patch: operations["update_fcm_token_api_v1_users_me_fcm_token_patch"];
         trace?: never;
     };
+    "/api/v1/users/me/language": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Language
+         * @description Save the caller's language: ``en``, ``hi`` or ``mr`` (SVC-374).
+         *
+         *     Open to every role: a Pro's account is a consumer account. It changes the
+         *     language of provider/Pro pushes only; customer pushes stay English. Read
+         *     it back as ``preferred_language`` on ``GET /users/me``.
+         */
+        patch: operations["update_language_api_v1_users_me_language_patch"];
+        trace?: never;
+    };
     "/api/v1/users/me/push-capability": {
         parameters: {
             query?: never;
@@ -2896,6 +2920,21 @@ export interface components {
             /** Platform */
             platform?: ("android" | "ios" | "web") | null;
         };
+        /**
+         * UpdateLanguageRequest
+         * @description Body for ``PATCH /users/me/language`` (SVC-374).
+         *
+         *     Required and never null: there is no way back to "never chosen", which
+         *     would re-show the app's one-time prompt. Anything but the three codes is
+         *     a 422.
+         */
+        UpdateLanguageRequest: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "en" | "hi" | "mr";
+        };
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
             /** Name */
@@ -2932,6 +2971,8 @@ export interface components {
             role: components["schemas"]["UserRole"];
             /** Is Active */
             is_active: boolean;
+            /** Preferred Language */
+            preferred_language: ("en" | "hi" | "mr") | null;
             /**
              * Created At
              * Format: date-time
@@ -2942,6 +2983,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** I18N Enabled */
+            readonly i18n_enabled: boolean;
         };
         /**
          * UserRole
@@ -3180,6 +3223,37 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["UpdateFCMTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_language_api_v1_users_me_language_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateLanguageRequest"];
             };
         };
         responses: {

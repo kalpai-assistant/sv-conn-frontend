@@ -1,0 +1,101 @@
+{
+  "header": {
+    "workingWith": "Working with {{team}}",
+    "yourProvider": "your service provider"
+  },
+  "home": {
+    "title": "Pro Home",
+    "bookService": "Book a service",
+    "bookServiceDetail": "Use EazyServ as a customer. Your Pro app is one tap away on Profile.",
+    "online": "You're online",
+    "offline": "Offline",
+    "availableForJobs": "Available for jobs",
+    "toastOnline": "You're online — your team can give you jobs",
+    "toastOffline": "You're offline",
+    "toggleFailed": "Couldn't update your status. Please try again.",
+    "submitAgain": "Submit again",
+    "verifyNow": "Verify now",
+    "turnOnLocation": "Turn on location",
+    "loadFailed": "Couldn’t load your jobs",
+    "openJobs": "Open Jobs",
+    "noJob": "No job right now",
+    "viewPast": "View past jobs",
+    "yourJob": "Your job",
+    "openJob": "Open job",
+    "nextUp": "Next up"
+  },
+  "onlineSwitch": {
+    "verified": "Your team can only give you jobs while this is on.",
+    "unverifiedOnline": "Your team can't give you jobs until your identity is verified.",
+    "unverifiedOffline": "You can go online once your identity is verified."
+  },
+  "kycStatus": {
+    "submittedTitle": "Your identity is being checked",
+    "submittedDetail": "This usually takes a day. You can take jobs once it's approved.",
+    "rejectedTitle": "Your identity check didn't go through",
+    "rejectedWithReason": "Reason: {{reason}}. Please submit your documents again.",
+    "rejectedNoReason": "Please submit your documents again.",
+    "pendingTitle": "Verify your identity to get jobs",
+    "pendingDetail": "Your team can't give you a job until your Aadhaar is verified."
+  },
+  "location": {
+    "deniedTitle": "Location is blocked for EazyServ",
+    "deniedDetail": "Allow location for EazyServ in your phone’s settings so your team can see where you are.",
+    "offTitle": "Location is off",
+    "offDetail": "Turn it on so your team can see where you are while you’re online."
+  },
+  "jobs": {
+    "title": "Your jobs",
+    "tabActive": "active",
+    "tabPast": "past",
+    "activeHint": "Jobs your team has given you that aren’t finished yet.",
+    "pastHint": "Jobs you’ve finished, and ones that were cancelled.",
+    "loadFailed": "Couldn’t load your jobs.",
+    "emptyActiveTitle": "No jobs right now",
+    "emptyActiveSubtitle": "Stay online from Home. When your team gives you a job, it shows up here.",
+    "emptyPastTitle": "No past jobs yet",
+    "emptyPastSubtitle": "Jobs you finish will be listed here.",
+    "showingRecent": "Showing your {{count}} most recent jobs of {{total}}."
+  },
+  "jobDetail": {
+    "back": "Your jobs",
+    "goneTitle": "This job is no longer yours",
+    "goneDetail": "There’s nothing left to do here.",
+    "backToJobs": "Back to your jobs",
+    "loadFailed": "Couldn’t load this job.",
+    "cash": "Cash on completion",
+    "paidOnline": "Paid online",
+    "completed": "Job completed",
+    "cancelledTitle": "This job was cancelled",
+    "cancelledDetail": "Please don’t travel to it.",
+    "expired": "This job expired. There’s nothing left to do here."
+  },
+  "kyc": {
+    "back": "Pro Home",
+    "title": "Verify your identity",
+    "intro": "Take a live photo of your Aadhaar (front and back) and a selfie. Your team can give you jobs once these are approved.",
+    "lastTime": "Last time: {{reason}}",
+    "aadhaarFront": "Aadhaar — front",
+    "captureFront": "Capture Aadhaar front",
+    "aadhaarBack": "Aadhaar — back",
+    "captureBack": "Capture Aadhaar back",
+    "selfie": "Live selfie",
+    "captureSelfie": "Take a live selfie",
+    "submit": "Submit documents",
+    "sent": "Documents sent. We’ll check them, usually within a day.",
+    "sendFailed": "Couldn’t send your documents. Please try again."
+  },
+  "decline": {
+    "link": "Can’t do this job?",
+    "title": "Decline this job?",
+    "body": "Your team will be asked to give it to someone else. You can’t take it back once declined.",
+    "keep": "Keep the job",
+    "declining": "Declining…",
+    "confirm": "Decline",
+    "repick": "Job declined. Your team will pick someone else.",
+    "reopened": "Job declined. We’ll find the customer someone else.",
+    "enRoute": "You’re already on your way, so you can’t decline now. Talk to your team.",
+    "gone": "This job is no longer yours.",
+    "failed": "Couldn’t decline the job. Please try again."
+  }
+}

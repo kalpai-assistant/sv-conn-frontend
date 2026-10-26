@@ -13,6 +13,7 @@
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { BusinessLogo } from "@/components/provider/BusinessLogo";
 import type { ProServiceProvider } from "@/hooks/usePro";
+import { useT } from "@/i18n/LanguageProvider";
 
 export function ProHeader({
   title,
@@ -26,7 +27,9 @@ export function ProHeader({
   /** Absent while `/pros/me` loads; the line simply appears once it lands. */
   team?: ProServiceProvider;
 }) {
-  const teamName = team?.business_name?.trim() || "your service provider";
+  const { t } = useT("pro");
+  // The business name is the SP's own words and stays as typed.
+  const teamName = team?.business_name?.trim() || t("header.yourProvider");
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="min-w-0">
@@ -36,7 +39,7 @@ export function ProHeader({
             <BusinessLogo src={team.business_image_url} alt="" className="h-5 w-5 rounded-md" />
             {/* Not "On {name}’s team": business names are often plural
                 ("Sparkle Cleaners"), and a possessive renders "Cleaners’s". */}
-            <span className="truncate">Working with {teamName}</span>
+            <span className="truncate">{t("header.workingWith", { team: teamName })}</span>
           </p>
         )}
       </div>
