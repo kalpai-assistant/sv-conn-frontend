@@ -182,5 +182,23 @@
     "searchLabel": "कोई जगह खोजें",
     "unknownLocation": "अनजान जगह",
     "fetchFailed": "पता नहीं मिल सका"
+  },
+  "update": {
+    "available": "अपडेट उपलब्ध है (v{{version}})",
+    "update": "अपडेट करें",
+    "updateNow": "अभी अपडेट करें",
+    "later": "बाद में",
+    "dismiss": "बंद करें",
+    "downloadingPercent": "डाउनलोड हो रहा है {{percent}}%",
+    "downloadingUnknown": "डाउनलोड हो रहा है…",
+    "install": "इंस्टॉल करें",
+    "allowInstall": "EazyServ को ऐप अपडेट इंस्टॉल करने की अनुमति दें।",
+    "openSettings": "सेटिंग खोलें",
+    "tryAgain": "फिर से कोशिश करें",
+    "downloadFailed": "डाउनलोड नहीं हो सका: {{reason}}",
+    "failed": "अपडेट पूरा नहीं हो सका। फिर से कोशिश करें।",
+    "requiredTitle": "अपडेट ज़रूरी है",
+    "requiredBody": "EazyServ का यह वर्ज़न अब नहीं चलेगा। आगे बढ़ने के लिए कृपया अपडेट करें।",
+    "requiredVersions": "कम से कम ज़रूरी: v{{min}} · नया: v{{latest}}"
   }
 }

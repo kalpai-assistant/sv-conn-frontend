@@ -182,5 +182,23 @@
     "searchLabel": "Search for a place",
     "unknownLocation": "Unknown Location",
     "fetchFailed": "Could not fetch address"
+  },
+  "update": {
+    "available": "Update available (v{{version}})",
+    "update": "Update",
+    "updateNow": "Update now",
+    "later": "Later",
+    "dismiss": "Dismiss",
+    "downloadingPercent": "Downloading {{percent}}%",
+    "downloadingUnknown": "Downloading…",
+    "install": "Install",
+    "allowInstall": "Allow EazyServ to install app updates.",
+    "openSettings": "Open settings",
+    "tryAgain": "Try again",
+    "downloadFailed": "Download failed: {{reason}}",
+    "failed": "The update couldn’t finish. Try again.",
+    "requiredTitle": "Update required",
+    "requiredBody": "This version of EazyServ is no longer supported. Please update to continue.",
+    "requiredVersions": "Minimum required: v{{min}} · Latest: v{{latest}}"
   }
 }

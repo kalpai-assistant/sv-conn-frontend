@@ -231,6 +231,10 @@ export function resetLanguagePrompt(): void {
  *
  * `/provider/onboarding` included (SVC-376): the wizard is translated, so a
  * new SP is asked at its start and does the whole sign-up in their language.
+ *
+ * Not while this account has an unsaved pick (SVC-395): the backend still
+ * reads null, but they did choose, and `retryLanguageSave` is sending it.
+ * Asking again re-opened the sheet on the cold start after an offline pick.
  */
 export function shouldAskLanguage(
   pathname: string,
@@ -238,6 +242,7 @@ export function shouldAskLanguage(
 ): boolean {
   if (!user || user.i18n_enabled !== true || user.preferred_language != null) return false;
   if (askedFor === user.id) return false;
+  if (languageUnsavedFor(user.id)) return false;
   return isProviderRoute(pathname) || isProRoute(pathname);
 }
 

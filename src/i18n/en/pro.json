@@ -97,5 +97,14 @@
     "enRoute": "You’re already on your way, so you can’t decline now. Talk to your team.",
     "gone": "This job is no longer yours.",
     "failed": "Couldn’t decline the job. Please try again."
+  },
+  "pushToast": {
+    "assignedTitle": "New job assigned",
+    "assignedBody": "Your team gave you a job.",
+    "open": "Open",
+    "jobCancelledTitle": "Job cancelled",
+    "jobCancelledBody": "This job has been cancelled. Please don't travel to it.",
+    "unassignedTitle": "Job removed",
+    "unassignedBody": "This job is no longer assigned to you. Please don't travel to it."
   }
 }

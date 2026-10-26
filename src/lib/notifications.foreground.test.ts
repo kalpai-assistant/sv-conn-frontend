@@ -29,16 +29,22 @@ vi.mock("@capacitor/push-notifications", () => ({
 }));
 
 import { useNotificationRouter } from "@/lib/notifications";
+import { FixedLanguage } from "@/i18n/LanguageProvider";
+import type { AppLanguage } from "@/i18n/languages";
 
 const ID = "bf1444b2-0000-0000-0000-000000000000";
 
 /** Mount the router as `role`, then deliver `event` in the foreground. */
-async function arrive(event: string, role: string) {
+async function arrive(event: string, role: string, lang: AppLanguage = "en") {
   auth.user = { role };
   const client = new QueryClient();
   const invalidate = vi.spyOn(client, "invalidateQueries");
   const wrapper = ({ children }: { children: ReactNode }) =>
-    createElement(QueryClientProvider, { client }, children);
+    createElement(
+      QueryClientProvider,
+      { client },
+      createElement(FixedLanguage, { lang, children }),
+    );
   renderHook(() => useNotificationRouter(), { wrapper });
   await waitFor(() => expect(listeners.pushNotificationReceived).toBeDefined());
   listeners.pushNotificationReceived({ data: { event, booking_id: ID } });
@@ -83,5 +89,35 @@ describe("a team Pro's job going away in the foreground (SVC-348)", () => {
       "New job assigned",
       expect.objectContaining({ action: expect.objectContaining({ label: "Open" }) }),
     );
+  });
+});
+
+describe("the Pro's foreground toasts in their language (SVC-395)", () => {
+  it.each([
+    ["hi", "assigned", "नया जॉब मिला", "आपकी टीम ने आपको एक जॉब दिया है।"],
+    ["mr", "assigned", "नवीन जॉब मिळाला", "तुमच्या टीमने तुम्हाला एक जॉब दिला आहे."],
+  ] as const)("%s: %s offers the job with a translated Open", async (lang, event, title, body) => {
+    await arrive(event, "consumer", lang);
+    expect(toast).toHaveBeenCalledExactlyOnceWith(title, {
+      description: body,
+      action: expect.objectContaining({ label: lang === "hi" ? "खोलें" : "उघडा" }),
+    });
+  });
+
+  // The push's own Hindi/Marathi (backend PROVIDER_PUSH_TRANSLATIONS), so the
+  // toast and the notification say the same thing.
+  it.each([
+    ["hi", "job_cancelled", "जॉब रद्द हुआ", "यह जॉब रद्द कर दिया गया है। कृपया वहाँ न जाएँ।"],
+    ["hi", "unassigned", "जॉब हटाया गया", "यह जॉब अब आपको असाइन नहीं है। कृपया वहाँ न जाएँ।"],
+    ["mr", "job_cancelled", "जॉब रद्द झाला", "हा जॉब रद्द करण्यात आला आहे. कृपया तिथे जाऊ नका."],
+    [
+      "mr",
+      "unassigned",
+      "जॉब काढून टाकला",
+      "हा जॉब आता तुम्हाला असाइन केलेला नाही. कृपया तिथे जाऊ नका.",
+    ],
+  ] as const)("%s: %s says the push's words", async (lang, event, title, body) => {
+    await arrive(event, "consumer", lang);
+    expect(toast).toHaveBeenCalledExactlyOnceWith(title, { description: body });
   });
 });

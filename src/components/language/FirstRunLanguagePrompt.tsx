@@ -11,8 +11,9 @@
  * remounted and nothing typed is lost.
  *
  * Once per sign-in, whether they pick or close it: `resetLanguagePrompt` (on
- * logout) re-arms it. The rule itself is `shouldAskLanguage` in i18n/language. A save that failed leaves the backend empty, so the next
- * sign-in asks again.
+ * logout) re-arms it. The rule itself is `shouldAskLanguage` in i18n/language.
+ * A pick whose save failed is not asked about again: the app keeps it and
+ * sends it on the next start (SVC-395).
  */
 import { useEffect, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
