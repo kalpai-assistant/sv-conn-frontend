@@ -54,7 +54,16 @@ describe("prepareRebook — ok paths", () => {
     // The whole point of SVC-393. If this fails every other outcome below is
     // moot because the happy path is already broken.
     const service = makeService({
-      variants: [{ id: "v-std", label: "Standard", price: 500, duration: "2h", payout: 350, subcategory: null }],
+      variants: [
+        {
+          id: "v-std",
+          label: "Standard",
+          price: 500,
+          duration: "2h",
+          payout: 350,
+          subcategory: null,
+        },
+      ],
     });
     const booking = makeBooking({
       items: [
@@ -181,7 +190,9 @@ describe("prepareRebook — refusal paths", () => {
     const changed = makeService({
       id: "svc-1",
       name: "Deep Clean",
-      variants: [{ id: "v-new", label: "New", price: 500, duration: "2h", payout: 350, subcategory: null }],
+      variants: [
+        { id: "v-new", label: "New", price: 500, duration: "2h", payout: 350, subcategory: null },
+      ],
     });
     const booking = makeBooking({
       items: [
