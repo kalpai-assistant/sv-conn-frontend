@@ -194,6 +194,11 @@ export const mapProfessional = (b: object): UI_Booking["professional"] => {
         display_name: string;
         profile_photo_url: string | null;
         is_self: boolean;
+        // SVC-396 (backend #219): absent on an older backend or cached payload.
+        rating_average?: number | null;
+        rating_count?: number;
+        bookings_completed_count?: number;
+        is_background_verified?: boolean;
       } | null;
     }
   ).professional;
@@ -203,6 +208,12 @@ export const mapProfessional = (b: object): UI_Booking["professional"] => {
     displayName: pro.display_name,
     photoUrl: pro.profile_photo_url,
     isSelf: pro.is_self,
+    // Null until the first review; the card hides the rating at 0 reviews.
+    ratingAverage: pro.rating_average ?? 0,
+    ratingCount: pro.rating_count ?? 0,
+    bookingsCompletedCount: pro.bookings_completed_count ?? 0,
+    // Only an explicit true earns the badge.
+    isBackgroundVerified: pro.is_background_verified === true,
   };
 };
 

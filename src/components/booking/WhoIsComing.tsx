@@ -12,9 +12,9 @@
  * has no business name, so "Rohan · Rohan" would be noise — one name it is.
  *
  * SVC-386: the "assigned" branch below hands off to `ProTrustCard`, which
- * carries the richer trust surface (rating pill, verified badge, experience
- * chips) when the backend lands those fields on `BookingResponse`. v1 ships
- * with the credible subset: name + photo + business + verified + call.
+ * carries the richer trust surface. SVC-396: the rating, completed-jobs count
+ * and background check come from `booking.professional` (backend #219);
+ * experience and area chips stay off until the backend sends them.
  */
 import { ProTrustCard } from "@/components/tracking/ProTrustCard";
 import type { Booking } from "@/lib/mock-data";
@@ -76,15 +76,13 @@ export function WhoIsComingCard({
   booking,
   summary,
   phoneNumber,
-  // SVC-386 defaults — stub the fields that the backend doesn't yet expose
-  // on BookingResponse. "New pro" + "Background verified" is the v1 subset
-  // we can defend; rating + bookings count light up as the backend lands
-  // them (follow-up ticket). Caller can override to pass real data where
-  // available.
-  ratingAverage = 0,
-  ratingCount = 0,
-  bookingsCompletedCount = 0,
-  isBackgroundVerified = true,
+  // SVC-396: optional overrides. Left out, each falls back to the Pro on the
+  // booking — and the badge to false, so "Background verified" never shows
+  // unless the backend said so.
+  ratingAverage,
+  ratingCount,
+  bookingsCompletedCount,
+  isBackgroundVerified,
 }: {
   booking: Pick<Booking, "status" | "professional" | "serviceProvider">;
   /** One line of what they're doing, e.g. "Deep Clean + 2 more". */
@@ -110,6 +108,9 @@ export function WhoIsComingCard({
     );
   }
 
+  // "assigned" means a Pro is on the booking. The `??` guards a mapped
+  // booking cached before these fields existed.
+  const pro = booking.professional;
   return (
     <div className="mb-4 flex flex-col gap-2">
       <ProTrustCard
@@ -117,10 +118,10 @@ export function WhoIsComingCard({
         businessName={who.business?.name}
         phoneNumber={phoneNumber}
         photoUrl={who.photoUrl}
-        ratingAverage={ratingAverage}
-        ratingCount={ratingCount}
-        bookingsCompletedCount={bookingsCompletedCount}
-        isBackgroundVerified={isBackgroundVerified}
+        ratingAverage={ratingAverage ?? pro?.ratingAverage ?? 0}
+        ratingCount={ratingCount ?? pro?.ratingCount ?? 0}
+        bookingsCompletedCount={bookingsCompletedCount ?? pro?.bookingsCompletedCount ?? 0}
+        isBackgroundVerified={isBackgroundVerified ?? pro?.isBackgroundVerified === true}
       />
       {/* Service summary lives outside ProTrustCard — that card is "who",
           this strip is "what". A small muted line, not a second card. */}
