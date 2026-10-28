@@ -73,22 +73,26 @@ import {
 import { usePendingAction, UNDO_WINDOW_MS } from "@/hooks/usePendingAction";
 import { useProComplete, useProEnRoute, useProStart } from "@/hooks/usePro";
 import { DeclineProJob } from "@/components/pro/DeclineProJob";
+import { englishT, type Translate } from "@/i18n";
+import { errorText } from "@/i18n/errors";
+import type { AppLanguage } from "@/i18n/languages";
+import { useT } from "@/i18n/LanguageProvider";
 
 /** Whose endpoints a step calls: the SP's own, or a team Pro's (SVC-322). */
 export type JobActor = "provider" | "pro";
 
-/**
- * The wording SVC-71 asks for, verbatim. It is the only message a provider
- * should ever see for a wrong PIN — anything vaguer and they retype the same
- * wrong digits instead of asking the customer again.
- */
-const WRONG_PIN = "Incorrect PIN, ask the customer again";
+// `job.wrongPin` is the wording SVC-71 asks for, verbatim. It is the only
+// message a provider should ever see for a wrong PIN — anything vaguer and they
+// retype the same wrong digits instead of asking the customer again.
 
-export function transitionMessage(err: unknown, fallback: string) {
-  if (err instanceof ApiError && err.status === 409) {
-    return "This job has already moved on. Pull up the latest state and try again.";
-  }
-  return err instanceof Error ? err.message : fallback;
+export function transitionMessage(
+  err: unknown,
+  fallback: string,
+  t: Translate = englishT(),
+  lang: AppLanguage = "en",
+) {
+  if (err instanceof ApiError && err.status === 409) return t("job.movedOn");
+  return errorText(err, fallback, lang);
 }
 
 /** ACCEPTED → EN_ROUTE. A status change and nothing else (SVC-70). */
@@ -105,14 +109,11 @@ export function EnRouteStep({
   // passes a literal — so the hook order never changes between renders.
   const useEnRoute = actor === "pro" ? useProEnRoute : useMarkEnRoute;
   const markEnRoute = useEnRoute();
+  const { t, lang } = useT();
 
   return (
     <div>
-      {!compact && (
-        <p className="text-sm text-muted-foreground">
-          Let the customer know you’ve set off. They’ll be able to track you from their app.
-        </p>
-      )}
+      {!compact && <p className="text-sm text-muted-foreground">{t("job.enRouteHint")}</p>}
       <Button
         className={compact ? "w-full" : "mt-4 w-full"}
         disabled={markEnRoute.isPending}
@@ -120,8 +121,7 @@ export function EnRouteStep({
           markEnRoute.mutate(
             { bookingId },
             {
-              onError: (err) =>
-                toast.error(transitionMessage(err, "Couldn’t update the job. Please try again.")),
+              onError: (err) => toast.error(transitionMessage(err, t("job.updateFailed"), t, lang)),
             },
           )
         }
@@ -131,7 +131,7 @@ export function EnRouteStep({
         ) : (
           <Navigation className="h-4 w-4" />
         )}
-        I’m on my way
+        {t("job.onMyWay")}
       </Button>
       {actor === "pro" ? (
         <DeclineProJob bookingId={bookingId} />
@@ -164,6 +164,7 @@ export function GiveBackJob({ bookingId }: { bookingId: string }) {
   const [open, setOpen] = useState(false);
   const cancel = useCancelBooking();
   const navigate = useNavigate();
+  const { t, lang } = useT();
   // On the job screen the job is about to stop being theirs (a 403 on the next
   // poll), so leave it. On Home the card simply drops out of the list.
   const onJobScreen = useRouterState({
@@ -176,15 +177,15 @@ export function GiveBackJob({ bookingId }: { bookingId: string }) {
       {
         onSuccess: () => {
           setOpen(false);
-          toast.success("Job given back. We’ll find the customer someone else.");
+          toast.success(t("job.givenBack"));
           if (onJobScreen) navigate({ to: "/provider/bookings" });
         },
         onError: (err) => {
           setOpen(false);
           toast.error(
             err instanceof ApiError && err.code === "PROVIDER_EN_ROUTE"
-              ? "You’re already on your way, so this needs support to cancel."
-              : transitionMessage(err, "Couldn’t give the job back. Please try again."),
+              ? t("job.giveBackEnRoute")
+              : transitionMessage(err, t("job.giveBackFailed"), t, lang),
           );
         },
       },
@@ -197,19 +198,16 @@ export function GiveBackJob({ bookingId }: { bookingId: string }) {
         onClick={() => setOpen(true)}
         className="mt-3 w-full text-center text-sm font-medium text-destructive underline-offset-4 hover:underline"
       >
-        Can’t make it?
+        {t("job.giveBackLink")}
       </button>
       <AlertDialog open={open} onOpenChange={(next) => !cancel.isPending && setOpen(next)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Give this job back?</AlertDialogTitle>
-            <AlertDialogDescription>
-              We’ll offer it to other providers and tell the customer we’re finding someone else. No
-              fee is charged, but you won’t be offered this job again.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("job.giveBackTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("job.giveBackBody")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancel.isPending}>Keep the job</AlertDialogCancel>
+            <AlertDialogCancel disabled={cancel.isPending}>{t("job.keepJob")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -217,7 +215,7 @@ export function GiveBackJob({ bookingId }: { bookingId: string }) {
               }}
               disabled={cancel.isPending}
             >
-              {cancel.isPending ? "Giving back…" : "Give it back"}
+              {cancel.isPending ? t("job.givingBack") : t("job.giveBack")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -247,6 +245,7 @@ export function DoorstepOtpStep({
   const [errorMsg, setErrorMsg] = useState("");
   const useStart = actor === "pro" ? useProStart : useStartBooking;
   const startBooking = useStart();
+  const { t, lang } = useT();
 
   const submit = (value: string) => {
     if (startBooking.isPending) return;
@@ -259,8 +258,8 @@ export function DoorstepOtpStep({
           // Everything else is a genuine failure and keeps the server's message.
           setErrorMsg(
             err instanceof ApiError && err.status === 400
-              ? WRONG_PIN
-              : transitionMessage(err, "Couldn’t start the job. Please try again."),
+              ? t("job.wrongPin")
+              : transitionMessage(err, t("job.startFailed"), t, lang),
           );
           setOtp("");
         },
@@ -271,13 +270,9 @@ export function DoorstepOtpStep({
   return (
     <div>
       <p className="text-sm font-medium text-foreground">
-        {compact ? "Ask for the 4-digit PIN" : "Ask the customer for their 4-digit PIN"}
+        {compact ? t("job.pinTitleCompact") : t("job.pinTitle")}
       </p>
-      {!compact && (
-        <p className="mt-1 text-sm text-muted-foreground">
-          It’s shown in their app. Entering it starts the job.
-        </p>
-      )}
+      {!compact && <p className="mt-1 text-sm text-muted-foreground">{t("job.pinHint")}</p>}
 
       <div className={compact ? "mt-2" : "mt-4"}>
         <InputOTP
@@ -305,7 +300,7 @@ export function DoorstepOtpStep({
       {startBooking.isPending && (
         <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Checking…
+          {t("job.checking")}
         </p>
       )}
 
@@ -354,6 +349,7 @@ export function CompleteStep({
   const useComplete = actor === "pro" ? useProComplete : useCompleteBooking;
   const completeBooking = useComplete();
   const pending = usePendingAction();
+  const { t, lang } = useT();
   // Local, because the row has to *look* finished the moment it is tapped even
   // though nothing has been sent. Pretending otherwise — leaving the button live
   // for seven seconds — would invite the second tap this exists to prevent.
@@ -365,7 +361,7 @@ export function CompleteStep({
       {
         onError: (err) => {
           setHeld(false);
-          toast.error(transitionMessage(err, "Couldn’t complete the job. Please try again."));
+          toast.error(transitionMessage(err, t("job.completeFailed"), t, lang));
         },
       },
     );
@@ -376,10 +372,10 @@ export function CompleteStep({
     // Present tense on purpose: it has not happened yet, and saying "Completed"
     // for seven seconds before it is true would be the app lying to hide its own
     // mechanism.
-    toast("Completing job", {
+    toast(t("job.completingToast"), {
       duration: UNDO_WINDOW_MS,
       action: {
-        label: "Undo",
+        label: t("job.undo"),
         onClick: () => {
           pending.cancel(bookingId);
           setHeld(false);
@@ -396,7 +392,7 @@ export function CompleteStep({
       <div className={compact ? "" : "mt-4"}>
         <p className="flex items-center justify-center gap-2 rounded-lg bg-muted px-3 py-2.5 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Completing…
+          {t("job.completing")}
         </p>
       </div>
     );
@@ -406,10 +402,8 @@ export function CompleteStep({
     <div>
       {!compact && (
         <>
-          <p className="text-sm font-medium text-foreground">Job in progress</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Mark it complete once you’ve finished the work.
-          </p>
+          <p className="text-sm font-medium text-foreground">{t("job.inProgressTitle")}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("job.inProgressHint")}</p>
         </>
       )}
       <Button
@@ -422,7 +416,7 @@ export function CompleteStep({
         ) : (
           <CheckCircle2 className="h-4 w-4" />
         )}
-        Mark as Complete
+        {t("job.markComplete")}
       </Button>
     </div>
   );

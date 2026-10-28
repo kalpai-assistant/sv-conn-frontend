@@ -16,7 +16,8 @@ import { Clock, MapPin, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TeamPicker } from "@/components/provider/TeamPicker";
 import type { TeamPickPro } from "@/hooks/useTeam";
-import { formatRupees } from "@/lib/currency";
+import { formatRupees } from "@/i18n/format";
+import { useT } from "@/i18n/LanguageProvider";
 import {
   acceptErrorMessage,
   dismissReasonForOfferError,
@@ -85,6 +86,7 @@ function formatCountdown(totalSeconds: number): string {
 
 export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCardProps) {
   const { data: offer, error, isLoading } = useBookingOffer(bookingId);
+  const { t, lang } = useT("provider");
   const acceptOffer = useAcceptOffer();
   const [acceptError, setAcceptError] = useState<string | null>(null);
   // SVC-321: set when accept answered 202 — this SP has a team and must pick
@@ -114,7 +116,7 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
         if (result.outcome === "pick") setPickPros(result.pros);
         else onDismiss(result.outcome);
       },
-      onError: (err) => setAcceptError(acceptErrorMessage(err)),
+      onError: (err) => setAcceptError(acceptErrorMessage(err, t, lang)),
     });
   };
 
@@ -142,7 +144,7 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
         transition={{ type: "spring", damping: 28, stiffness: 320 }}
       >
         <div className="flex items-center justify-between bg-primary px-5 py-3 text-primary-foreground">
-          <span className="text-sm font-semibold">New job nearby</span>
+          <span className="text-sm font-semibold">{t("incoming.title")}</span>
           {/* Hidden entirely when the backend has not shipped the expiry
                 fields yet — the rest of the card still works. */}
           {hasCountdown && (
@@ -172,7 +174,7 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
               {/* `service_amount` is plain rupees (not paise); formatRupees
                   applies Indian digit grouping — ₹10,00,000, not ₹1,000,000. */}
               <p className="mt-1 text-2xl font-bold text-primary">
-                {formatRupees(offer.service_amount)}
+                {formatRupees(offer.service_amount, lang)}
               </p>
             </div>
 
@@ -183,13 +185,13 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
               </p>
               <p className="flex items-center gap-2 text-muted-foreground">
                 <Navigation className="h-4 w-4 shrink-0" />
-                {offer.distance_km.toFixed(1)} km away
+                {t("incoming.away", { km: offer.distance_km.toFixed(1) })}
               </p>
             </div>
 
             {hasExpired && (
               <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-                This request has expired.
+                {t("incoming.expired")}
               </p>
             )}
 
@@ -216,7 +218,11 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
               *accident*, not harder to hit on purpose. */}
             <div className="flex flex-col gap-2 pt-1">
               <Button className="w-full" onClick={handleAccept} disabled={acceptDisabled}>
-                {acceptOffer.isPending ? "Accepting…" : hasExpired ? "Expired" : "Accept"}
+                {acceptOffer.isPending
+                  ? t("incoming.accepting")
+                  : hasExpired
+                    ? t("incoming.expiredButton")
+                    : t("incoming.accept")}
               </Button>
               {/* Records a refusal server-side — but not immediately. The host
                 holds the decline for a few seconds behind an Undo, because
@@ -228,7 +234,7 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
                 onClick={() => onDismiss("ignored")}
                 disabled={acceptOffer.isPending}
               >
-                Ignore
+                {t("incoming.ignore")}
               </Button>
             </div>
           </div>

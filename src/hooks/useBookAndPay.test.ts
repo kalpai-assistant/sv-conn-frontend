@@ -20,6 +20,7 @@ const createPaymentOrder = vi.fn();
 const verifyPayment = vi.fn();
 const toastFn = vi.fn();
 const toastError = vi.fn();
+const hapticImpactLight = vi.fn();
 
 vi.mock("@/hooks/useApi", () => ({
   useCreatePaymentOrder: () => ({ mutateAsync: createPaymentOrder }),
@@ -27,6 +28,9 @@ vi.mock("@/hooks/useApi", () => ({
 }));
 vi.mock("@/hooks/useCreateBookingFromCart", () => ({
   useCreateBookingFromCart: () => ({ mutateAsync: createBooking }),
+}));
+vi.mock("@/lib/haptics", () => ({
+  hapticImpactLight: (...args: unknown[]) => hapticImpactLight(...args),
 }));
 vi.mock("sonner", () => ({
   toast: Object.assign((...a: unknown[]) => toastFn(...a), {
@@ -120,6 +124,31 @@ describe("the happy chain", () => {
       "booking-1",
     );
   });
+
+  // SVC-398: the Light impact is the "payment posted" tap. Fires the moment
+  // Razorpay hands control back, BEFORE the ~500ms verify round-trip — the
+  // Success triple-buzz at `setCelebratingBookingId` is the server-confirmed
+  // "booking live" moment, and lives in cart.tsx.
+  it("fires a Light impact on the Razorpay success handler, not on open", async () => {
+    const { result } = renderHook(() => useBookAndPay());
+    await act(async () => {
+      await result.current.bookAndPay(args());
+    });
+
+    // Just opening checkout is not success — a user who then dismisses must
+    // not have felt a "paid" tap. The one happens on the handler, not here.
+    expect(hapticImpactLight).not.toHaveBeenCalled();
+
+    await act(async () => {
+      lastOptions!.handler({
+        razorpay_order_id: "order_1",
+        razorpay_payment_id: "pay_1",
+        razorpay_signature: "sig",
+      });
+    });
+
+    expect(hapticImpactLight).toHaveBeenCalledOnce();
+  });
 });
 
 describe("cash", () => {
@@ -136,6 +165,18 @@ describe("cash", () => {
     expect((a as { onComplete: (id: string) => void }).onComplete).toHaveBeenCalledWith(
       "booking-1",
     );
+  });
+
+  // SVC-398: cash gets the same "booking posted" tap as online, so the two
+  // paths feel identical up to the point the cash branch skips the gateway.
+  it("fires a Light impact at the booking-posted moment", async () => {
+    const { result } = renderHook(() => useBookAndPay());
+
+    await act(async () => {
+      await result.current.bookAndPay(args({ isOnline: false }));
+    });
+
+    expect(hapticImpactLight).toHaveBeenCalledOnce();
   });
 });
 

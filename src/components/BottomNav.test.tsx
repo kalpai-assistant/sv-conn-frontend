@@ -175,4 +175,20 @@ describe("which tab is lit", () => {
     expect(jobs?.className).toContain("text-primary");
     expect(home?.className).not.toContain("text-primary");
   });
+
+  // SVC-391: a single `layoutId` on the active-tab pill lets framer-motion
+  // slide the indicator from the previous tab to the new one. Two
+  // indicators at once would freeze that animation into a cross-fade — so
+  // the invariant is: exactly one active indicator in the DOM at any time,
+  // sitting inside the lit tab.
+  it("renders exactly one animated active indicator, inside the lit tab", () => {
+    at("/bookings", "consumer");
+
+    const { container } = render(<BottomNav />);
+
+    const indicators = container.querySelectorAll('[aria-hidden="true"].bg-primary');
+    expect(indicators.length).toBe(1);
+    const lit = screen.getByText("Bookings").closest("a");
+    expect(lit?.contains(indicators[0] as Node)).toBe(true);
+  });
 });

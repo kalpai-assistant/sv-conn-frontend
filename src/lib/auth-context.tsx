@@ -12,6 +12,13 @@ import { setSentryUser } from "./sentry";
 import { clearFcmToken } from "./fcm";
 import { resetLocationGate } from "./location-gate";
 import { clearSession } from "./session";
+import {
+  adoptSignInLanguage,
+  resetLanguagePrompt,
+  retryLanguageSave,
+  syncStoredLanguage,
+} from "@/i18n/language";
+import type { AppLanguage } from "@/i18n/languages";
 
 // SVC-41 back-port: three roles the backend recognises. The client uses this
 // to pick between consumer and provider UIs; `admin` isn't a mobile persona
@@ -24,6 +31,12 @@ interface User {
   phone: string;
   email: string | null;
   role: UserRole;
+  /** SVC-374/375: null means "never chosen" — the app asks once. Optional
+   *  because a user cached by an older build has neither field. */
+  preferred_language?: AppLanguage | null;
+  /** SVC-374 kill switch (`I18N_MODE`): the language picker and every
+   *  translation apply only while this is true. */
+  i18n_enabled?: boolean;
 }
 
 interface AuthContextType {
@@ -76,6 +89,13 @@ function writeStoredUser(user: User | null): void {
   }
 }
 
+/** `prev` with a language the backend has just accepted (SVC-395), cached too. */
+function withSavedLanguage(prev: User | null, lang: AppLanguage): User | null {
+  const next = prev ? { ...prev, preferred_language: lang } : null;
+  writeStoredUser(next);
+  return next;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   // The QueryClient `logout` hands to `clearSession` (SVC-350). Grabbed via
   // the hook rather than imported from `__root.tsx` so this module stays
@@ -125,6 +145,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setUser(me);
         writeStoredUser(me);
+        // SVC-375: the backend's language onto this device — a new phone or a
+        // reinstall gets the Pro's language back here.
+        syncStoredLanguage(me);
+        void retryLanguageSave(me.id).then((saved) => {
+          if (saved && !cancelled) setUser((prev) => withSavedLanguage(prev, saved));
+        });
         setSentryUser({ id: me.id });
       } catch (err) {
         if (cancelled) return;
@@ -159,6 +185,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTokens(accessToken, refreshToken);
       setUser(u);
       writeStoredUser(u);
+      // SVC-375: `u` is the /users/me the sign-in just fetched. Adopted, not
+      // synced: an account that never chose clears the device's language, so
+      // a shared phone doesn't hand the last person's choice to this one.
+      adoptSignInLanguage(u);
+      void retryLanguageSave(u.id).then((saved) => {
+        if (saved) setUser((prev) => withSavedLanguage(prev, saved));
+      });
       setIsNewUser(newUser);
       setSentryUser({ id: u.id });
     },
@@ -199,6 +232,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // on device, where a provider logged in after a consumer and went straight
     // to their home screen with no location confirmed.
     resetLocationGate();
+    // SVC-375: the next sign-in may be asked for a language again. The stored
+    // language itself stays: it is not an `sc_` key, on purpose.
+    resetLanguagePrompt();
   }, [queryClient]);
 
   // A refused refresh mid-session signs the user out the normal way, so they
@@ -214,6 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       writeStoredUser(next);
       return next;
     });
+    syncStoredLanguage(data);
     // Once the profile has a name, setup is complete — drop the new-user gate.
     if (data.name) setIsNewUser(false);
   }, []);

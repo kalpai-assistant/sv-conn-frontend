@@ -2,6 +2,9 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
+// SVC-375: every test starts in English, so the existing assertions on copy
+// hold. A test that wants hi/mr switches it and this puts it back.
+import i18n from "@/i18n";
 
 // jsdom implements neither of these, and `input-otp` — which owns the OTP
 // boxes — constructs a ResizeObserver on mount. Without the stub every test
@@ -26,4 +29,5 @@ if (!document.elementFromPoint) {
 
 afterEach(() => {
   cleanup();
+  void i18n.changeLanguage("en");
 });

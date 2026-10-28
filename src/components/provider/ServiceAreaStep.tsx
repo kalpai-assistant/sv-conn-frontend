@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { MapPicker } from "@/components/MapPicker";
 import { useMapOpeningCentre } from "@/hooks/useMapOpeningCentre";
 import { useUpdateServiceArea } from "@/hooks/useApi";
+import { errorText } from "@/i18n/errors";
+import { useT } from "@/i18n/LanguageProvider";
 
 /**
  * SVC-257 → SVC-358: "Where do you work?" onboarding step. Captures the
@@ -53,6 +55,9 @@ export function ServiceAreaStep({
 }) {
   const updateServiceArea = useUpdateServiceArea();
   const opening = useMapOpeningCentre();
+  // Our labels only (SVC-376): the map, the geocoder's place names and the
+  // fallback city stay as the map gives them.
+  const { t, lang } = useT("provider");
 
   // `picked` is set as the provider moves the pin (or confirms a map-opened
   // centre by actually touching the map). `userMoved` guards against the
@@ -90,7 +95,7 @@ export function ServiceAreaStep({
   const save = async () => {
     setError(null);
     if (picked === null) {
-      setError("Drop a pin on your service centre before continuing.");
+      setError(t("serviceArea.pinRequired"));
       return;
     }
     try {
@@ -101,7 +106,7 @@ export function ServiceAreaStep({
       });
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save your service area. Try again.");
+      setError(errorText(err, t("serviceArea.saveFailed"), lang));
     }
   };
 
@@ -111,11 +116,8 @@ export function ServiceAreaStep({
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-lg font-semibold text-foreground">Where do you work?</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Drop the pin on your service centre. We match you with bookings close to it; you can
-          change this any time from your profile.
-        </p>
+        <h1 className="text-lg font-semibold text-foreground">{t("serviceArea.title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("serviceArea.intro")}</p>
       </div>
 
       {error && (
@@ -123,14 +125,13 @@ export function ServiceAreaStep({
       )}
 
       <div className="space-y-2">
-        <Label>Your service centre</Label>
+        <Label>{t("serviceArea.centre")}</Label>
         {/* Same banner the address sheet shows when the hook falls back to a
             constant: name the guess so the provider knows to move the pin
             rather than confirming a city they do not work in. */}
         {!hasSeededCentre && opening.source === "fallback" && (
           <p className="rounded-lg border border-border bg-secondary px-3 py-2 text-xs text-muted-foreground">
-            We don&apos;t know where you are yet, so this map is a guess (showing{" "}
-            {opening.fallbackLabel}). Drag the pin to where you work, or tap the locate button.
+            {t("serviceArea.fallback", { place: opening.fallbackLabel })}
           </p>
         )}
         <div className="overflow-hidden rounded-xl border border-border">
@@ -158,7 +159,7 @@ export function ServiceAreaStep({
         </div>
         {picked !== null && (
           <p className="text-xs text-muted-foreground">
-            Saved centre:{" "}
+            {t("serviceArea.savedCentre")}{" "}
             <span className="font-mono">
               {picked.lat.toFixed(4)}, {picked.lng.toFixed(4)}
             </span>
@@ -168,8 +169,10 @@ export function ServiceAreaStep({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="radius">How far will you travel?</Label>
-          <span className="text-sm font-medium text-foreground">{radiusKm} km</span>
+          <Label htmlFor="radius">{t("serviceArea.travel")}</Label>
+          <span className="text-sm font-medium text-foreground">
+            {t("serviceArea.km", { km: radiusKm })}
+          </span>
         </div>
         <input
           id="radius"
@@ -180,20 +183,17 @@ export function ServiceAreaStep({
           value={radiusKm}
           onChange={(e) => setRadiusKm(Number(e.target.value))}
           className="w-full accent-primary"
-          aria-label="Service radius in kilometres"
+          aria-label={t("serviceArea.radiusLabel")}
         />
-        <p className="text-xs text-muted-foreground">
-          Bookings outside this radius won&apos;t reach you. Start small, expand as you learn your
-          route.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("serviceArea.outside")}</p>
       </div>
 
       <div className="flex gap-3">
         <Button variant="outline" className="flex-1" onClick={onBack}>
-          Back
+          {t("serviceArea.back")}
         </Button>
         <Button className="flex-1" disabled={!canSave} onClick={save}>
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue"}
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("serviceArea.continue")}
         </Button>
       </div>
     </div>

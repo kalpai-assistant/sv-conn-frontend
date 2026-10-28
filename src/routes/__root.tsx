@@ -1,4 +1,11 @@
-import { Outlet, Link, createRootRoute, useRouterState, Navigate } from "@tanstack/react-router";
+import {
+  Outlet,
+  Link,
+  createRootRoute,
+  useRouter,
+  useRouterState,
+  Navigate,
+} from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
@@ -7,7 +14,7 @@ import { CategorySheetProvider } from "@/lib/category-sheet-context";
 import { ServiceSheetProvider } from "@/lib/service-sheet-context";
 import { useNotificationRouter } from "@/lib/notifications";
 import { useFcmRegistration } from "@/lib/fcm";
-import { useAddresses, useProviderProfile } from "@/hooks/useApi";
+import { useAddresses, useBookings, useProviderProfile } from "@/hooks/useApi";
 import { isTeamPro, useProMe } from "@/hooks/usePro";
 import { useProHeartbeatHost } from "@/hooks/useProHeartbeat";
 import { syncPendingInvite } from "@/lib/invite";
@@ -21,6 +28,13 @@ import {
   skipsLocationGate,
   type ProState,
 } from "@/lib/pro-gate";
+import {
+  bookingLandingVerdict,
+  consumesBookingLanding,
+  firstActiveBookingId,
+  nextBookingLandedFor,
+  type BookingLandingState,
+} from "@/lib/booking-landing";
 import { BottomNav } from "@/components/BottomNav";
 import { CartFab } from "@/components/cart/CartFab";
 import { SplashGate } from "@/components/SplashGate";
@@ -30,9 +44,12 @@ import { ConsumerLocationGate, ProviderLocationGate } from "@/components/Locatio
 import { useLocationConfirmed } from "@/hooks/useLocationConfirmed";
 import { useLocationAvailability } from "@/hooks/useLocationAvailability";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useEdgeSwipeBack } from "@/hooks/useEdgeSwipeBack";
 import { readSelectedAddressCache } from "@/hooks/useSelectedAddress";
 import { shouldGateLocation } from "@/lib/should-gate-location";
 import { AppVersionGate } from "@/components/AppVersionGate";
+import { FirstRunLanguagePrompt } from "@/components/language/FirstRunLanguagePrompt";
+import { LanguageProvider } from "@/i18n/LanguageProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -179,6 +196,33 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // too (see `nextLandedFor`).
   const landedFor = useRef<string | null>(null);
   const landed = !!user?.id && landedFor.current === user.id;
+
+  // SVC-385: a parallel ref for the "do we have a job in flight?" pre-empt.
+  // Separate from `landedFor` because the two decisions are independent — a
+  // Pro landing in /pro does not consume the consumer-side booking landing,
+  // and a consumer who navigates to tracking in-session does not consume the
+  // Pro-gate landing. One shared ref would conflate the two.
+  const bookingLandedForRef = useRef<string | null>(null);
+  const bookingLanded = !!user?.id && bookingLandedForRef.current === user.id;
+
+  // The query the booking-landing redirect reads. Enabled only for consumers
+  // past profile setup, so providers and new invitees don't fire the call. On
+  // other screens it is still enabled — the home nav tab + tracking screens
+  // read the same cache, so this is pre-fetching, not an extra round trip.
+  const {
+    data: userBookings,
+    isPending: bookingsPending,
+    isError: bookingsError,
+  } = useBookings(undefined, isConsumer && !isRestoring);
+  const bookingLandingState: BookingLandingState = !isConsumer
+    ? "none"
+    : bookingsError
+      ? "error"
+      : bookingsPending
+        ? "loading"
+        : firstActiveBookingId(userBookings) !== null
+          ? "has-active"
+          : "none";
   // Whether this render actually reaches the Pro gate in the consumer branch
   // below. The effect runs after *every* render, including the ones that
   // return early — and on device it used up the landing during the blank
@@ -196,6 +240,21 @@ function AppGate({ children }: { children: React.ReactNode }) {
       consumes: consumesLanding(pathname, proState, reachesProGate),
     });
   }, [user?.id, signedOut, pathname, proState, reachesProGate]);
+
+  // SVC-385: reaches the booking landing when the consumer is actually being
+  // shown their own home ("/"), or has already been redirected to tracking.
+  // A new invitee on /profile for name setup does not consume: they are not
+  // on home yet, and the first time they land on "/" after setup is their
+  // real cold-launch landing.
+  const reachesBookingLanding =
+    isConsumer && !isRestoring && !isPublicRoute && !isAdminRoute && !needsProfileSetup;
+  useEffect(() => {
+    bookingLandedForRef.current = nextBookingLandedFor(bookingLandedForRef.current, {
+      userId: user?.id,
+      signedOut,
+      consumes: consumesBookingLanding(pathname, bookingLandingState, reachesBookingLanding),
+    });
+  }, [user?.id, signedOut, pathname, bookingLandingState, reachesBookingLanding]);
 
   // Wire push taps → in-app navigation: native taps through the Capacitor
   // plugin (lazy-loaded so the web bundle stays clean), web-push taps through
@@ -215,6 +274,15 @@ function AppGate({ children }: { children: React.ReactNode }) {
   // in RootComponent so it inherits the same router context every other
   // AppGate hook does.
   useSentryNavigationBreadcrumbs();
+
+  // SVC-391: iOS left-edge-swipe → back, routed through the same interceptor
+  // chain the hardware back button uses so open sheets and the AuthFlow OTP
+  // step claim the gesture the same way. No-op on Android (system owns the
+  // gesture) and on the web (browser does). Pathname-aware so routes where
+  // back is wrong — mid-payment on /cart, the public /invite landing — stay
+  // out of it.
+  const edgeSwipeRouter = useRouter();
+  useEdgeSwipeBack(edgeSwipeRouter, pathname);
 
   // Every branch below carries `safe-top` (SVC-285), and a new one must too.
   //
@@ -378,6 +446,34 @@ function AppGate({ children }: { children: React.ReactNode }) {
       return <Navigate to="/" replace />;
     }
 
+    // SVC-385: a consumer whose last session left a booking in flight comes
+    // back to look at the tracker, not to shop. Pre-empt home ONCE per
+    // sign-in — later nav back to "/" during the same session respects user
+    // intent. The waiting spinner here is the same one proGate uses while
+    // deciding Pro-or-consumer; one shared "we're deciding where to send you"
+    // moment is honest, and racing the two decisions in parallel keeps the
+    // combined wait equal to whichever is slower rather than their sum.
+    const bookingVerdict = bookingLandingVerdict({
+      pathname,
+      state: bookingLandingState,
+      landed: bookingLanded,
+    });
+    if (bookingVerdict === "wait") {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+    if (bookingVerdict === "to-tracking") {
+      const activeId = firstActiveBookingId(userBookings);
+      // The verdict and the id-lookup read the same list, so an id must
+      // exist here — the type refinement is for TypeScript's benefit.
+      if (activeId) {
+        return <Navigate to="/tracking/$bookingId" params={{ bookingId: activeId }} replace />;
+      }
+    }
+
     // SVC-281: ask for a location only when we cannot determine one.
     //
     // This used to fire on every launch, on the theory that the costly failure
@@ -473,7 +569,13 @@ function AppGate({ children }: { children: React.ReactNode }) {
     );
   }
   return (
-    <div className="safe-top mx-auto max-w-md min-h-screen bg-background pb-20">{children}</div>
+    <div className="safe-top mx-auto max-w-md min-h-screen bg-background pb-20">
+      {children}
+      {/* SVC-375: asks a provider or Pro for a language once after sign-in,
+          only while i18n_enabled. Here, in the app shell, so it never stacks
+          on a gate; the rules are in `shouldAskLanguage`. */}
+      <FirstRunLanguagePrompt />
+    </div>
   );
 }
 
@@ -489,45 +591,51 @@ function RootComponent() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          {/* CartProvider sits inside AuthProvider so the cart can be
+          {/* SVC-375: the language each screen renders in, decided from the
+              route during render — Hindi/Marathi only on /provider and /pro
+              while i18n_enabled. Inside AuthProvider for the user, and above
+              everything that renders copy, the overlays included. */}
+          <LanguageProvider>
+            {/* CartProvider sits inside AuthProvider so the cart can be
               scoped by user id (see cart-context.tsx). Outside the
               version gate so a version-blocked user's cart still
               survives an update. */}
-          <CartProvider>
-            {/* SVC-290 sheets: CategorySheetProvider hosts the L1 →
+            <CartProvider>
+              {/* SVC-290 sheets: CategorySheetProvider hosts the L1 →
                 sub-categories picker; ServiceSheetProvider hosts the
                 service detail sheet. Both sit above SplashGate so a
                 deep-link redirect (either /category/{L1-slug} or
                 /service/{id}) can safely open its sheet before the
                 splash lifts. */}
-            <CategorySheetProvider>
-              <ServiceSheetProvider>
-                {/* SplashGate is the outermost UI concern: the animated
+              <CategorySheetProvider>
+                <ServiceSheetProvider>
+                  {/* SplashGate is the outermost UI concern: the animated
                     launch splash covers everything for ~2s on cold app
                     open, then swaps in the app shell. Sits inside all the
                     providers so the app underneath is fully hydrated by
                     the time the splash lifts. */}
-                <SplashGate>
-                  {/* SVC-162: version-check nudge/block overlays. Wraps
+                  <SplashGate>
+                    {/* SVC-162: version-check nudge/block overlays. Wraps
                       the whole tree so the block state can cover
                       everything below it. */}
-                  <AppVersionGate>
-                    <AppGate>
-                      <Outlet />
-                      <BottomNav />
-                      <CartFab />
-                    </AppGate>
-                    {/* SVC-69: full-screen overlay for an incoming
+                    <AppVersionGate>
+                      <AppGate>
+                        <Outlet />
+                        <BottomNav />
+                        <CartFab />
+                      </AppGate>
+                      {/* SVC-69: full-screen overlay for an incoming
                         broadcast job. Sits outside AppGate so it can
                         cover the whole shell; renders nothing unless a
                         booking id is supplied. */}
-                    <IncomingRequestHost />
-                    <Toaster />
-                  </AppVersionGate>
-                </SplashGate>
-              </ServiceSheetProvider>
-            </CategorySheetProvider>
-          </CartProvider>
+                      <IncomingRequestHost />
+                      <Toaster />
+                    </AppVersionGate>
+                  </SplashGate>
+                </ServiceSheetProvider>
+              </CategorySheetProvider>
+            </CartProvider>
+          </LanguageProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

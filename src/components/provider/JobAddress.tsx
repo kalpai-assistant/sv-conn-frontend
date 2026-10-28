@@ -2,6 +2,7 @@ import { MapPin, Navigation2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { Address } from "@/lib/mock-data";
+import { useT } from "@/i18n/LanguageProvider";
 
 /**
  * Where the job is, plus a hand-off to the device maps app (SVC-171).
@@ -33,6 +34,7 @@ export function JobAddress({
   address: Address;
   showNavigate?: boolean;
 }) {
+  const { t } = useT();
   // `null` address is only reachable on the admin bulk listing, never on the
   // routes this screen calls — so an absent address is a bug to stay quiet about,
   // not an empty state to design.
@@ -57,7 +59,7 @@ export function JobAddress({
           {/* Leaves the app, so it opens in a new context rather than replacing it. */}
           <a href={directionsUrl(address)} target="_blank" rel="noopener noreferrer">
             <Navigation2 className="h-4 w-4" />
-            Navigate
+            {t("job.navigate")}
           </a>
         </Button>
       )}

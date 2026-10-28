@@ -5,6 +5,7 @@ import { useAuth, type UserRole } from "@/lib/auth-context";
 import { API_BASE_URL, ApiError, apiFetch } from "@/lib/api";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
+import { hapticImpactLight } from "@/lib/haptics";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 
@@ -227,6 +228,10 @@ export function AuthFlow({
       // cold-start re-fetches with the field populated.
       userData.role = userData.role ?? role;
 
+      // SVC-398: subtle "landed" tap once the OTP is accepted. Fires on the
+      // success path only — a wrong code falls through to the catch below and
+      // the user feels nothing but the error state, which is the whole point.
+      hapticImpactLight();
       login(tokenData.access_token, tokenData.refresh_token, userData, tokenData.is_new_user);
       onComplete();
     } catch (e) {

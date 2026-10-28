@@ -16,7 +16,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { motion } from "framer-motion";
-import { ArrowLeft, Search, X, Clock, TrendingUp, Loader2 } from "lucide-react";
+import { ArrowLeft, Search, X, Clock, TrendingUp } from "lucide-react";
+import { LoadingRegion } from "@/components/skeletons/LoadingRegion";
+import { SearchResultSkeleton } from "@/components/skeletons/ListRowSkeletons";
 import { useServices } from "@/hooks/useApi";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { formatRupees } from "@/lib/currency";
@@ -124,7 +126,7 @@ export function SearchSheet({ onClose }: SearchSheetProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search for services..."
-            className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:appearance-none"
             enterKeyHint="search"
           />
           {query && (
@@ -243,9 +245,11 @@ function ResultsList({
 }) {
   if (isLoading) {
     return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
+      <LoadingRegion className="flex flex-col divide-y divide-border px-4">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <SearchResultSkeleton key={i} />
+        ))}
+      </LoadingRegion>
     );
   }
   if (results.length === 0) {

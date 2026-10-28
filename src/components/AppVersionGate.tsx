@@ -25,6 +25,11 @@
  * SVC-366: the native iOS app gets neither. Its url is an App Store link
  * opened outside the app, and with no url (no iOS pipeline yet) there is
  * no update button at all — never the APK flow, never "/download".
+ *
+ * SVC-395: the copy follows the screen's language, so an SP or Pro on their
+ * own screens reads it in Hindi/Marathi (the "Update available" push before it
+ * already was). Customer screens stay English. The release notes are typed
+ * once, in English, at release time and are shown as they are.
  */
 import { AlertCircle, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -41,6 +46,9 @@ import {
 } from "@/lib/apkUpdater";
 import { reportError } from "@/lib/sentry";
 import { useAppVersionCheck } from "@/lib/useAppVersionCheck";
+import type { Translate } from "@/i18n";
+import { useT } from "@/i18n/LanguageProvider";
+import type { AppLanguage } from "@/i18n/languages";
 
 const NUDGE_DISMISS_KEY = "eazyserv:version-nudge-dismissed-until";
 
@@ -108,10 +116,18 @@ type UpdaterState =
 
 interface UseInAppUpdaterOpts {
   url: string;
+  t: Translate;
+  lang: AppLanguage;
 }
 
-function useInAppUpdater({ url }: UseInAppUpdaterOpts) {
+function useInAppUpdater({ url, t, lang }: UseInAppUpdaterOpts) {
   const [state, setState] = useState<UpdaterState>({ kind: "idle" });
+  // English shows the raw failure, as it always has. Hindi/Marathi get a
+  // translated line instead of a native or browser message in English.
+  const shown = useCallback(
+    (message: string) => (lang === "en" ? message : t("update.failed")),
+    [lang, t],
+  );
   // Track handles for cleanup + so a re-render doesn't create duplicate
   // subscribers.
   const handlesRef = useRef<{ remove: () => Promise<void> | void }[]>([]);
@@ -166,7 +182,7 @@ function useInAppUpdater({ url }: UseInAppUpdaterOpts) {
       const failedHandle = await onFailed((evt) => {
         setState({
           kind: "error",
-          message: `Download failed: ${evt.reasonText}`,
+          message: t("update.downloadFailed", { reason: evt.reasonText }),
         });
       });
       handlesRef.current = [progressHandle, completeHandle, failedHandle];
@@ -177,9 +193,9 @@ function useInAppUpdater({ url }: UseInAppUpdaterOpts) {
       reportError(err instanceof Error ? err : new Error(message), {
         source: "apk-updater.download",
       });
-      setState({ kind: "error", message });
+      setState({ kind: "error", message: shown(message) });
     }
-  }, [url]);
+  }, [url, t, shown]);
 
   const triggerInstall = useCallback(async () => {
     try {
@@ -189,9 +205,9 @@ function useInAppUpdater({ url }: UseInAppUpdaterOpts) {
       reportError(err instanceof Error ? err : new Error(message), {
         source: "apk-updater.install",
       });
-      setState({ kind: "error", message });
+      setState({ kind: "error", message: shown(message) });
     }
-  }, []);
+  }, [shown]);
 
   const openPermissionSettings = useCallback(async () => {
     try {
@@ -200,9 +216,9 @@ function useInAppUpdater({ url }: UseInAppUpdaterOpts) {
       setState({ kind: "idle" });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setState({ kind: "error", message });
+      setState({ kind: "error", message: shown(message) });
     }
-  }, []);
+  }, [shown]);
 
   return {
     state,
@@ -226,8 +242,9 @@ function UpdateCta({
   /** "nudge" = small buttons in a toast; "block" = full-width primary CTA. */
   variant: "nudge" | "block";
 }) {
+  const { t, lang } = useT();
   const { state, isNativeAndroid, startDownload, triggerInstall, openPermissionSettings } =
-    useInAppUpdater({ url });
+    useInAppUpdater({ url, t, lang });
 
   // Off Android: keep the original anchor-tag behaviour. It opens the
   // system browser, Chrome downloads, notification-shade install.
@@ -237,14 +254,14 @@ function UpdateCta({
         href={url}
         className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
       >
-        Update
+        {t("update.update")}
       </a>
     ) : (
       <a
         href={url}
         className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
       >
-        Update now
+        {t("update.updateNow")}
       </a>
     );
   }
@@ -257,7 +274,7 @@ function UpdateCta({
   if (state.kind === "idle") {
     return (
       <button onClick={startDownload} className={primaryClass}>
-        Update
+        {t("update.update")}
       </button>
     );
   }
@@ -267,7 +284,11 @@ function UpdateCta({
     return (
       <div className="w-full">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Downloading{known ? ` ${Math.round(state.percent)}%` : "…"}</span>
+          <span>
+            {known
+              ? t("update.downloadingPercent", { percent: Math.round(state.percent) })
+              : t("update.downloadingUnknown")}
+          </span>
           {state.total > 0 && (
             <span>
               {formatBytes(state.bytes)} / {formatBytes(state.total)}
@@ -287,7 +308,7 @@ function UpdateCta({
   if (state.kind === "ready-to-install") {
     return (
       <button onClick={triggerInstall} className={primaryClass}>
-        Install
+        {t("update.install")}
       </button>
     );
   }
@@ -295,9 +316,9 @@ function UpdateCta({
   if (state.kind === "needs-install-permission") {
     return (
       <div className="flex flex-col gap-2">
-        <p className="text-xs text-muted-foreground">Allow EazyServ to install app updates.</p>
+        <p className="text-xs text-muted-foreground">{t("update.allowInstall")}</p>
         <button onClick={openPermissionSettings} className={primaryClass}>
-          Open settings
+          {t("update.openSettings")}
         </button>
       </div>
     );
@@ -311,7 +332,7 @@ function UpdateCta({
         <span>{state.message}</span>
       </div>
       <button onClick={startDownload} className={primaryClass}>
-        Try again
+        {t("update.tryAgain")}
       </button>
     </div>
   );
@@ -331,6 +352,7 @@ function UpdateAction({
   nativeIos: boolean;
   variant: "nudge" | "block";
 }) {
+  const { t } = useT();
   if (!url) return null;
   if (!nativeIos) return <UpdateCta url={url} variant={variant} />;
   return (
@@ -345,7 +367,7 @@ function UpdateAction({
           : "mt-5 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
       }
     >
-      {variant === "nudge" ? "Update" : "Update now"}
+      {variant === "nudge" ? t("update.update") : t("update.updateNow")}
     </a>
   );
 }
@@ -365,10 +387,13 @@ function NudgeToast({
   nativeIos: boolean;
   onDismiss: () => void;
 }) {
+  const { t } = useT();
   return (
     <div className="fixed inset-x-0 bottom-4 z-40 mx-auto flex max-w-md items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-lg mx-4">
       <div className="flex-1">
-        <p className="text-sm font-semibold text-foreground">Update available (v{latest})</p>
+        <p className="text-sm font-semibold text-foreground">
+          {t("update.available", { version: latest })}
+        </p>
         {releaseNotes && <p className="mt-1 text-xs text-muted-foreground">{releaseNotes}</p>}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <UpdateAction url={url} nativeIos={nativeIos} variant="nudge" />
@@ -376,13 +401,13 @@ function NudgeToast({
             onClick={onDismiss}
             className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
           >
-            Later
+            {t("update.later")}
           </button>
         </div>
       </div>
       <button
         onClick={onDismiss}
-        aria-label="Dismiss"
+        aria-label={t("update.dismiss")}
         className="text-muted-foreground hover:text-foreground"
       >
         <X className="h-4 w-4" />
@@ -402,15 +427,14 @@ function BlockOverlay({
   url?: string;
   nativeIos: boolean;
 }) {
+  const { t } = useT();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 p-4 backdrop-blur-sm">
       <div className="max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-xl">
-        <h2 className="text-lg font-semibold text-foreground">Update required</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          This version of EazyServ is no longer supported. Please update to continue.
-        </p>
+        <h2 className="text-lg font-semibold text-foreground">{t("update.requiredTitle")}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{t("update.requiredBody")}</p>
         <p className="mt-3 text-xs text-muted-foreground">
-          Minimum required: v{minSupported} · Latest: v{latest}
+          {t("update.requiredVersions", { min: minSupported, latest })}
         </p>
         <UpdateAction url={url} nativeIos={nativeIos} variant="block" />
       </div>

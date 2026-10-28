@@ -40,8 +40,10 @@ import {
   type ByProRange,
   type ProEarningsItem,
 } from "@/hooks/useProEarnings";
-import { formatRupees } from "@/lib/currency";
-import { RANGE_META } from "@/lib/earnings-ranges";
+import { formatDate, formatRupees } from "@/i18n/format";
+import { useT } from "@/i18n/LanguageProvider";
+import type { AppLanguage } from "@/i18n/languages";
+import { rangeMeta } from "@/lib/earnings-ranges";
 import { cn } from "@/lib/utils";
 import { firstInitial } from "@/lib/initials";
 
@@ -51,17 +53,19 @@ export const Route = createFileRoute("/provider/team/")({
   component: MyTeamPage,
 });
 
-const KYC_LABEL: Record<KycStatus, string> = {
-  verified: "KYC verified",
-  submitted: "KYC in review",
-  pending: "KYC not done",
-  rejected: "KYC rejected",
+/** provider.json `team.*` key for each KYC badge. */
+const KYC_LABEL_KEY: Record<KycStatus, string> = {
+  verified: "team.kycVerified",
+  submitted: "team.kycSubmitted",
+  pending: "team.kycPending",
+  rejected: "team.kycRejected",
 };
 
 // SVC-321 — the SP's team: who's on it, who's been invited, and the way to
 // invite more. Reached from Profile only. Almost every SP works alone and never
 // invites anyone, so this stays off Home on purpose.
 function MyTeamPage() {
+  const { t, lang } = useT("provider");
   const team = useTeam(true, { pollWhileSelfOff: true });
   const invites = useTeamInvites();
   const [removing, setRemoving] = useState<TeamMember | null>(null);
@@ -115,7 +119,7 @@ function MyTeamPage() {
 
   const changeTakesJobs = (on: boolean) => {
     setSelfPro.mutate(on, {
-      onError: (error) => toast.error(teamErrorMessage(error)),
+      onError: (error) => toast.error(teamErrorMessage(error, t)),
       onSettled: () => setConfirmingOff(false),
     });
   };
@@ -125,11 +129,11 @@ function MyTeamPage() {
     const member = removing;
     removeMember.mutate(member.id, {
       onSuccess: (result) => {
-        toast.success(`${member.display_name} removed from your team`);
+        toast.success(t("team.removed", { name: member.display_name }));
         // The last other Pro went, so the backend switched the SP back on.
-        if (result?.self_reenabled) toast("You're taking jobs yourself again");
+        if (result?.self_reenabled) toast(t("team.selfReenabled"));
       },
-      onError: (error) => toast.error(teamErrorMessage(error)),
+      onError: (error) => toast.error(teamErrorMessage(error, t)),
       onSettled: () => setRemoving(null),
     });
   };
@@ -137,8 +141,8 @@ function MyTeamPage() {
   const confirmRevoke = () => {
     if (!revoking) return;
     revokeInvite.mutate(revoking.id, {
-      onSuccess: () => toast.success("Invite revoked"),
-      onError: (error) => toast.error(teamErrorMessage(error)),
+      onSuccess: () => toast.success(t("team.revoked")),
+      onError: (error) => toast.error(teamErrorMessage(error, t)),
       onSettled: () => setRevoking(null),
     });
   };
@@ -147,12 +151,12 @@ function MyTeamPage() {
     <div className="min-h-screen p-6 pb-24">
       <div className="flex items-center gap-3">
         <BackButton fallbackTo="/provider/profile" />
-        <h1 className="flex-1 text-lg font-semibold text-foreground">My Team</h1>
+        <h1 className="flex-1 text-lg font-semibold text-foreground">{t("team.title")}</h1>
         {!isEmpty && (
           <Button asChild size="sm">
             <Link to="/provider/team/invite">
               <UserPlus className="h-4 w-4" />
-              Invite
+              {t("team.invite")}
             </Link>
           </Button>
         )}
@@ -160,7 +164,7 @@ function MyTeamPage() {
 
       {(team.isError || invites.isError) && (
         <div className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          <span>Couldn't load your team.</span>
+          <span>{t("team.loadFailed")}</span>
           <Button
             variant="ghost"
             size="sm"
@@ -169,7 +173,7 @@ function MyTeamPage() {
               invites.refetch();
             }}
           >
-            Retry
+            {t("team.retry")}
           </Button>
         </div>
       )}
@@ -180,7 +184,7 @@ function MyTeamPage() {
           className="mt-4 flex gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-foreground"
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden />
-          <span>Nobody on your team is available right now, so you won&rsquo;t get new jobs.</span>
+          <span>{t("team.nobodyAvailable")}</span>
         </div>
       )}
 
@@ -196,15 +200,12 @@ function MyTeamPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Users className="h-6 w-6 text-primary" />
           </div>
-          <p className="mt-4 font-semibold text-foreground">Take on more jobs with a team</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Invite people who work with you. When you accept a job, you choose who does it, and
-            their earnings are paid to you.
-          </p>
+          <p className="mt-4 font-semibold text-foreground">{t("team.emptyTitle")}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("team.emptyBody")}</p>
           <Button asChild className="mt-6">
             <Link to="/provider/team/invite">
               <UserPlus className="h-4 w-4" />
-              Invite your first team member
+              {t("team.inviteFirst")}
             </Link>
           </Button>
         </div>
@@ -216,20 +217,22 @@ function MyTeamPage() {
             ranges={TEAM_RANGES}
             value={range}
             onChange={setRange}
-            label="Team earnings period"
+            label={t("team.periodLabel")}
           />
           <p className="mt-3 text-sm text-muted-foreground">
             {current ? (
               <>
                 <span className="font-semibold tabular-nums text-foreground">
-                  {formatRupees(current.total_payout)}
+                  {formatRupees(current.total_payout, lang)}
                 </span>{" "}
-                &middot; {current.completed_count} {current.completed_count === 1 ? "job" : "jobs"}{" "}
-                {RANGE_META[range].tab.toLowerCase()}
+                {t("team.jobsInRange", {
+                  count: current.completed_count,
+                  range: rangeMeta(range, t).inline,
+                })}
               </>
             ) : windowed.isError ? (
               <button className="text-primary" onClick={() => void windowed.refetch()}>
-                Couldn&rsquo;t load earnings. Retry
+                {t("team.earningsFailed")}
               </button>
             ) : (
               <Skeleton className="h-5 w-40" />
@@ -240,13 +243,15 @@ function MyTeamPage() {
 
       {!isLoading && team.data && !isEmpty && (
         <section className="mt-6">
-          <h2 className="text-sm font-semibold text-muted-foreground">Team · {team.data.length}</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            {t("team.members", { count: team.data.length })}
+          </h2>
           <ul className="mt-2 space-y-2">
             {self && (
               <MemberRow
                 member={self}
                 figure={figureFor(self.id)}
-                periodLabel={RANGE_META[range].tab}
+                periodLabel={rangeMeta(range, t).tab}
                 selfSwitch={
                   showSelfSwitch && (
                     <TakesJobsSwitch
@@ -263,7 +268,7 @@ function MyTeamPage() {
                 key={member.id}
                 member={member}
                 figure={figureFor(member.id)}
-                periodLabel={RANGE_META[range].tab}
+                periodLabel={rangeMeta(range, t).tab}
                 onRemove={() => setRemoving(member)}
               />
             ))}
@@ -277,7 +282,7 @@ function MyTeamPage() {
       {pastMembers.length > 0 && (
         <section className="mt-6">
           <h2 className="text-sm font-semibold text-muted-foreground">
-            Past members · {pastMembers.length}
+            {t("team.pastMembers", { count: pastMembers.length })}
           </h2>
           <ul className="mt-2 space-y-2">
             {pastMembers.map((pro) => (
@@ -294,8 +299,8 @@ function MyTeamPage() {
       {showEarnings && unassigned && (
         <div className="mt-2 flex items-center gap-3 rounded-xl border border-dashed border-border p-3">
           <div className="min-w-0 flex-1">
-            <p className="font-medium text-foreground">Not assigned</p>
-            <p className="text-xs text-muted-foreground">Jobs finished with no one on them</p>
+            <p className="font-medium text-foreground">{t("earnings.notAssigned")}</p>
+            <p className="text-xs text-muted-foreground">{t("team.notAssignedDetail")}</p>
           </div>
           <ProFigure item={unassigned} />
         </div>
@@ -304,7 +309,7 @@ function MyTeamPage() {
       {pending.length > 0 && (
         <section className="mt-6">
           <h2 className="text-sm font-semibold text-muted-foreground">
-            Pending invites · {pending.length}
+            {t("team.pendingInvites", { count: pending.length })}
           </h2>
           <ul className="mt-2 space-y-2">
             {pending.map((invite) => (
@@ -313,7 +318,7 @@ function MyTeamPage() {
                   <div>
                     <p className="font-medium text-foreground">{invite.invitee_phone}</p>
                     <p className="text-xs text-muted-foreground">
-                      Expires {formatDate(invite.expires_at)}
+                      {t("team.expires", { date: formatExpiry(invite.expires_at, lang) })}
                     </p>
                   </div>
                   <Button
@@ -322,7 +327,7 @@ function MyTeamPage() {
                     className="text-destructive hover:text-destructive"
                     onClick={() => setRevoking(invite)}
                   >
-                    Revoke
+                    {t("team.revoke")}
                   </Button>
                 </div>
                 <InviteCode token={invite.token} />
@@ -336,14 +341,15 @@ function MyTeamPage() {
       <AlertDialog open={removing !== null} onOpenChange={(open) => !open && setRemoving(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {removing?.display_name} from your team?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You won't be able to assign them new jobs. Their past jobs and reviews stay on record,
-              and you can invite them again later.
-            </AlertDialogDescription>
+            <AlertDialogTitle>
+              {t("team.removeTitle", { name: removing?.display_name })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{t("team.removeBody")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={removeMember.isPending}>Keep</AlertDialogCancel>
+            <AlertDialogCancel disabled={removeMember.isPending}>
+              {t("team.keep")}
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -351,7 +357,7 @@ function MyTeamPage() {
               }}
               disabled={removeMember.isPending}
             >
-              {removeMember.isPending ? "Removing…" : "Remove"}
+              {removeMember.isPending ? t("team.removing") : t("team.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -363,13 +369,13 @@ function MyTeamPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Stop taking jobs yourself?</AlertDialogTitle>
-            <AlertDialogDescription>
-              New jobs go to your team. You can still accept and assign them.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("team.offTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("team.offBody")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={setSelfPro.isPending}>Keep taking jobs</AlertDialogCancel>
+            <AlertDialogCancel disabled={setSelfPro.isPending}>
+              {t("team.keepTaking")}
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -377,7 +383,7 @@ function MyTeamPage() {
               }}
               disabled={setSelfPro.isPending}
             >
-              {setSelfPro.isPending ? "Switching off…" : "Switch off"}
+              {setSelfPro.isPending ? t("team.switchingOff") : t("team.switchOff")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -386,14 +392,15 @@ function MyTeamPage() {
       <AlertDialog open={revoking !== null} onOpenChange={(open) => !open && setRevoking(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Revoke this invite?</AlertDialogTitle>
+            <AlertDialogTitle>{t("team.revokeTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              The code sent to {revoking?.invitee_phone} will stop working. You can send a new
-              invite afterwards.
+              {t("team.revokeBody", { phone: revoking?.invitee_phone })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={revokeInvite.isPending}>Keep</AlertDialogCancel>
+            <AlertDialogCancel disabled={revokeInvite.isPending}>
+              {t("team.keep")}
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -402,7 +409,7 @@ function MyTeamPage() {
               disabled={revokeInvite.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {revokeInvite.isPending ? "Revoking…" : "Revoke"}
+              {revokeInvite.isPending ? t("team.revoking") : t("team.revoke")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -432,6 +439,7 @@ function MemberRow({
   /** The SP's own row only (SVC-326). */
   selfSwitch?: ReactNode;
 }) {
+  const { t } = useT("provider");
   const body = (
     <>
       <div className="relative">
@@ -444,20 +452,20 @@ function MemberRow({
             "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background",
             member.is_online ? "bg-emerald-500" : "bg-muted-foreground/40",
           )}
-          aria-label={member.is_online ? "Online" : "Offline"}
+          aria-label={member.is_online ? t("team.online") : t("team.offline")}
           role="img"
         />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-foreground">
           {member.display_name}
-          {member.is_self && <span className="text-muted-foreground"> (You)</span>}
+          {member.is_self && <span className="text-muted-foreground"> {t("picker.you")}</span>}
         </p>
         <Badge
           variant={member.kyc_status === "verified" ? "secondary" : "outline"}
           className="mt-1 text-[10px] font-medium"
         >
-          {KYC_LABEL[member.kyc_status]}
+          {t(KYC_LABEL_KEY[member.kyc_status])}
         </Badge>
       </div>
     </>
@@ -478,7 +486,7 @@ function MemberRow({
               onRemove();
             }}
           >
-            Remove
+            {t("team.remove")}
           </Button>
         )}
       </div>
@@ -511,12 +519,13 @@ function TakesJobsSwitch({
   disabled: boolean;
   onChange: (on: boolean) => void;
 }) {
+  const { t } = useT("provider");
   return (
     <label className="flex items-center gap-3 border-t border-border px-3 py-2.5">
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium text-foreground">I take jobs myself</span>
+        <span className="block text-sm font-medium text-foreground">{t("team.takesJobs")}</span>
         {!on && (
-          <span className="block text-xs text-muted-foreground">New jobs go to your team</span>
+          <span className="block text-xs text-muted-foreground">{t("team.takesJobsOff")}</span>
         )}
       </span>
       <Switch checked={on} disabled={disabled} onCheckedChange={onChange} />
@@ -526,6 +535,7 @@ function TakesJobsSwitch({
 
 /** A removed Pro with history: still openable, so the SP can settle with them. */
 function PastMemberRow({ pro, figure }: { pro: ProEarningsItem; figure: ReactNode }) {
+  const { t } = useT("provider");
   return (
     <li className="rounded-xl border border-border p-3">
       <Link
@@ -539,7 +549,7 @@ function PastMemberRow({ pro, figure }: { pro: ProEarningsItem; figure: ReactNod
         </Avatar>
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-foreground">{pro.display_name}</p>
-          <p className="text-xs text-muted-foreground">Removed from team</p>
+          <p className="text-xs text-muted-foreground">{t("team.removedFromTeam")}</p>
         </div>
         {figure}
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -548,6 +558,10 @@ function PastMemberRow({ pro, figure }: { pro: ProEarningsItem; figure: ReactNod
   );
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+/** "14 Sept" in English (en-IN, as before); hi/mr through format.ts. */
+function formatExpiry(iso: string, lang: AppLanguage = "en"): string {
+  const options = { day: "numeric", month: "short" } as const;
+  return lang === "en"
+    ? new Date(iso).toLocaleDateString("en-IN", options)
+    : formatDate(iso, options, lang);
 }

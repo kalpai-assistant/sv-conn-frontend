@@ -23,6 +23,9 @@ import { isActive } from "@/lib/job-status";
 import { useAuth } from "@/lib/auth-context";
 import { useProviderProfile, useProviderServices, useSetOnlineStatus } from "@/hooks/useApi";
 import type { KycStatus } from "@/hooks/useApi";
+import type { Translate } from "@/i18n";
+import { errorText } from "@/i18n/errors";
+import { useT } from "@/i18n/LanguageProvider";
 
 export const Route = createFileRoute("/provider/")({
   component: ProviderHomePage,
@@ -33,6 +36,8 @@ export const Route = createFileRoute("/provider/")({
 // goes online" (SVC-155) took an investigation to spot rather than being obvious
 // from the screen. Each row therefore says what is wrong and where to fix it.
 type Readiness = {
+  /** Stable across languages: the list key, and what `StatusIcon` branches on. */
+  id: "kyc" | "online" | "services";
   label: string;
   done: boolean;
   detail: string;
@@ -42,35 +47,33 @@ type Readiness = {
 // What the KYC row should say. Only "verified" clears the gate; the other three
 // each need a different thing from the provider, so they must not collapse into
 // one "not verified".
-function kycRow(status: KycStatus | undefined): Readiness {
+function kycRow(status: KycStatus | undefined, t: Translate): Readiness {
+  const base = { id: "kyc", label: t("checklist.kycLabel") } as const;
   switch (status) {
     case "verified":
-      return { label: "Identity verified", done: true, detail: "Your documents were approved." };
+      return { ...base, done: true, detail: t("checklist.kycVerified") };
     case "submitted":
-      return {
-        label: "Identity verified",
-        done: false,
-        detail: "Your documents are under review. This usually takes a day.",
-      };
+      return { ...base, done: false, detail: t("checklist.kycSubmitted") };
     case "rejected":
       return {
-        label: "Identity verified",
+        ...base,
         done: false,
-        detail: "Your documents were rejected. Please submit them again.",
-        fix: { to: "/provider/onboarding", label: "Resubmit documents" },
+        detail: t("checklist.kycRejected"),
+        fix: { to: "/provider/onboarding", label: t("checklist.kycResubmit") },
       };
     default:
       return {
-        label: "Identity verified",
+        ...base,
         done: false,
-        detail: "Finish onboarding and upload your documents.",
-        fix: { to: "/provider/onboarding", label: "Finish onboarding" },
+        detail: t("checklist.kycPending"),
+        fix: { to: "/provider/onboarding", label: t("checklist.kycFinish") },
       };
   }
 }
 
 function ProviderHomePage() {
   const navigate = useNavigate();
+  const { t, lang } = useT("provider");
   // Name lives on the user, not the provider profile — it is PATCHed to
   // /users/me during onboarding. Only used for the header's initials.
   const { user } = useAuth();
@@ -108,18 +111,16 @@ function ProviderHomePage() {
     setPendingOnline(next);
     try {
       await setOnlineStatus.mutateAsync(next);
-      toast.success(next ? "You're online — you'll get job requests" : "You're offline");
+      toast.success(next ? t("home.toastOnline") : t("home.toastOffline"));
     } catch (err) {
       // SVC-257: backend refuses go-online when `service_area_center` is NULL
       // with a distinct code so the frontend routes to the missing wizard step
       // instead of showing a dead-end toast.
       if (err instanceof ApiError && err.code === "SERVICE_AREA_MISSING") {
-        toast.error("Set your service area to start getting jobs.");
+        toast.error(t("home.serviceAreaMissing"));
         navigate({ to: "/provider/onboarding" });
       } else {
-        toast.error(
-          err instanceof Error ? err.message : "Couldn't update your status. Please try again.",
-        );
+        toast.error(errorText(err, t("home.toggleFailed"), lang));
       }
     } finally {
       // Success or failure, stop overriding the server. On success the invalidated
@@ -129,23 +130,25 @@ function ProviderHomePage() {
   };
 
   const checklist: Readiness[] = [
-    kycRow(profile?.kyc_status),
+    kycRow(profile?.kyc_status, t),
     {
-      label: "Online",
+      id: "online",
+      label: t("checklist.onlineLabel"),
       done: isOnline,
-      detail: isOnline
-        ? "You're accepting job requests."
-        : "Turn on the switch above to start receiving requests.",
+      detail: isOnline ? t("checklist.onlineOn") : t("checklist.onlineOff"),
     },
     {
-      label: "At least one service",
+      id: "services",
+      label: t("checklist.servicesLabel"),
       done: serviceCount > 0,
       detail:
         serviceCount > 0
-          ? `You're subscribed to ${serviceCount} service${serviceCount === 1 ? "" : "s"}.`
-          : "Pick the services you offer so we know what to send you.",
+          ? t("checklist.servicesCount", { count: serviceCount })
+          : t("checklist.servicesNone"),
       fix:
-        serviceCount > 0 ? undefined : { to: "/provider/profile", label: "Choose your services" },
+        serviceCount > 0
+          ? undefined
+          : { to: "/provider/profile", label: t("checklist.servicesFix") },
     },
   ];
 
@@ -182,8 +185,8 @@ function ProviderHomePage() {
             this is now its only entry point. The photo is simply absent
             until then; the initials come from the user, which is already
             restored by this point. */}
-        <ProviderHeader title="Provider Home" name={user?.name} />
-        <p className="mt-4 text-sm text-muted-foreground">Loading…</p>
+        <ProviderHeader title={t("home.title")} name={user?.name} />
+        <p className="mt-4 text-sm text-muted-foreground">{t("home.loading")}</p>
       </div>
     );
   }
@@ -193,7 +196,7 @@ function ProviderHomePage() {
       {/* SVC-273: the avatar here is the only way into Provider Profile now
           that it has left the tab bar. */}
       <ProviderHeader
-        title="Provider Home"
+        title={t("home.title")}
         name={user?.name}
         photoUrl={profile?.profile_photo_url}
       />
@@ -203,18 +206,18 @@ function ProviderHomePage() {
       <div className="mt-6 rounded-lg border border-border p-4">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <p className="font-medium text-foreground">{isOnline ? "You're online" : "Offline"}</p>
+            <p className="font-medium text-foreground">
+              {isOnline ? t("home.online") : t("home.offline")}
+            </p>
             <p className="text-sm text-muted-foreground">
-              {isVerified
-                ? "Only receive job requests while this is on."
-                : "You can go online once your identity is verified."}
+              {isVerified ? t("home.verifiedHint") : t("home.unverifiedHint")}
             </p>
           </div>
           <Switch
             checked={isOnline}
             onCheckedChange={handleToggle}
             disabled={!isVerified || setOnlineStatus.isPending}
-            aria-label="Accept job requests"
+            aria-label={t("home.toggleLabel")}
           />
         </div>
       </div>
@@ -226,13 +229,9 @@ function ProviderHomePage() {
         >
           <BellOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
           <div className="text-sm">
-            <p className="font-medium text-amber-900 dark:text-amber-100">
-              You won't be alerted about new jobs
-            </p>
+            <p className="font-medium text-amber-900 dark:text-amber-100">{t("home.pushTitle")}</p>
             <p className="text-amber-800 dark:text-amber-200">
-              {installState === "ios-wrong-browser"
-                ? "Open EazyServ in Safari to fix this."
-                : "Add EazyServ to your Home Screen to get job requests as notifications."}
+              {installState === "ios-wrong-browser" ? t("home.pushSafari") : t("home.pushInstall")}
             </p>
           </div>
         </button>
@@ -282,20 +281,18 @@ function ProviderHomePage() {
             )}
             <div className="text-sm">
               <p className={`font-medium ${eligible ? "text-emerald-900" : "text-amber-900"}`}>
-                {eligible ? "You're set up to receive jobs" : "You won't receive job requests yet"}
+                {eligible ? t("home.eligibleTitle") : t("home.ineligibleTitle")}
               </p>
               <p className={eligible ? "text-emerald-800" : "text-amber-800"}>
-                {eligible
-                  ? "New requests matching your services will appear here."
-                  : "All three of these are needed before we can send you a job."}
+                {eligible ? t("home.eligibleDetail") : t("home.ineligibleDetail")}
               </p>
             </div>
           </div>
 
           <ul className="mt-3 space-y-3">
             {checklist.map((item) => (
-              <li key={item.label} className="flex items-start gap-3">
-                <StatusIcon done={item.done} status={profile?.kyc_status} label={item.label} />
+              <li key={item.id} className="flex items-start gap-3">
+                <StatusIcon done={item.done} status={profile?.kyc_status} id={item.id} />
                 <div className="min-w-0 text-sm">
                   <p className="font-medium text-foreground">{item.label}</p>
                   <p className="text-muted-foreground">{item.detail}</p>
@@ -323,17 +320,17 @@ function ProviderHomePage() {
 function StatusIcon({
   done,
   status,
-  label,
+  id,
 }: {
   done: boolean;
   status: KycStatus | undefined;
-  label: string;
+  id: Readiness["id"];
 }) {
   if (done) return <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />;
-  if (label === "Identity verified" && status === "submitted") {
+  if (id === "kyc" && status === "submitted") {
     return <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />;
   }
-  if (label === "Identity verified" && status === "rejected") {
+  if (id === "kyc" && status === "rejected") {
     return <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />;
   }
   return <Circle className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />;

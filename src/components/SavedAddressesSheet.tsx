@@ -29,6 +29,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Home, MapPin, MoreVertical, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
+import { useDragDismiss } from "@/hooks/useDragDismiss";
 import { InUseBadge } from "@/components/InUseBadge";
 import { AddressActionsSheet, type AddressActionsTarget } from "@/components/AddressActionsSheet";
 import { AddAddressSheet, type EditingAddress } from "@/components/AddAddressSheet";
@@ -79,6 +80,11 @@ export function SavedAddressesSheet({
   const [actionsFor, setActionsFor] = useState<AddressActionsTarget | null>(null);
   const [deleting, setDeleting] = useState<AddressActionsTarget | null>(null);
 
+  // Drag-to-dismiss (SVC-391) — only when `dismissible`, mirroring the back
+  // arrow and the backdrop tap. Over the location gate there is nowhere to
+  // return to, so the swipe would land on the same blocked gate it left.
+  const drag = useDragDismiss(onClose);
+
   const rows = addresses ?? [];
 
   // The add/edit form replaces this sheet rather than stacking on it. Three
@@ -112,10 +118,16 @@ export function SavedAddressesSheet({
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 26, stiffness: 240 }}
+        {...(dismissible ? drag : {})}
         role="dialog"
         aria-label="Saved addresses"
         className="safe-bottom fixed bottom-0 left-0 right-0 z-50 mx-auto flex max-h-[80vh] max-w-md flex-col rounded-t-3xl border-t border-border bg-card shadow-2xl"
       >
+        {dismissible && (
+          <div className="flex shrink-0 justify-center pt-3 pb-1">
+            <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+          </div>
+        )}
         <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4">
           {dismissible && (
             <button

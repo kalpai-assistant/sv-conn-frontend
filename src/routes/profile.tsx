@@ -38,6 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { NotificationsRow } from "@/components/NotificationsRow";
+import { LanguageRow } from "@/components/language/LanguageRow";
 import { displayVersion } from "@/lib/version";
 
 export const Route = createFileRoute("/profile")({
@@ -265,6 +266,16 @@ function ProfilePage() {
                 </div>
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               </Link>
+            </div>
+          )}
+
+          {/* SVC-375: a team Pro's language, here because their avatar opens
+              this screen. Team Pros only, and only while i18n_enabled, so a
+              customer sees no change. The row stays English: /profile is a
+              customer route; the choice applies inside the Pro app. */}
+          {isTeamPro(proMe) && user?.i18n_enabled === true && (
+            <div className="px-4 pt-3">
+              <LanguageRow />
             </div>
           )}
 

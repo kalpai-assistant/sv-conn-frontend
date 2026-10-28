@@ -12,25 +12,32 @@ import { AlertCircle, Receipt } from "lucide-react";
 import { WeekEarningsChart } from "@/components/provider/WeekEarningsChart";
 import { MonthEarningsChart } from "@/components/provider/MonthEarningsChart";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatRupees } from "@/lib/currency";
+import { formatDate, formatRupees } from "@/i18n/format";
+import { useT } from "@/i18n/LanguageProvider";
+import type { AppLanguage } from "@/i18n/languages";
 import { payoutState } from "@/lib/payout-status";
 import type { API_EarningsResponse, EarningsRange } from "@/hooks/useApi";
 import { proLabel, type ByProRange, type EarningsBookingItemWithPro } from "@/hooks/useProEarnings";
-import { RANGE_META } from "@/lib/earnings-ranges";
+import { rangeMeta } from "@/lib/earnings-ranges";
 
 export function RangeTabs<R extends ByProRange>({
   ranges,
   value,
   onChange,
-  label = "Earnings period",
+  label,
 }: {
   ranges: R[];
   value: R;
   onChange: (range: R) => void;
   label?: string;
 }) {
+  const { t } = useT("provider");
   return (
-    <div role="tablist" aria-label={label} className="mt-6 flex gap-1 rounded-xl bg-secondary p-1">
+    <div
+      role="tablist"
+      aria-label={label ?? t("earnings.periodLabel")}
+      className="mt-6 flex gap-1 rounded-xl bg-secondary p-1"
+    >
       {ranges.map((r) => (
         <button
           key={r}
@@ -51,7 +58,7 @@ export function RangeTabs<R extends ByProRange>({
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          {RANGE_META[r].tab}
+          {rangeMeta(r, t).tab}
         </button>
       ))}
     </div>
@@ -74,17 +81,18 @@ export function EarningsWindow({
   range,
   period,
   showPro = false,
-  emptyHint = "Completed jobs show up here with what you earned on each.",
+  emptyHint,
 }: {
   range: EarningsRange;
   period: WindowQuery;
   showPro?: boolean;
   emptyHint?: string;
 }) {
-  const active = RANGE_META[range];
+  const { t, lang } = useT("provider");
+  const active = rangeMeta(range, t);
 
   return (
-    <section className="mt-4" aria-label={`Earnings ${active.tab.toLowerCase()}`}>
+    <section className="mt-4" aria-label={t("earnings.windowLabel", { range: active.inline })}>
       <div className="rounded-xl border border-border bg-card p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {active.heading}
@@ -97,12 +105,12 @@ export function EarningsWindow({
             className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"
           >
             <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
-            Couldn&rsquo;t load.
-            <span className="font-medium text-primary">Retry</span>
+            {t("earnings.windowFailed")}
+            <span className="font-medium text-primary">{t("earnings.retry")}</span>
           </button>
         ) : (
           <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
-            {formatRupees(period.data?.total_payout ?? 0)}
+            {formatRupees(period.data?.total_payout ?? 0, lang)}
           </p>
         )}
       </div>
@@ -140,7 +148,9 @@ export function EarningsWindow({
         <div className="mt-3 flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-10 text-center">
           <Receipt className="h-6 w-6 text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">{active.empty}</p>
-          <p className="px-8 text-xs text-muted-foreground">{emptyHint}</p>
+          <p className="px-8 text-xs text-muted-foreground">
+            {emptyHint ?? t("earnings.emptyHint")}
+          </p>
         </div>
       )}
     </section>
@@ -168,15 +178,16 @@ function EarningRow({
   divided: boolean;
   showPro: boolean;
 }) {
+  const { t, lang } = useT("provider");
   const tip = job.tip_amount ?? 0;
-  const state = payoutState(job.payment_method, job.settlement_status);
+  const state = payoutState(job.payment_method, job.settlement_status, t);
 
   return (
     <div className={`flex items-start gap-3 p-3.5 ${divided ? "border-t border-border" : ""}`}>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{job.service_name}</p>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          {formatCompletedAt(job.completed_at)}
+          {formatCompletedAt(job.completed_at, lang)}
         </p>
         {(state || showPro) && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -194,7 +205,7 @@ function EarningRow({
                 a team SP settles a job on. */}
             {showPro && (
               <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                {proLabel(job.professional)}
+                {proLabel(job.professional, t)}
               </span>
             )}
           </div>
@@ -202,25 +213,30 @@ function EarningRow({
       </div>
       <div className="shrink-0 text-right">
         <p className="text-sm font-semibold tabular-nums text-foreground">
-          {formatRupees(job.payout_amount)}
+          {formatRupees(job.payout_amount, lang)}
         </p>
         {/* Reserved either way — see the note above. */}
         <p className="mt-0.5 text-xs tabular-nums text-emerald-600">
-          {tip > 0 ? `incl. ${formatRupees(tip)} tip` : " "}
+          {tip > 0 ? t("earnings.tipIncluded", { amount: formatRupees(tip, lang) }) : " "}
         </p>
       </div>
     </div>
   );
 }
 
-/** "14 Sept, 4:30 pm" — the day matters inside a month window, the year never does. */
-function formatCompletedAt(iso: string): string {
+/**
+ * "14 Sept, 4:30 pm" — the day matters inside a month window, the year never
+ * does. English stays en-IN as it always was; hi/mr go through format.ts for
+ * their month names with Latin digits.
+ */
+function formatCompletedAt(iso: string, lang: AppLanguage = "en"): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString("en-IN", {
+  const options = {
     day: "numeric",
     month: "short",
     hour: "numeric",
     minute: "2-digit",
-  });
+  } as const;
+  return lang === "en" ? date.toLocaleString("en-IN", options) : formatDate(date, options, lang);
 }

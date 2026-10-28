@@ -20,7 +20,8 @@
 import { useServices, useCategories } from "@/hooks/useApi";
 import { ServiceCardCompact } from "@/components/home/ServiceCardCompact";
 import { PackageOpen } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingRegion } from "@/components/skeletons/LoadingRegion";
+import { ServiceCardCompactSkeleton } from "@/components/skeletons/ServiceCardCompactSkeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 
@@ -40,11 +41,11 @@ export function PopularSection() {
       <h2 className="px-4 pb-3 text-base font-semibold text-foreground">Most booked in Pune</h2>
 
       {isLoading ? (
-        <div className="flex gap-3 overflow-hidden pl-4">
+        <LoadingRegion className="flex gap-3 overflow-hidden pl-4">
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-56 w-40 flex-shrink-0 rounded-xl" />
+            <ServiceCardCompactSkeleton key={i} />
           ))}
-        </div>
+        </LoadingRegion>
       ) : isError ? (
         <ErrorState message="Couldn't load services." onRetry={refetch} />
       ) : railServices.length > 0 ? (

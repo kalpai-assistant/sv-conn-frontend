@@ -239,6 +239,8 @@ export const mapBooking = (
       id: string;
       service_id: string;
       service_name: string;
+      service_variant_id?: string | null;
+      variant_label?: string | null;
       quantity: number;
       unit_price: number;
       total_price: number;
@@ -258,6 +260,11 @@ export const mapBooking = (
     id: it.id,
     serviceId: it.service_id,
     serviceName: it.service_name,
+    // SVC-393: carry the variant snapshot through so rebook can re-prefill
+    // the exact variant. Normalised to undefined so `??` falls back to the
+    // service's default rather than tripping on an explicit null.
+    variantId: it.service_variant_id ?? undefined,
+    variantLabel: it.variant_label ?? undefined,
     quantity: it.quantity,
     unitPrice: it.unit_price,
     totalPrice: it.total_price,
@@ -318,6 +325,7 @@ export const mapBooking = (
 
   return {
     id: b.id,
+    consumerId: b.consumer_id,
     status: b.status.toUpperCase() as UI_Booking["status"],
     items: mapped_items,
     address,
@@ -748,10 +756,14 @@ const BOOKINGS_PER_PAGE = 50;
  */
 const bookingsTotals = new Map<string, number>();
 
-export const useBookings = (status?: string) => {
+export const useBookings = (status?: string, enabled: boolean = true) => {
   const { data: services } = useServices(); // leverage cached services
 
   return useQuery({
+    // `enabled` lets the root gate ask "does this user have an in-flight
+    // booking?" without a provider or a logged-out visitor firing the call.
+    // Defaults true — every existing caller already knows it wants bookings.
+    enabled,
     queryKey: ["bookings", status],
     queryFn: async () => {
       const params = new URLSearchParams({ per_page: String(BOOKINGS_PER_PAGE) });

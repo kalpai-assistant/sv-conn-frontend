@@ -27,8 +27,12 @@ import { useBookAndPay } from "@/hooks/useBookAndPay";
 import { SavedAddressesSheet } from "@/components/SavedAddressesSheet";
 import { SlotPickerSheet } from "@/components/cart/SlotPickerSheet";
 import { CouponsSheet } from "@/components/cart/CouponsSheet";
+import { PricingBreakdown } from "@/components/cart/PricingBreakdown";
 import { formatRupees } from "@/lib/currency";
 import { clearPendingCoupon, getPendingCoupon } from "@/lib/pending-coupon";
+import { clearRebookAddressConfirm, getRebookAddressConfirm } from "@/lib/rebook-address-confirm";
+import { readLastPaymentMethod, writeLastPaymentMethod } from "@/lib/last-payment-method";
+import { hapticSuccess } from "@/lib/haptics";
 
 // SVC-310: the hero banner's "coupon" destination hands off the code
 // through this param so the cart opens with the coupons sheet pre-filled.
@@ -81,7 +85,12 @@ export function CartPage() {
   // Only for the header avatar's initials.
   const { user } = useAuth();
   const userId = user?.id;
-  const { selected: selectedAddress, setSelectedId } = useSelectedAddress();
+  const {
+    selected: selectedAddress,
+    setSelectedId,
+    addresses: savedAddresses,
+    isLoading: addressesLoading,
+  } = useSelectedAddress();
   const { bookAndPay, isBusy } = useBookAndPay();
 
   // Slot state — null = "Now (instant)", non-null = scheduled datetime.
@@ -95,6 +104,42 @@ export function CartPage() {
 
   const [addressPickerOpen, setAddressPickerOpen] = useState(false);
   const [slotPickerOpen, setSlotPickerOpen] = useState(false);
+
+  // SVC-393: the "please confirm address" banner for a rebook that fell
+  // back to the user's default (the historical booking's address was
+  // deleted). Read once per route entry — the signal is written by
+  // `handleRebook` on the bookings page just before navigation, so by
+  // the time this component mounts the sessionStorage slot is populated.
+  // `useState` initialiser form keeps the read out of render and lets a
+  // "Looks good" tap clear it without racing a re-read.
+  const [rebookAddressConfirmLabel, setRebookAddressConfirmLabel] = useState<string | null>(() =>
+    getRebookAddressConfirm(userId),
+  );
+  const dismissRebookAddressConfirm = () => {
+    clearRebookAddressConfirm(userId);
+    setRebookAddressConfirmLabel(null);
+  };
+
+  // SVC-385: open the picker on cart entry only when the user has no address
+  // on file — the smart-defaults "the app remembers me" rule is pre-select,
+  // never auto-expand for a returning user. `useSelectedAddress` already
+  // resolves the stored id (or `addresses[0]`) as the pre-selection, so the
+  // row paints with that label without any work here; this effect only
+  // handles the empty-list case, where there is nothing to pre-select and
+  // the user has to add one before Book is reachable.
+  //
+  // Guarded by a ref so dismissing the sheet without adding does not reopen
+  // it on the next render — the row below is a tap target, and a sheet that
+  // reappears every time the user dismisses it is an app you cannot escape.
+  const autoOpenedAddressRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedAddressRef.current) return;
+    if (addressesLoading) return;
+    if ((savedAddresses?.length ?? 0) === 0) {
+      autoOpenedAddressRef.current = true;
+      setAddressPickerOpen(true);
+    }
+  }, [addressesLoading, savedAddresses]);
 
   // SVC-347: coupon code the user tapped a banner for on Home, waiting to
   // auto-apply here. Two entry points, same slot:
@@ -115,7 +160,12 @@ export function CartPage() {
   const [couponsSheetOpen, setCouponsSheetOpen] = useState(
     () => Boolean(pendingCouponCode) && items.length > 0,
   );
-  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">("online");
+  // SVC-385: default to whatever the user last paid with. Falls back to
+  // "online" when the memory is empty (fresh install, cleared on logout) —
+  // same business-preferred default this toggle always had.
+  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">(
+    () => readLastPaymentMethod() ?? "online",
+  );
 
   // Consume the ?coupon= handoff once, then scrub it from the URL. ``replace``
   // so the pre-handoff URL doesn't live in the back stack as its own entry.
@@ -188,8 +238,20 @@ export function CartPage() {
       // Only once the money is in (or the booking is cash) — a dismissed
       // checkout must leave the cart intact to retry from.
       onComplete: (bookingId) => {
-        // Celebration unmounts via its own 1.5s timer and fires onComplete
-        // below, which then clears the cart and navigates to tracking.
+        // SVC-385: remember the method the user actually went through with.
+        // Written here (not on toggle tap) because a tap the user then
+        // dismissed off the Razorpay sheet is not a preference — it is a
+        // thing they tried. The on-mount read in state init picks this up
+        // on the next cart open.
+        writeLastPaymentMethod(paymentMethod);
+        // SVC-398: server-confirmed success → triple-buzz. The Light impact
+        // fired earlier (Razorpay handler for online, cash branch of
+        // useBookAndPay for cash) was "payment posted"; this is "booking
+        // live", paired with the SVC-390 celebration overlay.
+        hapticSuccess();
+        // SVC-390: trigger the celebration overlay. The overlay unmounts
+        // via its own 1.5s timer and fires handleCelebrationComplete below,
+        // which clears the cart and navigates to tracking.
         setCelebratingBookingId(bookingId);
       },
     });
@@ -245,6 +307,17 @@ export function CartPage() {
   return (
     <div className="min-h-screen pb-48">
       <CartHeader name={user?.name} />
+
+      {/* SVC-393: rebook address fallback. Rendered above the selector so
+          the "please confirm" message sits in the eye-path to Change, and
+          clears once the user has either confirmed or picked a different
+          address below. */}
+      {rebookAddressConfirmLabel !== null && (
+        <RebookAddressConfirmRow
+          previousLabel={rebookAddressConfirmLabel}
+          onConfirm={dismissRebookAddressConfirm}
+        />
+      )}
 
       {/* Address selector */}
       <button
@@ -393,26 +466,16 @@ export function CartPage() {
         </div>
       </section>
 
-      {/* Bill breakdown */}
-      <section className="px-4 pt-4">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="pb-2 text-sm font-semibold text-foreground">Bill</p>
-          <div className="flex justify-between py-1 text-sm">
-            <span className="text-muted-foreground">Subtotal</span>
-            <span className="font-medium text-foreground">{formatRupees(subtotal)}</span>
-          </div>
-          {bill.discount > 0 && (
-            <div className="flex justify-between py-1 text-sm">
-              <span className="text-success">Discount ({coupon?.code})</span>
-              <span className="font-medium text-success">−{formatRupees(bill.discount)}</span>
-            </div>
-          )}
-          <div className="mt-2 flex justify-between border-t border-border pt-2 text-base">
-            <span className="font-semibold text-foreground">Total</span>
-            <span className="font-bold text-primary">{formatRupees(bill.total)}</span>
-          </div>
-        </div>
-      </section>
+      {/*
+        Bill breakdown — SVC-384 replaces the always-expanded card with a
+        chip that reveals the lines on tap. Shape is identical: Service
+        subtotal / Discount (if applied) / GST / Convenience fee / Total.
+      */}
+      <PricingBreakdown
+        subtotal={subtotal}
+        discount={bill.discount}
+        couponCode={coupon?.code ?? null}
+      />
 
       {/* Cancellation policy notice */}
       <p className="mx-4 mt-4 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">
@@ -453,7 +516,7 @@ export function CartPage() {
           {isBusy ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            `Book${paymentMethod === "online" ? " & Pay" : ""} — ${formatRupees(bill.total)}`
+            `Book${paymentMethod === "online" ? " & Pay" : ""} · ${formatRupees(bill.total)}`
           )}
         </button>
       </div>
@@ -465,6 +528,10 @@ export function CartPage() {
             onClose={() => setAddressPickerOpen(false)}
             onPick={(id) => {
               setSelectedId(id);
+              // SVC-393: picking an address is the explicit confirmation
+              // the rebook sticky row was asking for — clear it so the
+              // row doesn't linger below the newly chosen address.
+              dismissRebookAddressConfirm();
               setAddressPickerOpen(false);
             }}
           />
@@ -521,6 +588,46 @@ export function CartPage() {
  * A toast would be lighter but can't survive the next route change, which
  * is exactly where the user is going when the row appears.
  */
+/**
+ * SVC-393: the "please confirm address" banner shown when a rebook fell
+ * back to the user's default (the historical booking's address was
+ * deleted). Mirrors `PendingCouponStickyRow` so the two feel like one
+ * pattern — explicit, dismissable, honest about what the app did.
+ */
+function RebookAddressConfirmRow({
+  previousLabel,
+  onConfirm,
+}: {
+  previousLabel: string;
+  onConfirm: () => void;
+}) {
+  // Named-address copy when we have one, generic copy when the historical
+  // blob was already anonymised. The two shapes keep the message truthful
+  // without inventing a label the backend has already dropped.
+  const description = previousLabel
+    ? `The "${previousLabel}" address isn't saved any more — booking will use the one below.`
+    : "Your original delivery address isn't saved any more — booking will use the one below.";
+  return (
+    <div
+      className="mx-4 mt-3 flex items-start gap-3 rounded-xl border border-primary/40 bg-accent p-3"
+      aria-live="polite"
+    >
+      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-foreground">Please confirm the address</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onConfirm}
+        className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+      >
+        Looks good
+      </button>
+    </div>
+  );
+}
+
 function PendingCouponStickyRow({ code, onClear }: { code: string; onClear: () => void }) {
   return (
     <div

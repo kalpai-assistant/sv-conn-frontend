@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/auth-context";
 import { useSetOnlineStatus } from "@/hooks/useApi";
+import { useT } from "@/i18n/LanguageProvider";
 
 interface LogoutButtonProps {
   /** Consumer profile greys this out mid-edit so unsaved changes aren't lost. */
@@ -56,6 +57,8 @@ interface LogoutButtonProps {
 }
 
 export function LogoutButton({ disabled = false, isOnline }: LogoutButtonProps) {
+  // SVC-375: translated on provider/Pro routes only; English on /profile.
+  const { t } = useT();
   const navigate = useNavigate();
   const { logout } = useAuth();
   const setOnlineStatus = useSetOnlineStatus();
@@ -80,9 +83,7 @@ export function LogoutButton({ disabled = false, isOnline }: LogoutButtonProps) 
           // But the failure is not swallowed either: silently leaving them
           // online reproduces the very bug this fixes. Say it, and say what
           // undoes it.
-          toast.error("Signed out, but you may still show as online", {
-            description: "Sign in again when you have a connection to fix this.",
-          });
+          toast.error(t("logout.stillOnline"), { description: t("logout.stillOnlineDetail") });
         }
       }
       logout();
@@ -92,7 +93,7 @@ export function LogoutButton({ disabled = false, isOnline }: LogoutButtonProps) 
     } finally {
       setIsBusy(false);
     }
-  }, [isOnline, setOnlineStatus, logout, navigate]);
+  }, [isOnline, setOnlineStatus, logout, navigate, t]);
 
   const handleClick = useCallback(() => {
     // A provider mid-shift is about to stop receiving paid work, and nothing
@@ -113,20 +114,20 @@ export function LogoutButton({ disabled = false, isOnline }: LogoutButtonProps) 
         className="flex w-full items-center justify-center gap-2 rounded-xl border border-destructive p-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
       >
         {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-        Logout
+        {t("logout.button")}
       </button>
 
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>You're online</AlertDialogTitle>
-            <AlertDialogDescription>
-              Signing out will stop job requests until you sign in and go online again.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("logout.onlineTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("logout.onlineBody")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Stay signed in</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void signOut()}>Sign out</AlertDialogAction>
+            <AlertDialogCancel>{t("logout.stay")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void signOut()}>
+              {t("logout.signOut")}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

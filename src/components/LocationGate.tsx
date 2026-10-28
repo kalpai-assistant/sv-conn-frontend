@@ -65,6 +65,8 @@ import {
 import { MAP_PICKER_LOCATE_TIMEOUT_MS } from "@/lib/map-picker-timeouts";
 import { canOpenAppSettings, openAppSettings } from "@/lib/open-app-settings";
 import type { LocationBlockedReason } from "@/hooks/useLocationAvailability";
+import { type Translate } from "@/i18n";
+import { useT } from "@/i18n/LanguageProvider";
 
 /** One place the user can pick without granting anything. */
 export interface SavedLocation {
@@ -163,22 +165,25 @@ export interface LocationGateProps {
  * to say than "location is off" when the real problem is that they have never
  * set a service area at all.
  */
-function copyFor(reason: LocationBlockedReason | null | undefined): {
+function copyFor(
+  reason: LocationBlockedReason | null | undefined,
+  t: Translate,
+): {
   title: string;
   subtitle: string;
 } {
   switch (reason) {
     case "device-off":
       return {
-        title: "Your device location is off",
+        title: t("locationGate.deviceOffTitle"),
         // Names the OS toggle rather than the app, because that is what has to
         // change. "Allow location for this app" would send them to a screen
         // where everything already looks correct.
-        subtitle: "Turn on Location in your phone's settings, or choose where you are below.",
+        subtitle: t("locationGate.deviceOffSubtitle"),
       };
     case "permission-denied":
       return {
-        title: "Location permission is off",
+        title: t("locationGate.deniedTitle"),
         // Two different remedies behind one browser error (SVC-318).
         //
         // On native the plugin distinguishes the OS toggle
@@ -193,13 +198,13 @@ function copyFor(reason: LocationBlockedReason | null | undefined): {
         //
         // The honest copy names both, cheapest check first.
         subtitle: isNativeLocation()
-          ? "Allow location for EazyServ in Settings, or choose where you are below."
-          : "Check that Location is on in your phone's settings and allowed for this site, or choose where you are below.",
+          ? t("locationGate.deniedSubtitleNative")
+          : t("locationGate.deniedSubtitleWeb"),
       };
     case "permission-prompt":
       return {
-        title: "Location permission is off",
-        subtitle: "Turn it on to find services near you, or choose where you are below.",
+        title: t("locationGate.deniedTitle"),
+        subtitle: t("locationGate.promptSubtitle"),
       };
     default:
       // Also the iOS launch state, where nothing has been attempted yet: Safari
@@ -208,8 +213,8 @@ function copyFor(reason: LocationBlockedReason | null | undefined): {
       // happened. "We couldn't detect your location" would be a claim about an
       // attempt nobody made.
       return {
-        title: "Where are you?",
-        subtitle: "Use your current location, or choose where you'd like your service.",
+        title: t("locationGate.whereTitle"),
+        subtitle: t("locationGate.whereSubtitle"),
       };
   }
 }
@@ -229,6 +234,9 @@ export function LocationGate({
 }: LocationGateProps) {
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // SVC-375: the SP's service-area gate on /provider is translated; the
+  // consumer's gate renders on customer routes and stays English.
+  const { t } = useT();
   // Starts from the reason the caller resolved, but can be overtaken by a live
   // denial: tapping Enable on a `prompt` and refusing turns this into `denied`
   // without a relaunch.
@@ -315,19 +323,19 @@ export function LocationGate({
     setError(
       failure === "permission-denied"
         ? isNativeLocation()
-          ? "Location is off for this app. Turn it on in settings, or choose where you are below."
+          ? t("locationGate.errorNative")
           : deviceLocationOff
-            ? "Your phone's location is switched off. Turn on Location Services in Settings, then tap Enable again."
-            : "Location is blocked for this site. Allow it in your browser's settings, or choose where you are below."
+            ? t("locationGate.errorDeviceOff")
+            : t("locationGate.errorSiteBlocked")
         : failure === "location-disabled"
-          ? "Turn on Location in your phone's settings, or choose where you are below."
-          : "Couldn't get your location. Choose where you are instead.",
+          ? t("locationGate.deviceOffSubtitle")
+          : t("locationGate.errorGeneric"),
     );
   };
 
   const denied = permission === "denied" || reason === "permission-denied";
   const busy = locating || isSaving;
-  const copy = copyFor(reason);
+  const copy = copyFor(reason, t);
   const heading = title ?? copy.title;
   const body = subtitle ?? copy.subtitle;
 
@@ -349,14 +357,15 @@ export function LocationGate({
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-accent">
           <WifiOff className="h-10 w-10 text-primary" />
         </div>
-        <h1 className="mt-6 text-2xl font-semibold text-foreground">You're offline</h1>
+        <h1 className="mt-6 text-2xl font-semibold text-foreground">
+          {t("locationGate.offlineTitle")}
+        </h1>
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-          We can't load your addresses right now. Reconnect and try again — the app will pick up
-          where you left off.
+          {t("locationGate.offlineBody")}
         </p>
         {onRetry && (
           <Button className="mt-8 min-w-32" onClick={onRetry}>
-            Try again
+            {t("locationGate.tryAgain")}
           </Button>
         )}
       </div>
@@ -399,7 +408,7 @@ export function LocationGate({
           onClick={() => void openAppSettings()}
         >
           <Settings className="h-4 w-4" />
-          Open settings
+          {t("locationGate.openSettings")}
         </Button>
       )}
 
@@ -423,18 +432,18 @@ export function LocationGate({
           <div className="flex items-center gap-3">
             <Navigation className="h-5 w-5 shrink-0 text-primary" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-foreground">Use my current location</p>
+              <p className="text-sm font-medium text-foreground">{t("locationGate.useCurrent")}</p>
               <p className="text-xs text-muted-foreground">
                 {denied
                   ? isNativeLocation()
-                    ? "Turn this on in Settings to use it"
+                    ? t("locationGate.useCurrentDeniedNative")
                     : // On web the banner above already names the remedy, and
                       // it knows which of the two causes applies where this
                       // line does not. Repeating a guess beside it produced a
                       // screen that told the user to fix the site permission
                       // while the banner told them to fix the device switch.
-                      "Fix the above, then tap Enable"
-                  : "Most accurate"}
+                      t("locationGate.useCurrentDeniedWeb")
+                  : t("locationGate.mostAccurate")}
               </p>
             </div>
             <Button
@@ -442,7 +451,7 @@ export function LocationGate({
               disabled={busy || (denied && isNativeLocation())}
               onClick={() => void locateMe()}
             >
-              {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enable"}
+              {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : t("locationGate.enable")}
             </Button>
           </div>
         </div>
@@ -454,7 +463,7 @@ export function LocationGate({
                   screen the user cannot get past, a heading that names the
                   action is worth more than one that names the contents. */}
               <p className="text-xs font-medium text-muted-foreground">
-                Select from saved locations
+                {t("locationGate.savedHeading")}
               </p>
               {onSeeAll && (
                 <button
@@ -462,7 +471,7 @@ export function LocationGate({
                   onClick={onSeeAll}
                   className="text-xs font-semibold text-primary"
                 >
-                  See all
+                  {t("locationGate.seeAll")}
                 </button>
               )}
             </div>
@@ -526,7 +535,7 @@ export function LocationGate({
               where the user was going rather than what they would do, and it
               was the branch anyone with a saved address actually saw — so the
               rename shipped to nobody. */}
-          Enter address manually
+          {t("locationGate.enterManually")}
         </Button>
       </div>
     </div>

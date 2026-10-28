@@ -19,7 +19,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-const { booking } = vi.hoisted(() => ({ booking: { value: undefined as unknown } }));
+const { booking, auth } = vi.hoisted(() => ({
+  booking: { value: undefined as unknown, loading: false },
+  auth: { user: { id: "c1" } as { id: string } | null },
+}));
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (opts: object) => ({
@@ -31,17 +34,21 @@ vi.mock("@tanstack/react-router", () => ({
     <a href={to}>{children}</a>
   ),
 }));
+
 // Leaflet does not survive jsdom; the map is irrelevant to the button.
 vi.mock("@/components/tracking/TrackingMap", () => ({ TrackingMap: () => null }));
 vi.mock("@/components/tracking/TipSection", () => ({ TipSection: () => null }));
-vi.mock("@/components/ReviewSheet", () => ({ ReviewSheet: () => null }));
+vi.mock("@/components/ReviewSheet", () => ({
+  ReviewSheet: ({ open }: { open: boolean }) => (open ? <div>Rate your service</div> : null),
+}));
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => auth }));
 vi.mock("@/hooks/useApi", async (importOriginal) => {
   const idle = () => ({ mutateAsync: vi.fn(), isPending: false });
   return {
     ...(await importOriginal<typeof import("@/hooks/useApi")>()),
     useBooking: () => ({
       data: booking.value,
-      isLoading: false,
+      isLoading: booking.loading,
       isError: false,
       refetch: vi.fn(),
     }),
@@ -61,6 +68,7 @@ const TrackingPage = (Route as unknown as { component: () => React.ReactElement 
 const apiBooking = (over: Record<string, unknown> = {}) =>
   ({
     id: "b1",
+    consumer_id: "c1",
     status: "accepted",
     provider_id: "sp1",
     service_amount: 500,
@@ -94,6 +102,9 @@ const show = (over: Record<string, unknown> = {}) => {
 
 beforeEach(() => {
   booking.value = undefined;
+  booking.loading = false;
+  auth.user = { id: "c1" };
+  localStorage.clear();
 });
 
 describe("Call provider", () => {
@@ -117,5 +128,92 @@ describe("Call provider", () => {
     show();
     expect(screen.queryByRole("link", { name: /^Call / })).toBeNull();
     expect(document.body.innerHTML).not.toContain("910000000000");
+  });
+});
+
+// SVC-397: the full-screen spinner became the page's own frame, with the
+// cards it will hold drawn as skeletons — and still announced as loading.
+describe("while the booking loads", () => {
+  it("shows the header and an announced skeleton, not a verdict on the booking", () => {
+    booking.loading = true;
+    render(<TrackingPage />);
+
+    expect(screen.getByText("Booking Status")).toBeInTheDocument();
+    const region = screen.getByRole("status");
+    expect(region).toHaveAttribute("aria-busy", "true");
+    expect(region).toHaveTextContent("Loading…");
+    expect(screen.queryByText("Booking not found.")).not.toBeInTheDocument();
+  });
+
+  // Found on device: wrapped around the trust strip too, the region's text was
+  // "Background-verified pros / Full refund guarantee / … / Loading…", and
+  // TalkBack read the claims as part of the loading announcement.
+  it("announces only 'Loading…' — the trust strip sits outside the region", () => {
+    booking.loading = true;
+    render(<TrackingPage />);
+
+    const region = screen.getByRole("status");
+    expect(region.textContent).toBe("Loading…");
+    const claim = screen.getByText(/background-verified/i);
+    expect(region).not.toContainElement(claim);
+  });
+});
+
+// SVC-393: "Save for next time" on a COMPLETED booking.
+describe("Save for next time prompt", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("renders on a COMPLETED booking the user has not already favorited", () => {
+    show({ status: "completed", payment_status: "paid" });
+    expect(screen.getByText(/book this service again next time/i)).toBeInTheDocument();
+  });
+
+  it("does not render on an active booking", () => {
+    show({ status: "accepted" });
+    expect(screen.queryByText(/book this service again next time/i)).not.toBeInTheDocument();
+  });
+
+  it("records the favorite under the sc_ prefix so clearSession sweeps it", async () => {
+    const userEvent = (await import("@testing-library/user-event")).default;
+    show({ status: "completed", payment_status: "paid" });
+
+    await userEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    // The service id goes into `sc_favorites_v1_<userId>`. The exact key is
+    // read by `hasFavorite` in `favorites.ts` — we assert on the prefix so a
+    // version bump doesn't require this test to change.
+    const key = Object.keys(window.localStorage).find((k) => k.startsWith("sc_favorites_v1_"));
+    expect(key).toBeTruthy();
+    expect(JSON.parse(window.localStorage.getItem(key!)!)).toEqual(["s1"]);
+    // After saving, the prompt flips to the confirmed state.
+    expect(screen.getByText(/saved for next time/i)).toBeInTheDocument();
+  });
+
+  it("'Not now' dismisses the prompt for this booking without saving", async () => {
+    const userEvent = (await import("@testing-library/user-event")).default;
+    show({ status: "completed", payment_status: "paid" });
+
+    await userEvent.click(screen.getByRole("button", { name: /not now/i }));
+
+    expect(screen.queryByText(/book this service again next time/i)).not.toBeInTheDocument();
+    expect(window.localStorage.length).toBe(0);
+  });
+});
+
+// A Pro can open the job they did on this same screen. Only the customer who
+// booked may rate it: the backend refuses anyone else ("You can only review
+// your own bookings"), so the Pro must never be offered the sheet.
+describe("the review sheet on a completed booking", () => {
+  it("opens for the customer who booked", () => {
+    show({ status: "completed" });
+    expect(screen.getByText("Rate your service")).toBeInTheDocument();
+  });
+
+  it("never opens for anyone else, such as the Pro who did the job", () => {
+    auth.user = { id: "pro-user" };
+    show({ status: "completed" });
+    expect(screen.queryByText("Rate your service")).toBeNull();
   });
 });
