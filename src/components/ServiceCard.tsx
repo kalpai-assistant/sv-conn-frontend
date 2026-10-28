@@ -1,8 +1,10 @@
 import { Clock } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import type { Service } from "@/lib/mock-data";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { QuickAddButton } from "@/components/service/QuickAddButton";
 import { formatRupees } from "@/lib/currency";
+import { serviceHeroLayoutId } from "@/lib/shared-hero";
 
 /**
  * A service as a full-width row, for vertical lists (the L2 category page).
@@ -36,6 +38,13 @@ export function ServiceCard({ service }: { service: Service }) {
     }
   };
 
+  // SVC-399: this tile is the source of the service-hero shared transition
+  // into the sheet's ServiceBanner. Pair stays via `service-hero-${id}`;
+  // reduced-motion drops the layoutId and the sheet opens with its own
+  // slide-up only.
+  const reduceMotion = useReducedMotion();
+  const layoutId = reduceMotion ? undefined : serviceHeroLayoutId(service.id);
+
   return (
     <div
       role="button"
@@ -44,9 +53,12 @@ export function ServiceCard({ service }: { service: Service }) {
       onKeyDown={handleKeyDown}
       className="flex cursor-pointer gap-3 rounded-xl border border-border/50 bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
     >
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-accent text-xl font-bold text-accent-foreground">
+      <motion.div
+        layoutId={layoutId}
+        className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-accent text-xl font-bold text-accent-foreground"
+      >
         {service.name.charAt(0)}
-      </div>
+      </motion.div>
       <div className="flex min-w-0 flex-1 flex-col justify-center">
         <h3 className="truncate text-sm font-semibold text-foreground">{service.name}</h3>
         <p className="truncate text-xs text-muted-foreground">{service.categoryName}</p>

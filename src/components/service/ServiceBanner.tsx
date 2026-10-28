@@ -31,10 +31,12 @@
  * The sheet is `max-w-md` (448px), so a banner is ~448×190 at max.
  */
 import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import type { Category, Service } from "@/lib/mock-data";
 import { categoryColor } from "@/lib/category-icons";
 import { categoryImage } from "@/lib/category-images";
 import { subcategoryImage } from "@/lib/subcategory-images";
+import { serviceHeroLayoutId } from "@/lib/shared-hero";
 
 interface ServiceBannerProps {
   service: Service;
@@ -76,8 +78,19 @@ export function ServiceBanner({ service, categories }: ServiceBannerProps) {
   // above falls through, and never itself errors.
   const showColour = !showVideo && !showImage && !showSubCat && !showL1;
 
+  // SVC-399: this banner is the destination of the service-card hero
+  // transition. The source lives on ServiceCard / ServiceCardCompact; both
+  // sides share `service-hero-${id}`. `useReducedMotion` ↦ no `layoutId`,
+  // so the sheet just slides up with its own motion and nothing morphs.
+  const reduceMotion = useReducedMotion();
+  const layoutId = reduceMotion ? undefined : serviceHeroLayoutId(service.id);
+
   return (
-    <div className="relative w-full overflow-hidden bg-muted" style={{ aspectRatio: "40 / 17" }}>
+    <motion.div
+      layoutId={layoutId}
+      className="relative w-full overflow-hidden bg-muted"
+      style={{ aspectRatio: "40 / 17" }}
+    >
       {showVideo && (
         <video
           key={service.bannerVideoUrl}
@@ -140,6 +153,6 @@ export function ServiceBanner({ service, categories }: ServiceBannerProps) {
         // rather than a broken box.
         <div className="absolute inset-0" style={{ backgroundColor: tint }} />
       )}
-    </div>
+    </motion.div>
   );
 }
