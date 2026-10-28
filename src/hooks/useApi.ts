@@ -325,6 +325,7 @@ export const mapBooking = (
 
   return {
     id: b.id,
+    consumerId: b.consumer_id,
     status: b.status.toUpperCase() as UI_Booking["status"],
     items: mapped_items,
     address,

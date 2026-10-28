@@ -126,7 +126,7 @@ export function SearchSheet({ onClose }: SearchSheetProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search for services..."
-            className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:appearance-none"
             enterKeyHint="search"
           />
           {query && (

@@ -91,12 +91,16 @@ function TrackingPage() {
 
   // useBooking polls every 4s via refetchInterval (SVC-50); no manual interval needed.
 
+  // Only the customer who booked may rate it. The Pro who did the job can
+  // open this same screen, and the backend refuses their review anyway.
+  const isCustomer = !!user && booking?.consumerId === user.id;
+
   // Auto-open the review sheet once a booking completes, unless already reviewed/skipped.
   useEffect(() => {
-    if (booking?.status === "COMPLETED" && !getReviewedBookings().has(bookingId)) {
+    if (isCustomer && booking?.status === "COMPLETED" && !getReviewedBookings().has(bookingId)) {
       setReviewOpen(true);
     }
-  }, [booking?.status, bookingId]);
+  }, [isCustomer, booking?.status, bookingId]);
 
   if (isLoading) {
     return <TrackingSkeleton />;

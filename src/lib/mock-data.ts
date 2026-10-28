@@ -144,6 +144,10 @@ export interface BookingItem {
 
 export interface Booking {
   id: string;
+  // The customer who booked. A Pro or SP can open the same booking, so
+  // anything only the customer may do (rate it) checks this against the
+  // signed-in user.
+  consumerId: string;
   // The `service` field is preserved for the "primary" service — either
   // the first item, or a placeholder when items haven't loaded yet. It
   // keeps every screen that reads `booking.service.name` working while
@@ -467,6 +471,7 @@ const _oneItemCart = (svc: Service, id: string): BookingItem[] => [
 export const mockBookings: Booking[] = [
   {
     id: "b1",
+    consumerId: "u1",
     service: services[0],
     items: _oneItemCart(services[0], "b1"),
     status: "IN_PROGRESS",
@@ -486,6 +491,7 @@ export const mockBookings: Booking[] = [
   },
   {
     id: "b2",
+    consumerId: "u1",
     service: services[11],
     items: _oneItemCart(services[11], "b2"),
     status: "ACCEPTED",
@@ -505,6 +511,7 @@ export const mockBookings: Booking[] = [
   },
   {
     id: "b3",
+    consumerId: "u1",
     service: services[6],
     items: _oneItemCart(services[6], "b3"),
     status: "COMPLETED",
@@ -523,6 +530,7 @@ export const mockBookings: Booking[] = [
   },
   {
     id: "b4",
+    consumerId: "u1",
     service: services[2],
     items: _oneItemCart(services[2], "b4"),
     status: "COMPLETED",
@@ -541,6 +549,7 @@ export const mockBookings: Booking[] = [
   },
   {
     id: "b5",
+    consumerId: "u1",
     service: services[4],
     items: _oneItemCart(services[4], "b5"),
     status: "CANCELLED",
