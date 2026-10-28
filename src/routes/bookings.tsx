@@ -1,5 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
+import { RotateCcw } from "lucide-react";
 import type { BookingStatus, Booking } from "@/lib/mock-data";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
@@ -7,11 +9,15 @@ import { EmptyState } from "@/components/EmptyState";
 import { BookingsEmptyIllustration } from "@/components/EmptyStateIllustrations";
 import { ErrorState } from "@/components/ErrorState";
 import { BookingCardSkeleton } from "@/components/skeletons/BookingCardSkeleton";
-import { useBookings } from "@/hooks/useApi";
+import { useBookings, useServices } from "@/hooks/useApi";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { WhoIsComingLine } from "@/components/booking/WhoIsComing";
 import { useAuth } from "@/lib/auth-context";
+import { useCart } from "@/lib/cart-context";
+import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import { formatRupees } from "@/lib/currency";
+import { prepareRebook } from "@/lib/rebook";
+import { setRebookAddressConfirm } from "@/lib/rebook-address-confirm";
 
 export const Route = createFileRoute("/bookings")({
   head: () => ({
@@ -44,11 +50,14 @@ function statusColor(status: string) {
   }
 }
 
-function BookingsPage() {
+export function BookingsPage() {
   const [tab, setTab] = useState<"active" | "past">("active");
   const { data: allBookings, isLoading, isError, refetch } = useBookings();
-  // Only for the header avatar's initials.
   const { user } = useAuth();
+  const { data: catalogue } = useServices();
+  const { addresses } = useSelectedAddress();
+  const { addMany } = useCart();
+  const navigate = useNavigate();
 
   const bookings: Booking[] = allBookings || [];
   const active = bookings.filter((b) => activeStatuses.includes(b.status as BookingStatus));
@@ -56,6 +65,56 @@ function BookingsPage() {
   const list = tab === "active" ? active : past;
 
   const { pull, refreshing, armed } = usePullToRefresh(refetch);
+
+  // SVC-393: one-tap rebook. Pure decision in `prepareRebook`; the UI
+  // branches on the verdict. The in-flight collision read uses `active`
+  // (already filtered above) rather than walking `bookings` again.
+  const handleRebook = (booking: Booking) => {
+    const outcome = prepareRebook({
+      booking,
+      catalogue: catalogue ?? [],
+      addresses,
+      activeBookings: active,
+    });
+
+    if (outcome.kind === "in-flight") {
+      toast.info(`You already have an active booking for ${outcome.serviceName}.`);
+      return;
+    }
+
+    if (outcome.kind === "all-deprecated") {
+      // Browse-similar when we can place the category; a cold catalogue
+      // (nothing cached) is the degraded case — toast and stay put.
+      if (outcome.categoryId) {
+        toast("This service is no longer available.", {
+          action: {
+            label: "Browse similar",
+            onClick: () => void navigate({ to: `/category/${outcome.categoryId}` }),
+          },
+        });
+      } else {
+        toast("This service is no longer available.");
+      }
+      return;
+    }
+
+    // outcome.kind === "ok" — act on it.
+    addMany(outcome.items);
+    for (const dropped of outcome.skipped) {
+      toast.message(`${dropped.name} is no longer available — skipped.`);
+    }
+    if (outcome.address.fellBack) {
+      // Hand the cart the context it needs to render the sticky
+      // "please confirm" row. The address itself is already the user's
+      // default via `useSelectedAddress`'s own fallback, so there is no
+      // explicit setSelectedId call here.
+      setRebookAddressConfirm(user?.id, outcome.address.previousLabel ?? "");
+    }
+    if (outcome.pricingChanged) {
+      toast.message("Pricing updated since your last booking.");
+    }
+    void navigate({ to: "/cart" });
+  };
 
   return (
     <div className="min-h-screen pb-20">
@@ -117,38 +176,56 @@ function BookingsPage() {
           />
         ) : (
           list.map((b) => (
-            <Link
-              key={b.id}
-              to="/tracking/$bookingId"
-              params={{ bookingId: b.id }}
-              className="rounded-xl border border-border bg-card p-4 block"
-            >
-              <div className="flex items-start justify-between gap-3">
-                {/* min-w-0 so the truncate above actually clamps: a flex item
-                    defaults to min-width:auto and refuses to shrink below its
-                    content, which would let a long name push the card taller
-                    and break the skeleton's height match. */}
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{b.service.name}</p>
-                  <WhoIsComingLine booking={b} />
+            <div key={b.id} className="rounded-xl border border-border bg-card p-4">
+              <Link to="/tracking/$bookingId" params={{ bookingId: b.id }} className="block">
+                <div className="flex items-start justify-between gap-3">
+                  {/* min-w-0 so the truncate above actually clamps: a flex
+                      item defaults to min-width:auto and refuses to shrink
+                      below its content, which would let a long name push
+                      the card taller and break the skeleton's height
+                      match. */}
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {b.service.name}
+                    </p>
+                    <WhoIsComingLine booking={b} />
+                  </div>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusColor(b.status)}`}
+                  >
+                    {b.status.replace("_", " ")}
+                  </span>
                 </div>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusColor(b.status)}`}
+                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {new Date(b.scheduledAt).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <span className="font-semibold text-foreground">
+                    {formatRupees(b.totalAmount)}
+                  </span>
+                </div>
+              </Link>
+              {/* SVC-393: one-tap rebook. Rendered only on COMPLETED past
+                  bookings — a CANCELLED booking has nothing to rebook,
+                  and surfacing the CTA there would read as "retry what
+                  I just cancelled". Button sits outside the <Link> so a
+                  tap on it does not also navigate to tracking. */}
+              {b.status === "COMPLETED" && (
+                <button
+                  type="button"
+                  onClick={() => handleRebook(b)}
+                  aria-label={`Book ${b.service.name} again`}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-primary/50 bg-primary/5 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
                 >
-                  {b.status.replace("_", " ")}
-                </span>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                <span>
-                  {new Date(b.scheduledAt).toLocaleDateString("en-IN", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </span>
-                <span className="font-semibold text-foreground">{formatRupees(b.totalAmount)}</span>
-              </div>
-            </Link>
+                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                  Book again
+                </button>
+              )}
+            </div>
           ))
         )}
       </div>

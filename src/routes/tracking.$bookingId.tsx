@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { formatRupees } from "@/lib/currency";
-import { ArrowLeft, Search, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, Search, CheckCircle2, XCircle, Star } from "lucide-react";
 import { TrackingSkeleton } from "@/components/skeletons/TrackingSkeleton";
 import { StatusStepper } from "@/components/StatusStepper";
 import { ErrorState } from "@/components/ErrorState";
@@ -17,6 +17,8 @@ import {
   useVerifyPayment,
 } from "@/hooks/useApi";
 import { cancelledPaymentLine, paymentStatusLabel, paymentStatusTone } from "@/lib/payment-status";
+import { addFavorite, hasFavorite } from "@/lib/favorites";
+import { useAuth } from "@/lib/auth-context";
 import type { RazorpayCheckoutOptions, RazorpaySuccessResponse } from "@/types/razorpay";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
@@ -64,9 +66,28 @@ function TrackingPage() {
   const reviewMutation = useSubmitReview();
   const paymentOrderMutation = useCreatePaymentOrder();
   const verifyPaymentMutation = useVerifyPayment();
+  const { user } = useAuth();
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [paymentState, setPaymentState] = useState<"idle" | "success" | "failed">("idle");
+
+  // SVC-393: the "Save for next time" prompt on a COMPLETED booking.
+  // Driven by two bits of state: has the user already favorited this
+  // service, and has the user dismissed the prompt for this booking.
+  // Favorites survive sign-outs via `sc_` prefix (see favorites.ts);
+  // dismissal is bookingId-scoped so a tap on "Not now" doesn't hide
+  // the prompt on every future completed booking too.
+  const primaryServiceId = booking?.items[0]?.serviceId ?? booking?.service.id;
+  const [savedForNextTime, setSavedForNextTime] = useState<boolean>(() =>
+    primaryServiceId ? hasFavorite(user?.id, primaryServiceId) : false,
+  );
+  const [savePromptDismissed, setSavePromptDismissed] = useState(false);
+  const handleSaveForNextTime = () => {
+    if (!primaryServiceId) return;
+    addFavorite(user?.id, primaryServiceId);
+    setSavedForNextTime(true);
+    toast.success("Saved. We'll remember this service for next time.");
+  };
 
   // useBooking polls every 4s via refetchInterval (SVC-50); no manual interval needed.
 
@@ -452,6 +473,45 @@ function TrackingPage() {
             Thank you for your feedback!
           </div>
         )}
+
+        {/* SVC-393: one-off "Save for next time" prompt. Shown only on a
+            completed booking the user has neither already favorited nor
+            dismissed. "Saved" / "Not now" are the two outs; the row
+            stays until one is tapped, then disappears for this booking. */}
+        {booking.status === "COMPLETED" &&
+          primaryServiceId &&
+          !savePromptDismissed &&
+          (savedForNextTime ? (
+            <div className="rounded-xl border border-primary/40 bg-accent p-4 mb-4 text-sm font-medium text-foreground flex items-center gap-2">
+              <Star aria-hidden="true" className="h-4 w-4 fill-primary text-primary" />
+              Saved for next time.
+            </div>
+          ) : (
+            <div className="rounded-xl border border-primary/40 bg-accent p-4 mb-4">
+              <p className="text-sm font-semibold text-foreground">
+                Book this service again next time?
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                We'll remember it on this device so a rebook is one tap away.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveForNextTime}
+                  className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSavePromptDismissed(true)}
+                  className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground"
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          ))}
 
         {/* Cancel */}
         {(booking.status === "REQUESTED" || booking.status === "ACCEPTED") && (

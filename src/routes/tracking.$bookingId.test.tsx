@@ -33,6 +33,13 @@ vi.mock("@tanstack/react-router", () => ({
     <a href={to}>{children}</a>
   ),
 }));
+
+// SVC-393: the tracking screen now reads `useAuth` to key the favorites
+// store by user id. The real context needs a provider; a tiny stub keeps
+// every test in this file consistent and avoids a wrapper per render.
+vi.mock("@/lib/auth-context", () => ({
+  useAuth: () => ({ user: { id: "u-1", name: "Vipul" } }),
+}));
 // Leaflet does not survive jsdom; the map is irrelevant to the button.
 vi.mock("@/components/tracking/TrackingMap", () => ({ TrackingMap: () => null }));
 vi.mock("@/components/tracking/TipSection", () => ({ TipSection: () => null }));
@@ -148,5 +155,48 @@ describe("while the booking loads", () => {
     expect(region.textContent).toBe("Loading…");
     const claim = screen.getByText(/background-verified/i);
     expect(region).not.toContainElement(claim);
+  });
+});
+
+// SVC-393: "Save for next time" on a COMPLETED booking.
+describe("Save for next time prompt", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("renders on a COMPLETED booking the user has not already favorited", () => {
+    show({ status: "completed", payment_status: "paid" });
+    expect(screen.getByText(/book this service again next time/i)).toBeInTheDocument();
+  });
+
+  it("does not render on an active booking", () => {
+    show({ status: "accepted" });
+    expect(screen.queryByText(/book this service again next time/i)).not.toBeInTheDocument();
+  });
+
+  it("records the favorite under the sc_ prefix so clearSession sweeps it", async () => {
+    const userEvent = (await import("@testing-library/user-event")).default;
+    show({ status: "completed", payment_status: "paid" });
+
+    await userEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    // The service id goes into `sc_favorites_v1_<userId>`. The exact key is
+    // read by `hasFavorite` in `favorites.ts` — we assert on the prefix so a
+    // version bump doesn't require this test to change.
+    const key = Object.keys(window.localStorage).find((k) => k.startsWith("sc_favorites_v1_"));
+    expect(key).toBeTruthy();
+    expect(JSON.parse(window.localStorage.getItem(key!)!)).toEqual(["s1"]);
+    // After saving, the prompt flips to the confirmed state.
+    expect(screen.getByText(/saved for next time/i)).toBeInTheDocument();
+  });
+
+  it("'Not now' dismisses the prompt for this booking without saving", async () => {
+    const userEvent = (await import("@testing-library/user-event")).default;
+    show({ status: "completed", payment_status: "paid" });
+
+    await userEvent.click(screen.getByRole("button", { name: /not now/i }));
+
+    expect(screen.queryByText(/book this service again next time/i)).not.toBeInTheDocument();
+    expect(window.localStorage.length).toBe(0);
   });
 });

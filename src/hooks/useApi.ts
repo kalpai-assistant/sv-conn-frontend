@@ -239,6 +239,8 @@ export const mapBooking = (
       id: string;
       service_id: string;
       service_name: string;
+      service_variant_id?: string | null;
+      variant_label?: string | null;
       quantity: number;
       unit_price: number;
       total_price: number;
@@ -258,6 +260,11 @@ export const mapBooking = (
     id: it.id,
     serviceId: it.service_id,
     serviceName: it.service_name,
+    // SVC-393: carry the variant snapshot through so rebook can re-prefill
+    // the exact variant. Normalised to undefined so `??` falls back to the
+    // service's default rather than tripping on an explicit null.
+    variantId: it.service_variant_id ?? undefined,
+    variantLabel: it.variant_label ?? undefined,
     quantity: it.quantity,
     unitPrice: it.unit_price,
     totalPrice: it.total_price,

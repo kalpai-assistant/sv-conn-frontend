@@ -30,6 +30,7 @@ import { CouponsSheet } from "@/components/cart/CouponsSheet";
 import { PricingBreakdown } from "@/components/cart/PricingBreakdown";
 import { formatRupees } from "@/lib/currency";
 import { clearPendingCoupon, getPendingCoupon } from "@/lib/pending-coupon";
+import { clearRebookAddressConfirm, getRebookAddressConfirm } from "@/lib/rebook-address-confirm";
 import { readLastPaymentMethod, writeLastPaymentMethod } from "@/lib/last-payment-method";
 import { hapticSuccess } from "@/lib/haptics";
 
@@ -103,6 +104,21 @@ export function CartPage() {
 
   const [addressPickerOpen, setAddressPickerOpen] = useState(false);
   const [slotPickerOpen, setSlotPickerOpen] = useState(false);
+
+  // SVC-393: the "please confirm address" banner for a rebook that fell
+  // back to the user's default (the historical booking's address was
+  // deleted). Read once per route entry — the signal is written by
+  // `handleRebook` on the bookings page just before navigation, so by
+  // the time this component mounts the sessionStorage slot is populated.
+  // `useState` initialiser form keeps the read out of render and lets a
+  // "Looks good" tap clear it without racing a re-read.
+  const [rebookAddressConfirmLabel, setRebookAddressConfirmLabel] = useState<string | null>(() =>
+    getRebookAddressConfirm(userId),
+  );
+  const dismissRebookAddressConfirm = () => {
+    clearRebookAddressConfirm(userId);
+    setRebookAddressConfirmLabel(null);
+  };
 
   // SVC-385: open the picker on cart entry only when the user has no address
   // on file — the smart-defaults "the app remembers me" rule is pre-select,
@@ -291,6 +307,17 @@ export function CartPage() {
   return (
     <div className="min-h-screen pb-48">
       <CartHeader name={user?.name} />
+
+      {/* SVC-393: rebook address fallback. Rendered above the selector so
+          the "please confirm" message sits in the eye-path to Change, and
+          clears once the user has either confirmed or picked a different
+          address below. */}
+      {rebookAddressConfirmLabel !== null && (
+        <RebookAddressConfirmRow
+          previousLabel={rebookAddressConfirmLabel}
+          onConfirm={dismissRebookAddressConfirm}
+        />
+      )}
 
       {/* Address selector */}
       <button
@@ -501,6 +528,10 @@ export function CartPage() {
             onClose={() => setAddressPickerOpen(false)}
             onPick={(id) => {
               setSelectedId(id);
+              // SVC-393: picking an address is the explicit confirmation
+              // the rebook sticky row was asking for — clear it so the
+              // row doesn't linger below the newly chosen address.
+              dismissRebookAddressConfirm();
               setAddressPickerOpen(false);
             }}
           />
@@ -557,6 +588,46 @@ export function CartPage() {
  * A toast would be lighter but can't survive the next route change, which
  * is exactly where the user is going when the row appears.
  */
+/**
+ * SVC-393: the "please confirm address" banner shown when a rebook fell
+ * back to the user's default (the historical booking's address was
+ * deleted). Mirrors `PendingCouponStickyRow` so the two feel like one
+ * pattern — explicit, dismissable, honest about what the app did.
+ */
+function RebookAddressConfirmRow({
+  previousLabel,
+  onConfirm,
+}: {
+  previousLabel: string;
+  onConfirm: () => void;
+}) {
+  // Named-address copy when we have one, generic copy when the historical
+  // blob was already anonymised. The two shapes keep the message truthful
+  // without inventing a label the backend has already dropped.
+  const description = previousLabel
+    ? `The "${previousLabel}" address isn't saved any more — booking will use the one below.`
+    : "Your original delivery address isn't saved any more — booking will use the one below.";
+  return (
+    <div
+      className="mx-4 mt-3 flex items-start gap-3 rounded-xl border border-primary/40 bg-accent p-3"
+      aria-live="polite"
+    >
+      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-foreground">Please confirm the address</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onConfirm}
+        className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+      >
+        Looks good
+      </button>
+    </div>
+  );
+}
+
 function PendingCouponStickyRow({ code, onClear }: { code: string; onClear: () => void }) {
   return (
     <div
