@@ -17,7 +17,24 @@ import { WhoIsComingCard, WhoIsComingLine, whoIsComing } from "@/components/book
 
 type Who = Pick<Booking, "status" | "professional" | "serviceProvider">;
 
-const rohan = { id: "p1", displayName: "Rohan Kumar", photoUrl: null, isSelf: false };
+// A new Pro: what the mapper gives when the backend sends no trust fields.
+const rohan = {
+  id: "p1",
+  displayName: "Rohan Kumar",
+  photoUrl: null,
+  isSelf: false,
+  ratingAverage: 0,
+  ratingCount: 0,
+  bookingsCompletedCount: 0,
+  isBackgroundVerified: false,
+};
+const reviewed = {
+  ...rohan,
+  ratingAverage: 4.75,
+  ratingCount: 12,
+  bookingsCompletedCount: 140,
+  isBackgroundVerified: true,
+};
 const sparkle = { userId: "sp1", businessName: "Sparkle Home", businessImageUrl: null };
 const who = (over: Partial<Who> = {}): Who => ({
   status: "ACCEPTED",
@@ -72,6 +89,41 @@ describe("mapping", () => {
     expect(mapServiceProvider({})).toBeUndefined();
     expect(mapProfessional({ professional: null })).toBeNull();
     expect(mapProfessional({})).toBeUndefined();
+  });
+
+  // SVC-396: the trust fields from ProfessionalBrief (backend #219).
+  const brief = { id: "p1", display_name: "Rohan Kumar", profile_photo_url: null, is_self: false };
+
+  it("maps the trust fields when the backend sends them", () => {
+    expect(
+      mapProfessional({
+        professional: {
+          ...brief,
+          rating_average: 4.75,
+          rating_count: 12,
+          bookings_completed_count: 140,
+          is_background_verified: true,
+        },
+      }),
+    ).toEqual(reviewed);
+  });
+
+  it("zeroes them, and never claims verification, when an older backend leaves them out", () => {
+    expect(mapProfessional({ professional: brief })).toEqual(rohan);
+  });
+
+  it("reads a null rating (no reviews yet) as 0", () => {
+    expect(
+      mapProfessional({
+        professional: {
+          ...brief,
+          rating_average: null,
+          rating_count: 0,
+          bookings_completed_count: 3,
+          is_background_verified: false,
+        },
+      }),
+    ).toEqual({ ...rohan, bookingsCompletedCount: 3 });
   });
 
   it("carries both onto the booking and never invents a provider name", () => {
@@ -168,10 +220,45 @@ describe("WhoIsComingCard", () => {
   // SVC-386: the "assigned" branch delegates to ProTrustCard, which owns the
   // visual trust surface (photo, badges, call button). The assertions below
   // only pin what WhoIsComingCard still OWNS: the state resolution, the
-  // "finding" placeholder, and that the summary line sits alongside the card.
-  // Deeper visual contract (badges, 99+ bounding, "New pro") is pinned in
-  // ProTrustCard's own test file — pinning it twice would couple two files
-  // to the same decisions.
+  // "finding" placeholder, that the summary line sits alongside the card, and
+  // (SVC-396) that the Pro's trust fields reach the card. Deeper visual
+  // contract (99+ bounding, chip styling) is pinned in ProTrustCard's own
+  // test file — pinning it twice would couple two files to the same decisions.
+
+  it("shows a reviewed Pro's rating, job count and background check", () => {
+    render(<WhoIsComingCard booking={who({ professional: reviewed })} summary="x" />);
+    expect(screen.getByText("4.8")).toBeInTheDocument();
+    expect(screen.getByText("99+ bookings")).toBeInTheDocument();
+    expect(screen.getByText("Background verified")).toBeInTheDocument();
+    expect(screen.queryByText("New pro")).not.toBeInTheDocument();
+  });
+
+  it("reads 'New pro' with no badge when the Pro has no reviews and no check", () => {
+    render(<WhoIsComingCard booking={who()} summary="x" />);
+    expect(screen.getByText("New pro")).toBeInTheDocument();
+    expect(screen.queryByText("Background verified")).not.toBeInTheDocument();
+  });
+
+  it("never claims verification for a Pro cached before the fields existed", () => {
+    const { id, displayName, photoUrl, isSelf } = rohan;
+    const stale = { id, displayName, photoUrl, isSelf } as Booking["professional"];
+    render(<WhoIsComingCard booking={who({ professional: stale })} summary="x" />);
+    expect(screen.getByText("New pro")).toBeInTheDocument();
+    expect(screen.queryByText("Background verified")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/NaN|undefined/);
+  });
+
+  it("lets an explicit prop override the Pro's values", () => {
+    render(
+      <WhoIsComingCard
+        booking={who({ professional: reviewed })}
+        summary="x"
+        isBackgroundVerified={false}
+      />,
+    );
+    expect(screen.queryByText("Background verified")).not.toBeInTheDocument();
+    expect(screen.getByText("4.8")).toBeInTheDocument();
+  });
 
   it("renders the Pro, business line and the summary on an assigned job", () => {
     render(<WhoIsComingCard booking={who()} summary="Deep Clean + 1 more" />);

@@ -47,7 +47,14 @@ const TEAM = [member("Tush", true), member("Rohan"), member("Asha")];
 
 const booking = (over: Partial<Booking> = {}) =>
   ({ id: "b1", status: "ACCEPTED", ...over }) as Booking;
-const rohan = { id: "Rohan", displayName: "Rohan", photoUrl: null, isSelf: false };
+// SVC-396 trust fields: what the mapper gives a Pro the backend sent none for.
+const noTrust = {
+  ratingAverage: 0,
+  ratingCount: 0,
+  bookingsCompletedCount: 0,
+  isBackgroundVerified: false,
+};
+const rohan = { id: "Rohan", displayName: "Rohan", photoUrl: null, isSelf: false, ...noTrust };
 
 const refetch = vi.fn();
 
@@ -118,7 +125,7 @@ describe("with a Pro on the job", () => {
 describe("shows nothing", () => {
   it("for a solo SP doing their own job", () => {
     teams(SOLO);
-    const self = { id: "Tush", displayName: "Tush", photoUrl: null, isSelf: true };
+    const self = { id: "Tush", displayName: "Tush", photoUrl: null, isSelf: true, ...noTrust };
     const { container } = render(<AssignedPro booking={booking({ professional: self })} />);
     expect(container).toBeEmptyDOMElement();
   });
@@ -165,7 +172,7 @@ describe("a Pro who declined (SVC-361)", () => {
 
   it("doesn't hide the card when only the SP is left to pick", () => {
     // Rohan declined; the SP took the job. The card still reads the whole team.
-    const self = { id: "Tush", displayName: "Tush", photoUrl: null, isSelf: true };
+    const self = { id: "Tush", displayName: "Tush", photoUrl: null, isSelf: true, ...noTrust };
     teams([member("Tush", true), member("Rohan")], { data: [member("Tush", true)] });
     render(<AssignedPro booking={booking({ professional: self })} />);
     expect(screen.getByText("Doing this job")).toBeInTheDocument();
@@ -187,6 +194,6 @@ describe("mapProfessional", () => {
       mapProfessional({
         professional: { id: "p1", display_name: "Rohan", profile_photo_url: null, is_self: false },
       }),
-    ).toEqual({ id: "p1", displayName: "Rohan", photoUrl: null, isSelf: false });
+    ).toEqual({ id: "p1", displayName: "Rohan", photoUrl: null, isSelf: false, ...noTrust });
   });
 });
