@@ -19,11 +19,13 @@
  * category name is real, so that is what the subtitle shows.
  */
 import { Clock } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { categoryIcon, categoryColor } from "@/lib/category-icons";
 import type { Service } from "@/lib/mock-data";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { QuickAddButton } from "@/components/service/QuickAddButton";
 import { formatRupees } from "@/lib/currency";
+import { serviceHeroLayoutId } from "@/lib/shared-hero";
 
 interface ServiceCardCompactProps {
   service: Service;
@@ -54,6 +56,12 @@ export function ServiceCardCompact({
     }
   };
 
+  // SVC-399: this image tile is the source of the service-hero shared
+  // transition into the sheet's ServiceBanner. Paired on `service-hero-${id}`;
+  // reduced-motion skips the layoutId so there's no morph.
+  const reduceMotion = useReducedMotion();
+  const layoutId = reduceMotion ? undefined : serviceHeroLayoutId(service.id);
+
   return (
     <div
       role="button"
@@ -62,7 +70,8 @@ export function ServiceCardCompact({
       onKeyDown={handleKeyDown}
       className="flex w-40 shrink-0 cursor-pointer snap-start flex-col overflow-hidden rounded-xl border border-border bg-card"
     >
-      <div
+      <motion.div
+        layoutId={layoutId}
         className="relative flex h-24 w-full items-center justify-center"
         style={{ backgroundColor: tint + "18" }}
       >
@@ -79,7 +88,7 @@ export function ServiceCardCompact({
         <div className="absolute right-2 top-2">
           <QuickAddButton service={service} compact />
         </div>
-      </div>
+      </motion.div>
 
       <div className="flex flex-1 flex-col gap-1 p-3">
         {/* Two lines then ellipsis: service names run long ("Toilet Cleaning
