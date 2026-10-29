@@ -56,6 +56,6 @@
 - Force majeure events.
 - Operational constraints. In such cases, customers will receive a full refund of any prepaid amount.
 
-8. Contact Information For refund or cancellation requests, contact: [EAZYSERV TECHNOLOGIES INDIA PRIVATE LIMITED] Email: [contact@eazyserv.com] Phone: [9876543210]
+8. Contact Information For refund or cancellation requests, contact: Eazyserv Technologies India Private Limited, Email: contact@eazyserv.com
 
 9. Policy Updates The company reserves the right to modify this policy at any time. Updated versions will be published on the website or mobile application.
