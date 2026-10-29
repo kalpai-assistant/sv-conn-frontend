@@ -20,9 +20,32 @@
  * `icon` is a free-form string from the backend (SVC-392 contract). A small
  * allow-list maps common keywords to Lucide icons; anything unknown falls
  * back to `Sparkles` — a step card without an icon still renders, no empty
- * circle.
+ * circle. SVC-402 widened the list past cleaning to the trades SVC-400's
+ * content covers (plumbing, electrical, AC, pest control, appliances,
+ * carpentry, painting, salon).
  */
-import { Bath, ChefHat, Clock3, Search, Sparkles, Wind, type LucideIcon } from "lucide-react";
+import {
+  Bath,
+  Bug,
+  ChefHat,
+  Clock3,
+  Drill,
+  Fan,
+  Hammer,
+  PaintRoller,
+  Paintbrush,
+  Plug,
+  Scissors,
+  Search,
+  Snowflake,
+  Sparkles,
+  SprayCan,
+  WashingMachine,
+  Wind,
+  Wrench,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import type { UI_ServiceStep } from "@/hooks/useApi";
 
 const stepIcons: Record<string, LucideIcon> = {
@@ -38,6 +61,20 @@ const stepIcons: Record<string, LucideIcon> = {
   mop: Sparkles,
   finish: Sparkles,
   review: Sparkles,
+  wrench: Wrench,
+  pipe: Wrench,
+  zap: Zap,
+  plug: Plug,
+  fan: Fan,
+  snowflake: Snowflake,
+  bug: Bug,
+  spray: SprayCan,
+  hammer: Hammer,
+  drill: Drill,
+  paint: PaintRoller,
+  brush: Paintbrush,
+  scissors: Scissors,
+  washing: WashingMachine,
 };
 
 export function RichStepsSection({ steps }: { steps: UI_ServiceStep[] }) {

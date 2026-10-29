@@ -200,35 +200,77 @@ describe("section-level empty-state hiding", () => {
   });
 });
 
+// SVC-402: below 10 reviews the backend sends a null average and a 0 count
+// (SVC-400), and the sheet shows "New" — it holds no threshold of its own.
 describe("title-card rating pill", () => {
-  it("renders the rating + bookings when ratingCount is non-null", () => {
+  // The pill lives inside the service's description card, so we scope
+  // queries to that card to avoid false positives from the Reviews section
+  // (which carries its own illustrative star ratings).
+  const descriptionCard = () => screen.getByText(SERVICE.description).closest("div")!;
+
+  it("renders the rating + review count + this week when rated", () => {
     detail = withDetail({ ratingAverage: 4.7, ratingCount: 86, bookingsThisWeek: 12 });
     renderSheet();
 
     expect(screen.getByText("4.7")).toBeInTheDocument();
-    expect(screen.getByText("86 bookings")).toBeInTheDocument();
+    expect(screen.getByText("86 reviews")).toBeInTheDocument();
     expect(screen.getByText("12 this week")).toBeInTheDocument();
+    expect(screen.queryByText("New")).not.toBeInTheDocument();
   });
 
-  it("omits the pill entirely when ratingCount is null — never '0.0 ⭐'", () => {
+  it("says '1 review', singular", () => {
+    detail = withDetail({ ratingAverage: 5, ratingCount: 1 });
+    renderSheet();
+
+    expect(screen.getByText("1 review")).toBeInTheDocument();
+  });
+
+  it("shows 'New' when the rating is null — never '0.0 ⭐'", () => {
     detail = withDetail({ ratingAverage: null, ratingCount: null });
     renderSheet();
 
-    // The pill lives inside the service's description card, so we scope the
-    // query to that card to avoid false positives from the Reviews section
-    // (which carries its own illustrative star ratings).
-    const descriptionCard = screen.getByText(SERVICE.description).closest("div")!;
-    expect(descriptionCard.querySelector('[class*="bg-primary/10"]')).toBeNull();
-    expect(descriptionCard.textContent).not.toMatch(/bookings/);
+    expect(screen.getByText("New")).toBeInTheDocument();
+    expect(screen.getByText(/no ratings yet/)).toHaveClass("sr-only");
+    expect(descriptionCard().querySelector('[class*="bg-primary/10"]')).toBeNull();
+    expect(descriptionCard().textContent).not.toMatch(/0\.0|reviews?\b/);
   });
 
-  it("omits 'this week' when bookingsThisWeek is null but keeps the rating", () => {
-    detail = withDetail({ ratingAverage: 4.6, ratingCount: 40, bookingsThisWeek: null });
+  it("shows 'New' when the backend sends a 0 count with a null average", () => {
+    detail = withDetail({ ratingAverage: null, ratingCount: 0 });
     renderSheet();
 
+    expect(screen.getByText("New")).toBeInTheDocument();
+    expect(descriptionCard().textContent).not.toMatch(/0\.0/);
+  });
+
+  it("shows 'this week' next to 'New' when there's no rating yet", () => {
+    detail = withDetail({ ratingAverage: null, ratingCount: 0, bookingsThisWeek: 3 });
+    renderSheet();
+
+    expect(screen.getByText("New")).toBeInTheDocument();
+    expect(screen.getByText("3 this week")).toBeInTheDocument();
+  });
+
+  it("omits 'this week' when bookingsThisWeek is null or 0 but keeps the rating", () => {
+    detail = withDetail({ ratingAverage: 4.6, ratingCount: 40, bookingsThisWeek: null });
+    const { unmount } = renderSheet();
+
     expect(screen.getByText("4.6")).toBeInTheDocument();
-    expect(screen.getByText("40 bookings")).toBeInTheDocument();
+    expect(screen.getByText("40 reviews")).toBeInTheDocument();
     expect(screen.queryByText(/this week/)).not.toBeInTheDocument();
+    unmount();
+
+    detail = withDetail({ ratingAverage: 4.6, ratingCount: 40, bookingsThisWeek: 0 });
+    renderSheet();
+    expect(screen.queryByText(/this week/)).not.toBeInTheDocument();
+  });
+
+  it("renders neither 'New' nor a rating before the detail query lands", () => {
+    detail = undefined;
+    renderSheet();
+
+    expect(screen.queryByText("New")).not.toBeInTheDocument();
+    expect(descriptionCard().textContent).not.toMatch(/\d+ reviews?/);
   });
 });
 
