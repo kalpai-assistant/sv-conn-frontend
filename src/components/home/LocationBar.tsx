@@ -30,6 +30,7 @@
  * the ordinary way to do it.
  */
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { MapPin, ChevronDown } from "lucide-react";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import { SavedAddressesSheet } from "@/components/SavedAddressesSheet";
@@ -46,9 +47,13 @@ export function LocationBar() {
       {/* Two tap targets, not one. The row used to be a single button; the
           avatar cannot nest inside it (interactive elements must not contain
           interactive elements, and the two hit areas would fight), so the
-          sticky container moved out and the button became a sibling of the
-          avatar — the layout Blinkit and Zepto both use. */}
-      <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-card px-4 py-3">
+          row became a container and the button a sibling of the avatar —
+          the layout Blinkit and Zepto both use.
+
+          Not sticky itself: HomePage pins this row and the in-progress
+          booking banner under it in one sticky wrapper (SVC-389), since two
+          `sticky top-0` siblings would overlap. */}
+      <div className="flex items-center gap-2 border-b border-border bg-card px-4 py-3">
         <button
           onClick={() => setOpen(true)}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
@@ -76,15 +81,20 @@ export function LocationBar() {
         <AccountAvatar to="/profile" name={user?.name} />
       </div>
 
-      {open && (
-        <SavedAddressesSheet
-          onClose={() => setOpen(false)}
-          onPick={(id) => {
-            setSelectedId(id);
-            setOpen(false);
-          }}
-        />
-      )}
+      {/* Portaled out of HomePage's sticky wrapper: that wrapper's z-30 is a
+          stacking context, and the sheet's z-50 inside it would sit under the
+          z-40 bottom nav. Only ever opened by a tap, so `document` exists. */}
+      {open &&
+        createPortal(
+          <SavedAddressesSheet
+            onClose={() => setOpen(false)}
+            onPick={(id) => {
+              setSelectedId(id);
+              setOpen(false);
+            }}
+          />,
+          document.body,
+        )}
     </>
   );
 }
