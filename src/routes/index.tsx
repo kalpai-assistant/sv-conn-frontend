@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LocationBar } from "@/components/home/LocationBar";
+import { InProgressBookingBanner } from "@/components/home/InProgressBookingBanner";
 import { SearchBar } from "@/components/home/SearchBar";
 import { HeroBanner } from "@/components/home/HeroBanner";
 import { CategoryRail } from "@/components/home/CategoryRail";
@@ -34,7 +35,13 @@ function HomePage() {
   // own page. Home is a launchpad, not a filtered view of itself.
   return (
     <div className="min-h-screen pb-20">
-      <LocationBar />
+      {/* One sticky block, not two: separate `sticky top-0` siblings would
+          stack on each other. The banner renders nothing unless a booking is
+          live, so Home doesn't shift for everyone else (SVC-389). */}
+      <div className="sticky top-0 z-30">
+        <LocationBar />
+        <InProgressBookingBanner />
+      </div>
       <SearchBar />
 
       <HeroBanner />
