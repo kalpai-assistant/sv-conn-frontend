@@ -30,6 +30,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
 import { X, Clock, Check, Star } from "lucide-react";
 import { TrustStrip } from "@/components/TrustStrip";
+import { Badge } from "@/components/ui/badge";
 import { ServiceSheetSkeleton } from "@/components/skeletons/ServiceSheetSkeleton";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { useDragDismiss } from "@/hooks/useDragDismiss";
@@ -205,25 +206,40 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
               <div className="px-4 pt-4">
                 <div className="rounded-xl border border-border bg-card p-4">
                   <h3 className="text-lg font-semibold text-foreground">{service.name}</h3>
-                  {/* SVC-392: rating + bookings-this-week pill. Renders only
-                      when the backend sent `ratingCount` > 0 — a 0-review
-                      service shows nothing here rather than "0.0 ⭐", the
-                      same rule ProTrustCard follows for pros. */}
-                  {detail?.ratingCount && detail.ratingAverage ? (
-                    <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                      <Star aria-hidden="true" className="size-3.5 fill-current" />
-                      <span>{detail.ratingAverage.toFixed(1)}</span>
-                      <span aria-hidden="true" className="text-primary/60">
-                        ·
-                      </span>
-                      <span>{detail.ratingCount} bookings</span>
-                      {detail.bookingsThisWeek ? (
-                        <>
+                  {/* SVC-392 / SVC-402: rating pill, or a "New" badge — never
+                      "0.0 ⭐". The backend returns a null average and a 0
+                      count below 10 reviews (SVC-400), so the frontend keeps
+                      no threshold of its own. "This week" stands apart from
+                      the rating: a service can be busy before it has 10
+                      reviews. Nothing renders until the detail query lands,
+                      so a rated service doesn't flash "New" first. */}
+                  {detail ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      {detail.ratingCount && detail.ratingAverage != null ? (
+                        <div className="inline-flex h-6 items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                          <Star aria-hidden="true" className="size-3.5 fill-current" />
+                          <span>{detail.ratingAverage.toFixed(1)}</span>
                           <span aria-hidden="true" className="text-primary/60">
                             ·
                           </span>
-                          <span>{detail.bookingsThisWeek} this week</span>
-                        </>
+                          <span>
+                            {detail.ratingCount} {detail.ratingCount === 1 ? "review" : "reviews"}
+                          </span>
+                        </div>
+                      ) : (
+                        // h-6 on both: Badge carries a 1px border the pill
+                        // doesn't, and the row shouldn't jump between states.
+                        <Badge
+                          variant="secondary"
+                          className="h-6 rounded-full px-2.5 py-1 text-xs font-semibold"
+                        >
+                          New<span className="sr-only"> service, no ratings yet</span>
+                        </Badge>
+                      )}
+                      {detail.bookingsThisWeek ? (
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {detail.bookingsThisWeek} this week
+                        </span>
                       ) : null}
                     </div>
                   ) : null}
