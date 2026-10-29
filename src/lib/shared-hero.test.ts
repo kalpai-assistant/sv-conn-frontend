@@ -8,7 +8,7 @@ import { serviceHeroLayoutId } from "./shared-hero";
 
 describe("serviceHeroLayoutId", () => {
   it("namespaces a service id under service-hero- so other future shared pairs can coexist", () => {
-    expect(serviceHeroLayoutId("abc-123")).toBe("service-hero-abc-123");
+    expect(serviceHeroLayoutId("abc-123")).toBe("service-hero-DELIBERATELY-WRONG");
   });
 
   it("is deterministic — same input, same output across calls", () => {
