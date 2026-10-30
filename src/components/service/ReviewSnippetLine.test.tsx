@@ -90,16 +90,28 @@ describe("mapService — latest_review_snippet", () => {
 });
 
 describe("ReviewSnippetLine", () => {
-  it("renders the quote with name and relative date, clamped to two lines", () => {
+  it("renders the quote clamped to two lines, in italics", () => {
     render(<ReviewSnippetLine snippet={SNIPPET} />);
-    const line = screen.getByText("“Finally the clean I like.” — Priya, 2 days ago");
-    expect(line.className).toContain("line-clamp-2");
-    expect(line.className).toContain("italic");
+    const quote = screen.getByText("“Finally the clean I like.”");
+    expect(quote.className).toContain("line-clamp-2");
+    expect(quote.closest(".italic")).not.toBeNull();
+  });
+
+  it("puts the attribution on its own truncated line, outside the clamped quote", () => {
+    // A long quote fills both clamped lines on the rail card; inside the same
+    // element the name and date would be clamped away.
+    render(<ReviewSnippetLine snippet={SNIPPET} />);
+    const quote = screen.getByText("“Finally the clean I like.”");
+    const attribution = screen.getByText("— Priya, 2 days ago");
+    expect(attribution).not.toBe(quote);
+    expect(quote.contains(attribution)).toBe(false);
+    expect(attribution.className).toContain("truncate");
+    expect(attribution.className).not.toContain("line-clamp");
   });
 
   it("attributes a null reviewer name to Customer", () => {
     render(<ReviewSnippetLine snippet={{ ...SNIPPET, reviewerFirstName: null }} />);
-    expect(screen.getByText("“Finally the clean I like.” — Customer, 2 days ago")).toBeTruthy();
+    expect(screen.getByText("— Customer, 2 days ago")).toBeTruthy();
   });
 
   it("renders nothing for null or a missing snippet", () => {
