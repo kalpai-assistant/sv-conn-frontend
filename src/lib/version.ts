@@ -29,7 +29,7 @@
  */
 import { Capacitor } from "@capacitor/core";
 
-export const APP_VERSION = "1.0.12-beta";
+export const APP_VERSION = "2.0.0-beta";
 
 /**
  * Label shown in the native iOS app only. Must have the same numeric prefix
