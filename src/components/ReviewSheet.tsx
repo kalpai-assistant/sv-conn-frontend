@@ -77,6 +77,10 @@ export function ReviewSheet({
             <p className="mt-1 text-right text-xs text-muted-foreground">
               {comment.length}/{MAX_COMMENT_LENGTH}
             </p>
+            {/* SVC-388: a comment can surface as a snippet on the service card. */}
+            <p className="mt-1 text-xs text-muted-foreground">
+              Your first name and comment may be shown to other customers.
+            </p>
           </div>
 
           {/* Submit */}
