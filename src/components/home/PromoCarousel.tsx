@@ -3,9 +3,16 @@
  *
  * Content is hardcoded for beta. Once the backend ships a /promos endpoint
  * we'll swap the constant for a query — until then, hardcoding lets us
- * show only offers the app can actually honour. Right now that's the
- * first-booking coupon (FIRST20, seeded 2026-09-10 with 20% off / ₹200
- * cap / min ₹499 / 90-day window).
+ * show only offers the app can actually honour. Right now that's EXPO25
+ * (25% off, ₹500 cap, min ₹299, until 2026-11-02) and FIRST100 (₹100 off,
+ * min ₹299, until 2026-11-28), both added 2026-10-30. FIRST20 (2026-09-10)
+ * is retired and deactivated in the DB.
+ *
+ * A coupon card shows only while its code is in the user's
+ * ``GET /coupons/available`` list, the same list the cart's coupon sheet
+ * reads. So a card disappears on its own when the coupon expires, is
+ * deactivated, or the user has used it up, instead of advertising a code the
+ * cart would then refuse ("Coupon not applicable").
  *
  * The "Refer & earn" banner used to live here too but was removed
  * (SVC-280) once we noticed the referral programme was never actually
@@ -32,6 +39,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { useServices } from "@/hooks/useApi";
+import { useAvailableCoupons } from "@/hooks/useCoupons";
 import { useCouponBannerHandlers } from "./coupon-banner-handlers";
 import type { BannerDestination } from "./banner-destination";
 
@@ -51,19 +59,55 @@ interface PromoBanner {
 
 const BANNERS: PromoBanner[] = [
   {
-    id: "first20",
-    headline: "20% off your first booking",
-    body: "Use FIRST20 at checkout — min ₹499.",
-    ctaLabel: "Apply FIRST20",
+    id: "expo25",
+    headline: "25% off your booking",
+    body: "Use EXPO25 at checkout — up to ₹500 off, min ₹299.",
+    ctaLabel: "Apply EXPO25",
     gradient: "from-primary to-primary/70",
-    // Tap hands FIRST20 to /cart via the same ?coupon= handoff the hero
+    // Tap hands the code to /cart via the same ?coupon= handoff the hero
     // banner uses; the cart route opens CouponsSheet pre-filled and
     // auto-applies through POST /coupons/validate.
-    destination: { kind: "coupon", value: "FIRST20" },
+    destination: { kind: "coupon", value: "EXPO25" },
+  },
+  {
+    id: "first100",
+    headline: "₹100 off your booking",
+    body: "Use FIRST100 at checkout — min ₹299.",
+    ctaLabel: "Apply FIRST100",
+    gradient: "from-primary to-primary/70",
+    destination: { kind: "coupon", value: "FIRST100" },
   },
 ];
 
+/** The coupon code a banner applies, or null for a non-coupon banner. */
+function bannerCouponCode(destination: BannerDestination | undefined): string | null {
+  if (!destination) return null;
+  if (destination.kind === "coupon") return destination.value;
+  if (destination.kind === "route" || destination.kind === "external") return null;
+  return destination.code;
+}
+
+/**
+ * Coupon banners whose code the user can apply today, plus every non-coupon
+ * banner. Until the list loads (or if it fails) no coupon banner shows: a
+ * strip that appears late is better than one advertising a code the cart
+ * refuses.
+ */
+export function visibleBanners(
+  banners: readonly PromoBanner[],
+  available: readonly { code: string }[] | undefined,
+): PromoBanner[] {
+  const codes = new Set((available ?? []).map((c) => c.code.toUpperCase()));
+  return banners.filter((b) => {
+    const code = bannerCouponCode(b.destination);
+    return code === null || codes.has(code.toUpperCase());
+  });
+}
+
 export function PromoCarousel() {
+  const { data: available } = useAvailableCoupons();
+  const banners = visibleBanners(BANNERS, available);
+  if (banners.length === 0) return null;
   return (
     <div className="pb-2">
       <div
@@ -73,7 +117,7 @@ export function PromoCarousel() {
         // from an inline gutter div below.
         className="flex snap-x snap-mandatory gap-3 overflow-x-auto pl-4 scrollbar-none"
       >
-        {BANNERS.map((b) => (
+        {banners.map((b) => (
           <PromoBannerCard key={b.id} banner={b} />
         ))}
         {/* Right-side gutter so the last banner's edge shadow isn't clipped. */}
