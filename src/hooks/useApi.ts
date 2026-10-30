@@ -6,6 +6,7 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
+import { formatDuration } from "@/lib/duration";
 import type { components } from "@/types/api";
 
 // UI-shape types (from mock-data) used to keep the existing components typed
@@ -152,7 +153,7 @@ export const mapService = (
       subcategory: v.subcategory,
       price: v.base_price,
       payout: v.provider_payout,
-      duration: v.duration_minutes ? `${v.duration_minutes} mins` : undefined,
+      duration: v.duration_minutes ? formatDuration(v.duration_minutes) : undefined,
     }));
 
   return {
@@ -170,7 +171,7 @@ export const mapService = (
     // no priced variants has no payout to promise, so 0 — callers show the name
     // alone rather than "from ₹0".
     payout: variants.length > 0 ? Math.min(...variants.map((v) => v.payout)) : 0,
-    duration: `${srv.duration_minutes} mins`,
+    duration: formatDuration(srv.duration_minutes),
     variants,
     provider: undefined, // Services are global, no specific provider
     // SVC-293: pass through even for the list route so a rail can decide
