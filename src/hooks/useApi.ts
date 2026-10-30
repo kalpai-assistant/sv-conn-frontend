@@ -120,13 +120,20 @@ const mapCategory = (cat: API_CategoryResponse): UI_Category => ({
 //
 // Widened API shape: `banner_image_url` and `banner_video_url` (SVC-293) may
 // not be in the generated OpenAPI types yet — the spec regenerates per-deploy
-// on the backend side and the frontend snapshot lags by one PR.
+// on the backend side and the frontend snapshot lags by one PR. Same for
+// `latest_review_snippet` (SVC-388).
 type API_ServiceWithBanner = API_ServiceResponse & {
   banner_image_url?: string | null;
   banner_video_url?: string | null;
+  latest_review_snippet?: {
+    text: string;
+    reviewer_first_name: string | null;
+    created_at: string;
+  } | null;
 };
 
-const mapService = (
+// Exported for its unit test; components go through `useServices`.
+export const mapService = (
   srv: API_ServiceWithBanner,
   cats: readonly { id: string; name: string }[],
 ): UI_Service => {
@@ -170,6 +177,14 @@ const mapService = (
     // "video vs image vs fallback" from the already-cached catalogue.
     bannerImageUrl: srv.banner_image_url ?? null,
     bannerVideoUrl: srv.banner_video_url ?? null,
+    // SVC-388: a backend without the field yet reads the same as "no snippet".
+    reviewSnippet: srv.latest_review_snippet
+      ? {
+          text: srv.latest_review_snippet.text,
+          reviewerFirstName: srv.latest_review_snippet.reviewer_first_name,
+          createdAt: srv.latest_review_snippet.created_at,
+        }
+      : null,
   };
 };
 

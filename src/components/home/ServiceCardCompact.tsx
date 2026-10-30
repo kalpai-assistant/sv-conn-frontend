@@ -17,6 +17,11 @@
  * Carries no rating. The catalogue has no rating data, and inventing one is
  * exactly what the social-proof rule in docs/WIREFRAMES.md forbids — the
  * category name is real, so that is what the subtitle shows.
+ *
+ * SVC-388: under the category sits the latest real review quote, when the
+ * backend has one. Rail cards stretch to the tallest card in the row and the
+ * duration/price block is pinned with `mt-auto`, so a card without a snippet
+ * stays the same height as its neighbours — the gap lands above the duration.
  */
 import { Clock } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -26,6 +31,7 @@ import { useServiceSheet } from "@/lib/service-sheet-context";
 import { QuickAddButton } from "@/components/service/QuickAddButton";
 import { formatRupees } from "@/lib/currency";
 import { serviceHeroLayoutId } from "@/lib/shared-hero";
+import { ReviewSnippetLine } from "@/components/service/ReviewSnippetLine";
 
 interface ServiceCardCompactProps {
   service: Service;
@@ -97,6 +103,7 @@ export function ServiceCardCompact({
           {service.name}
         </h3>
         <p className="truncate text-[11px] text-muted-foreground">{service.categoryName}</p>
+        <ReviewSnippetLine snippet={service.reviewSnippet} />
         <div className="mt-auto flex items-center gap-1 pt-1 text-[11px] text-muted-foreground">
           <Clock className="h-3 w-3" />
           {service.duration}

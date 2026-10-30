@@ -75,6 +75,17 @@ export interface Service {
    *  when they are, so partial coverage renders intentionally. */
   bannerImageUrl?: string | null;
   bannerVideoUrl?: string | null;
+  /** SVC-388: the latest qualifying review, picked server-side. Null until the
+   *  service has enough qualifying reviews — cards then render nothing. */
+  reviewSnippet?: ReviewSnippet | null;
+}
+
+export interface ReviewSnippet {
+  /** Already truncated by the backend (≤ 80 chars including the "…"). */
+  text: string;
+  /** Null for a reviewer whose account was deleted (SVC-367 tombstone). */
+  reviewerFirstName: string | null;
+  createdAt: string;
 }
 
 export interface Address {

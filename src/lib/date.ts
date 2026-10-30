@@ -15,8 +15,10 @@ import {
   differenceInCalendarDays,
   differenceInMinutes,
   format,
+  formatDistanceStrict,
   isSameDay,
   isSameWeek,
+  startOfDay,
 } from "date-fns";
 
 export interface FormatSmartOptions {
@@ -104,4 +106,31 @@ export function formatSmart(date: Date | string, options?: FormatSmartOptions): 
   // this is a slot in the next few months — a year on "15 Nov 2027" reads as
   // emphasis the data doesn't support.
   return format(target, "d MMM");
+}
+
+/**
+ * How long ago something past happened, at day granularity — the attribution
+ * on a review snippet ("— Priya, 2 days ago", SVC-388).
+ *
+ * "today" and "yesterday" are ours; anything older defers to date-fns' strict
+ * distance with `addSuffix`, the wording the admin routes already print via
+ * `formatDistanceToNowStrict` ("5 days ago", "2 months ago"). This uses the
+ * `formatDistanceStrict` form of the same call so `now` stays injectable.
+ *
+ * Measured between the two calendar days, not the raw timestamps: a review
+ * from 11 PM two days back reads "2 days ago" all morning instead of
+ * "1 day ago" until 11 PM.
+ */
+export function formatDaysAgo(date: Date | string, options?: FormatSmartOptions): string {
+  const target = toDate(date);
+  const now = options?.now ?? new Date();
+  const days = differenceInCalendarDays(now, target);
+
+  // A clock-skewed future timestamp clamps to "today" rather than "in 2 hours".
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  return formatDistanceStrict(startOfDay(target), startOfDay(now), {
+    addSuffix: true,
+    roundingMethod: "floor",
+  });
 }
