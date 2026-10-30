@@ -6,6 +6,7 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
+import { formatDuration } from "@/lib/duration";
 import type { components } from "@/types/api";
 
 // UI-shape types (from mock-data) used to keep the existing components typed
@@ -120,13 +121,20 @@ const mapCategory = (cat: API_CategoryResponse): UI_Category => ({
 //
 // Widened API shape: `banner_image_url` and `banner_video_url` (SVC-293) may
 // not be in the generated OpenAPI types yet — the spec regenerates per-deploy
-// on the backend side and the frontend snapshot lags by one PR.
+// on the backend side and the frontend snapshot lags by one PR. Same for
+// `latest_review_snippet` (SVC-388).
 type API_ServiceWithBanner = API_ServiceResponse & {
   banner_image_url?: string | null;
   banner_video_url?: string | null;
+  latest_review_snippet?: {
+    text: string;
+    reviewer_first_name: string | null;
+    created_at: string;
+  } | null;
 };
 
-const mapService = (
+// Exported for its unit test; components go through `useServices`.
+export const mapService = (
   srv: API_ServiceWithBanner,
   cats: readonly { id: string; name: string }[],
 ): UI_Service => {
@@ -145,7 +153,7 @@ const mapService = (
       subcategory: v.subcategory,
       price: v.base_price,
       payout: v.provider_payout,
-      duration: v.duration_minutes ? `${v.duration_minutes} mins` : undefined,
+      duration: v.duration_minutes ? formatDuration(v.duration_minutes) : undefined,
     }));
 
   return {
@@ -163,13 +171,21 @@ const mapService = (
     // no priced variants has no payout to promise, so 0 — callers show the name
     // alone rather than "from ₹0".
     payout: variants.length > 0 ? Math.min(...variants.map((v) => v.payout)) : 0,
-    duration: `${srv.duration_minutes} mins`,
+    duration: formatDuration(srv.duration_minutes),
     variants,
     provider: undefined, // Services are global, no specific provider
     // SVC-293: pass through even for the list route so a rail can decide
     // "video vs image vs fallback" from the already-cached catalogue.
     bannerImageUrl: srv.banner_image_url ?? null,
     bannerVideoUrl: srv.banner_video_url ?? null,
+    // SVC-388: a backend without the field yet reads the same as "no snippet".
+    reviewSnippet: srv.latest_review_snippet
+      ? {
+          text: srv.latest_review_snippet.text,
+          reviewerFirstName: srv.latest_review_snippet.reviewer_first_name,
+          createdAt: srv.latest_review_snippet.created_at,
+        }
+      : null,
   };
 };
 
@@ -194,6 +210,11 @@ export const mapProfessional = (b: object): UI_Booking["professional"] => {
         display_name: string;
         profile_photo_url: string | null;
         is_self: boolean;
+        // SVC-396 (backend #219): absent on an older backend or cached payload.
+        rating_average?: number | null;
+        rating_count?: number;
+        bookings_completed_count?: number;
+        is_background_verified?: boolean;
       } | null;
     }
   ).professional;
@@ -203,6 +224,12 @@ export const mapProfessional = (b: object): UI_Booking["professional"] => {
     displayName: pro.display_name,
     photoUrl: pro.profile_photo_url,
     isSelf: pro.is_self,
+    // Null until the first review; the card hides the rating at 0 reviews.
+    ratingAverage: pro.rating_average ?? 0,
+    ratingCount: pro.rating_count ?? 0,
+    bookingsCompletedCount: pro.bookings_completed_count ?? 0,
+    // Only an explicit true earns the badge.
+    isBackgroundVerified: pro.is_background_verified === true,
   };
 };
 

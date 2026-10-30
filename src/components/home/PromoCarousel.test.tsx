@@ -48,27 +48,41 @@ vi.mock("@/hooks/useApi", () => ({
   useServices: () => ({ data: servicesData }),
 }));
 
-import { PromoCarousel, PromoBannerCard } from "@/components/home/PromoCarousel";
+let availableCoupons: Array<{ code: string }> | undefined;
+vi.mock("@/hooks/useCoupons", () => ({
+  useAvailableCoupons: () => ({ data: availableCoupons }),
+}));
+
+import { PromoCarousel, PromoBannerCard, visibleBanners } from "@/components/home/PromoCarousel";
 import { getPendingCoupon } from "@/lib/pending-coupon";
 
 beforeEach(() => {
   vi.clearAllMocks();
   cartItems = [];
   servicesData = [{ id: "svc_1", name: "x", variants: [] }];
+  availableCoupons = [{ code: "EXPO25" }, { code: "FIRST100" }];
   window.localStorage.clear();
 });
 
-describe("seeded FIRST20 card (SVC-310, extended by SVC-347)", () => {
-  // The default export's one real card. Covers the top-of-funnel path a
-  // real user hits: tap FIRST20 on Home.
+describe("seeded EXPO25 + FIRST100 cards (2026-10-30, replacing FIRST20)", () => {
+  // The default export's real cards. Covers the top-of-funnel path a
+  // real user hits: tap a coupon on Home.
 
-  it("hands FIRST20 to /cart when there is a subtotal to apply it against", async () => {
+  it("shows both new coupons and no FIRST20", () => {
+    render(<PromoCarousel />);
+
+    expect(screen.getByRole("button", { name: /25%.*EXPO25/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /₹100.*FIRST100/i })).toBeInTheDocument();
+    expect(screen.queryByText(/FIRST20/)).not.toBeInTheDocument();
+  });
+
+  it("hands EXPO25 to /cart when there is a subtotal to apply it against", async () => {
     cartItems = [{ serviceId: "svc_1" }];
     render(<PromoCarousel />);
 
-    await userEvent.click(screen.getByRole("button", { name: /20%.*FIRST20/i }));
+    await userEvent.click(screen.getByRole("button", { name: /25%.*EXPO25/i }));
 
-    expect(navigate).toHaveBeenCalledWith({ to: "/cart", search: { coupon: "FIRST20" } });
+    expect(navigate).toHaveBeenCalledWith({ to: "/cart", search: { coupon: "EXPO25" } });
     expect(toastFn).not.toHaveBeenCalled();
   });
 
@@ -76,11 +90,59 @@ describe("seeded FIRST20 card (SVC-310, extended by SVC-347)", () => {
     cartItems = [];
     render(<PromoCarousel />);
 
-    await userEvent.click(screen.getByRole("button", { name: /20%.*FIRST20/i }));
+    await userEvent.click(screen.getByRole("button", { name: /₹100.*FIRST100/i }));
 
-    expect(navigate).toHaveBeenCalledWith({ to: "/cart", search: { coupon: "FIRST20" } });
+    expect(navigate).toHaveBeenCalledWith({ to: "/cart", search: { coupon: "FIRST100" } });
     expect(toastFn).not.toHaveBeenCalled();
-    expect(getPendingCoupon("test-user")).toBe("FIRST20");
+    expect(getPendingCoupon("test-user")).toBe("FIRST100");
+  });
+});
+
+describe("only coupons the user can apply today are advertised", () => {
+  it("hides a card whose code is no longer available (expired, deactivated or used up)", () => {
+    availableCoupons = [{ code: "FIRST100" }];
+    render(<PromoCarousel />);
+
+    expect(screen.queryByText(/EXPO25/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /FIRST100/i })).toBeInTheDocument();
+  });
+
+  it("renders nothing while the list is loading or when no coupon is available", () => {
+    availableCoupons = undefined;
+    const { container, rerender } = render(<PromoCarousel />);
+    expect(container).toBeEmptyDOMElement();
+
+    availableCoupons = [];
+    rerender(<PromoCarousel />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("matches codes case-insensitively and always keeps non-coupon banners", () => {
+    const card = { body: "b", ctaLabel: "c", gradient: "from-primary to-primary/70" };
+    const banners = [
+      {
+        ...card,
+        id: "expo25",
+        headline: "h",
+        destination: { kind: "coupon" as const, value: "EXPO25" },
+      },
+      {
+        ...card,
+        id: "spa",
+        headline: "h",
+        destination: { kind: "coupon-category" as const, code: "SPA20", categorySlug: "spa" },
+      },
+      {
+        ...card,
+        id: "route-x",
+        headline: "h",
+        destination: { kind: "route" as const, value: "/bookings" },
+      },
+    ];
+
+    const shown = visibleBanners(banners, [{ code: "expo25" }]);
+
+    expect(shown.map((b) => b.id)).toEqual(["expo25", "route-x"]);
   });
 });
 

@@ -5,6 +5,7 @@ import { useServiceSheet } from "@/lib/service-sheet-context";
 import { QuickAddButton } from "@/components/service/QuickAddButton";
 import { formatRupees } from "@/lib/currency";
 import { serviceHeroLayoutId } from "@/lib/shared-hero";
+import { ReviewSnippetLine } from "@/components/service/ReviewSnippetLine";
 
 /**
  * A service as a full-width row, for vertical lists (the L2 category page).
@@ -26,6 +27,11 @@ import { serviceHeroLayoutId } from "@/lib/shared-hero";
  * violate)": ratings and review counts are rendering placeholders, never
  * hardcoded values. There is no rating data in the catalogue to put here, so
  * the row shows what is true — category, duration, starting price.
+ *
+ * SVC-388: the one piece of social proof it does carry is the latest real
+ * review quote, as a full-width line under the row, when the backend has
+ * one. Rows in a vertical list need not match each other's height, so a
+ * service without a snippet simply ends after the row.
  */
 export function ServiceCard({ service }: { service: Service }) {
   const { openService } = useServiceSheet();
@@ -51,30 +57,33 @@ export function ServiceCard({ service }: { service: Service }) {
       tabIndex={0}
       onClick={handleOpen}
       onKeyDown={handleKeyDown}
-      className="flex cursor-pointer gap-3 rounded-xl border border-border/50 bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
+      className="flex cursor-pointer flex-col gap-2 rounded-xl border border-border/50 bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
     >
-      <motion.div
-        layoutId={layoutId}
-        className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-accent text-xl font-bold text-accent-foreground"
-      >
-        {service.name.charAt(0)}
-      </motion.div>
-      <div className="flex min-w-0 flex-1 flex-col justify-center">
-        <h3 className="truncate text-sm font-semibold text-foreground">{service.name}</h3>
-        <p className="truncate text-xs text-muted-foreground">{service.categoryName}</p>
-        <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-          <Clock className="h-3 w-3" />
-          {service.duration}
+      <div className="flex gap-3">
+        <motion.div
+          layoutId={layoutId}
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-accent text-xl font-bold text-accent-foreground"
+        >
+          {service.name.charAt(0)}
+        </motion.div>
+        <div className="flex min-w-0 flex-1 flex-col justify-center">
+          <h3 className="truncate text-sm font-semibold text-foreground">{service.name}</h3>
+          <p className="truncate text-xs text-muted-foreground">{service.categoryName}</p>
+          <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            {service.duration}
+          </div>
+        </div>
+        <div className="flex flex-col items-end justify-between gap-2">
+          <div className="flex flex-col items-end">
+            {/* "from" because `price` is the cheapest variant, not a fixed charge. */}
+            <span className="text-[10px] text-muted-foreground">from</span>
+            <span className="text-sm font-bold text-primary">{formatRupees(service.price)}</span>
+          </div>
+          <QuickAddButton service={service} />
         </div>
       </div>
-      <div className="flex flex-col items-end justify-between gap-2">
-        <div className="flex flex-col items-end">
-          {/* "from" because `price` is the cheapest variant, not a fixed charge. */}
-          <span className="text-[10px] text-muted-foreground">from</span>
-          <span className="text-sm font-bold text-primary">{formatRupees(service.price)}</span>
-        </div>
-        <QuickAddButton service={service} />
-      </div>
+      <ReviewSnippetLine snippet={service.reviewSnippet} />
     </div>
   );
 }

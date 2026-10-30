@@ -11,7 +11,7 @@
  * for the next file.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatSmart } from "@/lib/date";
+import { formatDaysAgo, formatSmart } from "@/lib/date";
 
 // Pin a mid-week afternoon so the "this week" bucket has clean neighbours on
 // both sides without crossing a calendar-week boundary unintentionally.
@@ -114,5 +114,34 @@ describe("formatSmart — input shapes", () => {
     expect(
       formatSmart(new Date(2026, 10, 11, 14, 15), { now: new Date(2026, 10, 11, 14, 0) }),
     ).toBe("In 15 min");
+  });
+});
+
+describe("formatDaysAgo — review attribution (SVC-388)", () => {
+  it("says today for earlier the same day", () => {
+    expect(formatDaysAgo(new Date(2026, 10, 11, 8, 0))).toBe("today");
+  });
+
+  it("says yesterday for any time the previous calendar day", () => {
+    expect(formatDaysAgo(new Date(2026, 10, 10, 23, 30))).toBe("yesterday");
+    expect(formatDaysAgo(new Date(2026, 10, 10, 0, 5))).toBe("yesterday");
+  });
+
+  it("counts calendar days, not 24h windows", () => {
+    // 11 PM two days back is 39h ago — still "2 days ago", not "1 day ago".
+    expect(formatDaysAgo(new Date(2026, 10, 9, 23, 0))).toBe("2 days ago");
+  });
+
+  it("uses date-fns' wording past a week", () => {
+    expect(formatDaysAgo(new Date(2026, 9, 22, 12, 0))).toBe("20 days ago");
+    expect(formatDaysAgo(new Date(2026, 8, 1, 12, 0))).toBe("2 months ago");
+  });
+
+  it("clamps a future timestamp to today", () => {
+    expect(formatDaysAgo(new Date(2026, 10, 11, 18, 0))).toBe("today");
+  });
+
+  it("accepts the API's ISO string", () => {
+    expect(formatDaysAgo(new Date(2026, 10, 9, 10, 0).toISOString())).toBe("2 days ago");
   });
 });
