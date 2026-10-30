@@ -106,13 +106,15 @@ describe("/admin/teams search", () => {
       Promise.resolve(path.includes("page=1&") ? full : [owner(99)]),
     );
     wrap(<ListPage />);
-    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
-    await waitFor(() =>
-      expect(within(screen.getByRole("table")).getByText("Owner 99")).toBeInTheDocument(),
-    );
+    // Role queries scoped to the footer: page-wide, each poll computed the
+    // accessible name of 51 cards and 51 rows, which took this test to 3s of
+    // the 5s timeout in a full run (SVC-403).
+    const footer = (await screen.findByText("Showing 50")).parentElement!;
+    await userEvent.click(within(footer).getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(within(footer).getByText("Showing 51")).toBeInTheDocument());
+    expect(within(screen.getByRole("table")).getByText("Owner 99")).toBeInTheDocument();
     expect(apiFetch).toHaveBeenLastCalledWith("/admin/providers?page=2&per_page=50");
-    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
-    expect(screen.getByText("Showing 51")).toBeInTheDocument();
+    expect(within(footer).queryByRole("button", { name: "Load more" })).toBeNull();
   });
 
   it("opens an owner's team from their row", async () => {

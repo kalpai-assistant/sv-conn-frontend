@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build:
-    name: lint · typecheck · build
+    name: lint · typecheck · test · build
     runs-on: ubuntu-latest
     timeout-minutes: 12
 
@@ -52,6 +52,13 @@ jobs:
       # explicit flag protects against a future config change.
       - name: Typecheck
         run: npx tsc --noEmit
+
+      # Vitest (jsdom), config in vitest.config.ts. Before SVC-403 CI never ran
+      # the suite, so a red test only showed up on whoever next ran it locally.
+      # Runs before the builds: a failing test should fail fast, and the builds
+      # cannot catch what it catches.
+      - name: Unit tests
+        run: npm test
 
       # Web build. Mobile build (build:mobile) is Capacitor-specific and
       # only meaningful during a native release — skipped in CI.

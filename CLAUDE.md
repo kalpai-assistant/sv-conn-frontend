@@ -274,13 +274,13 @@ npm run cap:ios          # Build + open Xcode
 
 Vitest with jsdom, run by `npm test`. Config lives in `vitest.config.ts`, kept separate from `vite.config.ts` because the app config loads the TanStack Start SSR plugin and the Cloudflare plugin, neither of which a component test survives.
 
-CI runs three checks, and all three are worth running locally before pushing — a typecheck failure only CI sees costs a round trip:
+CI (`.github/workflows/ci.yml`) runs the asset-reference check, lint, typecheck, unit tests, and the web and marketing builds on every push and PR to `main` and `feature/**`. Run the middle three locally before pushing — a failure only CI sees costs a round trip:
 
 ```bash
 npx tsc --noEmit && npm run lint && npm test
 ```
 
-A fourth check — **iOS build (macOS runner, only on native-config changes)** — runs via `.github/workflows/ios-build.yml` when a PR touches `ios/**`, `package.json`, `package-lock.json`, `capacitor.config.ts`, or the workflow itself. Frontend-only PRs skip it (macOS runners cost ~10x Linux).
+A separate check — **iOS build (macOS runner, only on native-config changes)** — runs via `.github/workflows/ios-build.yml` when a PR touches `ios/**`, `package.json`, `package-lock.json`, `capacitor.config.ts`, or the workflow itself. Frontend-only PRs skip it (macOS runners cost ~10x Linux).
 
 **What tests here cannot catch.** A recurring pattern in this repo is bugs that appear only on a real device: a button painted underneath the bottom nav, a `getCurrentPosition` mock that fails instantly where Android hangs indefinitely, an `alert()` that freezes the entire WebView. A unit test asserts the mock, and the mock encodes an assumption — so anything touching geolocation, native dialogs, or z-order needs a device pass before it ships.
 
