@@ -11,8 +11,6 @@ export default tseslint.config(
     ignores: [
       "dist",
       "dist-mobile",
-      // admin-frontend/ is a sibling app with its own eslint config (SVC-421).
-      "admin-frontend",
       // Marketing SPA build output. Gitignored (see .gitignore) but was
       // missing from the lint ignore list, so a local `build:marketing`
       // left behind bundle output that then failed prettier/no-explicit-any
