@@ -26,7 +26,10 @@ export default tseslint.config(
         "warn",
         {
           allowConstantExport: true,
-          allowExportNames: ["buttonVariants"],
+          // router is a module-level const co-located with the AuthedLayout
+          // component (edit-once file, same pattern as the consumer repo's
+          // mix of hooks + providers).
+          allowExportNames: ["buttonVariants", "router"],
         },
       ],
       "@typescript-eslint/no-unused-vars": "off",

@@ -6,7 +6,7 @@ import {
   redirect,
 } from "@tanstack/react-router";
 
-import { AppSidebar } from "@/components/app-sidebar";
+import { AuthedLayout } from "@/components/authed-layout";
 import { LoginPage } from "@/routes/login";
 import { AnalyticsPage } from "@/routes/analytics";
 import { OperatorPage } from "@/routes/operator";
@@ -65,15 +65,4 @@ declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router;
   }
-}
-
-function AuthedLayout() {
-  return (
-    <div className="flex min-h-screen">
-      <AppSidebar />
-      <main className="flex-1 overflow-auto p-8">
-        <Outlet />
-      </main>
-    </div>
-  );
 }
