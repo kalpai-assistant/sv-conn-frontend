@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as TotpRouteImport } from './routes/totp'
 import { Route as TotpSetupRouteImport } from './routes/totp-setup'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
+import { Route as AuthedAuditRouteImport } from './routes/_authed/audit'
 import { Route as AuthedAnalyticsOverviewRouteImport } from './routes/_authed/analytics/overview'
 import { Route as AuthedAnalyticsSupplyRouteImport } from './routes/_authed/analytics/supply'
 import { Route as AuthedOperatorCatalogRouteImport } from './routes/_authed/operator/catalog'
@@ -46,6 +47,11 @@ const TotpSetupRoute = TotpSetupRouteImport.update({
 const AuthedIndexRoute = AuthedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedAuditRoute = AuthedAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedAnalyticsOverviewRoute = AuthedAnalyticsOverviewRouteImport.update({
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/totp': typeof TotpRoute
   '/totp-setup': typeof TotpSetupRoute
+  '/audit': typeof AuthedAuditRoute
   '/analytics/overview': typeof AuthedAnalyticsOverviewRoute
   '/analytics/supply': typeof AuthedAnalyticsSupplyRoute
   '/operator/catalog': typeof AuthedOperatorCatalogRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/totp': typeof TotpRoute
   '/totp-setup': typeof TotpSetupRoute
+  '/audit': typeof AuthedAuditRoute
   '/': typeof AuthedIndexRoute
   '/analytics/overview': typeof AuthedAnalyticsOverviewRoute
   '/analytics/supply': typeof AuthedAnalyticsSupplyRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/totp': typeof TotpRoute
   '/totp-setup': typeof TotpSetupRoute
+  '/_authed/audit': typeof AuthedAuditRoute
   '/_authed/': typeof AuthedIndexRoute
   '/_authed/analytics/overview': typeof AuthedAnalyticsOverviewRoute
   '/_authed/analytics/supply': typeof AuthedAnalyticsSupplyRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/totp'
     | '/totp-setup'
+    | '/audit'
     | '/analytics/overview'
     | '/analytics/supply'
     | '/operator/catalog'
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/totp'
     | '/totp-setup'
+    | '/audit'
     | '/'
     | '/analytics/overview'
     | '/analytics/supply'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/totp'
     | '/totp-setup'
+    | '/_authed/audit'
     | '/_authed/'
     | '/_authed/analytics/overview'
     | '/_authed/analytics/supply'
@@ -232,6 +244,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthedIndexRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/audit': {
+      id: '/_authed/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuthedAuditRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/analytics/overview': {
@@ -301,6 +320,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedRouteChildren {
+  AuthedAuditRoute: typeof AuthedAuditRoute
   AuthedIndexRoute: typeof AuthedIndexRoute
   AuthedAnalyticsOverviewRoute: typeof AuthedAnalyticsOverviewRoute
   AuthedAnalyticsSupplyRoute: typeof AuthedAnalyticsSupplyRoute
@@ -314,6 +334,7 @@ interface AuthedRouteChildren {
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedAuditRoute: AuthedAuditRoute,
   AuthedIndexRoute: AuthedIndexRoute,
   AuthedAnalyticsOverviewRoute: AuthedAnalyticsOverviewRoute,
   AuthedAnalyticsSupplyRoute: AuthedAnalyticsSupplyRoute,

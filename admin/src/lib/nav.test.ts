@@ -9,8 +9,12 @@ describe("role-based sidebar", () => {
     expect(titles("ops")).toEqual(["Operator"]);
   });
 
-  it.each<AdminRole>(["admin", "support"])("shows %s every section", (role) => {
-    expect(titles(role)).toEqual(["Operator", "Analytics", "Support"]);
+  it("shows support everything except Audit", () => {
+    expect(titles("support")).toEqual(["Operator", "Analytics", "Support"]);
+  });
+
+  it("shows admin every section", () => {
+    expect(titles("admin")).toEqual(["Operator", "Analytics", "Support", "Audit"]);
   });
 });
 
@@ -28,6 +32,12 @@ describe("canOpen", () => {
   it("closes the hidden sections to ops", () => {
     expect(canOpen("ops", "/analytics/overview")).toBe(false);
     expect(canOpen("ops", "/support/lookup")).toBe(false);
+  });
+
+  it("opens the audit log to admin only", () => {
+    expect(canOpen("admin", "/audit")).toBe(true);
+    expect(canOpen("ops", "/audit")).toBe(false);
+    expect(canOpen("support", "/audit")).toBe(false);
   });
 
   it("denies a path no sidebar lists, for every role", () => {

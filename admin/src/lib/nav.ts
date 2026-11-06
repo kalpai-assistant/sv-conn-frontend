@@ -1,6 +1,6 @@
 /**
- * The sidebar, as data: the three areas of the admin console (SVC-407) and the
- * screens under each. Every entry is a placeholder until its own story lands.
+ * The sidebar, as data: the areas of the admin console (SVC-407) and the screens
+ * under each. An entry is a placeholder until its own story lands.
  */
 import {
   BadgeCheck,
@@ -8,6 +8,7 @@ import {
   FolderTree,
   IndianRupee,
   RotateCcw,
+  ScrollText,
   Search,
   Ticket,
   Truck,
@@ -55,6 +56,12 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Support",
     roles: ["admin", "support"],
     items: [{ label: "Lookup", to: "/support/lookup", icon: Search }],
+  },
+  {
+    title: "Audit",
+    // Admin only: ops shouldn't review their own actions (SVC-423).
+    roles: ["admin"],
+    items: [{ label: "Audit log", to: "/audit", icon: ScrollText }],
   },
 ];
 
