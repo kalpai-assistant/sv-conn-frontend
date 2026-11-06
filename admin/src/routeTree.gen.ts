@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as TotpRouteImport } from './routes/totp'
+import { Route as TotpSetupRouteImport } from './routes/totp-setup'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedAnalyticsOverviewRouteImport } from './routes/_authed/analytics/overview'
 import { Route as AuthedAnalyticsSupplyRouteImport } from './routes/_authed/analytics/supply'
@@ -29,6 +31,16 @@ const AuthedRoute = AuthedRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TotpRoute = TotpRouteImport.update({
+  id: '/totp',
+  path: '/totp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TotpSetupRoute = TotpSetupRouteImport.update({
+  id: '/totp-setup',
+  path: '/totp-setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedIndexRoute = AuthedIndexRouteImport.update({
@@ -85,6 +97,8 @@ const AuthedSupportLookupRoute = AuthedSupportLookupRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
   '/login': typeof LoginRoute
+  '/totp': typeof TotpRoute
+  '/totp-setup': typeof TotpSetupRoute
   '/analytics/overview': typeof AuthedAnalyticsOverviewRoute
   '/analytics/supply': typeof AuthedAnalyticsSupplyRoute
   '/operator/catalog': typeof AuthedOperatorCatalogRoute
@@ -97,6 +111,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/totp': typeof TotpRoute
+  '/totp-setup': typeof TotpSetupRoute
   '/': typeof AuthedIndexRoute
   '/analytics/overview': typeof AuthedAnalyticsOverviewRoute
   '/analytics/supply': typeof AuthedAnalyticsSupplyRoute
@@ -112,6 +128,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
+  '/totp': typeof TotpRoute
+  '/totp-setup': typeof TotpSetupRoute
   '/_authed/': typeof AuthedIndexRoute
   '/_authed/analytics/overview': typeof AuthedAnalyticsOverviewRoute
   '/_authed/analytics/supply': typeof AuthedAnalyticsSupplyRoute
@@ -128,6 +146,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/totp'
+    | '/totp-setup'
     | '/analytics/overview'
     | '/analytics/supply'
     | '/operator/catalog'
@@ -140,6 +160,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/totp'
+    | '/totp-setup'
     | '/'
     | '/analytics/overview'
     | '/analytics/supply'
@@ -154,6 +176,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authed'
     | '/login'
+    | '/totp'
+    | '/totp-setup'
     | '/_authed/'
     | '/_authed/analytics/overview'
     | '/_authed/analytics/supply'
@@ -169,6 +193,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  TotpRoute: typeof TotpRoute
+  TotpSetupRoute: typeof TotpSetupRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -185,6 +211,20 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/totp': {
+      id: '/totp'
+      path: '/totp'
+      fullPath: '/totp'
+      preLoaderRoute: typeof TotpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/totp-setup': {
+      id: '/totp-setup'
+      path: '/totp-setup'
+      fullPath: '/totp-setup'
+      preLoaderRoute: typeof TotpSetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/': {
@@ -292,6 +332,8 @@ const AuthedRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   LoginRoute: LoginRoute,
+  TotpRoute: TotpRoute,
+  TotpSetupRoute: TotpSetupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

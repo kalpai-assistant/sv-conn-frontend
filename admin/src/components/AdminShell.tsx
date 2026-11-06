@@ -6,16 +6,17 @@
  * readable console, not an optimised one (SVC-407).
  */
 import { useState, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
-import { Menu } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { NAV_SECTIONS } from "@/lib/nav";
+import { signOut, type AdminRole, type AdminUser } from "@/lib/auth";
+import { sectionsFor } from "@/lib/nav";
 
-function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarNav({ role, onNavigate }: { role: AdminRole; onNavigate?: () => void }) {
   return (
     <nav aria-label="Admin sections" className="space-y-6">
-      {NAV_SECTIONS.map((section) => (
+      {sectionsFor(role).map((section) => (
         <div key={section.title}>
           <h2 className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {section.title}
@@ -43,8 +44,20 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-export function AdminShell({ children }: { children: ReactNode }) {
+export function AdminShell({ admin, children }: { admin: AdminUser; children: ReactNode }) {
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    const confirmed = await signOut();
+    await navigate({
+      to: "/login",
+      search: confirmed ? {} : { reason: "logout_unconfirmed" },
+      replace: true,
+    });
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -57,18 +70,29 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </SheetTrigger>
           <SheetContent side="left" className="w-64 overflow-y-auto">
             <SheetTitle className="mb-6">EazyServ Admin</SheetTitle>
-            <SidebarNav onNavigate={() => setMenuOpen(false)} />
+            <SidebarNav role={admin.role} onNavigate={() => setMenuOpen(false)} />
           </SheetContent>
         </Sheet>
-        <Link to="/" className="font-semibold text-primary">
+        <Link to="/" className="shrink-0 font-semibold text-primary">
           EazyServ Admin
         </Link>
-        {/* The signed-in admin's email and menu go here with auth (SVC-407 A2). */}
-        <span className="ml-auto text-sm text-muted-foreground">Not signed in</span>
+        <span className="ml-auto min-w-0 truncate text-sm text-muted-foreground">
+          {admin.email}
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="shrink-0"
+          onClick={handleSignOut}
+          disabled={signingOut}
+        >
+          <LogOut />
+          Sign out
+        </Button>
       </header>
       <div className="flex flex-1">
         <aside className="hidden w-60 shrink-0 overflow-y-auto border-r bg-sidebar p-4 md:block">
-          <SidebarNav />
+          <SidebarNav role={admin.role} />
         </aside>
         <main className="min-w-0 flex-1 p-4 md:p-8">{children}</main>
       </div>
