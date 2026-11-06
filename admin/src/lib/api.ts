@@ -1,25 +1,81 @@
 /**
- * Fetch wrapper for the admin app — duplicated from the consumer app's
- * src/lib/api.ts per SVC-421 ("duplicate now, extract later").
- *
- * Only the transport is copied: base URL, JSON headers, error parsing. There
- * is no token storage, Bearer header or refresh-on-401 here on purpose —
- * admin auth (email + password + MFA) is a different model from the
- * consumer's phone OTP and lands in SVC-407 A2, which adds it to this file.
+ * Fetch wrapper for the admin app. The transport is duplicated from the
+ * consumer app's src/lib/api.ts per SVC-421 ("duplicate now, extract later").
+ * The session handling below is the admin model (SVC-422), not the consumer's:
+ * one token, no refresh token, and it lives in sessionStorage so it dies with
+ * the tab.
  */
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+
+const SESSION_TOKEN_KEY = "eazyserv-admin:session_token";
 
 /** Thrown on any non-2xx response; carries the status so callers can branch on it. */
 export class ApiError extends Error {
   status: number;
   /** Stable app-level code the backend's AppException sets on some errors (SVC-257). */
   code?: string;
-  constructor(status: number, message: string, code?: string) {
+  /** Seconds from the Retry-After header. A 429 is identified by status, never by code. */
+  retryAfter?: number;
+  constructor(status: number, message: string, code?: string, retryAfter?: number) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.retryAfter = retryAfter;
   }
+}
+
+// Storage can throw (blocked site data). The variable is the source of truth,
+// so a blocked store costs only surviving a reload, not the session itself.
+function readStoredToken(): string | null {
+  try {
+    return window.sessionStorage.getItem(SESSION_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredToken(token: string | null): void {
+  try {
+    if (token === null) window.sessionStorage.removeItem(SESSION_TOKEN_KEY);
+    else window.sessionStorage.setItem(SESSION_TOKEN_KEY, token);
+  } catch {
+    // See readStoredToken.
+  }
+}
+
+let sessionToken: string | null = readStoredToken();
+
+export function getSessionToken(): string | null {
+  return sessionToken;
+}
+
+export function setSessionToken(token: string): void {
+  sessionToken = token;
+  writeStoredToken(token);
+}
+
+export function clearSessionToken(): void {
+  sessionToken = null;
+  writeStoredToken(null);
+}
+
+let onSessionLost: (() => void) | null = null;
+
+/** Called when a session-gated call gets a 401. The router registers its redirect here. */
+export function setSessionLostHandler(handler: (() => void) | null): void {
+  onSessionLost = handler;
+}
+
+// The two steps before a session exists. A 401 from them is a form error (wrong
+// password, wrong code), so it must not sign anyone out.
+function isSessionGated(path: string): boolean {
+  return !/^\/admin\/auth\/(login|totp\/)/.test(path);
+}
+
+function parseRetryAfter(res: Response): number | undefined {
+  const seconds = Number(res.headers.get("Retry-After"));
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined;
 }
 
 export async function apiFetch<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
@@ -30,7 +86,28 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
     ...(options.headers as Record<string, string>),
   };
 
+  const gated = isSessionGated(path);
+  const sentToken = gated ? sessionToken : null;
+  if (sentToken) {
+    headers["Authorization"] = `Bearer ${sentToken}`;
+  }
+
   const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+
+  // Only a response to the current token may change the session. Otherwise a
+  // request still in flight at sign-out would bring the token back on its way
+  // in, or a late 401 from an old session would sign out a newer one. Parallel
+  // requests are safe too: the backend keeps the old token valid after rolling it.
+  if (sentToken && sentToken === sessionToken) {
+    const rolled = res.headers.get("X-Admin-Token");
+    if (rolled) {
+      setSessionToken(rolled);
+    }
+    if (res.status === 401) {
+      clearSessionToken();
+      onSessionLost?.();
+    }
+  }
 
   if (!res.ok) {
     let errorMsg = `API error: ${res.status} ${res.statusText}`;
@@ -50,7 +127,7 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
     } catch {
       // Ignored if response is not JSON
     }
-    throw new ApiError(res.status, errorMsg, errorCode);
+    throw new ApiError(res.status, errorMsg, errorCode, parseRetryAfter(res));
   }
 
   // 204 No Content — return undefined without trying to parse JSON.

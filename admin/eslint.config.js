@@ -9,7 +9,7 @@ import tseslint from "typescript-eslint";
 // OpenAPI types, i18n literal-string rule).
 export default tseslint.config(
   {
-    ignores: ["dist", "src/routeTree.gen.ts"],
+    ignores: ["dist", "src/routeTree.gen.ts", "test-results", "playwright-report"],
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
@@ -38,6 +38,12 @@ export default tseslint.config(
       ],
       "@typescript-eslint/no-explicit-any": "error",
     },
+  },
+  {
+    // A TanStack file route defines its screen next to `Route`, and the router
+    // plugin splits them apart, so the rule's fast-refresh worry doesn't apply.
+    files: ["src/routes/**/*.tsx"],
+    rules: { "react-refresh/only-export-components": "off" },
   },
   eslintPluginPrettier,
 );

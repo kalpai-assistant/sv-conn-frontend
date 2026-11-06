@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { FileRoutesByTo } from "@/routeTree.gen";
+import type { AdminRole } from "@/lib/auth";
 
 export interface NavItem {
   label: string;
@@ -24,12 +25,15 @@ export interface NavItem {
 
 export interface NavSection {
   title: string;
+  /** Who sees this section. The role table is in SVC-422. */
+  roles: AdminRole[];
   items: NavItem[];
 }
 
 export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Operator",
+    roles: ["admin", "ops", "support"],
     items: [
       { label: "KYC", to: "/operator/kyc", icon: BadgeCheck },
       { label: "Pricing", to: "/operator/pricing", icon: IndianRupee },
@@ -41,6 +45,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: "Analytics",
+    roles: ["admin", "support"],
     items: [
       { label: "Overview", to: "/analytics/overview", icon: BarChart3 },
       { label: "Supply", to: "/analytics/supply", icon: Truck },
@@ -48,6 +53,26 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: "Support",
+    roles: ["admin", "support"],
     items: [{ label: "Lookup", to: "/support/lookup", icon: Search }],
   },
 ];
+
+export function sectionsFor(role: AdminRole): NavSection[] {
+  return NAV_SECTIONS.filter((section) => section.roles.includes(role));
+}
+
+/**
+ * Whether this role may open a path. Deny by default: a screen is open only if
+ * the role's sidebar lists it, so a route added without a nav entry stays
+ * closed. The home page is the one exception, and the redirect target for the rest.
+ */
+export function canOpen(role: AdminRole, pathname: string): boolean {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  if (path === "/") {
+    return true;
+  }
+  return sectionsFor(role).some((section) =>
+    section.items.some((item) => path === item.to || path.startsWith(`${item.to}/`)),
+  );
+}
