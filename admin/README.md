@@ -32,9 +32,13 @@ Email + password at `/login`, then a TOTP code at `/totp`, or `/totp-setup` on a
 - The guard is the `beforeLoad` in `src/routes/_authed.tsx`. It reuses `GET /admin/auth/me` for 5 minutes, so a role change can take that long to reach the sidebar. The backend still checks the role on every request.
 - Which role sees what is the `roles` field in `src/lib/nav.ts`. A route the role's sidebar doesn't list redirects to `/`, so a new screen needs a nav entry before anyone can open it.
 
+## Screens
+
+- `/audit` (SVC-423, admin role only): every admin write action from `GET /admin/audit`, read-only. Filter by admin, action, target type and date; dates are the admin's local days, and the To date's whole day is included. Expand a row for its reason, IP, User-Agent and before/after JSON. Filters live in the page, so a reload clears them.
+
 ## What's placeholder
 
-Everything except the shell and sign-in:
+Everything except the shell, sign-in and the screens above:
 
 - All 9 sidebar screens (Operator, Analytics and Support) are placeholder pages.
 - Deploy: `.github/workflows/deploy-admin.yml` is a stub that fails on purpose. admin.eazyserv.com does not exist yet.

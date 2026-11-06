@@ -7,6 +7,12 @@ import { afterEach } from "vitest";
 // navigation and would log "Not implemented" for each.
 window.scrollTo = () => {};
 
+// Radix Select calls these, and jsdom has none of them.
+Element.prototype.hasPointerCapture = () => false;
+Element.prototype.setPointerCapture = () => {};
+Element.prototype.releasePointerCapture = () => {};
+Element.prototype.scrollIntoView = () => {};
+
 afterEach(() => {
   cleanup();
 });

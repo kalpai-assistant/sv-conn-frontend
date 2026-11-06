@@ -30,12 +30,12 @@ afterEach(() => {
 });
 
 describe("admin shell", () => {
-  it("shows all three sidebar sections with their screens to an admin", async () => {
+  it("shows every sidebar section with its screens to an admin", async () => {
     signedInAs("admin");
     renderAt("/");
     const nav = await screen.findByRole("navigation", { name: "Admin sections" });
 
-    for (const section of ["Operator", "Analytics", "Support"]) {
+    for (const section of ["Operator", "Analytics", "Support", "Audit"]) {
       expect(within(nav).getByRole("heading", { name: section })).toBeInTheDocument();
     }
     for (const link of [
@@ -48,6 +48,7 @@ describe("admin shell", () => {
       "Overview",
       "Supply",
       "Lookup",
+      "Audit log",
     ]) {
       expect(within(nav).getByRole("link", { name: link })).toBeInTheDocument();
     }
@@ -64,6 +65,17 @@ describe("admin shell", () => {
     expect(within(nav).queryByRole("heading", { name: "Support" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Overview" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Lookup" })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "Audit log" })).not.toBeInTheDocument();
+  });
+
+  it("hides the audit log from support, who keep the other sections", async () => {
+    signedInAs("support");
+    renderAt("/");
+    const nav = await screen.findByRole("navigation", { name: "Admin sections" });
+
+    expect(within(nav).getByRole("link", { name: "Lookup" })).toBeInTheDocument();
+    expect(within(nav).queryByRole("heading", { name: "Audit" })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "Audit log" })).not.toBeInTheDocument();
   });
 
   it("applies the same role filter to the phone menu", async () => {
