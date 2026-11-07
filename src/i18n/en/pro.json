@@ -105,6 +105,8 @@
     "jobCancelledTitle": "Job cancelled",
     "jobCancelledBody": "This job has been cancelled. Please don't travel to it.",
     "unassignedTitle": "Job removed",
-    "unassignedBody": "This job is no longer assigned to you. Please don't travel to it."
+    "unassignedBody": "This job is no longer assigned to you. Please don't travel to it.",
+    "kycRejectedTitle": "Your documents were rejected",
+    "kycRejectedBody": "See why and submit them again."
   }
 }

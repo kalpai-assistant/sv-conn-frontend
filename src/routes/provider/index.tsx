@@ -41,26 +41,36 @@ type Readiness = {
   label: string;
   done: boolean;
   detail: string;
+  reason?: string;
   fix?: { to: string; label: string };
 };
 
 // What the KYC row should say. Only "verified" clears the gate; the other three
 // each need a different thing from the provider, so they must not collapse into
 // one "not verified".
-function kycRow(status: KycStatus | undefined, t: Translate): Readiness {
+function kycRow(
+  status: KycStatus | undefined,
+  rejectionReason: string | null | undefined,
+  t: Translate,
+): Readiness {
   const base = { id: "kyc", label: t("checklist.kycLabel") } as const;
   switch (status) {
     case "verified":
       return { ...base, done: true, detail: t("checklist.kycVerified") };
     case "submitted":
       return { ...base, done: false, detail: t("checklist.kycSubmitted") };
-    case "rejected":
+    case "rejected": {
+      // The reviewer's own words, in English: quoted, not translated, and tidied
+      // the same way as the Pro's (pro-kyc.ts) (SVC-444).
+      const reason = rejectionReason?.trim().replace(/\.$/, "");
       return {
         ...base,
         done: false,
         detail: t("checklist.kycRejected"),
+        reason: reason ? t("checklist.kycRejectedReason", { reason }) : undefined,
         fix: { to: "/provider/onboarding", label: t("checklist.kycResubmit") },
       };
+    }
     default:
       return {
         ...base,
@@ -130,7 +140,7 @@ function ProviderHomePage() {
   };
 
   const checklist: Readiness[] = [
-    kycRow(profile?.kyc_status, t),
+    kycRow(profile?.kyc_status, profile?.kyc_rejection_reason, t),
     {
       id: "online",
       label: t("checklist.onlineLabel"),
@@ -296,6 +306,11 @@ function ProviderHomePage() {
                 <div className="min-w-0 text-sm">
                   <p className="font-medium text-foreground">{item.label}</p>
                   <p className="text-muted-foreground">{item.detail}</p>
+                  {/* Typed by a reviewer, up to 500 characters: an unbroken string
+                      must wrap rather than push the page sideways. */}
+                  {item.reason && (
+                    <p className="mt-1 text-foreground [overflow-wrap:anywhere]">{item.reason}</p>
+                  )}
                   {item.fix && (
                     <Link
                       to={item.fix.to}

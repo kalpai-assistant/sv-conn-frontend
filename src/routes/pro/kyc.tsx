@@ -63,7 +63,7 @@ function ProKycPage() {
       <p className="mt-1 text-sm text-muted-foreground">{t("kyc.intro")}</p>
 
       {me?.kyc_status === "rejected" && me.kyc_rejection_reason && (
-        <p className="mt-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+        <p className="mt-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive [overflow-wrap:anywhere]">
           {t("kyc.lastTime", { reason: me.kyc_rejection_reason })}
         </p>
       )}

@@ -34,6 +34,33 @@ const ID = "bf1444b2-0000-0000-0000-000000000000";
 const route = (event: string, role: ViewerRole) => routeForPayload({ event, booking_id: ID }, role);
 
 const LIFECYCLE = ["accepted", "en_route", "in_progress", "completed", "cancelled", "expired"];
+const BOOKING_EVENTS = [
+  "new_request",
+  "pro_declined",
+  "reopened",
+  "no_taker_refunded",
+  "assigned",
+  "job_cancelled",
+  "unassigned",
+];
+
+describe("kyc_rejected (SVC-444), which has no booking", () => {
+  const kyc = (role: ViewerRole) => routeForPayload({ event: "kyc_rejected" }, role);
+
+  it("opens the home that shows the reason", () => {
+    expect(kyc("provider")).toBe("/provider");
+    expect(kyc("consumer")).toBe("/pro");
+  });
+
+  it.each(["admin", null] as const)("goes nowhere for %s", (role) => {
+    expect(kyc(role)).toBeNull();
+  });
+
+  it.each([...LIFECYCLE, ...BOOKING_EVENTS])("%s still needs a booking", (event) => {
+    expect(routeForPayload({ event }, "consumer")).toBeNull();
+    expect(routeForPayload({ event }, "provider")).toBeNull();
+  });
+});
 
 describe("lifecycle events", () => {
   it.each(LIFECYCLE)("%s opens the provider's job screen", (event) => {
@@ -124,16 +151,7 @@ describe("every target is a real route", () => {
     const source = (await import("@/routeTree.gen?raw")).default as unknown as string;
     const fullPaths = new Set([...source.matchAll(/fullPath: '([^']+)'/g)].map((m) => m[1]));
 
-    const events = [
-      ...LIFECYCLE,
-      "new_request",
-      "pro_declined",
-      "reopened",
-      "no_taker_refunded",
-      "assigned",
-      "job_cancelled",
-      "unassigned",
-    ];
+    const events = [...LIFECYCLE, ...BOOKING_EVENTS, "kyc_rejected"];
     const targets = new Set<string>();
     for (const event of events) {
       for (const role of ["consumer", "provider"] as const) {
@@ -148,6 +166,7 @@ describe("every target is a real route", () => {
         "/provider/bookings/$bookingId",
         "/tracking/$bookingId",
         "/pro/jobs/$bookingId",
+        "/pro",
       ]),
     );
     for (const target of targets) {

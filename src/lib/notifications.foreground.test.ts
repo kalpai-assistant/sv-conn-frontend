@@ -35,7 +35,12 @@ import type { AppLanguage } from "@/i18n/languages";
 const ID = "bf1444b2-0000-0000-0000-000000000000";
 
 /** Mount the router as `role`, then deliver `event` in the foreground. */
-async function arrive(event: string, role: string, lang: AppLanguage = "en") {
+async function arrive(
+  event: string,
+  role: string,
+  lang: AppLanguage = "en",
+  data: Record<string, string> = { event, booking_id: ID },
+) {
   auth.user = { role };
   const client = new QueryClient();
   const invalidate = vi.spyOn(client, "invalidateQueries");
@@ -47,9 +52,14 @@ async function arrive(event: string, role: string, lang: AppLanguage = "en") {
     );
   renderHook(() => useNotificationRouter(), { wrapper });
   await waitFor(() => expect(listeners.pushNotificationReceived).toBeDefined());
-  listeners.pushNotificationReceived({ data: { event, booking_id: ID } });
+  listeners.pushNotificationReceived({ data });
   return invalidate;
 }
+
+/** The backend's payload: about the person, so no booking_id. */
+const KYC_REJECTED = { type: "kyc", event: "kyc_rejected" };
+const kycRejected = (role: string, lang: AppLanguage = "en") =>
+  arrive("kyc_rejected", role, lang, KYC_REJECTED);
 
 afterEach(() => {
   for (const key of Object.keys(listeners)) delete listeners[key];
@@ -89,6 +99,64 @@ describe("a team Pro's job going away in the foreground (SVC-348)", () => {
       "New job assigned",
       expect.objectContaining({ action: expect.objectContaining({ label: "Open" }) }),
     );
+  });
+});
+
+describe("documents rejected in the foreground (SVC-444)", () => {
+  it.each([
+    ["provider", "/provider"],
+    // A team Pro's account is consumer-role.
+    ["consumer", "/pro"],
+  ])("a %s's screen refreshes, and Open goes to %s", async (role, target) => {
+    const invalidate = await kycRejected(role);
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["providerProfile"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["pro-me"] });
+    expect(toast).toHaveBeenCalledExactlyOnceWith("Your documents were rejected", {
+      description: "See why and submit them again.",
+      action: expect.objectContaining({ label: "Open" }),
+    });
+    // Offered, not forced: they may be typing a PIN at a door.
+    expect(navigate).not.toHaveBeenCalled();
+
+    toast.mock.calls[0][1].action.onClick();
+    expect(navigate).toHaveBeenCalledWith({ to: target });
+  });
+
+  it.each([
+    ["hi", "आपके दस्तावेज़ नामंज़ूर हो गए", "कारण देखें और इन्हें फिर से जमा करें।", "खोलें"],
+    ["mr", "तुमची कागदपत्रे नामंजूर झाली", "कारण पहा आणि ती पुन्हा सबमिट करा.", "उघडा"],
+  ] as const)("%s: the toast is translated", async (lang, title, description, open) => {
+    await kycRejected("provider", lang);
+    expect(toast).toHaveBeenCalledExactlyOnceWith(title, {
+      description,
+      action: expect.objectContaining({ label: open }),
+    });
+  });
+
+  it("does nothing for an admin", async () => {
+    const invalidate = await kycRejected("admin");
+    expect(invalidate).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["provider", "/provider"],
+    ["consumer", "/pro"],
+  ])("a tap from the tray refreshes a %s's screen and opens %s", async (role, target) => {
+    auth.user = { role };
+    const client = new QueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children);
+    renderHook(() => useNotificationRouter(), { wrapper });
+    await waitFor(() => expect(listeners.pushNotificationActionPerformed).toBeDefined());
+
+    listeners.pushNotificationActionPerformed({ notification: { data: KYC_REJECTED } });
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["pro-me"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["providerProfile"] });
+    expect(navigate).toHaveBeenCalledWith({ to: target });
   });
 });
 

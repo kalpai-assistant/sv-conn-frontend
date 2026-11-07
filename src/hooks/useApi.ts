@@ -1606,6 +1606,10 @@ export interface ProviderProfile {
   profile_photo_url: string | null;
   languages: string[];
   kyc_status: KycStatus;
+  // Why an admin rejected the documents (SVC-444): the reviewer's own words, set
+  // while kyc_status is "rejected". Optional because a backend without SVC-444
+  // omits it.
+  kyc_rejection_reason?: string | null;
   // Whether the provider is accepting jobs right now (SVC-155). The booking
   // broadcast filters on this, so a provider who never turns it on is matched by
   // nothing. Server state, not a UI preference: it survives restarts, and it is
