@@ -175,9 +175,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await pane(page).getByLabel("Reason for rejection").fill("  Blurred photo  ");
       await pane(page).getByRole("button", { name: "Confirm rejection" }).click();
 
-      await expect(page.getByRole("status")).toHaveText(
-        "KYC rejected, provider notified: Hari Kumar",
-      );
+      await expect(page.getByRole("status")).toHaveText("KYC rejected: Hari Kumar");
       expect(backend.posts).toHaveLength(1);
       expect(new URL(backend.posts[0].url).pathname).toBe("/api/v1/admin/pros/p-hari/kyc/reject");
       expect(backend.posts[0].body).toEqual({ reason: "Blurred photo" });

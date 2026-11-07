@@ -205,7 +205,7 @@ export function KycDetailPane({
                 </p>
               )}
               <p id={hintId} className="text-xs text-muted-foreground">
-                Shown to the provider so they know how to fix and re-submit.
+                Only team Pros see this reason, in their app. Service providers aren't shown it.
               </p>
               <div className="flex gap-3">
                 <Button variant="outline" className="flex-1" disabled={busy} onClick={cancelReject}>

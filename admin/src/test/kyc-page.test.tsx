@@ -801,9 +801,7 @@ describe("reject", () => {
 
     await userEvent.click(within(pane).getByRole("button", { name: "Confirm rejection" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "KYC rejected, provider notified: Asha Rao",
-    );
+    expect(await screen.findByRole("status")).toHaveTextContent("KYC rejected: Asha Rao");
     const call = api.calls.find((c) => c.key === ASHA_REJECT)!;
     expect(JSON.parse(String(call.init.body))).toEqual({ reason: "Blurred photo" });
     await waitFor(() =>
@@ -823,6 +821,22 @@ describe("reject", () => {
     await screen.findByRole("status");
     expect(api.count(HARI_REJECT)).toBe(1);
     expect(api.count(ASHA_REJECT)).toBe(0);
+  });
+
+  // Rejecting sends no push or SMS, and only the Pro screens read the reason.
+  it("promises only what happens: nobody is notified, and only Pros see the reason", async () => {
+    signedIn({ [ASHA_REJECT]: () => json({ kyc_status: "rejected" }) });
+    renderApp("/operator/kyc");
+    const { pane, reason } = await openReject();
+
+    expect(reason).toHaveAccessibleDescription(
+      "Only team Pros see this reason, in their app. Service providers aren't shown it.",
+    );
+
+    await userEvent.type(reason, "Blurred photo");
+    await userEvent.click(within(pane).getByRole("button", { name: "Confirm rejection" }));
+
+    expect(await screen.findByRole("status")).not.toHaveTextContent(/notified/i);
   });
 
   it("limits the reason to 500 characters", async () => {

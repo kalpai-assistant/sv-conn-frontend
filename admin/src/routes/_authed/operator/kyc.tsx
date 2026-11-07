@@ -194,8 +194,7 @@ function KycQueuePage() {
       );
       setNotice({
         kind: "success",
-        text:
-          action === "approve" ? `KYC verified: ${who}` : `KYC rejected, provider notified: ${who}`,
+        text: action === "approve" ? `KYC verified: ${who}` : `KYC rejected: ${who}`,
       });
       // Only if it's still the row on screen: the reviewer may have moved on.
       setSelected((current) => (current && kycRowKey(current) === key ? null : current));
