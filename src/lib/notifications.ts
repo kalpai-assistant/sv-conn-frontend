@@ -21,10 +21,11 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import type { PluginListenerHandle } from "@capacitor/core";
+import { PRO_ME_QUERY_KEY } from "@/hooks/usePro";
 import { useAuth } from "@/lib/auth-context";
 import i18n from "@/i18n";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -44,7 +45,8 @@ export type NotificationEvent =
   | "assigned" // to a team Pro: the SP gave them this job
   // SVC-348: to a team Pro whose job went away, so they don't travel to it.
   | "job_cancelled" // the booking was cancelled (by the customer or an admin)
-  | "unassigned"; // the SP re-picked, released or gave the job back
+  | "unassigned" // the SP re-picked, released or gave the job back
+  | "kyc_rejected"; // to an SP or a team Pro: an admin rejected their documents (SVC-444)
 
 export interface NotificationPayload {
   event: NotificationEvent | string;
@@ -80,6 +82,14 @@ const proJob = (bookingId: string) => `/pro/jobs/${bookingId}`;
 export function routeForPayload(data: NotificationPayload, role: ViewerRole): string | null {
   const event = data.event;
   const bookingId = data.booking_id;
+
+  // About the person, not a booking, so it has no booking_id. The push says to
+  // open the app to see why, and each of these homes shows the reason. A Pro's
+  // account is consumer-role, as for "assigned" below.
+  if (event === "kyc_rejected") {
+    if (role === "provider") return "/provider";
+    return role === "consumer" ? "/pro" : null;
+  }
 
   if (!bookingId) return null;
 
@@ -153,6 +163,16 @@ const PRO_JOB_GONE_TOAST: Record<string, { title: string; description: string }>
   },
   unassigned: { title: "pushToast.unassignedTitle", description: "pushToast.unassignedBody" },
 };
+
+/**
+ * A rejection changes what the SP's and the Pro's own profile say (SVC-444). The
+ * Pro's is otherwise fresh for 60 s, so returning to the app wouldn't refetch it.
+ * Invalidating refetches only what's on screen, so one call covers both people.
+ */
+function refreshAfterKycRejected(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: ["providerProfile"] });
+  void queryClient.invalidateQueries({ queryKey: PRO_ME_QUERY_KEY });
+}
 
 /**
  * Whether a foreground-arrival notification should auto-navigate.
@@ -232,9 +252,10 @@ export function useNotificationRouter(): void {
   useEffect(() => {
     if (!pushLink || handledPushLink.current === pushLink || role === null) return;
     handledPushLink.current = pushLink;
+    if (pushLink.payload.event === "kyc_rejected") refreshAfterKycRejected(queryClient);
     const target = routeForPayload(pushLink.payload, role);
     if (target) navigate({ to: target, replace: pushLink.replace });
-  }, [pushLink, role, navigate]);
+  }, [pushLink, role, navigate, queryClient]);
 
   useEffect(() => {
     if (Capacitor.isNativePlatform() || !("serviceWorker" in navigator)) return;
@@ -266,7 +287,9 @@ export function useNotificationRouter(): void {
       const tapped = await PushNotifications.addListener(
         "pushNotificationActionPerformed",
         (action) => {
-          const target = routeForPayload(action.notification.data as NotificationPayload, role);
+          const data = action.notification.data as NotificationPayload;
+          if (data.event === "kyc_rejected") refreshAfterKycRejected(queryClient);
+          const target = routeForPayload(data, role);
           if (target) navigate({ to: target });
         },
       );
@@ -303,6 +326,19 @@ export function useNotificationRouter(): void {
             void queryClient.invalidateQueries({ queryKey: ["pro-jobs"] });
             void queryClient.invalidateQueries({ queryKey: ["booking", data.booking_id] });
             toast(t(gone.title), { description: t(gone.description) });
+            return;
+          }
+          // Documents rejected with the app open (SVC-444). Not the push's own
+          // body: "open the app" makes no sense here. Offered, not navigated to,
+          // for the same reason as "assigned".
+          if (data.event === "kyc_rejected") {
+            const target = routeForPayload(data, role);
+            if (!target) return;
+            refreshAfterKycRejected(queryClient);
+            toast(t("pushToast.kycRejectedTitle"), {
+              description: t("pushToast.kycRejectedBody"),
+              action: { label: t("pushToast.open"), onClick: () => navigate({ to: target }) },
+            });
             return;
           }
           if (!shouldAutoRouteForeground(data, role)) return;

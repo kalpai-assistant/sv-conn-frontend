@@ -156,7 +156,7 @@ function KycCard({ me }: { me: ProMe }) {
       )}
       <div className="min-w-0 text-sm">
         <p className="font-medium text-foreground">{copy.title}</p>
-        <p className="text-muted-foreground">{copy.detail}</p>
+        <p className="text-muted-foreground [overflow-wrap:anywhere]">{copy.detail}</p>
         {/* "submitted" is waiting on us; there is nothing for the Pro to do. */}
         {!waiting && (
           <Link

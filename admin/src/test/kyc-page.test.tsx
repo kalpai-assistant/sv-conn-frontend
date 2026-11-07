@@ -823,14 +823,16 @@ describe("reject", () => {
     expect(api.count(ASHA_REJECT)).toBe(0);
   });
 
-  // Rejecting sends no push or SMS, and only the Pro screens read the reason.
-  it("promises only what happens: nobody is notified, and only Pros see the reason", async () => {
+  // The hint says who reads the reason (SVC-444). The banner still doesn't claim
+  // anyone was notified: the push is best effort, and it can't reach a phone with
+  // no FCM token.
+  it("promises only what happens: who sees the reason, and no claim of notifying", async () => {
     signedIn({ [ASHA_REJECT]: () => json({ kyc_status: "rejected" }) });
     renderApp("/operator/kyc");
     const { pane, reason } = await openReject();
 
     expect(reason).toHaveAccessibleDescription(
-      "Only team Pros see this reason, in their app. Service providers aren't shown it.",
+      "The service provider or Pro sees this reason in their app.",
     );
 
     await userEvent.type(reason, "Blurred photo");

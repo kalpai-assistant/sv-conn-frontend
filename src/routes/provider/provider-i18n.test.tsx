@@ -240,6 +240,78 @@ describe.each(["hi", "mr"] as const)("SP screens in %s", (lang) => {
   });
 });
 
+describe("a rejected SP's KYC row (SVC-444)", () => {
+  const rejected = (kyc_rejection_reason: string | null | undefined) =>
+    profile.mockReturnValue({
+      data: {
+        kyc_status: "rejected",
+        kyc_rejection_reason,
+        is_online: false,
+        profile_photo_url: null,
+      },
+      isLoading: false,
+    });
+
+  it("shows the reason beside the rejection line and the resubmit link", () => {
+    rejected("Aadhaar photo is blurred");
+    inLang("en", <Home />);
+    expect(
+      screen.getByText("Your documents were rejected. Please submit them again."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Reason: Aadhaar photo is blurred")).toBeInTheDocument();
+    expect(screen.getByText("Resubmit documents")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["hi", "कारण: Aadhaar photo is blurred"],
+    ["mr", "कारण: Aadhaar photo is blurred"],
+  ] as const)("%s: translates the label, quotes the reviewer's words", (lang, line) => {
+    rejected("Aadhaar photo is blurred");
+    inLang(lang, <Home />);
+    expect(screen.getByText(line)).toBeInTheDocument();
+  });
+
+  it("trims the reason and drops one trailing period, as the Pro's does", () => {
+    rejected("  Aadhaar photo is blurred.  ");
+    inLang("en", <Home />);
+    expect(screen.getByText("Reason: Aadhaar photo is blurred")).toBeInTheDocument();
+  });
+
+  it.each([[null], [undefined], ["   "], ["."]])("falls back to today's text for %j", (reason) => {
+    rejected(reason);
+    inLang("en", <Home />);
+    expect(
+      screen.getByText("Your documents were rejected. Please submit them again."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^Reason:/)).not.toBeInTheDocument();
+    expect(screen.getByText("Resubmit documents")).toBeInTheDocument();
+  });
+
+  it("keeps a long unbroken reason whole, and lets it wrap", () => {
+    const reason = "x".repeat(500);
+    rejected(reason);
+    inLang("en", <Home />);
+    const line = screen.getByText(`Reason: ${reason}`);
+    expect(line).toHaveClass("[overflow-wrap:anywhere]");
+    // overflow-wrap can't shrink a flex child unless its box may go below content width.
+    expect(line.parentElement).toHaveClass("min-w-0");
+  });
+
+  it("shows no reason once the status has moved on", () => {
+    profile.mockReturnValue({
+      data: {
+        kyc_status: "submitted",
+        kyc_rejection_reason: "Left over",
+        is_online: false,
+        profile_photo_url: null,
+      },
+      isLoading: false,
+    });
+    inLang("en", <Home />);
+    expect(screen.queryByText(/Left over/)).not.toBeInTheDocument();
+  });
+});
+
 describe("SP screens in English", () => {
   it("are what they were before translation", () => {
     profile.mockReturnValue({
