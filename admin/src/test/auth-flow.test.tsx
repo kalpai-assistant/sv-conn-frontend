@@ -358,7 +358,9 @@ describe("the _authed guard", () => {
     const api = mockApi({ [ME]: () => json(adminUser()) });
     renderApp("/operator/kyc");
 
-    expect(await screen.findByRole("heading", { level: 1, name: "KYC" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "KYC review queue" }),
+    ).toBeInTheDocument();
     expect(api.headers(ME).Authorization).toBe("Bearer t1");
   });
 

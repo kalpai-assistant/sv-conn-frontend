@@ -1,14 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RouterProvider, createMemoryHistory } from "@tanstack/react-router";
 import { getSessionToken, setSessionToken } from "@/lib/api";
 import { resetAuthState, type AdminRole } from "@/lib/auth";
+import { KYC_PENDING_COUNT_PATH, kycQueuePath } from "@/lib/kyc";
 import { getRouter } from "@/router";
 import { adminUser, json, mockApi } from "@/test/harness";
 
 const ME = "GET /admin/auth/me";
 const LOGOUT = "POST /admin/auth/logout";
+const KYC_COUNT = `GET ${KYC_PENDING_COUNT_PATH}`;
+const KYC_QUEUE = `GET ${kycQueuePath("pending", 1)}`;
 
 function renderAt(path: string) {
   const router = getRouter({ history: createMemoryHistory({ initialEntries: [path] }) });
@@ -18,7 +21,11 @@ function renderAt(path: string) {
 
 function signedInAs(role: AdminRole = "admin") {
   setSessionToken("t1");
-  return mockApi({ [ME]: () => json(adminUser(role)) });
+  return mockApi({
+    [ME]: () => json(adminUser(role)),
+    [KYC_COUNT]: () => json({ count: 0 }),
+    [KYC_QUEUE]: () => json([]),
+  });
 }
 
 beforeEach(() => {
@@ -110,7 +117,9 @@ describe("admin shell", () => {
 
     await userEvent.click(within(nav).getByRole("link", { name: "KYC" }));
 
-    expect(await screen.findByRole("heading", { level: 1, name: "KYC" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "KYC review queue" }),
+    ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/operator/kyc");
   });
 
@@ -120,9 +129,71 @@ describe("admin shell", () => {
     const nav = await screen.findByRole("navigation", { name: "Admin sections" });
 
     await userEvent.click(within(nav).getByRole("link", { name: "KYC" }));
-    await screen.findByRole("heading", { level: 1, name: "KYC" });
+    await screen.findByRole("heading", { level: 1, name: "KYC review queue" });
 
     expect(api.count(ME)).toBe(1);
+  });
+
+  describe("the KYC badge", () => {
+    it.each<AdminRole>(["admin", "ops", "support"])(
+      "shows %s the pending count, with a label that says what it is",
+      async (role) => {
+        const api = signedInAs(role);
+        api.routes[KYC_COUNT] = () => json({ count: 6 });
+        renderAt("/");
+        const nav = await screen.findByRole("navigation", { name: "Admin sections" });
+
+        const link = await within(nav).findByRole("link", { name: "KYC, 6 pending" });
+        expect(link).toHaveTextContent("6");
+        expect(api.count(KYC_COUNT)).toBe(1);
+      },
+    );
+
+    it("shows the same count in the phone menu, from the same call", async () => {
+      const api = signedInAs();
+      api.routes[KYC_COUNT] = () => json({ count: 6 });
+      renderAt("/");
+      await screen.findByRole("link", { name: "KYC, 6 pending" });
+
+      await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
+      const dialog = await screen.findByRole("dialog");
+
+      expect(within(dialog).getByRole("link", { name: "KYC, 6 pending" })).toBeInTheDocument();
+      expect(api.count(KYC_COUNT)).toBe(1);
+    });
+
+    it("hides at 0", async () => {
+      const api = signedInAs();
+      renderAt("/");
+      const nav = await screen.findByRole("navigation", { name: "Admin sections" });
+
+      await waitFor(() => expect(api.count(KYC_COUNT)).toBe(1));
+      expect(within(nav).getByRole("link", { name: "KYC" })).toHaveTextContent(/^KYC$/);
+    });
+
+    it("hides on an error, without raising an alert", async () => {
+      const api = signedInAs();
+      api.routes[KYC_COUNT] = () => json({ message: "Boom" }, 500);
+      renderAt("/");
+      const nav = await screen.findByRole("navigation", { name: "Admin sections" });
+
+      await waitFor(() => expect(api.count(KYC_COUNT)).toBe(1));
+      expect(within(nav).getByRole("link", { name: "KYC" })).toHaveTextContent(/^KYC$/);
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("stays on the screen, and isn't refetched, across a navigation", async () => {
+      const api = signedInAs();
+      api.routes[KYC_COUNT] = () => json({ count: 6 });
+      renderAt("/");
+      const nav = await screen.findByRole("navigation", { name: "Admin sections" });
+
+      await userEvent.click(await within(nav).findByRole("link", { name: "KYC, 6 pending" }));
+      await screen.findByRole("heading", { level: 1, name: "KYC review queue" });
+
+      expect(within(nav).getByRole("link", { name: "KYC, 6 pending" })).toBeInTheDocument();
+      expect(api.count(KYC_COUNT)).toBe(1);
+    });
   });
 
   it("renders /login outside the shell", async () => {
