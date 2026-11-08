@@ -47,6 +47,7 @@ describe("admin shell", () => {
     }
     for (const link of [
       "KYC",
+      "Bookings",
       "Pricing",
       "Coupons",
       "Catalog",

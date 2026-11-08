@@ -5,6 +5,7 @@
 import {
   BadgeCheck,
   BarChart3,
+  ClipboardList,
   FolderTree,
   IndianRupee,
   RotateCcw,
@@ -37,6 +38,7 @@ export const NAV_SECTIONS: NavSection[] = [
     roles: ["admin", "ops", "support"],
     items: [
       { label: "KYC", to: "/operator/kyc", icon: BadgeCheck },
+      { label: "Bookings", to: "/operator/bookings", icon: ClipboardList },
       { label: "Pricing", to: "/operator/pricing", icon: IndianRupee },
       { label: "Coupons", to: "/operator/coupons", icon: Ticket },
       { label: "Catalog", to: "/operator/catalog", icon: FolderTree },

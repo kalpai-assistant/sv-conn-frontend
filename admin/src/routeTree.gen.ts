@@ -17,6 +17,7 @@ import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedAuditRouteImport } from './routes/_authed/audit'
 import { Route as AuthedAnalyticsOverviewRouteImport } from './routes/_authed/analytics/overview'
 import { Route as AuthedAnalyticsSupplyRouteImport } from './routes/_authed/analytics/supply'
+import { Route as AuthedOperatorBookingsRouteImport } from './routes/_authed/operator/bookings'
 import { Route as AuthedOperatorCatalogRouteImport } from './routes/_authed/operator/catalog'
 import { Route as AuthedOperatorCouponsRouteImport } from './routes/_authed/operator/coupons'
 import { Route as AuthedOperatorKycRouteImport } from './routes/_authed/operator/kyc'
@@ -64,6 +65,11 @@ const AuthedAnalyticsSupplyRoute = AuthedAnalyticsSupplyRouteImport.update({
   path: '/analytics/supply',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedOperatorBookingsRoute = AuthedOperatorBookingsRouteImport.update({
+  id: '/operator/bookings',
+  path: '/operator/bookings',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedOperatorCatalogRoute = AuthedOperatorCatalogRouteImport.update({
   id: '/operator/catalog',
   path: '/operator/catalog',
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AuthedAuditRoute
   '/analytics/overview': typeof AuthedAnalyticsOverviewRoute
   '/analytics/supply': typeof AuthedAnalyticsSupplyRoute
+  '/operator/bookings': typeof AuthedOperatorBookingsRoute
   '/operator/catalog': typeof AuthedOperatorCatalogRoute
   '/operator/coupons': typeof AuthedOperatorCouponsRoute
   '/operator/kyc': typeof AuthedOperatorKycRoute
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthedIndexRoute
   '/analytics/overview': typeof AuthedAnalyticsOverviewRoute
   '/analytics/supply': typeof AuthedAnalyticsSupplyRoute
+  '/operator/bookings': typeof AuthedOperatorBookingsRoute
   '/operator/catalog': typeof AuthedOperatorCatalogRoute
   '/operator/coupons': typeof AuthedOperatorCouponsRoute
   '/operator/kyc': typeof AuthedOperatorKycRoute
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/_authed/': typeof AuthedIndexRoute
   '/_authed/analytics/overview': typeof AuthedAnalyticsOverviewRoute
   '/_authed/analytics/supply': typeof AuthedAnalyticsSupplyRoute
+  '/_authed/operator/bookings': typeof AuthedOperatorBookingsRoute
   '/_authed/operator/catalog': typeof AuthedOperatorCatalogRoute
   '/_authed/operator/coupons': typeof AuthedOperatorCouponsRoute
   '/_authed/operator/kyc': typeof AuthedOperatorKycRoute
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/analytics/overview'
     | '/analytics/supply'
+    | '/operator/bookings'
     | '/operator/catalog'
     | '/operator/coupons'
     | '/operator/kyc'
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics/overview'
     | '/analytics/supply'
+    | '/operator/bookings'
     | '/operator/catalog'
     | '/operator/coupons'
     | '/operator/kyc'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/_authed/'
     | '/_authed/analytics/overview'
     | '/_authed/analytics/supply'
+    | '/_authed/operator/bookings'
     | '/_authed/operator/catalog'
     | '/_authed/operator/coupons'
     | '/_authed/operator/kyc'
@@ -267,6 +279,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAnalyticsSupplyRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/operator/bookings': {
+      id: '/_authed/operator/bookings'
+      path: '/operator/bookings'
+      fullPath: '/operator/bookings'
+      preLoaderRoute: typeof AuthedOperatorBookingsRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/operator/catalog': {
       id: '/_authed/operator/catalog'
       path: '/operator/catalog'
@@ -324,6 +343,7 @@ interface AuthedRouteChildren {
   AuthedIndexRoute: typeof AuthedIndexRoute
   AuthedAnalyticsOverviewRoute: typeof AuthedAnalyticsOverviewRoute
   AuthedAnalyticsSupplyRoute: typeof AuthedAnalyticsSupplyRoute
+  AuthedOperatorBookingsRoute: typeof AuthedOperatorBookingsRoute
   AuthedOperatorCatalogRoute: typeof AuthedOperatorCatalogRoute
   AuthedOperatorCouponsRoute: typeof AuthedOperatorCouponsRoute
   AuthedOperatorKycRoute: typeof AuthedOperatorKycRoute
@@ -338,6 +358,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedIndexRoute: AuthedIndexRoute,
   AuthedAnalyticsOverviewRoute: AuthedAnalyticsOverviewRoute,
   AuthedAnalyticsSupplyRoute: AuthedAnalyticsSupplyRoute,
+  AuthedOperatorBookingsRoute: AuthedOperatorBookingsRoute,
   AuthedOperatorCatalogRoute: AuthedOperatorCatalogRoute,
   AuthedOperatorCouponsRoute: AuthedOperatorCouponsRoute,
   AuthedOperatorKycRoute: AuthedOperatorKycRoute,
