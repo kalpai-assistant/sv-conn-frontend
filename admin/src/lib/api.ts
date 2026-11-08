@@ -78,7 +78,12 @@ function parseRetryAfter(res: Response): number | undefined {
   return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined;
 }
 
-export async function apiFetch<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
+/**
+ * The transport under apiFetch: the session token, its roll and the 401 sign-out,
+ * and an ApiError for any non-2xx. It hands back the raw Response, for the one
+ * caller whose body isn't JSON (the payouts CSV, SVC-426).
+ */
+export async function apiFetchResponse(path: string, options: RequestInit = {}): Promise<Response> {
   // FormData sets its own multipart Content-Type; forcing JSON would corrupt it.
   const isFormData = options.body instanceof FormData;
   const headers: Record<string, string> = {
@@ -129,6 +134,12 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
     }
     throw new ApiError(res.status, errorMsg, errorCode, parseRetryAfter(res));
   }
+
+  return res;
+}
+
+export async function apiFetch<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
+  const res = await apiFetchResponse(path, options);
 
   // 204 No Content — return undefined without trying to parse JSON.
   if (res.status === 204) {

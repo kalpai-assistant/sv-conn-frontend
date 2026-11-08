@@ -149,4 +149,22 @@ describe("useApiGet", () => {
     await api.answer("/b", 0, json({ v: 2 }));
     expect(result.current).toMatchObject({ status: "ready", data: { v: 2 } });
   });
+
+  it("a null path fetches nothing and stays loading, then loads once it has a path", async () => {
+    const api = scriptedApi(["/a"]);
+    const { result, rerender } = renderHook(
+      ({ path }: { path: string | null }) => useApiGet<{ v: number }>(path),
+      { initialProps: { path: null as string | null } },
+    );
+    expect(result.current.status).toBe("loading");
+    act(() => result.current.refresh());
+    expect(fetch).not.toHaveBeenCalled();
+
+    rerender({ path: "/a" });
+    await api.answer("/a", 0, json({ v: 1 }));
+    expect(result.current).toMatchObject({ status: "ready", data: { v: 1 } });
+
+    rerender({ path: null });
+    expect(result.current.status).toBe("loading");
+  });
 });

@@ -14,6 +14,7 @@ import {
   Ticket,
   Truck,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import type { FileRoutesByTo } from "@/routeTree.gen";
@@ -39,6 +40,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "KYC", to: "/operator/kyc", icon: BadgeCheck },
       { label: "Bookings", to: "/operator/bookings", icon: ClipboardList },
+      { label: "Payouts", to: "/operator/payouts", icon: Wallet },
       { label: "Pricing", to: "/operator/pricing", icon: IndianRupee },
       { label: "Coupons", to: "/operator/coupons", icon: Ticket },
       { label: "Catalog", to: "/operator/catalog", icon: FolderTree },

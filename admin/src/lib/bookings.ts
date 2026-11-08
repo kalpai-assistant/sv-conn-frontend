@@ -6,6 +6,10 @@
  * which SVC-434 removes.
  */
 import type { AdminRole } from "@/lib/auth";
+import { formatRupees } from "@/lib/money";
+
+// Lives in lib/money.ts now (SVC-426); re-exported so the bookings screen's imports stand.
+export { formatRupees };
 
 export const BOOKINGS_PAGE_SIZE = 25;
 /** The most a force-cancel reason may be. The backend refuses anything longer. */
@@ -245,26 +249,6 @@ export function totalCharged(
   booking: Pick<Booking, "service_amount" | "discount_amount" | "tip_amount">,
 ): number {
   return Math.max(0, booking.service_amount - booking.discount_amount + booking.tip_amount);
-}
-
-const RUPEES = {
-  whole: new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }),
-  paise: new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }),
-};
-
-/** Indian-grouped rupees. Paise show only when there are some: ₹1,499 but ₹1,499.50. */
-export function formatRupees(amount: number): string {
-  const rounded = Math.round(amount * 100) / 100;
-  return (Number.isInteger(rounded) ? RUPEES.whole : RUPEES.paise).format(rounded);
 }
 
 const IST_DATE_TIME = new Intl.DateTimeFormat("en-IN", {
