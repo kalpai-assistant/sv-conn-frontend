@@ -152,11 +152,15 @@ function BookingFacts({ booking }: { booking: Booking }) {
             {booking.payment_method ? humanize(booking.payment_method) : "Not chosen"}
           </Field>
           <Field label="Payment status">{humanize(booking.payment_status)}</Field>
+          {/* Two different settlements. settlement_status is the SP's payout;
+              settled_at is when Razorpay settled the customer's payment to us. */}
           {booking.settlement_status != null && (
-            <Field label="Settlement">{humanize(booking.settlement_status)}</Field>
+            <Field label="SP payout status">{humanize(booking.settlement_status)}</Field>
           )}
           {booking.settled_at != null && (
-            <Field label="Settled (IST)">{formatIst(booking.settled_at)}</Field>
+            <Field label="Customer payment settled to us (IST)">
+              {formatIst(booking.settled_at)}
+            </Field>
           )}
         </dl>
         <dl className="space-y-1 border-t pt-3">

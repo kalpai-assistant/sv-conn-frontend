@@ -269,8 +269,31 @@ describe("the detail", () => {
     expect(summary).toHaveTextContent("Cancellation reasonCustomer asked");
     expect(summary).toHaveTextContent("DisputedYes");
     expect(within(pane).getByRole("region", { name: "Payment" })).toHaveTextContent(
-      "SettlementPending",
+      "SP payout statusPending",
     );
+    expect(
+      within(pane).queryByText("Customer payment settled to us (IST)"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("labels settled_at as the customer's payment reaching us, not the SP's payout", async () => {
+    signedIn({
+      [DETAIL]: () =>
+        json(
+          bookingDetail({
+            status: "completed",
+            settlement_status: "completed",
+            settled_at: "2026-11-06T04:30:00Z",
+          }),
+        ),
+    });
+    renderApp(`/operator/bookings?booking=${BOOKING_ID}`);
+    const pane = await detailPane();
+
+    const payment = await within(pane).findByRole("region", { name: "Payment" });
+    expect(payment).toHaveTextContent("SP payout statusCompleted");
+    expect(payment).toHaveTextContent("Customer payment settled to us (IST)6 Nov 2026");
+    expect(within(pane).queryByText("Settlement")).not.toBeInTheDocument();
     expect(within(pane).queryByText("Settled (IST)")).not.toBeInTheDocument();
   });
 
@@ -280,7 +303,7 @@ describe("the detail", () => {
     const pane = await detailPane();
     await within(pane).findByRole("region", { name: "Summary" });
     expect(within(pane).queryByText("Cancellation reason")).not.toBeInTheDocument();
-    expect(within(pane).queryByText("Settlement")).not.toBeInTheDocument();
+    expect(within(pane).queryByText("SP payout status")).not.toBeInTheDocument();
   });
 
   it("renders values from outside as text, never markup", async () => {
