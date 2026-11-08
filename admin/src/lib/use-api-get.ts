@@ -15,8 +15,10 @@ const LOADING = { status: "loading" } as const;
  * `retry` goes back to loading. `refresh` keeps what's on screen until the answer
  * arrives, for a reload the reader shouldn't lose their place over. If it fails,
  * the state becomes an error rather than leaving old data looking current.
+ *
+ * A null path asks for nothing and stays loading: for a call only some views need.
  */
-export function useApiGet<T>(path: string): ApiGetState<T> & {
+export function useApiGet<T>(path: string | null): ApiGetState<T> & {
   retry: () => void;
   refresh: () => void;
 } {
@@ -24,6 +26,10 @@ export function useApiGet<T>(path: string): ApiGetState<T> & {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    if (path === null) {
+      setSettled(null);
+      return;
+    }
     const controller = new AbortController();
     setSettled((current) => (current?.path === path ? current : null));
     apiFetch<T>(path, { signal: controller.signal }).then(
@@ -47,6 +53,6 @@ export function useApiGet<T>(path: string): ApiGetState<T> & {
   }, []);
   const refresh = useCallback(() => setAttempt((n) => n + 1), []);
 
-  const state: ApiGetState<T> = settled?.path === path ? settled.state : LOADING;
+  const state: ApiGetState<T> = path !== null && settled?.path === path ? settled.state : LOADING;
   return { ...state, retry, refresh };
 }

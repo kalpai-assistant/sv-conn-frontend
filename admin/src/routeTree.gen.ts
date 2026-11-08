@@ -21,6 +21,7 @@ import { Route as AuthedOperatorBookingsRouteImport } from './routes/_authed/ope
 import { Route as AuthedOperatorCatalogRouteImport } from './routes/_authed/operator/catalog'
 import { Route as AuthedOperatorCouponsRouteImport } from './routes/_authed/operator/coupons'
 import { Route as AuthedOperatorKycRouteImport } from './routes/_authed/operator/kyc'
+import { Route as AuthedOperatorPayoutsRouteImport } from './routes/_authed/operator/payouts'
 import { Route as AuthedOperatorPricingRouteImport } from './routes/_authed/operator/pricing'
 import { Route as AuthedOperatorRefundsRouteImport } from './routes/_authed/operator/refunds'
 import { Route as AuthedOperatorTeamsRouteImport } from './routes/_authed/operator/teams'
@@ -85,6 +86,11 @@ const AuthedOperatorKycRoute = AuthedOperatorKycRouteImport.update({
   path: '/operator/kyc',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedOperatorPayoutsRoute = AuthedOperatorPayoutsRouteImport.update({
+  id: '/operator/payouts',
+  path: '/operator/payouts',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedOperatorPricingRoute = AuthedOperatorPricingRouteImport.update({
   id: '/operator/pricing',
   path: '/operator/pricing',
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/operator/catalog': typeof AuthedOperatorCatalogRoute
   '/operator/coupons': typeof AuthedOperatorCouponsRoute
   '/operator/kyc': typeof AuthedOperatorKycRoute
+  '/operator/payouts': typeof AuthedOperatorPayoutsRoute
   '/operator/pricing': typeof AuthedOperatorPricingRoute
   '/operator/refunds': typeof AuthedOperatorRefundsRoute
   '/operator/teams': typeof AuthedOperatorTeamsRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByTo {
   '/operator/catalog': typeof AuthedOperatorCatalogRoute
   '/operator/coupons': typeof AuthedOperatorCouponsRoute
   '/operator/kyc': typeof AuthedOperatorKycRoute
+  '/operator/payouts': typeof AuthedOperatorPayoutsRoute
   '/operator/pricing': typeof AuthedOperatorPricingRoute
   '/operator/refunds': typeof AuthedOperatorRefundsRoute
   '/operator/teams': typeof AuthedOperatorTeamsRoute
@@ -154,6 +162,7 @@ export interface FileRoutesById {
   '/_authed/operator/catalog': typeof AuthedOperatorCatalogRoute
   '/_authed/operator/coupons': typeof AuthedOperatorCouponsRoute
   '/_authed/operator/kyc': typeof AuthedOperatorKycRoute
+  '/_authed/operator/payouts': typeof AuthedOperatorPayoutsRoute
   '/_authed/operator/pricing': typeof AuthedOperatorPricingRoute
   '/_authed/operator/refunds': typeof AuthedOperatorRefundsRoute
   '/_authed/operator/teams': typeof AuthedOperatorTeamsRoute
@@ -173,6 +182,7 @@ export interface FileRouteTypes {
     | '/operator/catalog'
     | '/operator/coupons'
     | '/operator/kyc'
+    | '/operator/payouts'
     | '/operator/pricing'
     | '/operator/refunds'
     | '/operator/teams'
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/operator/catalog'
     | '/operator/coupons'
     | '/operator/kyc'
+    | '/operator/payouts'
     | '/operator/pricing'
     | '/operator/refunds'
     | '/operator/teams'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/_authed/operator/catalog'
     | '/_authed/operator/coupons'
     | '/_authed/operator/kyc'
+    | '/_authed/operator/payouts'
     | '/_authed/operator/pricing'
     | '/_authed/operator/refunds'
     | '/_authed/operator/teams'
@@ -307,6 +319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOperatorKycRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/operator/payouts': {
+      id: '/_authed/operator/payouts'
+      path: '/operator/payouts'
+      fullPath: '/operator/payouts'
+      preLoaderRoute: typeof AuthedOperatorPayoutsRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/operator/pricing': {
       id: '/_authed/operator/pricing'
       path: '/operator/pricing'
@@ -347,6 +366,7 @@ interface AuthedRouteChildren {
   AuthedOperatorCatalogRoute: typeof AuthedOperatorCatalogRoute
   AuthedOperatorCouponsRoute: typeof AuthedOperatorCouponsRoute
   AuthedOperatorKycRoute: typeof AuthedOperatorKycRoute
+  AuthedOperatorPayoutsRoute: typeof AuthedOperatorPayoutsRoute
   AuthedOperatorPricingRoute: typeof AuthedOperatorPricingRoute
   AuthedOperatorRefundsRoute: typeof AuthedOperatorRefundsRoute
   AuthedOperatorTeamsRoute: typeof AuthedOperatorTeamsRoute
@@ -362,6 +382,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedOperatorCatalogRoute: AuthedOperatorCatalogRoute,
   AuthedOperatorCouponsRoute: AuthedOperatorCouponsRoute,
   AuthedOperatorKycRoute: AuthedOperatorKycRoute,
+  AuthedOperatorPayoutsRoute: AuthedOperatorPayoutsRoute,
   AuthedOperatorPricingRoute: AuthedOperatorPricingRoute,
   AuthedOperatorRefundsRoute: AuthedOperatorRefundsRoute,
   AuthedOperatorTeamsRoute: AuthedOperatorTeamsRoute,
