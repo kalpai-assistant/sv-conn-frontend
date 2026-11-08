@@ -40,6 +40,10 @@ describe("canOpen", () => {
     expect(canOpen("support", "/audit")).toBe(false);
   });
 
+  it.each<AdminRole>(["admin", "ops", "support"])("lets %s open the bookings screen", (role) => {
+    expect(canOpen(role, "/operator/bookings")).toBe(true);
+  });
+
   it("denies a path no sidebar lists, for every role", () => {
     expect(canOpen("admin", "/operator/not-in-the-sidebar")).toBe(false);
     expect(canOpen("admin", "/operator/kyc-lookalike")).toBe(false);
