@@ -48,6 +48,22 @@ describe("canOpen", () => {
     expect(canOpen(role, "/operator/payouts")).toBe(true);
   });
 
+  it.each<AdminRole>(["admin", "ops", "support"])(
+    "lets %s open both directories and their detail pages (SVC-427)",
+    (role) => {
+      expect(canOpen(role, "/operator/sps")).toBe(true);
+      expect(canOpen(role, "/operator/sps/5b1d2c3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e")).toBe(true);
+      expect(canOpen(role, "/operator/pros")).toBe(true);
+      expect(canOpen(role, "/operator/pros/7d3f4e5a-6b7c-4d8e-9f0a-1b2c3d4e5f6a")).toBe(true);
+    },
+  );
+
+  it("closes the old Teams placeholder, and lookalikes of the new paths", () => {
+    expect(canOpen("admin", "/operator/teams")).toBe(false);
+    expect(canOpen("admin", "/operator/spsx")).toBe(false);
+    expect(canOpen("admin", "/operator/prosper")).toBe(false);
+  });
+
   it("denies a path no sidebar lists, for every role", () => {
     expect(canOpen("admin", "/operator/not-in-the-sidebar")).toBe(false);
     expect(canOpen("admin", "/operator/kyc-lookalike")).toBe(false);

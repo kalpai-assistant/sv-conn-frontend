@@ -74,8 +74,15 @@ function BookingsPage() {
   }
 
   // Replace, not push: opening and closing bookings shouldn't fill Back with them.
+  // No scroll reset: the router's default puts the window back at the top after
+  // the effect above scrolls a stacked detail into view, so on a phone the tap
+  // looked like it did nothing (the detail was ~4000px down).
   function openBooking(id: string | undefined) {
-    navigate({ search: (prev: BookingsSearch) => ({ ...prev, booking: id }), replace: true });
+    navigate({
+      search: (prev: BookingsSearch) => ({ ...prev, booking: id }),
+      replace: true,
+      resetScroll: false,
+    });
   }
 
   const data = list.status === "ready" ? list.data : null;
@@ -100,6 +107,22 @@ function BookingsPage() {
       </div>
 
       <BookingFilters search={search} onChange={changeFilters} onClear={clearFilters} />
+
+      {(search.provider_id || search.pro) && (
+        <NarrowedTo
+          search={search}
+          onShowAll={() =>
+            navigate({
+              search: (prev: BookingsSearch) => ({
+                ...prev,
+                provider_id: undefined,
+                pro: undefined,
+                page: undefined,
+              }),
+            })
+          }
+        />
+      )}
 
       <div
         className={`grid items-start gap-6 ${
@@ -149,6 +172,47 @@ function BookingsPage() {
           </section>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The SP and Pro page links narrow the list to one id (SVC-427). Neither has a
+ * box of its own above, so this says so, and links back to who it is.
+ */
+function NarrowedTo({ search, onShowAll }: { search: BookingsSearch; onShowAll: () => void }) {
+  const linkClass = "font-medium text-primary underline-offset-2 hover:underline";
+  return (
+    <div
+      role="note"
+      aria-label="Narrowed list"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-muted/40 px-3 py-2 text-sm"
+    >
+      {search.provider_id && (
+        <span>
+          Only{" "}
+          <Link
+            to="/operator/sps/$spId"
+            params={{ spId: search.provider_id }}
+            className={linkClass}
+          >
+            this service provider
+          </Link>
+          &apos;s bookings.
+        </span>
+      )}
+      {search.pro && (
+        <span>
+          Only{" "}
+          <Link to="/operator/pros/$proId" params={{ proId: search.pro }} className={linkClass}>
+            this Pro
+          </Link>
+          &apos;s bookings.
+        </span>
+      )}
+      <Button variant="ghost" size="sm" onClick={onShowAll}>
+        Show everyone&apos;s
+      </Button>
     </div>
   );
 }

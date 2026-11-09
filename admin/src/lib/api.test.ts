@@ -155,4 +155,30 @@ describe("session token handling", () => {
       retryAfter: 120,
     });
   });
+
+  it("carries an AppException's details on the error, and nothing when there are none", async () => {
+    setSessionToken("t1");
+    mockApi({
+      "POST /admin/pros/p1/force-remove": () =>
+        json(
+          {
+            error: true,
+            message: "Asha is on a job.",
+            code: "PRO_HAS_ACTIVE_JOB",
+            details: { booking_ids: ["b1"] },
+          },
+          409,
+        ),
+      "POST /admin/pros/p2/force-remove": () => appError(404, "PRO_NOT_FOUND"),
+    });
+
+    await expect(apiFetch("/admin/pros/p1/force-remove", { method: "POST" })).rejects.toMatchObject(
+      { status: 409, code: "PRO_HAS_ACTIVE_JOB", details: { booking_ids: ["b1"] } },
+    );
+    const bare = await apiFetch("/admin/pros/p2/force-remove", { method: "POST" }).catch(
+      (err: unknown) => err,
+    );
+    expect(bare).toBeInstanceOf(ApiError);
+    expect((bare as ApiError).details).toBeUndefined();
+  });
 });

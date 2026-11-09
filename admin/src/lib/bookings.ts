@@ -141,6 +141,10 @@ export interface BookingsSearch {
   to?: string;
   phone?: string;
   sp?: string;
+  /** Exactly this SP, by user id (SVC-427): the SP page's 30-day links. */
+  provider_id?: string;
+  /** Exactly this Pro row, by id (SVC-427): the Pro page's "See all". */
+  pro?: string;
   page?: number;
   /** The open booking's full id. */
   booking?: string;
@@ -179,6 +183,8 @@ export function validateBookingsSearch(raw: Record<string, unknown>): BookingsSe
   const from = typeof raw.from === "string" && isCompleteDate(raw.from) ? raw.from : undefined;
   const to = typeof raw.to === "string" && isCompleteDate(raw.to) ? raw.to : undefined;
   const booking = typeof raw.booking === "string" && isUuid(raw.booking) ? raw.booking : undefined;
+  const uuid = (value: unknown) =>
+    typeof value === "string" && isUuid(value) ? value.toLowerCase() : undefined;
   const page = raw.page;
   return {
     status,
@@ -187,6 +193,8 @@ export function validateBookingsSearch(raw: Record<string, unknown>): BookingsSe
     to,
     phone: text(raw.phone),
     sp: text(raw.sp),
+    provider_id: uuid(raw.provider_id),
+    pro: uuid(raw.pro),
     page: typeof page === "number" && Number.isSafeInteger(page) && page > 1 ? page : undefined,
     booking,
   };
@@ -201,6 +209,8 @@ export function bookingsListPath(search: BookingsSearch): string {
   if (search.to) params.set("created_to", search.to);
   if (search.phone) params.set("consumer_phone", search.phone);
   if (search.sp) params.set("provider_name", search.sp);
+  if (search.provider_id) params.set("provider_id", search.provider_id);
+  if (search.pro) params.set("professional_id", search.pro);
   params.set("page", String(search.page ?? 1));
   params.set("per_page", String(BOOKINGS_PAGE_SIZE));
   return `/admin/bookings?${params}`;
@@ -212,7 +222,14 @@ export function bookingPath(id: string): string {
 
 export function hasFilters(search: BookingsSearch): boolean {
   return Boolean(
-    search.status || search.disputed || search.from || search.to || search.phone || search.sp,
+    search.status ||
+    search.disputed ||
+    search.from ||
+    search.to ||
+    search.phone ||
+    search.sp ||
+    search.provider_id ||
+    search.pro,
   );
 }
 

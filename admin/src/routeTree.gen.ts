@@ -24,8 +24,11 @@ import { Route as AuthedOperatorKycRouteImport } from './routes/_authed/operator
 import { Route as AuthedOperatorPayoutsRouteImport } from './routes/_authed/operator/payouts'
 import { Route as AuthedOperatorPricingRouteImport } from './routes/_authed/operator/pricing'
 import { Route as AuthedOperatorRefundsRouteImport } from './routes/_authed/operator/refunds'
-import { Route as AuthedOperatorTeamsRouteImport } from './routes/_authed/operator/teams'
 import { Route as AuthedSupportLookupRouteImport } from './routes/_authed/support/lookup'
+import { Route as AuthedOperatorProsIndexRouteImport } from './routes/_authed/operator/pros/index'
+import { Route as AuthedOperatorProsProIdRouteImport } from './routes/_authed/operator/pros/$proId'
+import { Route as AuthedOperatorSpsIndexRouteImport } from './routes/_authed/operator/sps/index'
+import { Route as AuthedOperatorSpsSpIdRouteImport } from './routes/_authed/operator/sps/$spId'
 
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
@@ -101,14 +104,29 @@ const AuthedOperatorRefundsRoute = AuthedOperatorRefundsRouteImport.update({
   path: '/operator/refunds',
   getParentRoute: () => AuthedRoute,
 } as any)
-const AuthedOperatorTeamsRoute = AuthedOperatorTeamsRouteImport.update({
-  id: '/operator/teams',
-  path: '/operator/teams',
-  getParentRoute: () => AuthedRoute,
-} as any)
 const AuthedSupportLookupRoute = AuthedSupportLookupRouteImport.update({
   id: '/support/lookup',
   path: '/support/lookup',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedOperatorProsIndexRoute = AuthedOperatorProsIndexRouteImport.update({
+  id: '/operator/pros/',
+  path: '/operator/pros/',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedOperatorProsProIdRoute = AuthedOperatorProsProIdRouteImport.update({
+  id: '/operator/pros/$proId',
+  path: '/operator/pros/$proId',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedOperatorSpsIndexRoute = AuthedOperatorSpsIndexRouteImport.update({
+  id: '/operator/sps/',
+  path: '/operator/sps/',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedOperatorSpsSpIdRoute = AuthedOperatorSpsSpIdRouteImport.update({
+  id: '/operator/sps/$spId',
+  path: '/operator/sps/$spId',
   getParentRoute: () => AuthedRoute,
 } as any)
 
@@ -127,8 +145,11 @@ export interface FileRoutesByFullPath {
   '/operator/payouts': typeof AuthedOperatorPayoutsRoute
   '/operator/pricing': typeof AuthedOperatorPricingRoute
   '/operator/refunds': typeof AuthedOperatorRefundsRoute
-  '/operator/teams': typeof AuthedOperatorTeamsRoute
   '/support/lookup': typeof AuthedSupportLookupRoute
+  '/operator/pros/$proId': typeof AuthedOperatorProsProIdRoute
+  '/operator/sps/$spId': typeof AuthedOperatorSpsSpIdRoute
+  '/operator/pros/': typeof AuthedOperatorProsIndexRoute
+  '/operator/sps/': typeof AuthedOperatorSpsIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -145,8 +166,11 @@ export interface FileRoutesByTo {
   '/operator/payouts': typeof AuthedOperatorPayoutsRoute
   '/operator/pricing': typeof AuthedOperatorPricingRoute
   '/operator/refunds': typeof AuthedOperatorRefundsRoute
-  '/operator/teams': typeof AuthedOperatorTeamsRoute
   '/support/lookup': typeof AuthedSupportLookupRoute
+  '/operator/pros/$proId': typeof AuthedOperatorProsProIdRoute
+  '/operator/sps/$spId': typeof AuthedOperatorSpsSpIdRoute
+  '/operator/pros': typeof AuthedOperatorProsIndexRoute
+  '/operator/sps': typeof AuthedOperatorSpsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -165,8 +189,11 @@ export interface FileRoutesById {
   '/_authed/operator/payouts': typeof AuthedOperatorPayoutsRoute
   '/_authed/operator/pricing': typeof AuthedOperatorPricingRoute
   '/_authed/operator/refunds': typeof AuthedOperatorRefundsRoute
-  '/_authed/operator/teams': typeof AuthedOperatorTeamsRoute
   '/_authed/support/lookup': typeof AuthedSupportLookupRoute
+  '/_authed/operator/pros/$proId': typeof AuthedOperatorProsProIdRoute
+  '/_authed/operator/sps/$spId': typeof AuthedOperatorSpsSpIdRoute
+  '/_authed/operator/pros/': typeof AuthedOperatorProsIndexRoute
+  '/_authed/operator/sps/': typeof AuthedOperatorSpsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -185,8 +212,11 @@ export interface FileRouteTypes {
     | '/operator/payouts'
     | '/operator/pricing'
     | '/operator/refunds'
-    | '/operator/teams'
     | '/support/lookup'
+    | '/operator/pros/$proId'
+    | '/operator/sps/$spId'
+    | '/operator/pros/'
+    | '/operator/sps/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -203,8 +233,11 @@ export interface FileRouteTypes {
     | '/operator/payouts'
     | '/operator/pricing'
     | '/operator/refunds'
-    | '/operator/teams'
     | '/support/lookup'
+    | '/operator/pros/$proId'
+    | '/operator/sps/$spId'
+    | '/operator/pros'
+    | '/operator/sps'
   id:
     | '__root__'
     | '/_authed'
@@ -222,8 +255,11 @@ export interface FileRouteTypes {
     | '/_authed/operator/payouts'
     | '/_authed/operator/pricing'
     | '/_authed/operator/refunds'
-    | '/_authed/operator/teams'
     | '/_authed/support/lookup'
+    | '/_authed/operator/pros/$proId'
+    | '/_authed/operator/sps/$spId'
+    | '/_authed/operator/pros/'
+    | '/_authed/operator/sps/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -340,18 +376,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOperatorRefundsRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/_authed/operator/teams': {
-      id: '/_authed/operator/teams'
-      path: '/operator/teams'
-      fullPath: '/operator/teams'
-      preLoaderRoute: typeof AuthedOperatorTeamsRouteImport
-      parentRoute: typeof AuthedRoute
-    }
     '/_authed/support/lookup': {
       id: '/_authed/support/lookup'
       path: '/support/lookup'
       fullPath: '/support/lookup'
       preLoaderRoute: typeof AuthedSupportLookupRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/operator/pros/': {
+      id: '/_authed/operator/pros/'
+      path: '/operator/pros'
+      fullPath: '/operator/pros/'
+      preLoaderRoute: typeof AuthedOperatorProsIndexRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/operator/pros/$proId': {
+      id: '/_authed/operator/pros/$proId'
+      path: '/operator/pros/$proId'
+      fullPath: '/operator/pros/$proId'
+      preLoaderRoute: typeof AuthedOperatorProsProIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/operator/sps/': {
+      id: '/_authed/operator/sps/'
+      path: '/operator/sps'
+      fullPath: '/operator/sps/'
+      preLoaderRoute: typeof AuthedOperatorSpsIndexRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/operator/sps/$spId': {
+      id: '/_authed/operator/sps/$spId'
+      path: '/operator/sps/$spId'
+      fullPath: '/operator/sps/$spId'
+      preLoaderRoute: typeof AuthedOperatorSpsSpIdRouteImport
       parentRoute: typeof AuthedRoute
     }
   }
@@ -369,8 +426,11 @@ interface AuthedRouteChildren {
   AuthedOperatorPayoutsRoute: typeof AuthedOperatorPayoutsRoute
   AuthedOperatorPricingRoute: typeof AuthedOperatorPricingRoute
   AuthedOperatorRefundsRoute: typeof AuthedOperatorRefundsRoute
-  AuthedOperatorTeamsRoute: typeof AuthedOperatorTeamsRoute
   AuthedSupportLookupRoute: typeof AuthedSupportLookupRoute
+  AuthedOperatorProsProIdRoute: typeof AuthedOperatorProsProIdRoute
+  AuthedOperatorSpsSpIdRoute: typeof AuthedOperatorSpsSpIdRoute
+  AuthedOperatorProsIndexRoute: typeof AuthedOperatorProsIndexRoute
+  AuthedOperatorSpsIndexRoute: typeof AuthedOperatorSpsIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
@@ -385,8 +445,11 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedOperatorPayoutsRoute: AuthedOperatorPayoutsRoute,
   AuthedOperatorPricingRoute: AuthedOperatorPricingRoute,
   AuthedOperatorRefundsRoute: AuthedOperatorRefundsRoute,
-  AuthedOperatorTeamsRoute: AuthedOperatorTeamsRoute,
   AuthedSupportLookupRoute: AuthedSupportLookupRoute,
+  AuthedOperatorProsProIdRoute: AuthedOperatorProsProIdRoute,
+  AuthedOperatorSpsSpIdRoute: AuthedOperatorSpsSpIdRoute,
+  AuthedOperatorProsIndexRoute: AuthedOperatorProsIndexRoute,
+  AuthedOperatorSpsIndexRoute: AuthedOperatorSpsIndexRoute,
 }
 
 const AuthedRouteWithChildren =

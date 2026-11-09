@@ -65,6 +65,8 @@ function PayoutsPage() {
 
   // Replace, not push: opening and closing SPs shouldn't fill Back with them.
   // A different SP starts its bookings and history from the top.
+  // No scroll reset: the router's default would undo the effect above that
+  // scrolls a stacked detail into view, so on a phone the tap looked dead.
   function openProvider(id: string | undefined) {
     navigate({
       search: (prev: PayoutsSearch) => ({
@@ -75,6 +77,7 @@ function PayoutsPage() {
         hpage: undefined,
       }),
       replace: true,
+      resetScroll: false,
     });
   }
 

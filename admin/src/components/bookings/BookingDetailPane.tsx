@@ -4,6 +4,7 @@
  * under another. Names, notes and the address come from outside: all rendered as text.
  */
 import { useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { BookingStatusPill, DisputedMark } from "@/components/bookings/BookingBadges";
 import { ForceCancelDialog } from "@/components/bookings/ForceCancelDialog";
@@ -100,12 +101,34 @@ function BookingFacts({ booking }: { booking: Booking }) {
             <span className="tabular-nums">{booking.consumer_phone ?? "Unknown"}</span>
           </Field>
           <Field label="Service provider">
-            {provider}
+            {booking.service_provider ? (
+              <Link
+                to="/operator/sps/$spId"
+                params={{ spId: booking.service_provider.user_id }}
+                className="font-medium text-primary underline-offset-2 hover:underline"
+              >
+                {provider}
+              </Link>
+            ) : (
+              provider
+            )}
             {business && business !== provider && (
               <span className="block text-xs text-muted-foreground">{business}</span>
             )}
           </Field>
-          <Field label="Pro">{booking.professional?.display_name ?? "None assigned"}</Field>
+          <Field label="Pro">
+            {booking.professional ? (
+              <Link
+                to="/operator/pros/$proId"
+                params={{ proId: booking.professional.id }}
+                className="font-medium text-primary underline-offset-2 hover:underline"
+              >
+                {booking.professional.display_name}
+              </Link>
+            ) : (
+              "None assigned"
+            )}
+          </Field>
           <div className="sm:col-span-2">
             <Field label="Address">
               {booking.address ? (
