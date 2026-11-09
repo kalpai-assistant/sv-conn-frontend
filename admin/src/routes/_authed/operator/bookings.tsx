@@ -74,8 +74,15 @@ function BookingsPage() {
   }
 
   // Replace, not push: opening and closing bookings shouldn't fill Back with them.
+  // No scroll reset: the router's default puts the window back at the top after
+  // the effect above scrolls a stacked detail into view, so on a phone the tap
+  // looked like it did nothing (the detail was ~4000px down).
   function openBooking(id: string | undefined) {
-    navigate({ search: (prev: BookingsSearch) => ({ ...prev, booking: id }), replace: true });
+    navigate({
+      search: (prev: BookingsSearch) => ({ ...prev, booking: id }),
+      replace: true,
+      resetScroll: false,
+    });
   }
 
   const data = list.status === "ready" ? list.data : null;

@@ -285,6 +285,9 @@ test.describe("at phone width", () => {
       .getByRole("button", { name: "Open booking 3f2c9a1e" })
       .click();
     await expect(pane(page).getByRole("region", { name: "Payment" })).toBeVisible();
+    // The detail stacks below the list, so the tap has to bring it on screen: the
+    // router's scroll reset used to put the page back at the top (SVC-427 pass).
+    await expect(pane(page).getByRole("heading", { name: "Booking 3f2c9a1e" })).toBeInViewport();
     expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
   });
 

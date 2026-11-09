@@ -292,6 +292,8 @@ test.describe("at phone width", () => {
       .getByRole("list", { name: "Service providers" })
       .getByRole("button", { name: "Open Sharma Plumbing" })
       .click();
+    // Stacked below the list: the tap has to bring the detail on screen.
+    await expect(pane(page).getByRole("heading", { name: "Sharma Plumbing" })).toBeInViewport();
     await expect(pane(page).getByRole("button", { name: "Re-queue failed (3)" })).toBeVisible();
     await expect(pane(page).getByRole("region", { name: "Payout history" })).toBeVisible();
     expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
