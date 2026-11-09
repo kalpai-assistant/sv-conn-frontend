@@ -17,6 +17,7 @@ import {
 import type { ApiGetState } from "@/lib/use-api-get";
 
 const WRAP = "[overflow-wrap:anywhere]";
+const LINK = "text-xs font-medium text-primary underline-offset-2 hover:underline";
 
 export function ActionHistory({
   state,
@@ -46,7 +47,7 @@ export function ActionHistory({
       {rows && rows.length > 0 && (
         <ol aria-label="Admin actions" className="divide-y rounded-lg border">
           {rows.map((row) => {
-            const { summary, notes, otherSpId } = describe(row);
+            const { summary, notes, links } = describe(row);
             return (
               <li key={row.id} data-action={row.action} className="space-y-1 px-3 py-2 text-sm">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -62,14 +63,30 @@ export function ActionHistory({
                     {note}
                   </p>
                 ))}
-                {otherSpId && (
-                  <Link
-                    to="/operator/sps/$spId"
-                    params={{ spId: otherSpId }}
-                    className="text-xs font-medium text-primary underline-offset-2 hover:underline"
-                  >
-                    Open the other SP
-                  </Link>
+                {links.length > 0 && (
+                  <p className="flex flex-wrap gap-x-3 gap-y-1">
+                    {links.map((link) =>
+                      link.kind === "sp" ? (
+                        <Link
+                          key={link.label}
+                          to="/operator/sps/$spId"
+                          params={{ spId: link.id }}
+                          className={LINK}
+                        >
+                          {link.label}
+                        </Link>
+                      ) : (
+                        <Link
+                          key={link.label}
+                          to="/operator/pros/$proId"
+                          params={{ proId: link.id }}
+                          className={LINK}
+                        >
+                          {link.label}
+                        </Link>
+                      ),
+                    )}
+                  </p>
                 )}
               </li>
             );

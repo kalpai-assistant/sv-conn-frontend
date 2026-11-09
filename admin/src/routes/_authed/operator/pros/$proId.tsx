@@ -3,8 +3,8 @@
  * jobs, their recent bookings and the admin actions on this row.
  *
  * A Pro row belongs to one SP. Moving a person makes a new row under the new SP
- * (or reactivates an old one), so their history before the move is on the old
- * row's page: the reassign is filed under the row it moved FROM.
+ * (or reactivates an old one). Each row's history shows the move from its own
+ * side, and links to the other row: see describeProAction.
  */
 import { useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -212,15 +212,11 @@ function ProView({ proId }: { proId: string }) {
       </PageSection>
 
       <PageSection title="Admin history">
-        <p className="text-xs text-muted-foreground">
-          Actions on this Pro row. If they were moved here from another SP, that move is on the old
-          row and in both SPs&apos; histories.
-        </p>
         <ActionHistory
           state={actions}
           page={historyPage}
           onPage={setHistoryPage}
-          describe={describeProAction}
+          describe={(row) => describeProAction(row, proId)}
           empty="No admin actions on this Pro row yet."
         />
       </PageSection>

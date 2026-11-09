@@ -341,14 +341,14 @@ describe("history sentences", () => {
     expect(describeSpAction(action(), SP_A, team)).toEqual({
       summary: "Asha was moved to another team",
       notes: ["Started with KYC not submitted on the new team."],
-      otherSpId: SP_B,
+      links: [{ kind: "sp", id: SP_B, label: "Open the other SP" }],
     });
   });
 
   it("tells the new SP the Pro moved in, naming them by their new row", () => {
     const sentence = describeSpAction(action(), SP_B, [team[1]]);
     expect(sentence.summary).toBe("Asha was moved here from another team");
-    expect(sentence.otherSpId).toBe(SP_A);
+    expect(sentence.links).toEqual([{ kind: "sp", id: SP_A, label: "Open the other SP" }]);
   });
 
   it("says when a reactivated row kept its own KYC, and when the old SP was switched back on", () => {
@@ -382,7 +382,7 @@ describe("history sentences", () => {
     ).toEqual({
       summary: "The SP's account was deactivated",
       notes: ["Removed from 2 teams."],
-      otherSpId: null,
+      links: [],
     });
   });
 
@@ -390,11 +390,73 @@ describe("history sentences", () => {
     expect(describeSpAction(action(), SP_A, []).summary).toBe("A Pro was moved to another team");
   });
 
-  it("describes the same rows from the Pro's side", () => {
-    expect(describeProAction(action()).summary).toBe("Moved to another team");
-    expect(describeProAction(action()).otherSpId).toBe(SP_B);
-    expect(describeProAction(action({ action: "pro_force_removed" })).summary).toBe(
-      "Force-removed from the team",
-    );
+  describe("from a Pro row's side", () => {
+    it("tells the OLD row it moved away, linking the new SP and the new row", () => {
+      expect(describeProAction(action(), PRO_OLD)).toEqual({
+        summary: "Moved to another team",
+        notes: ["Started with KYC not submitted on the new team."],
+        links: [
+          { kind: "sp", id: SP_B, label: "Open the new SP" },
+          { kind: "pro", id: PRO_NEW, label: "Open their new Pro row" },
+        ],
+      });
+    });
+
+    it("tells the NEW row it moved here, linking the old SP and the old row", () => {
+      expect(describeProAction(action(), PRO_NEW)).toEqual({
+        summary: "Moved here from another team",
+        notes: ["Started with KYC not submitted on the new team."],
+        links: [
+          { kind: "sp", id: SP_A, label: "Open the old SP" },
+          { kind: "pro", id: PRO_OLD, label: "Open their old Pro row" },
+        ],
+      });
+    });
+
+    it("keeps the reactivated KYC note on a reactivated row, without the old SP's setting", () => {
+      const row = action({
+        details: {
+          to_professional_id: PRO_NEW,
+          reactivated: true,
+          kyc_status: "verified",
+          self_reenabled: true,
+        },
+      });
+      expect(describeProAction(row, PRO_NEW).notes).toEqual([
+        "Rejoined an earlier row on the new team, keeping its own KYC (Approved).",
+      ]);
+      expect(describeProAction(row, PRO_OLD).notes).toEqual([
+        "Rejoined an earlier row on the new team, keeping its own KYC (Approved).",
+        "The old SP was switched back to taking jobs themselves.",
+      ]);
+    });
+
+    it("drops a link it can't build, rather than linking nowhere", () => {
+      const sentence = describeProAction(action({ details: {}, to_sp_user_id: null }), PRO_OLD);
+      expect(sentence.summary).toBe("Moved to another team");
+      expect(sentence.links).toEqual([]);
+    });
+
+    it("says a deactivation removed this row when it lists the row", () => {
+      const deactivated = action({
+        action: "user_deactivated",
+        target_type: "user",
+        target_id: "u-asha",
+        to_sp_user_id: null,
+        details: { removed_professional_ids: [PRO_OLD], self_reenabled_sp_ids: [] },
+      });
+      expect(describeProAction(deactivated, PRO_OLD)).toEqual({
+        summary: "Removed: their account was deactivated",
+        notes: [],
+        links: [],
+      });
+      expect(describeProAction(deactivated, PRO_NEW).summary).toBe("Their account was deactivated");
+    });
+
+    it("describes a force remove as today", () => {
+      expect(
+        describeProAction(action({ action: "pro_force_removed", to_sp_user_id: null }), PRO_OLD),
+      ).toEqual({ summary: "Force-removed from the team", notes: [], links: [] });
+    });
   });
 });

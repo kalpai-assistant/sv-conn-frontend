@@ -325,8 +325,9 @@ export function spActionsPath(spId: string, page: number): string {
 }
 
 /**
- * Actions on this Pro row. A reassign is filed under the row it moved FROM, so the
- * row it created doesn't list it: see the Pro page's history note.
+ * This Pro row's history: actions on it, the reassign that landed a person on it,
+ * and the deactivation that removed it. The last two need the backend fix to
+ * SVC-427's finding; without it they're simply absent.
  */
 export function proActionsPath(proId: string, page: number): string {
   const params = new URLSearchParams({
@@ -510,16 +511,32 @@ export function activeJobId(err: unknown): string | null | undefined {
 
 // --- History sentences ------------------------------------------------------------
 
+/** Where a history row points: the other side of a reassign. */
+export type ActionLink =
+  { kind: "sp"; id: string; label: string } | { kind: "pro"; id: string; label: string };
+
 export interface ActionSentence {
   summary: string;
   notes: string[];
-  /** The other SP in a reassign, to link to. */
-  otherSpId: string | null;
+  links: ActionLink[];
+}
+
+function spLink(id: string | null, label: string): ActionLink[] {
+  return id ? [{ kind: "sp", id, label }] : [];
+}
+
+function proLink(id: string | null, label: string): ActionLink[] {
+  return id && isUuid(id) ? [{ kind: "pro", id, label }] : [];
+}
+
+function ids(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
 }
 
 const str = (value: unknown): string | null => (typeof value === "string" ? value : null);
 
-function reassignNotes(row: AdminAction): string[] {
+/** `oldSp`: whether the old SP's side (their job setting) concerns this viewer. */
+function reassignNotes(row: AdminAction, oldSp = true): string[] {
   const notes: string[] = [];
   const status = str(row.details.kyc_status);
   if (row.details.reactivated === true) {
@@ -529,7 +546,7 @@ function reassignNotes(row: AdminAction): string[] {
   } else {
     notes.push("Started with KYC not submitted on the new team.");
   }
-  if (row.details.self_reenabled === true) {
+  if (oldSp && row.details.self_reenabled === true) {
     notes.push("The old SP was switched back to taking jobs themselves.");
   }
   return notes;
@@ -552,7 +569,7 @@ export function describeSpAction(row: AdminAction, spId: string, team: TeamPro[]
     return {
       summary: `${nameOf(row.target_id) ?? "A Pro"} was force-removed from the team`,
       notes,
-      otherSpId: null,
+      links: [],
     };
   }
   if (row.action === "pro_reassigned") {
@@ -563,7 +580,7 @@ export function describeSpAction(row: AdminAction, spId: string, team: TeamPro[]
         ? `${who} was moved to another team`
         : `${who} was moved here from another team`,
       notes: reassignNotes(row),
-      otherSpId: movedAway ? row.to_sp_user_id : row.sp_user_id,
+      links: spLink(movedAway ? row.to_sp_user_id : row.sp_user_id, "Open the other SP"),
     };
   }
   if (row.action === "user_deactivated") {
@@ -578,24 +595,52 @@ export function describeSpAction(row: AdminAction, spId: string, team: TeamPro[]
     if (Array.isArray(reenabled) && reenabled.includes(spId)) {
       notes.push("The SP was switched back to taking jobs themselves.");
     }
-    return { summary: `${who} was deactivated`, notes, otherSpId: null };
+    return { summary: `${who} was deactivated`, notes, links: [] };
   }
-  return { summary: humanize(row.action), notes: [], otherSpId: null };
+  return { summary: humanize(row.action), notes: [], links: [] };
 }
 
-/** The same, from the viewpoint of one Pro row: every row here targets it. */
-export function describeProAction(row: AdminAction): ActionSentence {
+/**
+ * The same, from the viewpoint of one Pro row. GET /admin/actions for a Pro row
+ * returns three kinds (the backend fix to SVC-427's finding): actions targeting
+ * the row, the reassign that landed a person on it (details.to_professional_id),
+ * and the deactivation that removed it (details.removed_professional_ids).
+ */
+export function describeProAction(row: AdminAction, proId: string): ActionSentence {
   if (row.action === "pro_force_removed") {
-    return { summary: "Force-removed from the team", notes: [], otherSpId: null };
+    return { summary: "Force-removed from the team", notes: [], links: [] };
   }
   if (row.action === "pro_reassigned") {
+    const landedHere = str(row.details.to_professional_id) === proId && row.target_id !== proId;
+    if (landedHere) {
+      return {
+        summary: "Moved here from another team",
+        notes: reassignNotes(row, false),
+        links: [
+          ...spLink(row.sp_user_id, "Open the old SP"),
+          ...proLink(row.target_id, "Open their old Pro row"),
+        ],
+      };
+    }
     return {
       summary: "Moved to another team",
       notes: reassignNotes(row),
-      otherSpId: row.to_sp_user_id,
+      links: [
+        ...spLink(row.to_sp_user_id, "Open the new SP"),
+        ...proLink(str(row.details.to_professional_id), "Open their new Pro row"),
+      ],
     };
   }
-  return { summary: humanize(row.action), notes: [], otherSpId: null };
+  if (row.action === "user_deactivated") {
+    return {
+      summary: ids(row.details.removed_professional_ids).includes(proId)
+        ? "Removed: their account was deactivated"
+        : "Their account was deactivated",
+      notes: [],
+      links: [],
+    };
+  }
+  return { summary: humanize(row.action), notes: [], links: [] };
 }
 
 /** Who did it. The join on the admin's user means a name is usually there. */

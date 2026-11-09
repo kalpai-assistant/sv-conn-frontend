@@ -108,7 +108,22 @@ async function mockBackend(page: Page, role: Role) {
     ],
     [SP_C]: [],
   };
-  const actions: Json[] = [];
+  // Sunil's account was deactivated, which removed his row on SP A.
+  const actions: Json[] = [
+    {
+      id: "act-0",
+      admin_user_id: "a1",
+      admin_name: "Asha Admin",
+      action: "user_deactivated",
+      target_type: "user",
+      target_id: `user-${PRO_GONE}`,
+      sp_user_id: SP_A,
+      to_sp_user_id: null,
+      reason: "Account closed on request",
+      details: { removed_professional_ids: [PRO_GONE], self_reenabled_sp_ids: [] },
+      created_at: "2026-11-01T06:00:00Z",
+    },
+  ];
   const writes: { path: string; body: Json }[] = [];
 
   const ownerOf = (spId: string) => {
@@ -273,7 +288,20 @@ async function mockBackend(page: Page, role: Role) {
       let rows = actions;
       const spId = q.get("sp_user_id");
       if (spId) rows = rows.filter((a) => a.sp_user_id === spId || a.to_sp_user_id === spId);
-      if (q.get("target_id")) rows = rows.filter((a) => a.target_id === q.get("target_id"));
+      // The backend's fix to the SVC-427 finding: a Pro row's history also has the
+      // reassign that landed someone on it and the deactivation that removed it.
+      const target = q.get("target_id");
+      if (target) {
+        rows = rows.filter((a) => {
+          const details = a.details as Json;
+          const removed = details.removed_professional_ids;
+          return (
+            a.target_id === target ||
+            details.to_professional_id === target ||
+            (Array.isArray(removed) && removed.includes(target))
+          );
+        });
+      }
       return route.fulfill({ json: rows });
     }
 
@@ -436,6 +464,22 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(history.locator('[data-action="pro_reassigned"]')).toHaveCount(1);
       await expect(history).toContainText("Asha Rao was moved here from another team");
       await expect(history).toContainText("Business merged into Kumar Cleaning");
+
+      // Her new row's own history shows the move from its side, linking back.
+      await region(page, "Team").getByRole("link", { name: "Asha Rao" }).click();
+      await expect(page).toHaveURL(new RegExp(`/operator/pros/${PRO_ASHA_B}$`));
+      const proHistory = region(page, "Admin history");
+      await expect(proHistory).toContainText("Moved here from another team");
+      await expect(proHistory.getByRole("link", { name: "Open the old SP" })).toHaveAttribute(
+        "href",
+        `/operator/sps/${SP_A}`,
+      );
+      await proHistory.getByRole("link", { name: "Open their old Pro row" }).click();
+      await expect(page).toHaveURL(new RegExp(`/operator/pros/${PRO_ASHA}$`));
+      await expect(region(page, "Admin history")).toContainText("Moved to another team");
+      await expect(
+        region(page, "Admin history").getByRole("link", { name: "Open their new Pro row" }),
+      ).toHaveAttribute("href", `/operator/pros/${PRO_ASHA_B}`);
     });
 
     test("ops force removes a Pro, and an active job blocks it with a link", async ({ page }) => {
@@ -520,6 +564,10 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(page.getByRole("button", { name: /Reassign|Force remove/ })).toHaveCount(0);
       await page.goto(`/operator/pros/${PRO_GONE}`);
       await expect(page.getByRole("heading", { level: 1, name: "Sunil Gone" })).toBeVisible();
+      // Removed by his account's deactivation: the history says so, with the reason.
+      const history = region(page, "Admin history");
+      await expect(history).toContainText("Removed: their account was deactivated");
+      await expect(history).toContainText("Account closed on request");
       await expect(page.getByRole("button", { name: /Reassign|Force remove/ })).toHaveCount(0);
     });
   });
