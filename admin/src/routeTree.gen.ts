@@ -25,6 +25,9 @@ import { Route as AuthedOperatorPayoutsRouteImport } from './routes/_authed/oper
 import { Route as AuthedOperatorPricingRouteImport } from './routes/_authed/operator/pricing'
 import { Route as AuthedOperatorRefundsRouteImport } from './routes/_authed/operator/refunds'
 import { Route as AuthedSupportLookupRouteImport } from './routes/_authed/support/lookup'
+import { Route as AuthedOperatorPricingIndexRouteImport } from './routes/_authed/operator/pricing/index'
+import { Route as AuthedOperatorPricingCategoriesRouteImport } from './routes/_authed/operator/pricing/categories'
+import { Route as AuthedOperatorPricingFormulaRouteImport } from './routes/_authed/operator/pricing/formula'
 import { Route as AuthedOperatorProsIndexRouteImport } from './routes/_authed/operator/pros/index'
 import { Route as AuthedOperatorProsProIdRouteImport } from './routes/_authed/operator/pros/$proId'
 import { Route as AuthedOperatorSpsIndexRouteImport } from './routes/_authed/operator/sps/index'
@@ -109,6 +112,24 @@ const AuthedSupportLookupRoute = AuthedSupportLookupRouteImport.update({
   path: '/support/lookup',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedOperatorPricingIndexRoute =
+  AuthedOperatorPricingIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthedOperatorPricingRoute,
+  } as any)
+const AuthedOperatorPricingCategoriesRoute =
+  AuthedOperatorPricingCategoriesRouteImport.update({
+    id: '/categories',
+    path: '/categories',
+    getParentRoute: () => AuthedOperatorPricingRoute,
+  } as any)
+const AuthedOperatorPricingFormulaRoute =
+  AuthedOperatorPricingFormulaRouteImport.update({
+    id: '/formula',
+    path: '/formula',
+    getParentRoute: () => AuthedOperatorPricingRoute,
+  } as any)
 const AuthedOperatorProsIndexRoute = AuthedOperatorProsIndexRouteImport.update({
   id: '/operator/pros/',
   path: '/operator/pros/',
@@ -143,11 +164,14 @@ export interface FileRoutesByFullPath {
   '/operator/coupons': typeof AuthedOperatorCouponsRoute
   '/operator/kyc': typeof AuthedOperatorKycRoute
   '/operator/payouts': typeof AuthedOperatorPayoutsRoute
-  '/operator/pricing': typeof AuthedOperatorPricingRoute
+  '/operator/pricing': typeof AuthedOperatorPricingRouteWithChildren
   '/operator/refunds': typeof AuthedOperatorRefundsRoute
   '/support/lookup': typeof AuthedSupportLookupRoute
+  '/operator/pricing/categories': typeof AuthedOperatorPricingCategoriesRoute
+  '/operator/pricing/formula': typeof AuthedOperatorPricingFormulaRoute
   '/operator/pros/$proId': typeof AuthedOperatorProsProIdRoute
   '/operator/sps/$spId': typeof AuthedOperatorSpsSpIdRoute
+  '/operator/pricing/': typeof AuthedOperatorPricingIndexRoute
   '/operator/pros/': typeof AuthedOperatorProsIndexRoute
   '/operator/sps/': typeof AuthedOperatorSpsIndexRoute
 }
@@ -164,11 +188,13 @@ export interface FileRoutesByTo {
   '/operator/coupons': typeof AuthedOperatorCouponsRoute
   '/operator/kyc': typeof AuthedOperatorKycRoute
   '/operator/payouts': typeof AuthedOperatorPayoutsRoute
-  '/operator/pricing': typeof AuthedOperatorPricingRoute
   '/operator/refunds': typeof AuthedOperatorRefundsRoute
   '/support/lookup': typeof AuthedSupportLookupRoute
+  '/operator/pricing/categories': typeof AuthedOperatorPricingCategoriesRoute
+  '/operator/pricing/formula': typeof AuthedOperatorPricingFormulaRoute
   '/operator/pros/$proId': typeof AuthedOperatorProsProIdRoute
   '/operator/sps/$spId': typeof AuthedOperatorSpsSpIdRoute
+  '/operator/pricing': typeof AuthedOperatorPricingIndexRoute
   '/operator/pros': typeof AuthedOperatorProsIndexRoute
   '/operator/sps': typeof AuthedOperatorSpsIndexRoute
 }
@@ -187,11 +213,14 @@ export interface FileRoutesById {
   '/_authed/operator/coupons': typeof AuthedOperatorCouponsRoute
   '/_authed/operator/kyc': typeof AuthedOperatorKycRoute
   '/_authed/operator/payouts': typeof AuthedOperatorPayoutsRoute
-  '/_authed/operator/pricing': typeof AuthedOperatorPricingRoute
+  '/_authed/operator/pricing': typeof AuthedOperatorPricingRouteWithChildren
   '/_authed/operator/refunds': typeof AuthedOperatorRefundsRoute
   '/_authed/support/lookup': typeof AuthedSupportLookupRoute
+  '/_authed/operator/pricing/categories': typeof AuthedOperatorPricingCategoriesRoute
+  '/_authed/operator/pricing/formula': typeof AuthedOperatorPricingFormulaRoute
   '/_authed/operator/pros/$proId': typeof AuthedOperatorProsProIdRoute
   '/_authed/operator/sps/$spId': typeof AuthedOperatorSpsSpIdRoute
+  '/_authed/operator/pricing/': typeof AuthedOperatorPricingIndexRoute
   '/_authed/operator/pros/': typeof AuthedOperatorProsIndexRoute
   '/_authed/operator/sps/': typeof AuthedOperatorSpsIndexRoute
 }
@@ -213,8 +242,11 @@ export interface FileRouteTypes {
     | '/operator/pricing'
     | '/operator/refunds'
     | '/support/lookup'
+    | '/operator/pricing/categories'
+    | '/operator/pricing/formula'
     | '/operator/pros/$proId'
     | '/operator/sps/$spId'
+    | '/operator/pricing/'
     | '/operator/pros/'
     | '/operator/sps/'
   fileRoutesByTo: FileRoutesByTo
@@ -231,11 +263,13 @@ export interface FileRouteTypes {
     | '/operator/coupons'
     | '/operator/kyc'
     | '/operator/payouts'
-    | '/operator/pricing'
     | '/operator/refunds'
     | '/support/lookup'
+    | '/operator/pricing/categories'
+    | '/operator/pricing/formula'
     | '/operator/pros/$proId'
     | '/operator/sps/$spId'
+    | '/operator/pricing'
     | '/operator/pros'
     | '/operator/sps'
   id:
@@ -256,8 +290,11 @@ export interface FileRouteTypes {
     | '/_authed/operator/pricing'
     | '/_authed/operator/refunds'
     | '/_authed/support/lookup'
+    | '/_authed/operator/pricing/categories'
+    | '/_authed/operator/pricing/formula'
     | '/_authed/operator/pros/$proId'
     | '/_authed/operator/sps/$spId'
+    | '/_authed/operator/pricing/'
     | '/_authed/operator/pros/'
     | '/_authed/operator/sps/'
   fileRoutesById: FileRoutesById
@@ -383,6 +420,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedSupportLookupRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/operator/pricing/': {
+      id: '/_authed/operator/pricing/'
+      path: '/'
+      fullPath: '/operator/pricing/'
+      preLoaderRoute: typeof AuthedOperatorPricingIndexRouteImport
+      parentRoute: typeof AuthedOperatorPricingRoute
+    }
+    '/_authed/operator/pricing/categories': {
+      id: '/_authed/operator/pricing/categories'
+      path: '/categories'
+      fullPath: '/operator/pricing/categories'
+      preLoaderRoute: typeof AuthedOperatorPricingCategoriesRouteImport
+      parentRoute: typeof AuthedOperatorPricingRoute
+    }
+    '/_authed/operator/pricing/formula': {
+      id: '/_authed/operator/pricing/formula'
+      path: '/formula'
+      fullPath: '/operator/pricing/formula'
+      preLoaderRoute: typeof AuthedOperatorPricingFormulaRouteImport
+      parentRoute: typeof AuthedOperatorPricingRoute
+    }
     '/_authed/operator/pros/': {
       id: '/_authed/operator/pros/'
       path: '/operator/pros'
@@ -414,6 +472,23 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthedOperatorPricingRouteChildren {
+  AuthedOperatorPricingCategoriesRoute: typeof AuthedOperatorPricingCategoriesRoute
+  AuthedOperatorPricingFormulaRoute: typeof AuthedOperatorPricingFormulaRoute
+  AuthedOperatorPricingIndexRoute: typeof AuthedOperatorPricingIndexRoute
+}
+
+const AuthedOperatorPricingRouteChildren: AuthedOperatorPricingRouteChildren = {
+  AuthedOperatorPricingCategoriesRoute: AuthedOperatorPricingCategoriesRoute,
+  AuthedOperatorPricingFormulaRoute: AuthedOperatorPricingFormulaRoute,
+  AuthedOperatorPricingIndexRoute: AuthedOperatorPricingIndexRoute,
+}
+
+const AuthedOperatorPricingRouteWithChildren =
+  AuthedOperatorPricingRoute._addFileChildren(
+    AuthedOperatorPricingRouteChildren,
+  )
+
 interface AuthedRouteChildren {
   AuthedAuditRoute: typeof AuthedAuditRoute
   AuthedIndexRoute: typeof AuthedIndexRoute
@@ -424,7 +499,7 @@ interface AuthedRouteChildren {
   AuthedOperatorCouponsRoute: typeof AuthedOperatorCouponsRoute
   AuthedOperatorKycRoute: typeof AuthedOperatorKycRoute
   AuthedOperatorPayoutsRoute: typeof AuthedOperatorPayoutsRoute
-  AuthedOperatorPricingRoute: typeof AuthedOperatorPricingRoute
+  AuthedOperatorPricingRoute: typeof AuthedOperatorPricingRouteWithChildren
   AuthedOperatorRefundsRoute: typeof AuthedOperatorRefundsRoute
   AuthedSupportLookupRoute: typeof AuthedSupportLookupRoute
   AuthedOperatorProsProIdRoute: typeof AuthedOperatorProsProIdRoute
@@ -443,7 +518,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedOperatorCouponsRoute: AuthedOperatorCouponsRoute,
   AuthedOperatorKycRoute: AuthedOperatorKycRoute,
   AuthedOperatorPayoutsRoute: AuthedOperatorPayoutsRoute,
-  AuthedOperatorPricingRoute: AuthedOperatorPricingRoute,
+  AuthedOperatorPricingRoute: AuthedOperatorPricingRouteWithChildren,
   AuthedOperatorRefundsRoute: AuthedOperatorRefundsRoute,
   AuthedSupportLookupRoute: AuthedSupportLookupRoute,
   AuthedOperatorProsProIdRoute: AuthedOperatorProsProIdRoute,
