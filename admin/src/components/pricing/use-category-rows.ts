@@ -2,14 +2,18 @@
  * The category rows with optimistic saves (SVC-428). A save shows at once and
  * rolls back if the backend refuses it.
  *
- * Saves on one row can overlap: an operator tabs from Commission to Floor before
- * the first PATCH answers. So each field remembers which save last touched it,
- * and an answer only writes the fields it still owns:
- * - on success, the server's row replaces ours, except fields a newer save is
- *   still waiting on: those keep the newer value;
- * - on failure, only fields still holding this save's value roll back, so a
- *   slow refusal can't undo a later edit. They roll back to what the backend
- *   last confirmed.
+ * Saves on one row can overlap, and their answers can arrive out of order. The
+ * backend locks the row, so it applies saves in the order they were sent, and
+ * a later save's value is the one the DB keeps. So, per field:
+ * - each field remembers which unanswered save last wrote it (its owner), and
+ *   which save's answer last confirmed it;
+ * - an answer only ever touches the fields its own PATCH changed, never the
+ *   rest of the row: its row is a snapshot that may be older than another
+ *   answer already shown;
+ * - a success confirms a field only if no later save has confirmed it, and
+ *   shows it only if no later save is still in flight on it;
+ * - a failure rolls back only fields it still owns, to the confirmed value, so
+ *   a slow refusal can't undo a later edit.
  */
 import { useCallback, useRef, useState } from "react";
 import {
@@ -42,6 +46,8 @@ export function useCategoryRows(initial: CategoryPricingRow[]) {
   // Each row as the backend last confirmed it. A rollback goes back to this, not
   // to the screen before the save: that may hold another save's unconfirmed value.
   const confirmed = useRef(new Map(initial.map((row) => [row.id, row])));
+  // cellKey → the id of the save whose answer last confirmed that field.
+  const confirmedBy = useRef(new Map<string, number>());
   const nextSave = useRef(0);
 
   const replaceRow = useCallback(
@@ -87,24 +93,25 @@ export function useCategoryRows(initial: CategoryPricingRow[]) {
       const release = (owned: CategoryField[]) => {
         for (const field of owned) owners.current.delete(cellKey(id, field));
       };
+      // Fields no save is waiting on: they show the confirmed value.
+      const settledFields = () => fields.filter((field) => !owners.current.has(cellKey(id, field)));
 
       patchCategory(id, patch).then(
         (saved) => {
-          // Fields some other unanswered save owns keep their newer local value.
-          const pending = (Object.keys(saved) as CategoryField[]).filter(
-            (field) =>
-              owners.current.has(cellKey(id, field)) &&
-              owners.current.get(cellKey(id, field)) !== saveId,
-          );
           release(ownedFields());
-          confirmed.current.set(id, saved);
-          replaceRow(id, (row) => withFields({ ...row, ...saved }, row, pending));
+          const newer = fields.filter(
+            (field) => (confirmedBy.current.get(cellKey(id, field)) ?? 0) < saveId,
+          );
+          for (const field of newer) confirmedBy.current.set(cellKey(id, field), saveId);
+          const restore = withFields(confirmed.current.get(id) ?? before, saved, newer);
+          confirmed.current.set(id, restore);
+          // A later save still in flight on a field keeps its newer local value.
+          replaceRow(id, (row) => withFields(row, restore, settledFields()));
         },
         (err: unknown) => {
-          const owned = ownedFields();
-          release(owned);
+          release(ownedFields());
           const restore = confirmed.current.get(id) ?? before;
-          replaceRow(id, (row) => withFields(row, restore, owned));
+          replaceRow(id, (row) => withFields(row, restore, settledFields()));
           const named = errorField(err);
           const where = named && fields.includes(named) ? named : origin;
           setErrors((current) => ({ ...current, [cellKey(id, where)]: pricingErrorMessage(err) }));

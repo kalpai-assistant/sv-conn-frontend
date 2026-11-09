@@ -4,7 +4,7 @@
  * for a cell take the first match.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { setSessionToken } from "@/lib/api";
 import { resetAuthState, type AdminRole } from "@/lib/auth";
@@ -128,6 +128,80 @@ describe("the categories tab", () => {
       (await screen.findAllByText("Commission % must be between 0 and 100"))[0],
     ).toBeInTheDocument();
     expect(await editButton(/^Edit Commission for AC servicing, 20%/)).toBeInTheDocument();
+  });
+
+  /** Each PATCH waits on its own answer, released by the test in any order. */
+  function queuedPatches() {
+    const answers: ReturnType<typeof deferred<Response>>[] = [];
+    const route = {
+      [`PATCH ${categoryPath(AC)}`]: () => {
+        const answer = deferred<Response>();
+        answers.push(answer);
+        return answer.promise;
+      },
+    };
+    return { answers, route };
+  }
+
+  async function saveCommission(user: ReturnType<typeof userEvent.setup>, value: string) {
+    await user.click(await editButton(/^Edit Commission for AC servicing,/));
+    const input = screen.getByRole("textbox", { name: "Commission for AC servicing" });
+    await user.clear(input);
+    await user.type(input, `${value}{Enter}`);
+  }
+
+  const commissionShows = (value: string) =>
+    waitFor(() =>
+      expect(
+        screen.getAllByRole("button", { name: /^Edit Commission for AC servicing,/ })[0],
+      ).toHaveTextContent(value),
+    );
+
+  const refusal = () =>
+    json({ message: "Nope", code: "PRICING_INVALID", details: { field: "body" } }, 422);
+
+  it("an older save answering last doesn't overwrite a newer one", async () => {
+    const { answers, route } = queuedPatches();
+    signedIn("ops", route);
+    const user = userEvent.setup();
+    renderApp("/operator/pricing/categories");
+
+    await saveCommission(user, "21"); // A
+    await saveCommission(user, "22"); // B
+    expect(answers).toHaveLength(2);
+
+    // The backend applied A then B; B's answer arrives first, A's (stale) second.
+    answers[1].resolve(json(category({ platform_commission_pct: 22 })));
+    await commissionShows("22%");
+    answers[0].resolve(json(category({ platform_commission_pct: 21, commission_gst_pct: 5 })));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50))); // let A's answer land
+    await commissionShows("22%");
+    // A's row is a snapshot of every column; only the fields A sent may count.
+    expect(
+      screen.getAllByRole("button", { name: /^Edit GST for AC servicing, 18%/ }),
+    ).not.toHaveLength(0);
+
+    // A later refusal rolls back to 22, the value the DB holds, not A's.
+    await saveCommission(user, "23");
+    await commissionShows("23%");
+    answers[2].resolve(refusal());
+    await screen.findAllByText("Nope");
+    await commissionShows("22%");
+  });
+
+  it("a newer save refused while an older one is in flight ends on the older one's value", async () => {
+    const { answers, route } = queuedPatches();
+    signedIn("ops", route);
+    const user = userEvent.setup();
+    renderApp("/operator/pricing/categories");
+
+    await saveCommission(user, "21"); // Z
+    await saveCommission(user, "23"); // A
+    answers[1].resolve(refusal());
+    await screen.findAllByText("Nope");
+    await commissionShows("20%");
+    answers[0].resolve(json(category({ platform_commission_pct: 21 })));
+    await commissionShows("21%");
   });
 
   it("ticking Sensitive asks for bounds and sends both in one PATCH", async () => {
