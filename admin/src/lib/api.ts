@@ -16,12 +16,24 @@ export class ApiError extends Error {
   code?: string;
   /** Seconds from the Retry-After header. A 429 is identified by status, never by code. */
   retryAfter?: number;
-  constructor(status: number, message: string, code?: string, retryAfter?: number) {
+  /**
+   * The AppException's structured context, when it sends one: a team refusal's
+   * blocking booking ids, say (SVC-427). Read each key defensively; it's untyped.
+   */
+  details?: Record<string, unknown>;
+  constructor(
+    status: number,
+    message: string,
+    code?: string,
+    retryAfter?: number,
+    details?: Record<string, unknown>,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.retryAfter = retryAfter;
+    this.details = details;
   }
 }
 
@@ -117,6 +129,7 @@ export async function apiFetchResponse(path: string, options: RequestInit = {}):
   if (!res.ok) {
     let errorMsg = `API error: ${res.status} ${res.statusText}`;
     let errorCode: string | undefined;
+    let errorDetails: Record<string, unknown> | undefined;
     try {
       const errorData = await res.json();
       if (errorData && errorData.message) {
@@ -129,10 +142,14 @@ export async function apiFetchResponse(path: string, options: RequestInit = {}):
       if (errorData && typeof errorData.code === "string") {
         errorCode = errorData.code;
       }
+      const details = errorData?.details;
+      if (details && typeof details === "object" && !Array.isArray(details)) {
+        errorDetails = details as Record<string, unknown>;
+      }
     } catch {
       // Ignored if response is not JSON
     }
-    throw new ApiError(res.status, errorMsg, errorCode, parseRetryAfter(res));
+    throw new ApiError(res.status, errorMsg, errorCode, parseRetryAfter(res), errorDetails);
   }
 
   return res;

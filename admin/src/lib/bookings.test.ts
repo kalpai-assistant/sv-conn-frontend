@@ -6,6 +6,7 @@ import {
   checkCancelReason,
   formatIst,
   formatRupees,
+  hasFilters,
   isCancellable,
   isUuid,
   itemsSummary,
@@ -54,11 +55,33 @@ describe("validateBookingsSearch", () => {
       sp: "",
       page: 1,
       booking: "3f2c9a1e",
+      provider_id: "not-a-uuid",
+      pro: 42,
     });
     expect(Object.keys(search).sort()).toEqual(
-      ["booking", "disputed", "from", "page", "phone", "sp", "status", "to"].sort(),
+      [
+        "booking",
+        "disputed",
+        "from",
+        "page",
+        "phone",
+        "pro",
+        "provider_id",
+        "sp",
+        "status",
+        "to",
+      ].sort(),
     );
     expect(Object.values(search).every((value) => value === undefined)).toBe(true);
+  });
+
+  it("keeps an exact SP and Pro id, lower-cased (SVC-427)", () => {
+    const search = validateBookingsSearch({
+      provider_id: BOOKING_ID.toUpperCase(),
+      pro: BOOKING_ID,
+    });
+    expect(search.provider_id).toBe(BOOKING_ID);
+    expect(search.pro).toBe(BOOKING_ID);
   });
 
   it("reads a phone the router parsed into a number as the digits typed", () => {
@@ -102,6 +125,23 @@ describe("bookingsListPath", () => {
 
   it("never sends the open booking to the list", () => {
     expect(bookingsListPath({ booking: BOOKING_ID })).not.toContain(BOOKING_ID);
+  });
+
+  it("sends an exact SP and Pro as provider_id and professional_id (SVC-427)", () => {
+    const params = new URL(
+      bookingsListPath({ provider_id: "sp-1", pro: "pro-1", from: "2026-10-11" }),
+      "http://x",
+    ).searchParams;
+    expect(params.get("provider_id")).toBe("sp-1");
+    expect(params.get("professional_id")).toBe("pro-1");
+    expect(params.get("created_from")).toBe("2026-10-11");
+  });
+
+  it("counts an exact SP or Pro as a filter, so Clear filters shows", () => {
+    expect(hasFilters({})).toBe(false);
+    expect(hasFilters({ provider_id: "sp-1" })).toBe(true);
+    expect(hasFilters({ pro: "pro-1" })).toBe(true);
+    expect(hasFilters({ booking: "b-1" })).toBe(false);
   });
 });
 

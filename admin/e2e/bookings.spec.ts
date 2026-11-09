@@ -236,6 +236,35 @@ for (const colorScheme of ["light", "dark"] as const) {
       await page.goto(`/operator/bookings?booking=${ID_A}`);
       await expect(pane(page).getByRole("region", { name: "Payment" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Force cancel" })).toHaveCount(0);
+      // The SP and the Pro open their own pages (SVC-427).
+      const people = pane(page).getByRole("region", { name: "People and place" });
+      await expect(people.getByRole("link", { name: "Vikram Sharma" })).toHaveAttribute(
+        "href",
+        "/operator/pros/p1",
+      );
+      await expect(people.locator('a[href="/operator/sps/sp1"]')).toBeVisible();
+    });
+
+    test("an SP's 30-day link narrows the list to that SP and says so", async ({ page }) => {
+      await mockBackend(page, "support");
+      const SP = "5b1d2c3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e";
+      const asked = page.waitForRequest(
+        (request) =>
+          request.url().includes("/api/v1/admin/bookings?") &&
+          request.url().includes(`provider_id=${SP}`),
+      );
+      await page.goto(`/operator/bookings?provider_id=${SP}&from=2026-10-11`);
+      const sent = new URL((await asked).url()).searchParams;
+      expect(sent.get("provider_id")).toBe(SP);
+      expect(sent.get("created_from")).toBe("2026-10-11");
+      const note = page.getByRole("note", { name: "Narrowed list" });
+      await expect(note.getByRole("link", { name: "this service provider" })).toHaveAttribute(
+        "href",
+        `/operator/sps/${SP}`,
+      );
+      await note.getByRole("button", { name: "Show everyone's" }).click();
+      await expect(page).toHaveURL(/\/operator\/bookings\?from=2026-10-11$/);
+      await expect(note).toHaveCount(0);
     });
   });
 }
