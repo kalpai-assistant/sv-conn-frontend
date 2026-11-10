@@ -314,20 +314,20 @@ function TrackingPage() {
             ("Deep Clean + 2 more"), matching PR #77's push-body summariser.
             REQUESTED keeps the searching block above.
 
-            Call dials the assigned Pro directly (SVC-360, interim until a
-            masked call path). The backend sends provider_phone only while a
-            Pro is assigned and the job is live; otherwise it is null and
-            there is no button at all. A Pro declining shows up on the next
-            4s poll. The number lives only in the href, never as text.
-
-            SVC-386: WhoIsComingCard now delegates the "assigned" branch to
-            ProTrustCard, which owns the call button internally. We just
-            pass `phoneNumber` through — no `action` prop. */}
+            SVC-452: Call no longer dials the SP's real line. The button
+            sits in a footer slot under the trust card (CallSpButton),
+            fetches a virtual Exotel number from
+            `/bookings/{id}/call-mapping` at tap time, and fires `tel:`
+            against that. The SP's real line is never read from a UI code
+            path — `booking.service.provider.phone` is pinned to `null` in
+            the mapper (hooks/useApi.ts). A booking that hasn't been
+            ACCEPTED (no mapping yet) tap → toast; a Pro declining still
+            shows up on the next 4s poll of the primary booking query. */}
         {!isSearching && (
           <WhoIsComingCard
             booking={booking}
             summary={summariseServices(booking.items, booking.service.name)}
-            phoneNumber={booking.service.provider?.phone ?? null}
+            bookingId={booking.id}
           />
         )}
 

@@ -16,6 +16,7 @@
  * and background check come from `booking.professional` (backend #219);
  * experience and area chips stay off until the backend sends them.
  */
+import { CallSpButton } from "@/components/booking/CallSpButton";
 import { ProTrustCard } from "@/components/tracking/ProTrustCard";
 import type { Booking } from "@/lib/mock-data";
 
@@ -75,7 +76,7 @@ export function whoIsComing(
 export function WhoIsComingCard({
   booking,
   summary,
-  phoneNumber,
+  bookingId,
   // SVC-396: optional overrides. Left out, each falls back to the Pro on the
   // booking — and the badge to false, so "Background verified" never shows
   // unless the backend said so.
@@ -87,8 +88,16 @@ export function WhoIsComingCard({
   booking: Pick<Booking, "status" | "professional" | "serviceProvider">;
   /** One line of what they're doing, e.g. "Deep Clean + 2 more". */
   summary: string;
-  /** Direct-dial number; omitted when the backend hasn't exposed it yet. */
-  phoneNumber?: string | null;
+  /**
+   * SVC-452: the booking ID powers the "Call" button that lives below the
+   * trust card. Omitted = no call button (e.g. a completed-booking card
+   * that only shows who came, not a way to redial). The button fetches a
+   * virtual number from `GET /bookings/{id}/call-mapping` at tap time —
+   * the raw SP line is never read here. Replaces the old `phoneNumber`
+   * prop (SVC-360 interim), which handed the SP's real number to a
+   * `tel:` anchor.
+   */
+  bookingId?: string;
   ratingAverage?: number;
   ratingCount?: number;
   bookingsCompletedCount?: number;
@@ -111,18 +120,30 @@ export function WhoIsComingCard({
   // "assigned" means a Pro is on the booking. The `??` guards a mapped
   // booking cached before these fields existed.
   const pro = booking.professional;
+  // SVC-452: "Call" is only meaningful while the booking is live — once it
+  // is COMPLETED / CANCELLED the mapping has been (or soon will be)
+  // released and the button would 404. Post-completion re-dialing happens
+  // from the dedicated Call History screen under Profile.
+  const canCall =
+    bookingId !== undefined &&
+    (booking.status === "ACCEPTED" ||
+      booking.status === "EN_ROUTE" ||
+      booking.status === "IN_PROGRESS");
   return (
     <div className="mb-4 flex flex-col gap-2">
       <ProTrustCard
         proName={who.name}
         businessName={who.business?.name}
-        phoneNumber={phoneNumber}
+        // No `phoneNumber` prop: the customer app never holds the raw SP
+        // line (SVC-452). The call affordance is the button rendered below,
+        // which routes through the masked-number endpoint.
         photoUrl={who.photoUrl}
         ratingAverage={ratingAverage ?? pro?.ratingAverage ?? 0}
         ratingCount={ratingCount ?? pro?.ratingCount ?? 0}
         bookingsCompletedCount={bookingsCompletedCount ?? pro?.bookingsCompletedCount ?? 0}
         isBackgroundVerified={isBackgroundVerified ?? pro?.isBackgroundVerified === true}
       />
+      {canCall && <CallSpButton bookingId={bookingId!} />}
       {/* Service summary lives outside ProTrustCard — that card is "who",
           this strip is "what". A small muted line, not a second card. */}
       <p className="truncate px-1 text-xs text-muted-foreground">{summary}</p>
