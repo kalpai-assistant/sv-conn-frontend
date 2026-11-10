@@ -52,7 +52,8 @@ export function MarkdownField({
           id={id}
           value={value}
           rows={8}
-          placeholder={"What's included:\n- Fitting\n- Leak test\n\n**Not included:** parts"}
+          // One line that can't pass for saved text; the hint below explains the markdown.
+          placeholder="No description yet. Write what's included…"
           className="font-mono text-sm"
           aria-invalid={invalid || over ? true : undefined}
           aria-describedby={[describedBy, counterId].filter(Boolean).join(" ")}

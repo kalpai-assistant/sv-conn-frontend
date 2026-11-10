@@ -405,6 +405,11 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(page.getByRole("heading", { level: 1, name: "New service" })).toBeVisible();
 
       await page.getByLabel("Name", { exact: true }).fill("Floor polishing");
+      // An empty description reads as empty, not as sample content.
+      await expect(page.getByLabel("Description", { exact: true })).toHaveAttribute(
+        "placeholder",
+        "No description yet. Write what's included…",
+      );
       await pick(page, "Category", "Carpenter");
       await page
         .getByLabel("Description", { exact: true })
