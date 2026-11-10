@@ -14,6 +14,9 @@ const ESCAPED = /\\([!-/:-@[-`{-~])/g;
 const SENTINEL = "";
 const RESTORE = /(\d+)/g;
 
+const WORD_CHAR = /[\p{L}\p{N}]/u;
+const isWordChar = (char: string | undefined) => char !== undefined && WORD_CHAR.test(char);
+
 export function toPlainText(markdown: string): string {
   const kept: string[] = [];
   return (
@@ -26,8 +29,12 @@ export function toPlainText(markdown: string): string {
       // A list marker at a line's start: "- ", "* ", "+ ", "1. ", "2) ".
       .replace(/^[ \t]*(?:[-+*]|\d{1,9}[.)])(?:[ \t]+|$)/gm, "")
       .replace(/\*+/g, "")
-      // _ only at a word's edge: snake_case keeps its underscores.
-      .replace(/(?<![\p{L}\p{N}])_+|_+(?![\p{L}\p{N}])/gu, "")
+      // _ only at a word's edge: snake_case keeps its underscores. The neighbours
+      // are checked in a callback, not a lookbehind: the iOS app supports 15.0,
+      // and WKWebView parses lookbehind only from 16.4 (no-regex-lookbehind.test.ts).
+      .replace(/_+/g, (run: string, offset: number, text: string) =>
+        isWordChar(text[offset - 1]) && isWordChar(text[offset + run.length]) ? run : "",
+      )
       .replace(/\s+/g, " ")
       .trim()
       .replace(RESTORE, (_, index: string) => kept[Number(index)])

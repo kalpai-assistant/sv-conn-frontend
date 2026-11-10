@@ -134,9 +134,12 @@ async function mockBackend(page: Page, role: Role) {
   ];
   const writes: { method: string; path: string; body: Json | null }[] = [];
 
-  const row = (s: Service) => {
-    const { description: _d, variants, ...rest } = s;
-    return { ...rest, active_variant_count: variants.filter((v) => v.is_active).length };
+  // The tree row: no description, no variants, just their active count.
+  const row = (s: Service): Json => {
+    const fields: Json = { ...s };
+    delete fields.description;
+    delete fields.variants;
+    return { ...fields, active_variant_count: s.variants.filter((v) => v.is_active).length };
   };
   const serviceDetail = (s: Service) => ({
     ...row(s),
