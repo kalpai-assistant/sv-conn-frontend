@@ -274,6 +274,10 @@ export const mapBooking = (
     }>;
     discount_amount?: number;
     tip_amount?: number;
+    // SVC-452: the customer app no longer reads `provider_phone`. The backend
+    // may still send it on an older deploy; the mapper deliberately ignores
+    // the value so no code path can dial the real SP line. The call button
+    // routes through `GET /bookings/{id}/call-mapping` instead.
     provider_phone?: string | null;
   },
   services?: UI_Service[],
@@ -398,7 +402,12 @@ export const mapBooking = (
           provider: {
             id: b.provider_id,
             name: "",
-            phone: b.provider_phone ?? null,
+            // SVC-452: pinned to `null` from here forward. The customer app
+            // routes "Call SP" through the masked-number endpoint
+            // (`GET /bookings/{id}/call-mapping`); the real SP line is never
+            // readable from a UI code path again. An older backend deploy may
+            // still send `provider_phone`; the mapper drops it on the floor.
+            phone: null,
             rating: 5,
             reviewCount: 0,
             verified: true,
@@ -1968,6 +1977,123 @@ export const useProviderPayouts = (enabled = true) => {
   return useQuery({
     queryKey: ["payouts", "list"],
     queryFn: () => apiFetch<API_ProviderPayoutList>("/providers/me/payouts"),
+    enabled,
+  });
+};
+
+// ---------------------------------------------------------------------------
+// SVC-452: Call masking (customer side)
+//
+// Two endpoints fronted here:
+//
+// - `GET /bookings/{id}/call-mapping` — returns a virtual Exotel number to
+//   dial for the active mapping between this consumer and the booking's SP.
+//   Shared with SVC-453 (SP side) by the same path and response shape. 404
+//   when no mapping is active yet (booking not ACCEPTED) or has been released.
+// - `GET /users/me/call-history?limit=50[&offset=N]` — paginated audit trail
+//   of the consumer's bridged calls, shown on Profile → Call History.
+//
+// Neither endpoint ever surfaces the raw SP phone number — the virtual
+// number is the only dialable address the consumer ever sees, and the
+// history rows carry first-name + service + duration + outcome, not a line.
+// ---------------------------------------------------------------------------
+
+/** 404 on a call-mapping lookup: the booking has no active mapping yet, or
+ *  the 48h grace has elapsed. The button renders a "not available" state
+ *  rather than a red error. */
+export function isCallMappingAbsent(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404;
+}
+
+export interface API_CallMappingResponse {
+  /** E.164 virtual number for a `tel:` intent. Never the real SP phone. */
+  virtual_number: string;
+}
+
+/**
+ * The virtual number to dial for `bookingId`. Returns `null` and no error
+ * when no active mapping exists (404) — the UI distinguishes "no mapping"
+ * from "fetch failed" so the former gets the baked toast rather than a red
+ * error state. `retry: false` because a 404 is terminal until the backend
+ * side-effect (booking accepted) runs.
+ */
+export const useBookingCallMapping = (bookingId: string, enabled: boolean = true) => {
+  return useQuery<API_CallMappingResponse | null, ApiError>({
+    queryKey: ["call-mapping", bookingId],
+    queryFn: async () => {
+      try {
+        return await apiFetch<API_CallMappingResponse>(`/bookings/${bookingId}/call-mapping`);
+      } catch (err) {
+        if (isCallMappingAbsent(err)) return null;
+        throw err;
+      }
+    },
+    enabled: enabled && !!bookingId,
+    // A fresh mapping outlives its booking only until release — a quick stale
+    // window means the "accept" → "number available" transition surfaces
+    // without a manual refetch. Not polled (no live loop needed on a screen
+    // whose primary query already polls at 4s).
+    staleTime: 60_000,
+    retry: false,
+  });
+};
+
+/**
+ * One row as the customer's Call History screen renders it. First-name only on
+ * `sp_first_name` is the baked privacy default (SVC-452) — never a full name,
+ * never a phone. `duration_sec` is null until the call connects; `outcome`
+ * carries the Exotel terminal status.
+ *
+ * All fields optional-ish: the OpenAPI snapshot lags backend by one deploy,
+ * so the screen treats missing fields as "no row content" rather than
+ * crashing on a schema drift.
+ */
+export interface API_ConsumerCallHistoryEntry {
+  id: string;
+  sp_first_name: string | null;
+  service_name: string | null;
+  booking_id: string | null;
+  started_at: string;
+  duration_sec: number | null;
+  outcome: string;
+  direction: "customer_to_sp" | "sp_to_customer" | "unmatched";
+}
+
+export interface API_ConsumerCallHistoryPage {
+  items: API_ConsumerCallHistoryEntry[];
+  /** Total rows the server holds for this consumer, same shape as /bookings/. */
+  total: number;
+}
+
+/** Baked default per ticket. The server caps at 50; asking for more is a 422. */
+export const CALL_HISTORY_PAGE_SIZE = 50;
+
+/**
+ * Paginated consumer call history. Uses `useInfiniteQuery` so "Load more" is a
+ * single-row concern at the screen, rather than re-implementing offset +
+ * concat + dedupe. One page = 50 rows (baked default).
+ *
+ * `getNextPageParam` returns `undefined` once the server has fewer than
+ * PAGE_SIZE rows left — react-query then hides `hasNextPage`.
+ */
+export const useConsumerCallHistory = (enabled: boolean = true) => {
+  return useInfiniteQuery({
+    queryKey: ["consumer-call-history"],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const params = new URLSearchParams({
+        limit: String(CALL_HISTORY_PAGE_SIZE),
+        offset: String(pageParam),
+      });
+      return apiFetch<API_ConsumerCallHistoryPage>(`/users/me/call-history?${params}`);
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((n, p) => n + p.items.length, 0);
+      if (loaded >= lastPage.total) return undefined;
+      // Server returned a short page — no further rows even if `total` lags.
+      if (lastPage.items.length < CALL_HISTORY_PAGE_SIZE) return undefined;
+      return loaded;
+    },
     enabled,
   });
 };
