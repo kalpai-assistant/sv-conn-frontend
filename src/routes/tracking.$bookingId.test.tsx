@@ -138,9 +138,7 @@ describe("Call provider (masked)", () => {
     "renders the masked Call button on a %s booking",
     (status) => {
       show({ status });
-      expect(
-        screen.getByRole("button", { name: /^Call for booking b1$/ }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^Call for booking b1$/ })).toBeInTheDocument();
     },
   );
 

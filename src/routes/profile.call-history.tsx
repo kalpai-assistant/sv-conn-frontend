@@ -196,9 +196,7 @@ export function CallHistoryPage() {
                 Load more button. The page-size constant doubles as the
                 wordless pin that this screen asks for 50 at a time. */}
             {!hasNextPage && rows.length >= CALL_HISTORY_PAGE_SIZE && (
-              <p className="mt-4 text-center text-xs text-muted-foreground">
-                You're caught up.
-              </p>
+              <p className="mt-4 text-center text-xs text-muted-foreground">You're caught up.</p>
             )}
           </>
         )}
