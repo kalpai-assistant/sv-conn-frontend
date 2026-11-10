@@ -29,10 +29,6 @@ vi.mock("@/components/provider/JobActions", () => ({
   DoorstepOtpStep: () => <div />,
   CompleteStep: () => <div />,
 }));
-// SVC-453: see sibling SP booking test — stubbed for the same reason.
-vi.mock("@/components/provider/CallCustomerButton", () => ({
-  CallCustomerButton: () => <div />,
-}));
 
 import { Route } from "@/routes/pro/jobs/$bookingId";
 
