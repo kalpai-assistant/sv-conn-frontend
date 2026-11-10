@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, MapPin, Users, WalletCards } from "lucide-react";
+import { ChevronRight, MapPin, PhoneCall, Users, WalletCards } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { LogoutButton } from "@/components/LogoutButton";
@@ -104,6 +104,26 @@ function ProviderProfilePage() {
             <p className="text-sm font-medium text-foreground">{t("profile.team")}</p>
             <p className="truncate text-sm text-muted-foreground">
               {teamSize > 0 ? t("profile.teamCount", { count: teamSize }) : t("profile.teamNone")}
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </Link>
+
+      {/* SVC-453: Call history. An audit the SP can scroll back through —
+          incoming, outgoing, unmatched, and the terminal outcome of each.
+          Placed below My Team because it's a read surface (like the rows
+          above), not a readiness one. */}
+      <Link
+        to="/provider/call-history"
+        className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-secondary/50"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <PhoneCall className="h-5 w-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">{t("callHistory.navRow")}</p>
+            <p className="truncate text-sm text-muted-foreground">
+              {t("callHistory.navSubtitle")}
             </p>
           </div>
         </div>
