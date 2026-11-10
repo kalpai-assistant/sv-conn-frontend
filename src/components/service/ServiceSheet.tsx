@@ -51,6 +51,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { ServiceCard } from "@/components/ServiceCard";
 import { ServiceCardCompact } from "@/components/home/ServiceCardCompact";
 import { formatRupees } from "@/lib/currency";
+import { ServiceDescription } from "@/components/service/ServiceDescription";
 
 interface ServiceSheetProps {
   serviceId: string;
@@ -243,9 +244,11 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
                       ) : null}
                     </div>
                   ) : null}
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    {service.description}
-                  </p>
+                  {/* SVC-430: markdown, in the subset the admin's preview shows. */}
+                  <ServiceDescription
+                    text={service.description}
+                    className="mt-2 space-y-2 text-sm leading-relaxed text-muted-foreground"
+                  />
                   <div className="mt-4 flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
@@ -406,6 +409,7 @@ function RelatedRail({
               service={s}
               categorySlug={cat?.slug}
               categorySortOrder={cat?.sortOrder}
+              categoryIconKey={cat?.iconKey}
             />
           );
         })}

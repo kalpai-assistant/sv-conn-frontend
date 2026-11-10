@@ -104,8 +104,10 @@ function mergeDependentQuery<TQuery extends UseQueryResult<unknown>>(
 // constant "Sparkles" and a constant brand blue — 18 visually identical
 // tiles. Icons and colours are now derived client-side from slug and
 // sort_order (lib/category-icons.ts), so this only carries what that
-// derivation needs.
-const mapCategory = (cat: API_CategoryResponse): UI_Category => ({
+// derivation needs. SVC-430: plus the admin-picked icon_key, which
+// categoryIcon uses only for slugs its curated map doesn't cover.
+// Exported for its unit test; components go through `useCategories`.
+export const mapCategory = (cat: API_CategoryResponse): UI_Category => ({
   id: cat.id,
   name: cat.name,
   slug: cat.slug,
@@ -113,6 +115,7 @@ const mapCategory = (cat: API_CategoryResponse): UI_Category => ({
   // SVC-286: null on top-level tiles (Home renders these), UUID on
   // sub-categories (rendered inside a category page).
   parentId: cat.parent_id,
+  iconKey: cat.icon_key ?? null,
 });
 
 // `cats` is structural on purpose — this only needs id + name to resolve a
@@ -178,6 +181,8 @@ export const mapService = (
     // "video vs image vs fallback" from the already-cached catalogue.
     bannerImageUrl: srv.banner_image_url ?? null,
     bannerVideoUrl: srv.banner_video_url ?? null,
+    // SVC-430: the admin-picked icon; ServiceCardCompact prefers it.
+    iconKey: srv.icon_key ?? null,
     // SVC-388: a backend without the field yet reads the same as "no snippet".
     reviewSnippet: srv.latest_review_snippet
       ? {

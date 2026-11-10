@@ -63,7 +63,7 @@ export function CategoryRail() {
     <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pl-4 scrollbar-none">
       {level1.map((cat) => {
         const image = categoryImage(cat.slug);
-        const Icon = categoryIcon(cat.slug);
+        const Icon = categoryIcon(cat.slug, cat.iconKey);
         const tint = categoryColor(cat.sortOrder);
         return (
           <button

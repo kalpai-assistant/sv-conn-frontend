@@ -120,7 +120,7 @@ function CategoryPage() {
     return null;
   }
 
-  const Icon = categoryIcon(category.slug);
+  const Icon = categoryIcon(category.slug, category.iconKey);
   const tint = categoryColor(category.sortOrder);
 
   return (

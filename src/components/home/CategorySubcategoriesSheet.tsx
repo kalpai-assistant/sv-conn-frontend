@@ -133,7 +133,7 @@ export function CategorySubcategoriesSheet({
             <div className="grid grid-cols-3 gap-3 px-4 pt-2">
               {subCategories.map((sub) => {
                 const image = subcategoryImage(sub.slug);
-                const SubIcon = categoryIcon(sub.slug);
+                const SubIcon = categoryIcon(sub.slug, sub.iconKey);
                 const tint = categoryColor(sub.sortOrder);
                 return (
                   <Link

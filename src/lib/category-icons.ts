@@ -34,6 +34,7 @@ import {
   Wrench,
   Zap,
 } from "lucide-react";
+import { catalogIcon } from "@/lib/catalog-icons";
 
 /**
  * Every slug the catalogue serves today. Verified against
@@ -85,11 +86,16 @@ const CATEGORY_COLORS = [
   "#15803D", // green
 ] as const;
 
-/** Fallback for a slug shipped after this map was written. */
+/** Fallback for a slug shipped after this map was written, with no icon_key. */
 const FALLBACK_ICON: LucideIcon = Sparkles;
 
-export function categoryIcon(slug: string): LucideIcon {
-  return CATEGORY_ICONS[slug] ?? FALLBACK_ICON;
+/**
+ * SVC-430: the curated map above wins, then the icon an admin picked (icon_key),
+ * then Sparkles. The curated slugs keep their designed icon on purpose (Tushar,
+ * 2026-11-10), so an icon_key shows only on categories added in the admin console.
+ */
+export function categoryIcon(slug: string, iconKey?: string | null): LucideIcon {
+  return CATEGORY_ICONS[slug] ?? catalogIcon(iconKey) ?? FALLBACK_ICON;
 }
 
 export function categoryColor(sortOrder: number): string {

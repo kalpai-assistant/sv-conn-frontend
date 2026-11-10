@@ -38,6 +38,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/admin/send-otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin Send Otp
+         * @deprecated
+         */
+        post: operations["admin_send_otp_api_v1_auth_admin_send_otp_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/admin/verify-otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin Verify Otp
+         * @deprecated
+         */
+        post: operations["admin_verify_otp_api_v1_auth_admin_verify_otp_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/refresh": {
         parameters: {
             query?: never;
@@ -90,7 +130,21 @@ export interface paths {
         get: operations["get_me_api_v1_users_me_get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Me
+         * @description Delete the caller's account (SVC-367). No undo.
+         *
+         *     409 ``ACTIVE_BOOKINGS`` (``details.booking_ids``) while any booking they are
+         *     on is requested/accepted/en route/in progress; for an SP, 409
+         *     ``TEAM_HAS_PROS`` (``details.professional_ids``) while a team member is
+         *     still active, and 409 ``UNPAID_BALANCE`` (``details.balance_paise``) while
+         *     a payout is owed. Nothing is changed on a 409.
+         *
+         *     Otherwise the account is anonymised in place (see ``AccountService``) and
+         *     its photos and KYC images are deleted from S3 after the commit, including
+         *     old ones from earlier re-uploads.
+         */
+        delete: operations["delete_me_api_v1_users_me_delete"];
         options?: never;
         head?: never;
         /** Update Me */
@@ -261,6 +315,26 @@ export interface paths {
          * @description Upload/replace the provider's profile photo. Returns the updated profile.
          */
         post: operations["upload_profile_photo_api_v1_providers_me_photo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers/me/business-image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Business Image
+         * @description Upload/replace the provider's business image (SVC-336). Returns the updated profile.
+         */
+        post: operations["upload_business_image_api_v1_providers_me_business_image_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -484,6 +558,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/providers/me/earnings/by-pro": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Earnings By Pro
+         * @description The SP's earnings split by the Pro who did each job (SVC-323).
+         *
+         *     Same windows as `/me/earnings`, plus `all`. Every Pro of the SP is listed,
+         *     removed ones and those with no jobs included; jobs that completed with no
+         *     Pro on them are one `professional_id: null` "Not assigned" row. The totals
+         *     equal `/me/earnings` (windows) and `/me/earnings/summary` (`all`). Separate
+         *     from `GET /me/team`, which the pick-a-Pro step calls on every accept.
+         */
+        get: operations["get_my_earnings_by_pro_api_v1_providers_me_earnings_by_pro_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/providers/me/earnings": {
         parameters: {
             query?: never;
@@ -498,6 +598,9 @@ export interface paths {
          *     Window is the IST calendar boundary (today = since 00:00 IST, week = since
          *     Monday 00:00 IST, month = since the 1st 00:00 IST). Refunded payments are
          *     excluded. Used by the provider Earnings dashboard (SC-27).
+         *
+         *     `professional_id` (SVC-323) narrows it to one of the SP's Pros, removed ones
+         *     included: the per-Pro detail view. Anyone else's Pro is a 404 `PRO_NOT_FOUND`.
          */
         get: operations["get_my_earnings_api_v1_providers_me_earnings_get"];
         put?: never;
@@ -545,6 +648,162 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/providers/me/team/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Team Invites
+         * @description Every invite I've sent, newest first, with its status (PENDING, ACCEPTED,
+         *     REVOKED or EXPIRED). Pending ones carry the code, so the app can re-show or
+         *     revoke them after a reload.
+         */
+        get: operations["list_team_invites_api_v1_providers_me_team_invites_get"];
+        put?: never;
+        /**
+         * Create Team Invite
+         * @description Invite a phone number to join my team as a Pro, by SMS.
+         *
+         *     403 ``INVITER_PAYOUT_KYC_INCOMPLETE`` until my KYC is verified (SVC-327):
+         *     team earnings are paid to me. 5 per hour. The link is single-use and lasts 7
+         *     days. Until the DLT template is approved (SVC-328) the SMS is only logged as
+         *     ``[MOCK INVITE]``; the response carries the link either way.
+         */
+        post: operations["create_team_invite_api_v1_providers_me_team_invites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers/me/team/invites/{invite_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke Team Invite
+         * @description Cancel a pending invite. 409 once it's accepted, revoked or expired.
+         */
+        post: operations["revoke_team_invite_api_v1_providers_me_team_invites__invite_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers/me/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Team
+         * @description Active Pros under my SP, my own Pro-for-self (``is_self``) first.
+         *
+         *     With ``booking_id``, Pros who declined that booking are left out (SVC-361).
+         *     A booking that isn't mine hides nobody: same list, no error.
+         */
+        get: operations["list_my_team_api_v1_providers_me_team_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers/me/team/{pro_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Team Member
+         * @description Remove a Pro from my team (soft: the row is kept for past bookings).
+         *
+         *     400 ``CANNOT_REMOVE_SELF`` for my own Pro-for-self; to stop taking jobs
+         *     myself, use ``PATCH /me/self-pro``. ``self_reenabled`` is true when this
+         *     removed my last other Pro while I had switched that off, so it was turned
+         *     back on (SVC-326). Was a 204 with no body before SVC-326.
+         */
+        delete: operations["remove_team_member_api_v1_providers_me_team__pro_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers/me/self-pro": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Self Pro
+         * @description Whether I take jobs myself, and whether anyone on my team could take one
+         *     right now (SVC-326).
+         */
+        get: operations["get_self_pro_api_v1_providers_me_self_pro_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Self Pro
+         * @description Switch taking jobs myself on or off, while my team keeps working (SVC-326).
+         *
+         *     Off: I'm broadcast to only while a team Pro could be assigned the job, a
+         *     plain accept and assigning myself answer 409 ``SELF_NOT_TAKING_JOBS``, and
+         *     the pick list flags my row. Bookings already on me are unaffected. I stay
+         *     "online" to receive and dispatch.
+         */
+        patch: operations["update_self_pro_api_v1_providers_me_self_pro_patch"];
+        trace?: never;
+    };
+    "/api/v1/providers/me/accept-invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Team Invite
+         * @description Join the inviting SP's team with the 6-digit code from the SMS. Returns
+         *     my new (or reactivated) Pro row.
+         *
+         *     The code is matched together with my phone. 404 if it isn't one of my
+         *     invites (including someone else's valid code); 410 if it was mine but is
+         *     used, revoked or expired; 400 ``ALREADY_PRO_ELSEWHERE`` while I'm an active
+         *     Pro under another SP (an SP's own Pro-for-self counts); 409 already on this
+         *     team. 10 attempts an hour.
+         */
+        post: operations["accept_team_invite_api_v1_providers_me_accept_invite_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/categories": {
         parameters: {
             query?: never;
@@ -577,7 +836,7 @@ export interface paths {
         put?: never;
         /**
          * Create Service
-         * @description Admin-only: add a service to the global catalog.
+         * @description Admin or ops: add a service to the global catalog.
          */
         post: operations["create_service_api_v1_services_post"];
         delete?: never;
@@ -608,14 +867,14 @@ export interface paths {
         post?: never;
         /**
          * Delete Service
-         * @description Admin-only: soft-delete a catalog service.
+         * @description Admin or ops: soft-delete a catalog service.
          */
         delete: operations["delete_service_api_v1_services__service_id__delete"];
         options?: never;
         head?: never;
         /**
          * Update Service
-         * @description Admin-only: update a catalog service.
+         * @description Admin or ops: update a catalog service.
          */
         patch: operations["update_service_api_v1_services__service_id__patch"];
         trace?: never;
@@ -662,6 +921,55 @@ export interface paths {
          *     provider they lost (SVC-154).
          */
         patch: operations["accept_booking_api_v1_bookings__booking_id__accept_patch"];
+        trace?: never;
+    };
+    "/api/v1/bookings/{booking_id}/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assign Booking
+         * @description Give this booking to one of my Pros (SVC-320 two-level dispatch).
+         *
+         *     On an open booking this is the claim, first write wins, with the same
+         *     answers as accept: 403 not offered, 410 gone. On a booking I already hold
+         *     at ACCEPTED it sets or replaces the Pro, e.g. after a decline. Assigning the
+         *     Pro already on it is an idempotent 200 with no push.
+         */
+        post: operations["assign_booking_api_v1_bookings__booking_id__assign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{booking_id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Release Booking
+         * @description Give an accepted booking back so other SPs can take it (SVC-320).
+         *
+         *     For when nobody on my team can do it. It goes back to REQUESTED with a
+         *     fresh 2-minute window, the consumer is told we're finding someone else, and
+         *     it is broadcast again to everyone except me. Only before anyone sets off.
+         */
+        post: operations["release_booking_api_v1_bookings__booking_id__release_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/bookings/{booking_id}/decline": {
@@ -761,7 +1069,15 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Cancel Booking */
+        /**
+         * Cancel Booking
+         * @description Cancel a booking — or, for its provider while ACCEPTED, give it back.
+         *
+         *     SVC-344: a provider backing out of an accepted job reopens it (back to
+         *     searching, no fee to anyone, the consumer told we're finding someone else)
+         *     instead of cancelling it on the consumer. Once en route it's a 409
+         *     ``PROVIDER_EN_ROUTE``: that needs support. The consumer cancels as before.
+         */
         patch: operations["cancel_booking_api_v1_bookings__booking_id__cancel_patch"];
         trace?: never;
     };
@@ -836,6 +1152,196 @@ export interface paths {
         get: operations["get_booking_api_v1_bookings__booking_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pros/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Pro Profile
+         * @description My Pro profile, my SP's brand, and the KYC that applies to me. No payout
+         *     details: those belong to the SP (SVC-327).
+         */
+        get: operations["get_my_pro_profile_api_v1_pros_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pros/me/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Jobs
+         * @description Jobs assigned to me, newest first. ``active``: accepted, en route or in
+         *     progress. ``past``: completed, cancelled, expired, or given back.
+         */
+        get: operations["list_my_jobs_api_v1_pros_me_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pros/me/online": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set My Online
+         * @description Go online or offline. For a Pro-for-self this is the SP's own toggle
+         *     (same service-area rule, 400 ``SERVICE_AREA_MISSING``).
+         */
+        post: operations["set_my_online_api_v1_pros_me_online_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pros/me/location": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Update My Location
+         * @description Location heartbeat while online, every ~30 s. Stored on my Pro row only;
+         *     it does not feed live tracking.
+         */
+        post: operations["update_my_location_api_v1_pros_me_location_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pros/me/jobs/{booking_id}/en-route": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pro En Route
+         * @description I'm on my way. The consumer gets "Provider on the way".
+         */
+        post: operations["pro_en_route_api_v1_pros_me_jobs__booking_id__en_route_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pros/me/jobs/{booking_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pro Start
+         * @description Start at the door with the consumer's OTP (400 if it doesn't match).
+         */
+        post: operations["pro_start_api_v1_pros_me_jobs__booking_id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pros/me/jobs/{booking_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pro Complete
+         * @description Done. The consumer is told, and a cash job's payment is recorded.
+         */
+        post: operations["pro_complete_api_v1_pros_me_jobs__booking_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pros/me/kyc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit My Kyc
+         * @description My Aadhaar identity KYC (SVC-327). Same upload and AI check as an SP's,
+         *     recorded on my Pro row only. Payout KYC stays with my SP.
+         */
+        post: operations["submit_my_kyc_api_v1_pros_me_kyc_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pros/me/jobs/{booking_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline Job
+         * @description Turn down a job I've been assigned, before setting off.
+         *
+         *     If my SP has someone else on the team, the job stays with them and they're
+         *     asked to pick another Pro (``awaiting_repick``). Otherwise it goes back to
+         *     the broadcast for other SPs (``reopened``), and the consumer is told we're
+         *     finding someone else.
+         */
+        post: operations["decline_job_api_v1_pros_me_jobs__booking_id__decline_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1010,6 +1516,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login
+         * @description Password step. 401 ``INVALID_CREDENTIALS`` for an unknown email, wrong
+         *     password, locked or deactivated account alike; 3 wrong passwords in a row
+         *     lock the account for 24 hours. 429 past 5 attempts per IP per 15 minutes.
+         */
+        post: operations["login_api_v1_admin_auth_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/auth/totp/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Totp Setup
+         * @description First login only: returns the otpauth URL for the app to draw as a QR.
+         *     401 ``INVALID_CHALLENGE``; 409 ``TOTP_ALREADY_ACTIVE`` once activated.
+         */
+        post: operations["totp_setup_api_v1_admin_auth_totp_setup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/auth/totp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Totp Verify
+         * @description Code step: returns the 12-hour session JWT, and activates TOTP on first
+         *     success. 401 ``INVALID_CHALLENGE`` / ``INVALID_TOTP_CODE``; 409
+         *     ``TOTP_SETUP_REQUIRED``; 429 past 10 attempts per admin per 15 minutes.
+         */
+        post: operations["totp_verify_api_v1_admin_auth_totp_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Ends this session: every token carrying its sid stops working.
+         */
+        post: operations["logout_api_v1_admin_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Me */
+        get: operations["me_api_v1_admin_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/users": {
         parameters: {
             query?: never;
@@ -1040,7 +1648,16 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Deactivate User */
+        /**
+         * Deactivate User
+         * @description Deactivate a user. An unknown id is a silent 204. The body (an optional
+         *     ``reason`` for the audit log) may be left out entirely.
+         *
+         *     SVC-329: 409 ``USER_HAS_ACTIVE_JOBS`` (ids in ``details.booking_ids``)
+         *     while they hold a job, with nothing changed. Otherwise they also go offline
+         *     everywhere and are removed from any team they're a Pro on, and an
+         *     ``admin_actions`` row is written in the same transaction.
+         */
         patch: operations["deactivate_user_api_v1_admin_users__user_id__deactivate_patch"];
         trace?: never;
     };
@@ -1053,15 +1670,37 @@ export interface paths {
         };
         /**
          * List Kyc Queue
-         * @description List providers filtered by KYC status.
+         * @description List KYC records by status, leaving out deleted accounts and removed Pros.
          *
-         *     SVC-298: same endpoint answers both the pending review queue (default) and
-         *     the rejected view — one query param instead of a sibling route keeps the
-         *     pagination + response shape DRY. Rejected rows sort by most-recent review
-         *     first (that's the useful order when hunting a specific past rejection);
-         *     submitted rows keep oldest-first so the admin drains the queue FIFO.
+         *     One route for every tab keeps the pagination and response shape in one place.
+         *     Submitted (and pending) sort oldest submitted first, so the admin drains the
+         *     queue FIFO. Rejected, verified and auto_approved sort newest review first,
+         *     which is the useful order when hunting a past decision. ``all`` sorts newest
+         *     submitted first.
          */
         get: operations["list_kyc_queue_api_v1_admin_providers_kyc_pending_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/kyc/pending/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count Kyc Queue
+         * @description How many rows ``GET /providers/kyc/pending`` has across all pages, for the
+         *     console's sidebar badge (SVC-424). A badge that includes team Pros must ask
+         *     for ``kind=all``; the default is ``sp``, the same as the queue.
+         */
+        get: operations["count_kyc_queue_api_v1_admin_providers_kyc_pending_count_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1125,6 +1764,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/pros/{professional_id}/kyc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pro Kyc Review
+         * @description A team Pro's KYC review payload, with which SP they work for.
+         */
+        get: operations["get_pro_kyc_review_api_v1_admin_pros__professional_id__kyc_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pros/{professional_id}/kyc/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Pro Kyc */
+        post: operations["verify_pro_kyc_api_v1_admin_pros__professional_id__kyc_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pros/{professional_id}/kyc/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Pro Kyc */
+        post: operations["reject_pro_kyc_api_v1_admin_pros__professional_id__kyc_reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/bookings": {
         parameters: {
             query?: never;
@@ -1169,8 +1862,8 @@ export interface paths {
          *
          *     ``booking_status_logs`` gets a row with ``changed_by=admin.id`` and the
          *     reason in the ``note`` column; ``booking.cancellation_reason`` is stamped
-         *     with the same string. The other party gets the standard cancelled push
-         *     (SVC-278) with the admin as actor so the notification tone matches
+         *     with the same string. Both parties get the standard cancelled push
+         *     (SVC-278, SVC-348) with the admin as actor so the notification tone matches
          *     consumer-initiated cancels — the customer/provider hears "your booking
          *     was cancelled", not the internal detail that support did it.
          */
@@ -1204,6 +1897,33 @@ export interface paths {
          *     still withholds the doorstep PIN — see ``BookingResponse.for_admin``.
          */
         get: operations["get_any_booking_api_v1_admin_bookings__booking_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/bookings/{booking_id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Timeline
+         * @description Everything that happened to one booking, oldest first (SVC-333): status
+         *     changes (``type: "status"``) merged with changes of its Pro (``type:
+         *     "assignment"``: claimed, repicked, declined, released, provider_cancelled).
+         *
+         *     Answers "who was actually sent, by whom, and when" in a dispute. Its own
+         *     route rather than more fields on ``GET /admin/bookings/{id}``, which reuses
+         *     the consumer's ``BookingResponse``: Pro and actor names must never reach that
+         *     shape.
+         */
+        get: operations["get_booking_timeline_api_v1_admin_bookings__booking_id__timeline_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1282,17 +2002,26 @@ export interface paths {
          *     puts pool pressure on the same workers serving consumer traffic during a
          *     RazorpayX slowdown.
          *
-         *     The upfront reads compute the batch total + booking count without a row
-         *     lock, so the admin gets an accurate estimate immediately. The task then
-         *     runs the full flow (record audit → lock rows → RazorpayX → resolve audit
-         *     → update bookings → drain pushes) — every guarantee from the synchronous
-         *     path is preserved because the task calls the same
-         *     ``PayoutService.create_provider_payout``.
+         *     Before queuing, ``PayoutService.preflight_payout`` runs every check the task
+         *     would refuse on (KYC, payout details, nothing pending, an unresolved
+         *     attempt, wallet ≤ 0, the batch cap) with the same messages, read-only and
+         *     lock-free. A refusal is a 402 and nothing is queued. Before this only the cap
+         *     was checked here, and the rest came back as a 202 "queued" the task then
+         *     rolled back without a trace. The task runs the full flow (record audit → lock
+         *     rows → RazorpayX → resolve audit → update bookings → drain pushes) through
+         *     the same ``PayoutService.create_provider_payout``, which re-runs the checks
+         *     under the row lock and writes a ``refused`` audit row if one fails there.
          *
          *     Every attempt is still recorded in ``payout_audits`` before the RazorpayX
          *     call fires; the admin payouts screen surfaces the outcome from there, and
          *     ``reconcile_payouts`` (nightly) resolves any breadcrumb whose task
          *     process died mid-flight.
+         *
+         *     SVC-423: one ``admin_actions`` row per accepted request, committed before the
+         *     enqueue, because an unaudited money move is worse than a row for a failed
+         *     enqueue. A refused batch writes none, and the task writes none: each
+         *     attempt's outcome stays in ``payout_audits``. That's why the preflight runs
+         *     first: a 402/404 raises before the row is written.
          */
         post: operations["pay_out_provider_api_v1_admin_providers__user_id__payout_post"];
         delete?: never;
@@ -1352,6 +2081,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/payouts/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Payout Providers
+         * @description One row per SP with any payout-scope booking (completed, PAID, not cash).
+         *
+         *     Count + paise per settlement status, ``earned_paise`` across all five, and
+         *     ``payable_paise``, the net a payout would send now. ``status`` keeps SPs with a
+         *     booking in that bucket; omit it for all. Largest pending amount first.
+         */
+        get: operations["list_payout_providers_api_v1_admin_payouts_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/{user_id}/payout-bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Provider Payout Bookings
+         * @description The bookings behind an SP's payout figures, newest completion first, with the
+         *     price, commission and payout split each one contributed.
+         */
+        get: operations["list_provider_payout_bookings_api_v1_admin_providers__user_id__payout_bookings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payouts/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Payouts Csv
+         * @description Payout-scope bookings completed on IST days ``from``..``to`` inclusive, as CSV
+         *     for the accounting import. At most 366 days. Cash bookings are left out.
+         */
+        get: operations["export_payouts_csv_api_v1_admin_payouts_export_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/app-versions/{platform}/release": {
         parameters: {
             query?: never;
@@ -1381,6 +2176,622 @@ export interface paths {
          *       2. `POST /admin/app-versions/android/release {"version": "X.Y.Z"}`
          */
         post: operations["publish_app_release_api_v1_admin_app_versions__platform__release_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Providers
+         * @description Owners (users with a provider profile), newest first. A bare list: the
+         *     old Teams screen reads this shape, so it has no ``total``.
+         */
+        get: operations["search_providers_api_v1_admin_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/{sp_user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Provider
+         * @description One owner: the row the search returns plus (SVC-427) the SP page's
+         *     aggregates: service area, rating, completed jobs, services offered and the
+         *     bookings created in the last 30 IST days. 404 ``SP_NOT_FOUND`` for an
+         *     unknown id or a user who isn't an owner.
+         */
+        get: operations["get_provider_api_v1_admin_providers__sp_user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/{sp_user_id}/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Provider Team
+         * @description Every Pro row under this owner, removed ones included (``is_active``):
+         *     Pro-for-self first, then active, then by join date. 404 ``SP_NOT_FOUND``.
+         */
+        get: operations["get_provider_team_api_v1_admin_providers__sp_user_id__team_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/{sp_user_id}/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Provider Invites
+         * @description The owner's invites, newest first, any status. No codes. Stale PENDING
+         *     rows are saved as EXPIRED on the way out, as on the SP's own list.
+         */
+        get: operations["get_provider_invites_api_v1_admin_providers__sp_user_id__invites_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pros": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pros
+         * @description Every Pro row across all owners, newest first, with the owner each
+         *     belongs to and the total matching the filters (SVC-427).
+         */
+        get: operations["list_pros_api_v1_admin_pros_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pros/{professional_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pro
+         * @description One Pro row, removed or not, the owner it belongs to, and (SVC-427) its
+         *     rating (null with no reviews) and completed jobs.
+         */
+        get: operations["get_pro_api_v1_admin_pros__professional_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pros/{professional_id}/force-remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Force Remove Pro
+         * @description Remove a Pro from their owner's team (soft), e.g. when the owner is
+         *     unresponsive. The same removal the owner does: 404 ``PRO_NOT_FOUND`` if
+         *     missing or already removed, 400 ``CANNOT_REMOVE_SELF`` for an owner's own
+         *     Pro-for-self, 409 ``PRO_HAS_ACTIVE_JOB`` while they're on a job. Audited.
+         */
+        post: operations["force_remove_pro_api_v1_admin_pros__professional_id__force_remove_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pros/{professional_id}/reassign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reassign Pro
+         * @description Move a person to another owner's team by admin authority: no invite or
+         *     accept by either party (mergers, support). KYC is never copied: a row the
+         *     target already had for them is reactivated with its own KYC, else a new row
+         *     starts PENDING. Audited.
+         *
+         *     Refused: 404 ``PRO_NOT_FOUND`` (missing or removed), 400
+         *     ``CANNOT_REASSIGN_SELF``, 400 ``SAME_SERVICE_PROVIDER``, 404
+         *     ``TARGET_SP_NOT_FOUND``, 409 ``TARGET_SP_INACTIVE``, 409
+         *     ``TARGET_SP_KYC_INCOMPLETE``, 409 ``USER_INACTIVE``, 409
+         *     ``ALREADY_ON_TEAM``, 409 ``PRO_HAS_ACTIVE_JOB``.
+         */
+        post: operations["reassign_pro_api_v1_admin_pros__professional_id__reassign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Admin Actions
+         * @description The 3 team actions, newest first: an owner's history on the Teams screen.
+         *     The full log is ``GET /admin/audit``, admin only.
+         */
+        get: operations["list_admin_actions_api_v1_admin_actions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Audit Log
+         * @description Every audited admin write, newest first.
+         */
+        get: operations["list_audit_log_api_v1_admin_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/audit/filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Audit Filters
+         * @description The admins, actions and target types present in the log, for dropdowns.
+         */
+        get: operations["get_audit_filters_api_v1_admin_audit_filters_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pricing/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Category Pricing
+         * @description Every category with its pricing config, each L1 followed by its L2s.
+         */
+        get: operations["list_category_pricing_api_v1_admin_pricing_categories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pricing/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Category Pricing
+         * @description Change any of the six fields. A refused value is a 422 ``PRICING_INVALID``
+         *     naming the field in ``details.field``. Turning ``is_sensitive`` off clears
+         *     ``bounds_pct``.
+         */
+        patch: operations["update_category_pricing_api_v1_admin_pricing_categories__category_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/pricing/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pricing Config
+         * @description The ranking weights, boost window and sheet TTL.
+         */
+        get: operations["list_pricing_config_api_v1_admin_pricing_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pricing/config/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Pricing Config
+         * @description Replace one key's value. 404 for an unknown key.
+         */
+        patch: operations["update_pricing_config_api_v1_admin_pricing_config__key__patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/coupons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Coupons
+         * @description Every coupon, active or not, newest first.
+         */
+        get: operations["list_coupons_api_v1_admin_coupons_get"];
+        put?: never;
+        /**
+         * Create Coupon
+         * @description A new global coupon. 409 ``COUPON_CODE_TAKEN`` if the code exists in any
+         *     case; a refused value is a 422 ``COUPON_INVALID`` naming ``details.field``.
+         */
+        post: operations["create_coupon_api_v1_admin_coupons_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/coupons/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Coupon
+         * @description The coupon with its usage: total discount given and the latest 20
+         *     redemptions. 404 ``COUPON_NOT_FOUND``.
+         */
+        get: operations["get_coupon_api_v1_admin_coupons__code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Coupon
+         * @description Change any editable field, validated against the row as it would be saved.
+         *     ``usage_limit`` can't go below the uses so far. A save that changes nothing
+         *     is a 200 with no audit row.
+         */
+        patch: operations["update_coupon_api_v1_admin_coupons__code__patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/coupons/{code}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivate Coupon
+         * @description Switch the coupon off. Already off: 200, no audit row.
+         */
+        post: operations["deactivate_coupon_api_v1_admin_coupons__code__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/coupons/{code}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate Coupon
+         * @description Switch the coupon back on. Already on: 200, no audit row.
+         */
+        post: operations["activate_coupon_api_v1_admin_coupons__code__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Catalog
+         * @description Every category and service, active or not: L1 → its L2s → their services.
+         */
+        get: operations["get_catalog_api_v1_admin_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Category
+         * @description A new L1 (no ``parent_id``) or L2. The slug is made from the name. 409
+         *     ``CATALOG_NAME_TAKEN`` if the name or that slug is taken; a refused value is a
+         *     422 ``CATALOG_INVALID`` naming ``details.field``.
+         */
+        post: operations["create_category_api_v1_admin_catalog_categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Category
+         * @description One category with its sub-category and service counts. 404
+         *     ``CATEGORY_NOT_FOUND``.
+         */
+        get: operations["get_category_api_v1_admin_catalog_categories__category_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Category
+         * @description Rename, move, re-sort or change the icon. The slug stays. A save that
+         *     changes nothing is a 200 with no audit row.
+         */
+        patch: operations["update_category_api_v1_admin_catalog_categories__category_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/categories/{category_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivate Category
+         * @description 409 ``CATEGORY_NOT_EMPTY`` with ``details.active_services`` and
+         *     ``details.active_subcategories`` while either is above 0. Already off: 200,
+         *     no audit row.
+         */
+        post: operations["deactivate_category_api_v1_admin_catalog_categories__category_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/categories/{category_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate Category
+         * @description Refused (422 on ``parent_id``) while its parent is inactive. Already on:
+         *     200, no audit row.
+         */
+        post: operations["activate_category_api_v1_admin_catalog_categories__category_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Service
+         * @description A new service in a category that holds no sub-categories. 409
+         *     ``CATALOG_NAME_TAKEN`` if the category already has that name in any case.
+         */
+        post: operations["create_service_api_v1_admin_catalog_services_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/services/{service_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Service
+         * @description One service with every variant, active or not (read-only here). 404
+         *     ``SERVICE_NOT_FOUND``.
+         */
+        get: operations["get_service_api_v1_admin_catalog_services__service_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Service
+         * @description Change any editable field, or move it to another category. A save that
+         *     changes nothing is a 200 with no audit row.
+         */
+        patch: operations["update_service_api_v1_admin_catalog_services__service_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/services/{service_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivate Service
+         * @description 409 ``SERVICE_HAS_ACTIVE_BOOKINGS`` with ``details.active_bookings`` while
+         *     bookings are in flight, unless the body is ``{"confirm": true}``. Those
+         *     bookings carry on. Already off: 200, no audit row.
+         */
+        post: operations["deactivate_service_api_v1_admin_catalog_services__service_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/services/{service_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate Service
+         * @description Refused (422 on ``category_id``) while its category is inactive. Already
+         *     on: 200, no audit row.
+         */
+        post: operations["activate_service_api_v1_admin_catalog_services__service_id__activate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1496,6 +2907,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AcceptInviteRequest */
+        AcceptInviteRequest: {
+            /**
+             * Token
+             * @example 004217
+             */
+            token: string;
+        };
         /** AddressResponse */
         AddressResponse: {
             /**
@@ -1526,6 +2945,1027 @@ export interface components {
             /** Contact Phone */
             contact_phone?: string | null;
         };
+        /** AdminActionRow */
+        AdminActionRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Admin User Id
+             * Format: uuid
+             */
+            admin_user_id: string;
+            /** Admin Name */
+            admin_name: string | null;
+            /** Action */
+            action: string;
+            /** Target Type */
+            target_type: string;
+            /**
+             * Target Id
+             * Format: uuid
+             */
+            target_id: string;
+            /** Sp User Id */
+            sp_user_id: string | null;
+            /** To Sp User Id */
+            to_sp_user_id: string | null;
+            /** Reason */
+            reason: string | null;
+            /** Details */
+            details: Record<string, never>;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** AdminAuditAdmin */
+        AdminAuditAdmin: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string | null;
+            /** Email */
+            email: string | null;
+        };
+        /** AdminAuditFilters */
+        AdminAuditFilters: {
+            /** Admins */
+            admins: components["schemas"]["AdminAuditAdmin"][];
+            /** Actions */
+            actions: string[];
+            /** Target Types */
+            target_types: string[];
+        };
+        /** AdminAuditListResponse */
+        AdminAuditListResponse: {
+            /** Items */
+            items: components["schemas"]["AdminAuditRow"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+        };
+        /** AdminAuditRow */
+        AdminAuditRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Admin User Id
+             * Format: uuid
+             */
+            admin_user_id: string;
+            /** Admin Name */
+            admin_name: string | null;
+            /** Admin Email */
+            admin_email: string | null;
+            /** Action */
+            action: string;
+            /** Target Type */
+            target_type: string;
+            /** Target Id */
+            target_id: string;
+            /** Sp User Id */
+            sp_user_id: string | null;
+            /** To Sp User Id */
+            to_sp_user_id: string | null;
+            /** Reason */
+            reason: string | null;
+            /** Details */
+            details: Record<string, never>;
+            /** Before Json */
+            before_json: Record<string, never> | null;
+            /** After Json */
+            after_json: Record<string, never> | null;
+            /** Ip Address */
+            ip_address: string | null;
+            /** User Agent */
+            user_agent: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * AdminBookingVolume
+         * @description Bookings CREATED for this SP in the last 30 IST days, today included
+         *     (not completed ones): ``created_at`` on or after IST midnight of ``since``.
+         *     The same rule as ``GET /admin/bookings?provider_id=…&created_from=since``,
+         *     so that link lists exactly these rows. ``by_status`` has every status.
+         */
+        AdminBookingVolume: {
+            /**
+             * Since
+             * Format: date
+             */
+            since: string;
+            /** Total */
+            total: number;
+            /** By Status */
+            by_status: {
+                [key: string]: number;
+            };
+        };
+        /**
+         * AdminCatalogCategoryNode
+         * @description A category in the tree. An L1 (``parent_id`` null) lists its
+         *     sub-categories in ``children``; a category holding services directly (an L2,
+         *     or an L1 like Miscellaneous) lists them in ``services``. Inactive rows are
+         *     included.
+         */
+        AdminCatalogCategoryNode: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Description */
+            description: string | null;
+            /** Icon Key */
+            icon_key: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Is Active */
+            is_active: boolean;
+            /** Parent Id */
+            parent_id: string | null;
+            /** Children */
+            children: components["schemas"]["AdminCatalogCategoryNode"][];
+            /** Services */
+            services: components["schemas"]["AdminCatalogServiceRow"][];
+        };
+        /**
+         * AdminCatalogServiceRow
+         * @description A service in the tree. ``active_variant_count`` counts the variants a
+         *     customer can pick; at 0 the service books at ``base_price``.
+         *     ``active_bookings`` counts bookings that are requested, accepted, en route or
+         *     in progress.
+         */
+        AdminCatalogServiceRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Name */
+            name: string;
+            price_unit: components["schemas"]["PriceUnit"];
+            /** Min Qty */
+            min_qty: number | null;
+            /** Base Price */
+            base_price: number;
+            /** Duration Minutes */
+            duration_minutes: number;
+            /** Icon Key */
+            icon_key: string | null;
+            /** Is Active */
+            is_active: boolean;
+            /** Active Variant Count */
+            active_variant_count: number;
+            /** Active Bookings */
+            active_bookings: number;
+        };
+        /**
+         * AdminCatalogTree
+         * @description Every category and service, active or not. Categories are ordered by
+         *     ``sort_order`` then name among their siblings; services by name.
+         */
+        AdminCatalogTree: {
+            /** Categories */
+            categories: components["schemas"]["AdminCatalogCategoryNode"][];
+        };
+        /**
+         * AdminCategoryCreate
+         * @description A new category. The slug is made from the name and never changes.
+         *     ``parent_id`` null makes an L1 (home tile); set, an L2 under that L1.
+         */
+        AdminCategoryCreate: {
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id?: string | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Icon Key */
+            icon_key?: string | null;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+        };
+        /**
+         * AdminCategoryDetail
+         * @description One category with what it holds. Deactivate is refused while
+         *     ``active_service_count`` or ``active_subcategory_count`` is above 0.
+         */
+        AdminCategoryDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Description */
+            description: string | null;
+            /** Icon Key */
+            icon_key: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Is Active */
+            is_active: boolean;
+            /** Parent Id */
+            parent_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Subcategory Count */
+            subcategory_count: number;
+            /** Active Subcategory Count */
+            active_subcategory_count: number;
+            /** Service Count */
+            service_count: number;
+            /** Active Service Count */
+            active_service_count: number;
+        };
+        /**
+         * AdminCategoryUpdate
+         * @description Any subset. ``parent_id: null`` makes it an L1 and ``icon_key: null``
+         *     clears the icon; ``null`` is refused for ``name`` and ``sort_order``.
+         */
+        AdminCategoryUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Icon Key */
+            icon_key?: string | null;
+        };
+        /**
+         * AdminCouponCreate
+         * @description A new global coupon. ``code`` is trimmed and uppercased, then must match
+         *     ``^[A-Z0-9]{3,20}$``. ``valid_from`` defaults to now. A datetime with no
+         *     offset is read as UTC.
+         */
+        AdminCouponCreate: {
+            /** Code */
+            code: string;
+            discount_type: components["schemas"]["DiscountType"];
+            /** Discount Value */
+            discount_value: number | string;
+            /** Max Discount */
+            max_discount?: number | string | null;
+            /** Min Order Amount */
+            min_order_amount?: number | string | null;
+            /** Valid From */
+            valid_from?: string | null;
+            /**
+             * Valid Until
+             * Format: date-time
+             */
+            valid_until: string;
+            /** Usage Limit */
+            usage_limit?: number | null;
+            /**
+             * Usage Limit Per User
+             * @default 1
+             */
+            usage_limit_per_user: number;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+        };
+        /**
+         * AdminCouponDetail
+         * @description The row plus its usage: the total discount given and the latest 20
+         *     redemptions, newest first.
+         */
+        AdminCouponDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Code */
+            code: string;
+            discount_type: components["schemas"]["DiscountType"];
+            /** Discount Value */
+            discount_value: number;
+            /** Max Discount */
+            max_discount: number | null;
+            /** Min Order Amount */
+            min_order_amount: number | null;
+            /**
+             * Valid From
+             * Format: date-time
+             */
+            valid_from: string;
+            /**
+             * Valid Until
+             * Format: date-time
+             */
+            valid_until: string;
+            /** Usage Limit */
+            usage_limit: number | null;
+            /** Usage Limit Per User */
+            usage_limit_per_user: number;
+            /** Is Active */
+            is_active: boolean;
+            /** User Id */
+            user_id: string | null;
+            /** Owner Name */
+            owner_name: string | null;
+            /** Owner Phone */
+            owner_phone: string | null;
+            /** Usage Count */
+            usage_count: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "inactive" | "expired" | "exhausted" | "scheduled";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Total Discount */
+            total_discount: number;
+            /** Recent Redemptions */
+            recent_redemptions: components["schemas"]["AdminCouponRedemptionRow"][];
+        };
+        /** AdminCouponListResponse */
+        AdminCouponListResponse: {
+            /** Items */
+            items: components["schemas"]["AdminCouponRow"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+        };
+        /** AdminCouponRedemptionRow */
+        AdminCouponRedemptionRow: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            booking_status: components["schemas"]["BookingStatus"];
+            /**
+             * Redeemed At
+             * Format: date-time
+             */
+            redeemed_at: string;
+            /** Discount Applied */
+            discount_applied: number;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** Customer Name */
+            customer_name: string | null;
+        };
+        /**
+         * AdminCouponRow
+         * @description One coupon. ``user_id`` set = a personal (referral) coupon, owned by
+         *     ``owner_name`` / ``owner_phone``. ``usage_count`` counts redemption rows, a
+         *     cancelled booking's included, which is the count the limits use.
+         */
+        AdminCouponRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Code */
+            code: string;
+            discount_type: components["schemas"]["DiscountType"];
+            /** Discount Value */
+            discount_value: number;
+            /** Max Discount */
+            max_discount: number | null;
+            /** Min Order Amount */
+            min_order_amount: number | null;
+            /**
+             * Valid From
+             * Format: date-time
+             */
+            valid_from: string;
+            /**
+             * Valid Until
+             * Format: date-time
+             */
+            valid_until: string;
+            /** Usage Limit */
+            usage_limit: number | null;
+            /** Usage Limit Per User */
+            usage_limit_per_user: number;
+            /** Is Active */
+            is_active: boolean;
+            /** User Id */
+            user_id: string | null;
+            /** Owner Name */
+            owner_name: string | null;
+            /** Owner Phone */
+            owner_phone: string | null;
+            /** Usage Count */
+            usage_count: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "inactive" | "expired" | "exhausted" | "scheduled";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * AdminCouponUpdate
+         * @description Any subset of the editable fields. ``code``, ``user_id`` and ``is_active``
+         *     aren't editable here (deactivate / activate change the last). ``null`` clears
+         *     ``max_discount``, ``min_order_amount`` or ``usage_limit`` and is refused on
+         *     the others.
+         */
+        AdminCouponUpdate: {
+            discount_type?: components["schemas"]["DiscountType"] | null;
+            /** Discount Value */
+            discount_value?: number | string | null;
+            /** Max Discount */
+            max_discount?: number | string | null;
+            /** Min Order Amount */
+            min_order_amount?: number | string | null;
+            /** Valid From */
+            valid_from?: string | null;
+            /** Valid Until */
+            valid_until?: string | null;
+            /** Usage Limit */
+            usage_limit?: number | null;
+            /** Usage Limit Per User */
+            usage_limit_per_user?: number | null;
+        };
+        /**
+         * AdminInviteRow
+         * @description An invite in the owner's history. No ``token``: a pending code is a live
+         *     credential, and support doesn't need it (the SP sees it in My Team).
+         */
+        AdminInviteRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Invitee Phone */
+            invitee_phone: string;
+            /** Status */
+            status: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Accepted At */
+            accepted_at: string | null;
+            /** Accepted By User Id */
+            accepted_by_user_id: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+        };
+        /** AdminLoginRequest */
+        AdminLoginRequest: {
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
+        };
+        /** AdminLoginResponse */
+        AdminLoginResponse: {
+            /** Requires Totp */
+            requires_totp: boolean;
+            /** Totp Setup Required */
+            totp_setup_required: boolean;
+            /** Challenge Token */
+            challenge_token: string;
+        };
+        /**
+         * AdminProDetail
+         * @description ``GET /admin/pros/{id}``: the Pro, their owner, and (SVC-427) their
+         *     rating and completed jobs, by the SVC-396 trust-card rules: reviews and
+         *     COMPLETED bookings carrying this ``professional_id``.
+         */
+        AdminProDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Service Provider Id
+             * Format: uuid
+             */
+            service_provider_id: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Phone */
+            phone: string;
+            /** User Is Active */
+            user_is_active: boolean;
+            /** Profile Photo Url */
+            profile_photo_url: string | null;
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Is Online */
+            is_online: boolean;
+            /** Is Active */
+            is_active: boolean;
+            /** Is Self */
+            is_self: boolean;
+            /** Accepts Direct Jobs */
+            accepts_direct_jobs: boolean;
+            /** Active Job Count */
+            active_job_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            service_provider: components["schemas"]["AdminProOwner"];
+            /** Rating Avg */
+            rating_avg: number | null;
+            /** Rating Count */
+            rating_count: number;
+            /** Completed Job Count */
+            completed_job_count: number;
+        };
+        /** AdminProListResponse */
+        AdminProListResponse: {
+            /** Items */
+            items: components["schemas"]["AdminProListRow"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+        };
+        /**
+         * AdminProListRow
+         * @description ``GET /admin/pros`` (SVC-427): a Pro row and the owner it belongs to.
+         */
+        AdminProListRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Service Provider Id
+             * Format: uuid
+             */
+            service_provider_id: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Phone */
+            phone: string;
+            /** User Is Active */
+            user_is_active: boolean;
+            /** Profile Photo Url */
+            profile_photo_url: string | null;
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Is Online */
+            is_online: boolean;
+            /** Is Active */
+            is_active: boolean;
+            /** Is Self */
+            is_self: boolean;
+            /** Accepts Direct Jobs */
+            accepts_direct_jobs: boolean;
+            /** Active Job Count */
+            active_job_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            service_provider: components["schemas"]["AdminProOwner"];
+        };
+        /** AdminProOwner */
+        AdminProOwner: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string | null;
+            /** Phone */
+            phone: string;
+            /** Business Name */
+            business_name: string | null;
+        };
+        /**
+         * AdminProviderDetail
+         * @description ``GET /admin/providers/{id}`` (SVC-427): the search row plus the SP
+         *     page's aggregates. A superset of the row, so older callers are unaffected.
+         */
+        AdminProviderDetail: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string | null;
+            /** Phone */
+            phone: string;
+            /** Business Name */
+            business_name: string | null;
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Is Online */
+            is_online: boolean;
+            /** User Is Active */
+            user_is_active: boolean;
+            /** Active Pro Count */
+            active_pro_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            service_area: components["schemas"]["AdminServiceArea"] | null;
+            /** Avg Rating */
+            avg_rating: number;
+            /** Total Completed Jobs */
+            total_completed_jobs: number;
+            /** Services */
+            services: components["schemas"]["AdminProviderService"][];
+            bookings_30d: components["schemas"]["AdminBookingVolume"];
+        };
+        /**
+         * AdminProviderRow
+         * @description ``GET /admin/providers``: one owner (a user with a provider profile).
+         */
+        AdminProviderRow: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string | null;
+            /** Phone */
+            phone: string;
+            /** Business Name */
+            business_name: string | null;
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Is Online */
+            is_online: boolean;
+            /** User Is Active */
+            user_is_active: boolean;
+            /** Active Pro Count */
+            active_pro_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * AdminProviderService
+         * @description A catalog service the SP offers. ``is_active`` is the catalog row's, so
+         *     a retired service can be shown as such.
+         */
+        AdminProviderService: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Is Active */
+            is_active: boolean;
+        };
+        /**
+         * AdminRole
+         * @description What a ``role=ADMIN`` user may do in the console (SVC-422).
+         * @enum {string}
+         */
+        AdminRole: "admin" | "ops" | "support";
+        /**
+         * AdminServiceArea
+         * @description The SP's service area: a circle, since that's what is stored (a centre
+         *     point and a radius), not a polygon.
+         */
+        AdminServiceArea: {
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Radius Km */
+            radius_km: number;
+        };
+        /**
+         * AdminServiceCreate
+         * @description A new service. ``min_qty`` is required for PER_SQFT / PER_HOUR and must be
+         *     left out (or null) for PER_VISIT / PER_ITEM. ``description`` is markdown,
+         *     stored as sent.
+         */
+        AdminServiceCreate: {
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** Base Price */
+            base_price: number | string;
+            /**
+             * Duration Minutes
+             * @default 60
+             */
+            duration_minutes: number;
+            /** Price Unit */
+            price_unit: string;
+            /** Min Qty */
+            min_qty?: number | null;
+            /** Icon Key */
+            icon_key?: string | null;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+        };
+        /**
+         * AdminServiceDeactivate
+         * @description ``confirm: true`` deactivates even while bookings are in flight. They
+         *     carry on; only new bookings are refused.
+         */
+        AdminServiceDeactivate: {
+            /**
+             * Confirm
+             * @default false
+             */
+            confirm: boolean;
+        };
+        /**
+         * AdminServiceDetail
+         * @description The tree row plus the description and every variant, active or not.
+         */
+        AdminServiceDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Name */
+            name: string;
+            price_unit: components["schemas"]["PriceUnit"];
+            /** Min Qty */
+            min_qty: number | null;
+            /** Base Price */
+            base_price: number;
+            /** Duration Minutes */
+            duration_minutes: number;
+            /** Icon Key */
+            icon_key: string | null;
+            /** Is Active */
+            is_active: boolean;
+            /** Active Variant Count */
+            active_variant_count: number;
+            /** Active Bookings */
+            active_bookings: number;
+            /** Description */
+            description: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Variants */
+            variants: components["schemas"]["AdminServiceVariantRow"][];
+        };
+        /**
+         * AdminServiceUpdate
+         * @description Any subset. ``null`` clears ``description``, ``min_qty`` or ``icon_key``
+         *     and is refused on the others. Moving off PER_SQFT / PER_HOUR needs
+         *     ``min_qty: null`` in the same save.
+         */
+        AdminServiceUpdate: {
+            /** Category Id */
+            category_id?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Base Price */
+            base_price?: number | string | null;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /** Price Unit */
+            price_unit?: string | null;
+            /** Min Qty */
+            min_qty?: number | null;
+            /** Icon Key */
+            icon_key?: string | null;
+        };
+        /**
+         * AdminServiceVariantRow
+         * @description Read-only here: variants are edited elsewhere.
+         */
+        AdminServiceVariantRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Subcategory */
+            subcategory: string | null;
+            /** Base Price */
+            base_price: number;
+            /** Duration Minutes */
+            duration_minutes: number | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Is Active */
+            is_active: boolean;
+        };
+        /** AdminSessionResponse */
+        AdminSessionResponse: {
+            /** Access Token */
+            access_token: string;
+            /** Token Type */
+            token_type: string;
+            /** Expires In */
+            expires_in: number;
+            admin: components["schemas"]["AdminUserResponse"];
+        };
+        /**
+         * AdminTeamPro
+         * @description A Pro row as admin sees it: removed rows included (``is_active``).
+         */
+        AdminTeamPro: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Service Provider Id
+             * Format: uuid
+             */
+            service_provider_id: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Phone */
+            phone: string;
+            /** User Is Active */
+            user_is_active: boolean;
+            /** Profile Photo Url */
+            profile_photo_url: string | null;
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Is Online */
+            is_online: boolean;
+            /** Is Active */
+            is_active: boolean;
+            /** Is Self */
+            is_self: boolean;
+            /** Accepts Direct Jobs */
+            accepts_direct_jobs: boolean;
+            /** Active Job Count */
+            active_job_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** AdminUserResponse */
+        AdminUserResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Email */
+            email: string;
+            role: components["schemas"]["AdminRole"];
+            /** Last Login At */
+            last_login_at: string | null;
+        };
+        /** AssignRequest */
+        AssignRequest: {
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
+        };
+        /**
+         * AssignmentTimelineItem
+         * @description A ``booking_assignment_events`` row: the booking's Pro changed.
+         */
+        AssignmentTimelineItem: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "assignment";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Kind */
+            kind: string;
+            from_professional: components["schemas"]["TimelinePro"] | null;
+            to_professional: components["schemas"]["TimelinePro"] | null;
+            /** Actor User Id */
+            actor_user_id: string | null;
+            /** Actor Name */
+            actor_name: string | null;
+            /** Note */
+            note: string | null;
+        };
+        /** BeforeAfterPhoto */
+        BeforeAfterPhoto: {
+            /** Before Url */
+            before_url: string;
+            /** After Url */
+            after_url: string;
+        };
         /** Body_submit_kyc_api_v1_providers_me_kyc_post */
         Body_submit_kyc_api_v1_providers_me_kyc_post: {
             /**
@@ -1546,6 +3986,36 @@ export interface components {
              * @description Live selfie
              */
             selfie: string;
+        };
+        /** Body_submit_my_kyc_api_v1_pros_me_kyc_post */
+        Body_submit_my_kyc_api_v1_pros_me_kyc_post: {
+            /**
+             * Aadhaar Front
+             * Format: binary
+             * @description Aadhaar front image
+             */
+            aadhaar_front: string;
+            /**
+             * Aadhaar Back
+             * Format: binary
+             * @description Aadhaar back image
+             */
+            aadhaar_back: string;
+            /**
+             * Selfie
+             * Format: binary
+             * @description Live selfie
+             */
+            selfie: string;
+        };
+        /** Body_upload_business_image_api_v1_providers_me_business_image_post */
+        Body_upload_business_image_api_v1_providers_me_business_image_post: {
+            /**
+             * Image
+             * Format: binary
+             * @description Business image (logo)
+             */
+            image: string;
         };
         /** Body_upload_profile_photo_api_v1_providers_me_photo_post */
         Body_upload_profile_photo_api_v1_providers_me_photo_post: {
@@ -1732,6 +4202,18 @@ export interface components {
             consumer_phone?: string | null;
             /** Provider Name */
             provider_name?: string | null;
+            /** Cancellation Reason */
+            cancellation_reason?: string | null;
+            /** Settlement Status */
+            settlement_status?: string | null;
+            /** Settled At */
+            settled_at?: string | null;
+            /** Professional Id */
+            professional_id: string | null;
+            professional: components["schemas"]["ProfessionalBrief"] | null;
+            /** Provider Phone */
+            provider_phone?: string | null;
+            service_provider: components["schemas"]["ServiceProviderBrief"] | null;
             /** Scheduled At */
             scheduled_at: string | null;
             /**
@@ -1740,6 +4222,11 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * BookingStatus
+         * @enum {string}
+         */
+        BookingStatus: "requested" | "accepted" | "en_route" | "in_progress" | "completed" | "cancelled" | "expired";
         /**
          * BookingStatusLogResponse
          * @description One state transition on a booking, as the tracking timeline sees it.
@@ -1775,6 +4262,61 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /**
+         * CategoryPricingRow
+         * @description One category with its pricing config. L1 rows have no parent.
+         */
+        CategoryPricingRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Parent Id */
+            parent_id: string | null;
+            /** Parent Name */
+            parent_name: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Is Active */
+            is_active: boolean;
+            /** Is Sensitive */
+            is_sensitive: boolean;
+            /** Reference Price */
+            reference_price: number | null;
+            /** Bounds Pct */
+            bounds_pct: number | null;
+            /** Platform Commission Pct */
+            platform_commission_pct: number;
+            /** Platform Commission Min */
+            platform_commission_min: number;
+            /** Commission Gst Pct */
+            commission_gst_pct: number;
+        };
+        /**
+         * CategoryPricingUpdate
+         * @description Any subset of the six fields. ``null`` clears ``reference_price`` or
+         *     ``bounds_pct`` and is refused on the others. Turning ``is_sensitive`` on
+         *     needs ``bounds_pct`` in the same body unless the row already has bounds.
+         */
+        CategoryPricingUpdate: {
+            /** Is Sensitive */
+            is_sensitive?: boolean | null;
+            /** Reference Price */
+            reference_price?: number | string | null;
+            /** Bounds Pct */
+            bounds_pct?: number | string | null;
+            /** Platform Commission Pct */
+            platform_commission_pct?: number | string | null;
+            /** Platform Commission Min */
+            platform_commission_min?: number | string | null;
+            /** Commission Gst Pct */
+            commission_gst_pct?: number | string | null;
+        };
         /** CategoryResponse */
         CategoryResponse: {
             /**
@@ -1788,6 +4330,8 @@ export interface components {
             slug: string;
             /** Icon Url */
             icon_url: string | null;
+            /** Icon Key */
+            icon_key: string | null;
             /** Description */
             description: string | null;
             /** Sort Order */
@@ -1965,6 +4509,50 @@ export interface components {
              */
             duration_minutes: number;
         };
+        /** DeactivateUserRequest */
+        DeactivateUserRequest: {
+            /** Reason */
+            reason?: string | null;
+        };
+        /** DeclineJobResponse */
+        DeclineJobResponse: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "awaiting_repick" | "reopened";
+        };
+        /**
+         * DeleteAccountRequest
+         * @description Optional body for ``DELETE /users/me`` (SVC-367).
+         *
+         *     The refresh token, when sent, is revoked like ``/auth/logout`` does. It is
+         *     optional because the account going inactive already makes every refresh
+         *     token for it fail; this just puts the caller's on the blacklist too.
+         */
+        DeleteAccountRequest: {
+            /** Refresh Token */
+            refresh_token?: string | null;
+        };
+        /**
+         * DiscountType
+         * @description How ``Coupon.discount_value`` reduces the bill.
+         *
+         *     ``PERCENT``: value is a percent (0–100). ``max_discount`` caps the
+         *     resulting rupee amount — a "20% off" without a cap on a big cart would
+         *     give away the whole store.
+         *
+         *     ``FLAT``: value is a rupee amount. Capped at the cart total at
+         *     application time (see the coupon service) so a ₹500-off coupon on a
+         *     ₹200 cart discounts ₹200, not ₹500.
+         * @enum {string}
+         */
+        DiscountType: "percent" | "flat";
         /** EarningsBookingItem */
         EarningsBookingItem: {
             /**
@@ -1990,6 +4578,41 @@ export interface components {
             payment_method?: components["schemas"]["PaymentMethod"] | null;
             /** Settlement Failure Reason */
             settlement_failure_reason?: string | null;
+            professional?: components["schemas"]["EarningsProfessional"] | null;
+        };
+        /**
+         * EarningsByProResponse
+         * @description The SP's earnings split by Pro (SVC-323). ``total_payout`` and
+         *     ``completed_count`` equal ``/me/earnings`` for a window and
+         *     ``/me/earnings/summary`` for ``all``.
+         */
+        EarningsByProResponse: {
+            /**
+             * Range
+             * @enum {string}
+             */
+            range: "today" | "week" | "month" | "all";
+            /** Total Payout */
+            total_payout: number;
+            /** Completed Count */
+            completed_count: number;
+            /** Pros */
+            pros: components["schemas"]["ProEarningsItem"][];
+        };
+        /**
+         * EarningsProfessional
+         * @description The Pro who did an earnings row's job (SVC-323).
+         */
+        EarningsProfessional: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Display Name */
+            display_name: string;
+            /** Is Self */
+            is_self: boolean;
         };
         /** EarningsResponse */
         EarningsResponse: {
@@ -2031,6 +4654,24 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** ForceRemoveRequest */
+        ForceRemoveRequest: {
+            /**
+             * Reason
+             * @example Left the business in September
+             */
+            reason: string;
+        };
+        /** ForceRemoveResponse */
+        ForceRemoveResponse: {
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
+            /** Self Reenabled */
+            self_reenabled: boolean;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -2059,8 +4700,22 @@ export interface components {
             kyc_rejection_reason: string | null;
             /** Aadhaar Url */
             aadhaar_url: string | null;
+            /** Aadhaar Front Url */
+            aadhaar_front_url: string | null;
+            /** Aadhaar Back Url */
+            aadhaar_back_url: string | null;
             /** Selfie Url */
             selfie_url: string | null;
+            /** Ai Verdict */
+            ai_verdict?: Record<string, never> | null;
+        };
+        /**
+         * KYCQueueCountResponse
+         * @description How many rows the admin KYC queue has across all pages (SVC-424).
+         */
+        KYCQueueCountResponse: {
+            /** Count */
+            count: number;
         };
         /**
          * KYCQueueRow
@@ -2083,12 +4738,25 @@ export interface components {
             name: string | null;
             /** Email */
             email: string | null;
+            kyc_status: components["schemas"]["KYCStatus"];
             /** Kyc Submitted At */
             kyc_submitted_at: string | null;
             /** Kyc Reviewed At */
             kyc_reviewed_at: string | null;
             /** Kyc Rejection Reason */
             kyc_rejection_reason: string | null;
+            /**
+             * Kind
+             * @default sp
+             * @enum {string}
+             */
+            kind: "sp" | "pro";
+            /** Professional Id */
+            professional_id?: string | null;
+            /** Sp User Id */
+            sp_user_id?: string | null;
+            /** Sp Business Name */
+            sp_business_name?: string | null;
         };
         /** KYCRejectionRequest */
         KYCRejectionRequest: {
@@ -2119,12 +4787,13 @@ export interface components {
          * @description The whole payload returned by GET /downloads/latest.json.
          *
          *     Shape is stable — the frontend hook branches on the presence of each
-         *     platform key. Adding a new platform (post-beta iOS native) means
-         *     adding a new required key here + a matching row in ``app_versions``.
+         *     platform key. Adding a new platform means adding a new required key
+         *     here + a matching row in ``app_versions``, as ``ios`` did (SVC-366).
          */
         LatestVersionResponse: {
             android: components["schemas"]["PlatformVersion"];
             pwa: components["schemas"]["PlatformVersion"];
+            ios: components["schemas"]["PlatformVersion"];
         };
         /**
          * LogoutRequest
@@ -2178,6 +4847,110 @@ export interface components {
             currency: string;
             /** Razorpay Key Id */
             razorpay_key_id: string;
+        };
+        /**
+         * PayoutBookingRow
+         * @description One booking behind an SP's payout figures: the split that went into it.
+         */
+        PayoutBookingRow: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /** Completed At */
+            completed_at: string | null;
+            /** Service Amount Paise */
+            service_amount_paise: number;
+            /** Discount Amount Paise */
+            discount_amount_paise: number;
+            /** Platform Commission Paise */
+            platform_commission_paise: number;
+            /** Provider Payout Paise */
+            provider_payout_paise: number;
+            /** Tip Amount Paise */
+            tip_amount_paise: number;
+            /** Settlement Status */
+            settlement_status: string;
+            /** Settlement Payout Id */
+            settlement_payout_id: string | null;
+            /** Settlement Failure Reason */
+            settlement_failure_reason: string | null;
+            /** Professional Name */
+            professional_name: string | null;
+        };
+        /** PayoutBookingsResponse */
+        PayoutBookingsResponse: {
+            /** Bookings */
+            bookings: components["schemas"]["PayoutBookingRow"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+        };
+        /**
+         * PayoutDashboardProvider
+         * @description One SP with any payout-scope booking (completed, PAID, not cash).
+         */
+        PayoutDashboardProvider: {
+            /**
+             * Provider Id
+             * Format: uuid
+             */
+            provider_id: string;
+            /** Name */
+            name: string | null;
+            /** Business Name */
+            business_name: string | null;
+            /** Phone */
+            phone: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Payout Set */
+            payout_set: boolean;
+            /** Kyc Status */
+            kyc_status: string;
+            /** Pending Count */
+            pending_count: number;
+            /** Pending Paise */
+            pending_paise: number;
+            /** Processing Count */
+            processing_count: number;
+            /** Processing Paise */
+            processing_paise: number;
+            /** Completed Count */
+            completed_count: number;
+            /** Completed Paise */
+            completed_paise: number;
+            /** Failed Count */
+            failed_count: number;
+            /** Failed Paise */
+            failed_paise: number;
+            /** Reversed Count */
+            reversed_count: number;
+            /** Reversed Paise */
+            reversed_paise: number;
+            /** Earned Count */
+            earned_count: number;
+            /** Earned Paise */
+            earned_paise: number;
+            /** Payable Paise */
+            payable_paise: number;
+            /** Latest Failure Reason */
+            latest_failure_reason: string | null;
+        };
+        /** PayoutDashboardResponse */
+        PayoutDashboardResponse: {
+            /** Providers */
+            providers: components["schemas"]["PayoutDashboardProvider"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
         };
         /**
          * PayoutMethod
@@ -2240,7 +5013,7 @@ export interface components {
         };
         /**
          * PlatformVersion
-         * @description Version metadata for one platform (android / pwa).
+         * @description Version metadata for one platform (android / pwa / ios).
          *
          *     ``version`` and ``min_supported_version`` are SemVer strings. Clients
          *     compare using SemVer semantics — a lex compare would treat 1.10 < 1.2.
@@ -2259,6 +5032,253 @@ export interface components {
              * Format: date-time
              */
             released_at: string;
+        };
+        /**
+         * PriceUnit
+         * @enum {string}
+         */
+        PriceUnit: "PER_VISIT" | "PER_SQFT" | "PER_HOUR" | "PER_ITEM";
+        /** PricingConfigRow */
+        PricingConfigRow: {
+            /** Key */
+            key: string;
+            /** Value */
+            value: unknown;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Updated By */
+            updated_by: string | null;
+        };
+        /** PricingConfigUpdate */
+        PricingConfigUpdate: {
+            /** Value */
+            value: unknown;
+        };
+        /**
+         * ProEarningsItem
+         * @description One Pro's share of the SP's earnings in a range (SVC-323).
+         *
+         *     ``professional_id`` None is the "Not assigned" row: jobs that completed with
+         *     no Pro on them, so the rows always add up to the SP's total. That row has
+         *     ``is_self`` and ``is_active`` False and no photo.
+         */
+        ProEarningsItem: {
+            /** Professional Id */
+            professional_id: string | null;
+            /** Display Name */
+            display_name: string;
+            /** Profile Photo Url */
+            profile_photo_url: string | null;
+            /** Is Self */
+            is_self: boolean;
+            /** Is Active */
+            is_active: boolean;
+            /** Payout */
+            payout: number;
+            /** Completed Count */
+            completed_count: number;
+        };
+        /**
+         * ProKYCDocsResponse
+         * @description Admin-only: a team Pro's KYC review payload (SVC-327) — the SP payload
+         *     plus which Pro row it is and which SP they work for.
+         */
+        ProKYCDocsResponse: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string | null;
+            /** Phone */
+            phone: string;
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Kyc Submitted At */
+            kyc_submitted_at: string | null;
+            /** Kyc Reviewed At */
+            kyc_reviewed_at: string | null;
+            /** Kyc Rejection Reason */
+            kyc_rejection_reason: string | null;
+            /** Aadhaar Url */
+            aadhaar_url: string | null;
+            /** Aadhaar Front Url */
+            aadhaar_front_url: string | null;
+            /** Aadhaar Back Url */
+            aadhaar_back_url: string | null;
+            /** Selfie Url */
+            selfie_url: string | null;
+            /** Ai Verdict */
+            ai_verdict?: Record<string, never> | null;
+            /**
+             * Kind
+             * @default pro
+             * @constant
+             */
+            kind: "pro";
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
+            /**
+             * Sp User Id
+             * Format: uuid
+             */
+            sp_user_id: string;
+            /** Sp Business Name */
+            sp_business_name: string | null;
+        };
+        /** ProLocationRequest */
+        ProLocationRequest: {
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+        };
+        /**
+         * ProMeResponse
+         * @description ``GET /pros/me``. ``kyc_status`` is the KYC that applies to this person:
+         *     their own Aadhaar KYC, or for a Pro-for-self, the SP's.
+         */
+        ProMeResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Profile Photo Url */
+            profile_photo_url: string | null;
+            /** Is Self */
+            is_self: boolean;
+            /** Is Online */
+            is_online: boolean;
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Kyc Rejection Reason */
+            kyc_rejection_reason: string | null;
+            /** Last Location At */
+            last_location_at: string | null;
+            service_provider: components["schemas"]["ProServiceProvider"];
+        };
+        /** ProOnlineRequest */
+        ProOnlineRequest: {
+            /** Is Online */
+            is_online: boolean;
+        };
+        /** ProServiceProvider */
+        ProServiceProvider: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Business Name */
+            business_name: string | null;
+            /** Business Image Url */
+            business_image_url: string | null;
+        };
+        /** ProStatusResponse */
+        ProStatusResponse: {
+            /** Is Online */
+            is_online: boolean;
+            /** Last Location At */
+            last_location_at: string | null;
+        };
+        /**
+         * ProfessionalBrief
+         * @description Who is doing the job (SVC-324): the assigned Pro, as a booking shows them.
+         *
+         *     No phone here: the consumer gets the Pro's number only through
+         *     ``BookingResponse.provider_phone`` (SVC-360, interim until masked calling),
+         *     which is gated by viewer and status, and the SP doesn't need it from here.
+         *     ``is_self`` marks the SP's own Pro-for-self, so a client can collapse
+         *     "Rohan from Rohan" to one name on a solo job.
+         *
+         *     The trust fields (SVC-396) are this Pro's own record, not the SP's: reviews
+         *     and completed bookings whose ``professional_id`` is this Pro. They are set
+         *     by ``BookingService.attach_professionals`` in one grouped query per page,
+         *     and defaulted so the brief stays additive. ``rating_average`` is null until
+         *     the first review. ``is_background_verified`` is the Pro's effective KYC
+         *     (a Pro-for-self's is its SP's), verified or not.
+         */
+        ProfessionalBrief: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Display Name */
+            display_name: string;
+            /** Profile Photo Url */
+            profile_photo_url: string | null;
+            /** Is Self */
+            is_self: boolean;
+            /** Rating Average */
+            rating_average?: number | null;
+            /**
+             * Rating Count
+             * @default 0
+             */
+            rating_count: number;
+            /**
+             * Bookings Completed Count
+             * @default 0
+             */
+            bookings_completed_count: number;
+            /**
+             * Is Background Verified
+             * @default false
+             */
+            is_background_verified: boolean;
+        };
+        /**
+         * ProfessionalResponse
+         * @description A Pro row. ``is_self`` marks an SP's Pro-for-self.
+         */
+        ProfessionalResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Service Provider Id
+             * Format: uuid
+             */
+            service_provider_id: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Profile Photo Url */
+            profile_photo_url: string | null;
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Is Online */
+            is_online: boolean;
+            /** Is Active */
+            is_active: boolean;
+            /** Is Self */
+            is_self: boolean;
+            /** Accepts Direct Jobs */
+            accepts_direct_jobs: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /**
          * ProviderPayoutEntry
@@ -2406,6 +5426,8 @@ export interface components {
             payout_ifsc?: string | null;
             /** Languages */
             languages?: string[] | null;
+            /** Business Name */
+            business_name?: string | null;
         };
         /** ProviderResponse */
         ProviderResponse: {
@@ -2421,6 +5443,10 @@ export interface components {
             user_id: string;
             /** Profile Photo Url */
             profile_photo_url: string | null;
+            /** Business Name */
+            business_name?: string | null;
+            /** Business Image Url */
+            business_image_url?: string | null;
             /**
              * Languages
              * @default []
@@ -2431,6 +5457,8 @@ export interface components {
             /** Total Completed Jobs */
             total_completed_jobs: number;
             kyc_status: components["schemas"]["KYCStatus"];
+            /** Kyc Rejection Reason */
+            kyc_rejection_reason?: string | null;
             /** Is Online */
             is_online: boolean;
             /** Service Area Radius Km */
@@ -2579,6 +5607,32 @@ export interface components {
              */
             interactive: boolean;
         };
+        /** ReassignRequest */
+        ReassignRequest: {
+            /**
+             * Target Sp User Id
+             * Format: uuid
+             */
+            target_sp_user_id: string;
+            /**
+             * Reason
+             * @example Left the business in September
+             */
+            reason: string;
+        };
+        /** ReassignResponse */
+        ReassignResponse: {
+            /**
+             * Old Professional Id
+             * Format: uuid
+             */
+            old_professional_id: string;
+            professional: components["schemas"]["AdminTeamPro"];
+            /** Reactivated */
+            reactivated: boolean;
+            /** Self Reenabled */
+            self_reenabled: boolean;
+        };
         /** RefreshTokenRequest */
         RefreshTokenRequest: {
             /** Refresh Token */
@@ -2632,6 +5686,14 @@ export interface components {
              */
             related: components["schemas"]["RelatedServiceEntry"][];
         };
+        /**
+         * RemoveProResponse
+         * @description ``DELETE /providers/me/team/{pro_id}`` (SVC-326).
+         */
+        RemoveProResponse: {
+            /** Self Reenabled */
+            self_reenabled: boolean;
+        };
         /** ReviewListResponse */
         ReviewListResponse: {
             /** Reviews */
@@ -2677,6 +5739,45 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * ReviewSnippet
+         * @description SVC-388: one customer quote for a service card.
+         *
+         *     ``created_at`` rather than "N days ago" so a cached response never goes
+         *     stale; the frontend formats it. ``reviewer_first_name`` is None for a
+         *     deleted or nameless reviewer, and the frontend shows its fallback label.
+         */
+        ReviewSnippet: {
+            /** Text */
+            text: string;
+            /** Reviewer First Name */
+            reviewer_first_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * SelfProResponse
+         * @description ``GET`` / ``PATCH /providers/me/self-pro`` (SVC-326).
+         */
+        SelfProResponse: {
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
+            /** Accepts Direct Jobs */
+            accepts_direct_jobs: boolean;
+            /** Team Has Assignable Pro */
+            team_has_assignable_pro: boolean;
+        };
+        /** SelfProUpdate */
+        SelfProUpdate: {
+            /** Accepts Direct Jobs */
+            accepts_direct_jobs: boolean;
+        };
         /** SendOTPRequest */
         SendOTPRequest: {
             /**
@@ -2721,6 +5822,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Icon Key */
+            icon_key: string | null;
             /**
              * Variants
              * @default []
@@ -2730,6 +5833,7 @@ export interface components {
             banner_image_url?: string | null;
             /** Banner Video Url */
             banner_video_url?: string | null;
+            latest_review_snippet?: components["schemas"]["ReviewSnippet"] | null;
             /**
              * @default {
              *       "hook": [],
@@ -2738,6 +5842,46 @@ export interface components {
              *     }
              */
             related: components["schemas"]["RelatedServicesBucket"];
+            /** Steps */
+            steps?: string[] | components["schemas"]["ServiceStep"][] | null;
+            /** Exclusions */
+            exclusions?: string[] | null;
+            /** Hero Image Url */
+            hero_image_url?: string | null;
+            /** Included Items */
+            included_items?: string[] | null;
+            /** Faqs */
+            faqs?: components["schemas"]["ServiceFaq"][] | null;
+            /** Before After Photos */
+            before_after_photos?: components["schemas"]["BeforeAfterPhoto"][] | null;
+            /** Rating Average */
+            rating_average?: number | null;
+            /** Rating Count */
+            rating_count?: number | null;
+            /** Bookings This Week */
+            bookings_this_week?: number | null;
+        };
+        /** ServiceFaq */
+        ServiceFaq: {
+            /** Question */
+            question: string;
+            /** Answer */
+            answer: string;
+        };
+        /**
+         * ServiceProviderBrief
+         * @description The business behind the job (SVC-324): the SP's brand, never payout details.
+         */
+        ServiceProviderBrief: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Business Name */
+            business_name: string | null;
+            /** Business Image Url */
+            business_image_url: string | null;
         };
         /** ServiceResponse */
         ServiceResponse: {
@@ -2766,6 +5910,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Icon Key */
+            icon_key: string | null;
             /**
              * Variants
              * @default []
@@ -2775,6 +5921,20 @@ export interface components {
             banner_image_url?: string | null;
             /** Banner Video Url */
             banner_video_url?: string | null;
+            latest_review_snippet?: components["schemas"]["ReviewSnippet"] | null;
+        };
+        /**
+         * ServiceStep
+         * @description SVC-400: the richer step shape. ``icon`` is a free-form keyword the
+         *     frontend maps to a Lucide icon.
+         */
+        ServiceStep: {
+            /** Title */
+            title: string;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /** Icon */
+            icon?: string | null;
         };
         /**
          * ServiceVariantResponse
@@ -2836,6 +5996,139 @@ export interface components {
         StartBookingRequest: {
             /** Otp */
             otp: string;
+        };
+        /**
+         * StatusTimelineItem
+         * @description A ``booking_status_logs`` row. ``metadata`` is withheld for the reason
+         *     ``BookingStatusLogResponse`` gives: free-form JSONB nobody has audited.
+         */
+        StatusTimelineItem: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "status";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** From Status */
+            from_status: string;
+            /** To Status */
+            to_status: string;
+            /** Actor User Id */
+            actor_user_id: string | null;
+            /** Actor Name */
+            actor_name: string | null;
+            /** Note */
+            note: string | null;
+        };
+        /** TOTPSetupRequest */
+        TOTPSetupRequest: {
+            /** Challenge Token */
+            challenge_token: string;
+        };
+        /** TOTPSetupResponse */
+        TOTPSetupResponse: {
+            /** Otpauth Url */
+            otpauth_url: string;
+        };
+        /** TOTPVerifyRequest */
+        TOTPVerifyRequest: {
+            /** Challenge Token */
+            challenge_token: string;
+            /** Code */
+            code: string;
+        };
+        /** TeamInviteCreate */
+        TeamInviteCreate: {
+            /**
+             * Invitee Phone
+             * @example +919876543210
+             */
+            invitee_phone: string;
+        };
+        /**
+         * TeamInviteResponse
+         * @description The SP's view of one invite.
+         *
+         *     Carries the code (``token``) and the static ``/invite`` URL. The SP is the
+         *     one sending it, so they can pass the code on another way if the SMS doesn't
+         *     arrive; it only works from the invited phone.
+         */
+        TeamInviteResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Invitee Phone */
+            invitee_phone: string;
+            /** Status */
+            status: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Token */
+            token: string;
+            /** Invite Url */
+            invite_url: string;
+        };
+        /**
+         * TeamPickPro
+         * @description One row of the pick-a-Pro modal.
+         */
+        TeamPickPro: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Display Name */
+            display_name: string;
+            /** Profile Photo Url */
+            profile_photo_url: string | null;
+            /** Is Self */
+            is_self: boolean;
+            /** Busy */
+            busy: boolean;
+            /** Accepts Direct Jobs */
+            accepts_direct_jobs: boolean;
+        };
+        /**
+         * TeamPickResponse
+         * @description 202 from ``PATCH /bookings/{id}/accept`` with ``X-Team-Pick: 1``, for a
+         *     team SP. Nothing has been claimed: the claim is ``POST /bookings/{id}/assign``.
+         */
+        TeamPickResponse: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /** Pros */
+            pros: components["schemas"]["TeamPickPro"][];
+        };
+        /**
+         * TimelinePro
+         * @description A Pro as the admin timeline names them.
+         */
+        TimelinePro: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Display Name */
+            display_name: string;
         };
         /**
          * TipBookingRequest
@@ -3096,6 +6389,46 @@ export interface operations {
             };
         };
     };
+    admin_send_otp_api_v1_auth_admin_send_otp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    admin_verify_otp_api_v1_auth_admin_verify_otp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     refresh_token_api_v1_auth_refresh_post: {
         parameters: {
             query?: never;
@@ -3176,6 +6509,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+        };
+    };
+    delete_me_api_v1_users_me_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DeleteAccountRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3509,6 +6873,39 @@ export interface operations {
             };
         };
     };
+    upload_business_image_api_v1_providers_me_business_image_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_business_image_api_v1_providers_me_business_image_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     remove_payout_method_api_v1_providers_me_payout_method_delete: {
         parameters: {
             query?: never;
@@ -3775,10 +7172,42 @@ export interface operations {
             };
         };
     };
+    get_my_earnings_by_pro_api_v1_providers_me_earnings_by_pro_get: {
+        parameters: {
+            query?: {
+                range?: "today" | "week" | "month" | "all";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EarningsByProResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_my_earnings_api_v1_providers_me_earnings_get: {
         parameters: {
             query?: {
                 range?: "today" | "week" | "month";
+                professional_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -3855,6 +7284,246 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KYCSubmissionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_team_invites_api_v1_providers_me_team_invites_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamInviteResponse"][];
+                };
+            };
+        };
+    };
+    create_team_invite_api_v1_providers_me_team_invites_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamInviteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamInviteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_team_invite_api_v1_providers_me_team_invites__invite_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamInviteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_team_api_v1_providers_me_team_get: {
+        parameters: {
+            query?: {
+                /** @description Re-pick list for this booking: leaves out Pros who declined it */
+                booking_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfessionalResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_team_member_api_v1_providers_me_team__pro_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pro_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemoveProResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_self_pro_api_v1_providers_me_self_pro_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfProResponse"];
+                };
+            };
+        };
+    };
+    update_self_pro_api_v1_providers_me_self_pro_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelfProUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfProResponse"];
+                };
+            };
+            /** @description NO_TEAM_TO_DISPATCH: switching off needs at least one other active Pro on my team */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_team_invite_api_v1_providers_me_accept_invite_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptInviteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfessionalResponse"];
                 };
             };
             /** @description Validation Error */
@@ -4123,6 +7792,139 @@ export interface operations {
     accept_booking_api_v1_bookings__booking_id__accept_patch: {
         parameters: {
             query?: never;
+            header?: {
+                "X-Team-Pick"?: string | null;
+            };
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description Only with `X-Team-Pick: 1`, for an SP with a team: nothing is claimed yet. Show the pick-a-Pro modal, then claim with POST /bookings/{id}/assign. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamPickResponse"];
+                };
+            };
+            /** @description You were not offered this booking. Not visible to a well-behaved client — the app never sends /accept for a booking it hasn't been notified about. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SELF_NOT_TAKING_JOBS: the SP has switched off taking jobs itself (SVC-326); assign it to a team Pro with POST /bookings/{id}/assign. (No code) the booking is already en route or later. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The offer is over — claimed by another provider, cancelled, or expired. Dismiss the card. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_booking_api_v1_bookings__booking_id__assign_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description You were not offered this booking */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such booking, or that Pro isn't on your team */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PRO_DECLINED_THIS_BOOKING: the Pro already declined this booking (the Pro-for-self too); PRO_BUSY: the Pro is on another unfinished job; PRO_OFFLINE: a team Pro who is offline; PRO_KYC_INCOMPLETE: a team Pro whose own KYC isn't verified; SELF_NOT_TAKING_JOBS: the Pro-for-self, while the SP has switched off taking jobs itself; or (no code) the booking is already en route or later */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The offer is over — claimed by another SP, cancelled or expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_booking_api_v1_bookings__booking_id__release_post: {
+        parameters: {
+            query?: never;
             header?: never;
             path: {
                 booking_id: string;
@@ -4140,22 +7942,15 @@ export interface operations {
                     "application/json": components["schemas"]["BookingResponse"];
                 };
             };
-            /** @description You were not offered this booking. Not visible to a well-behaved client — the app never sends /accept for a booking it hasn't been notified about. */
+            /** @description You do not hold this booking */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description No such booking */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The offer is over — claimed by another provider, cancelled, or expired. Dismiss the card. */
-            410: {
+            /** @description Someone is already en route, or the booking is finished */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4329,6 +8124,13 @@ export interface operations {
                     "application/json": components["schemas"]["BookingResponse"];
                 };
             };
+            /** @description PROVIDER_EN_ROUTE: the provider is on the way */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -4467,6 +8269,384 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BookingResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_pro_profile_api_v1_pros_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProMeResponse"];
+                };
+            };
+            /** @description NOT_A_PRO: the caller has no active Pro row */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_my_jobs_api_v1_pros_me_jobs_get: {
+        parameters: {
+            query?: {
+                scope?: "active" | "past";
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingListResponse"];
+                };
+            };
+            /** @description NOT_A_PRO: the caller has no active Pro row */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_my_online_api_v1_pros_me_online_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProOnlineRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProStatusResponse"];
+                };
+            };
+            /** @description NOT_A_PRO: the caller has no active Pro row */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_my_location_api_v1_pros_me_location_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProLocationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProStatusResponse"];
+                };
+            };
+            /** @description NOT_A_PRO: the caller has no active Pro row */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pro_en_route_api_v1_pros_me_jobs__booking_id__en_route_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description Not a job assigned to me (or I'm not a Pro) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a legal move from the job's current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pro_start_api_v1_pros_me_jobs__booking_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartBookingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description Not a job assigned to me (or I'm not a Pro) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a legal move from the job's current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pro_complete_api_v1_pros_me_jobs__booking_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description Not a job assigned to me (or I'm not a Pro) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a legal move from the job's current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_my_kyc_api_v1_pros_me_kyc_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_submit_my_kyc_api_v1_pros_me_kyc_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfessionalResponse"];
+                };
+            };
+            /** @description NOT_A_PRO: the caller has no active Pro row */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SELF_PRO_KYC_IS_SP_KYC: a Pro-for-self uses /providers/me/kyc */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_job_api_v1_pros_me_jobs__booking_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclineJobResponse"];
+                };
+            };
+            /** @description Not a job assigned to me (or no such booking) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too late to decline: already en route, or finished */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -4733,6 +8913,143 @@ export interface operations {
             };
         };
     };
+    login_api_v1_admin_auth_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminLoginResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    totp_setup_api_v1_admin_auth_totp_setup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TOTPSetupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TOTPSetupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    totp_verify_api_v1_admin_auth_totp_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TOTPVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_api_v1_admin_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    me_api_v1_admin_auth_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserResponse"];
+                };
+            };
+        };
+    };
     list_users_api_v1_admin_users_get: {
         parameters: {
             query?: {
@@ -4774,7 +9091,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DeactivateUserRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -4799,8 +9120,10 @@ export interface operations {
             query?: {
                 page?: number;
                 per_page?: number;
-                /** @description Filter by KYC status. Default 'submitted' preserves the pre-SVC-298 shape. */
-                status?: components["schemas"]["KYCStatus"];
+                /** @description Filter: one of the KYCStatus values (submitted/verified/rejected/pending); 'auto_approved', profiles verified by the AI verifier bot in the last 7 days (SVC-307), for the spot-check tab; or 'all' (SVC-424): submitted + verified + rejected, never a row with no documents uploaded. */
+                status?: string;
+                /** @description SVC-327: which KYC records. 'sp' (default, the queue as it has always been): service providers. 'pro': team professionals' Aadhaar KYC, reviewed via /admin/pros/{professional_id}/kyc. 'all': both, merged. */
+                kind?: "sp" | "pro" | "all";
             };
             header?: never;
             path?: never;
@@ -4815,6 +9138,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KYCQueueRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    count_kyc_queue_api_v1_admin_providers_kyc_pending_count_get: {
+        parameters: {
+            query?: {
+                /** @description Filter: one of the KYCStatus values (submitted/verified/rejected/pending); 'auto_approved', profiles verified by the AI verifier bot in the last 7 days (SVC-307), for the spot-check tab; or 'all' (SVC-424): submitted + verified + rejected, never a row with no documents uploaded. */
+                status?: string;
+                /** @description SVC-327: which KYC records. 'sp' (default, the queue as it has always been): service providers. 'pro': team professionals' Aadhaar KYC, reviewed via /admin/pros/{professional_id}/kyc. 'all': both, merged. */
+                kind?: "sp" | "pro" | "all";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KYCQueueCountResponse"];
                 };
             };
             /** @description Validation Error */
@@ -4925,12 +9282,121 @@ export interface operations {
             };
         };
     };
+    get_pro_kyc_review_api_v1_admin_pros__professional_id__kyc_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProKYCDocsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_pro_kyc_api_v1_admin_pros__professional_id__kyc_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KYCReviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_pro_kyc_api_v1_admin_pros__professional_id__kyc_reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KYCRejectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KYCReviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_all_bookings_api_v1_admin_bookings_get: {
         parameters: {
             query?: {
                 status?: string | null;
                 /** @description Filter to bookings with (or without) a charged-back payment */
                 disputed?: boolean | null;
+                /** @description Created on or after this day, in IST (YYYY-MM-DD) */
+                created_from?: string | null;
+                /** @description Created on or before this day, in IST (YYYY-MM-DD) */
+                created_to?: string | null;
+                /** @description Customer phone; any format, the last 10 digits must match exactly */
+                consumer_phone?: string | null;
+                /** @description Case-insensitive substring of the SP's name */
+                provider_name?: string | null;
+                /** @description Exactly this SP (its user id) */
+                provider_id?: string | null;
+                /** @description Exactly this Pro row */
+                professional_id?: string | null;
                 page?: number;
                 per_page?: number;
             };
@@ -5027,6 +9493,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_booking_timeline_api_v1_admin_bookings__booking_id__timeline_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["StatusTimelineItem"] | components["schemas"]["AssignmentTimelineItem"])[];
                 };
             };
             /** @description No such booking */
@@ -5194,6 +9698,106 @@ export interface operations {
             };
         };
     };
+    list_payout_providers_api_v1_admin_payouts_providers_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["SettlementStatus"] | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutDashboardResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_provider_payout_bookings_api_v1_admin_providers__user_id__payout_bookings_get: {
+        parameters: {
+            query?: {
+                settlement_status?: components["schemas"]["SettlementStatus"] | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutBookingsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_payouts_csv_api_v1_admin_payouts_export_csv_get: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payout CSV */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     publish_app_release_api_v1_admin_app_versions__platform__release_post: {
         parameters: {
             query?: never;
@@ -5218,6 +9822,1031 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublishReleaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_providers_api_v1_admin_providers_get: {
+        parameters: {
+            query?: {
+                /** @description Matches phone (any part, spaces/dashes ignored), name or business name. Omit to list every owner. */
+                q?: string | null;
+                /** @description The owner's account is (or isn't) active */
+                is_active?: boolean | null;
+                /** @description The SP's payout KYC status */
+                kyc_status?: components["schemas"]["KYCStatus"] | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProviderRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_provider_api_v1_admin_providers__sp_user_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sp_user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProviderDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_provider_team_api_v1_admin_providers__sp_user_id__team_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sp_user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTeamPro"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_provider_invites_api_v1_admin_providers__sp_user_id__invites_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sp_user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminInviteRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pros_api_v1_admin_pros_get: {
+        parameters: {
+            query?: {
+                /** @description Matches the Pro's phone (any part, spaces/dashes ignored) or display name. Omit to list every Pro. */
+                q?: string | null;
+                /** @description Only this owner's Pros */
+                sp_user_id?: string | null;
+                /** @description On a team (true) or removed (false); omit for both */
+                is_active?: boolean | null;
+                /** @description The KYC each row shows: a Pro-for-self's is its owner's */
+                kyc_status?: components["schemas"]["KYCStatus"] | null;
+                is_online?: boolean | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pro_api_v1_admin_pros__professional_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    force_remove_pro_api_v1_admin_pros__professional_id__force_remove_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForceRemoveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForceRemoveResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reassign_pro_api_v1_admin_pros__professional_id__reassign_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReassignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassignResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_admin_actions_api_v1_admin_actions_get: {
+        parameters: {
+            query?: {
+                target_type?: ("user" | "professional") | null;
+                /** @description With target_type=professional: a Pro row's full history, including a reassign that landed the person on this row and a deactivation that removed it. */
+                target_id?: string | null;
+                /** @description An owner's history: actions on them or their team, including a Pro moved to or from them. */
+                sp_user_id?: string | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminActionRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_audit_log_api_v1_admin_audit_get: {
+        parameters: {
+            query?: {
+                admin_user_id?: string | null;
+                action?: string | null;
+                target_type?: string | null;
+                target_id?: string | null;
+                /** @description ISO datetime, inclusive. No offset means UTC. */
+                date_from?: string | null;
+                /** @description ISO datetime, exclusive. No offset means UTC. */
+                date_to?: string | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAuditListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_audit_filters_api_v1_admin_audit_filters_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAuditFilters"];
+                };
+            };
+        };
+    };
+    list_category_pricing_api_v1_admin_pricing_categories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryPricingRow"][];
+                };
+            };
+        };
+    };
+    update_category_pricing_api_v1_admin_pricing_categories__category_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryPricingUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryPricingRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pricing_config_api_v1_admin_pricing_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingConfigRow"][];
+                };
+            };
+        };
+    };
+    update_pricing_config_api_v1_admin_pricing_config__key__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingConfigRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_coupons_api_v1_admin_coupons_get: {
+        parameters: {
+            query?: {
+                /** @description inactive, expired, exhausted (global usage_limit reached), scheduled (valid_from in the future) or active. Each coupon has exactly one. */
+                status?: ("active" | "inactive" | "expired" | "exhausted" | "scheduled") | null;
+                /** @description Any part of the code, any case */
+                q?: string | null;
+                /** @description Personal (referral) coupons only (true) or global only (false) */
+                personal?: boolean | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCouponListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_coupon_api_v1_admin_coupons_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCouponCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCouponRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_coupon_api_v1_admin_coupons__code__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCouponDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_coupon_api_v1_admin_coupons__code__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCouponUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCouponRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_coupon_api_v1_admin_coupons__code__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCouponRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_coupon_api_v1_admin_coupons__code__activate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCouponRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_catalog_api_v1_admin_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCatalogTree"];
+                };
+            };
+        };
+    };
+    create_category_api_v1_admin_catalog_categories_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCategoryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCategoryDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_category_api_v1_admin_catalog_categories__category_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCategoryDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_category_api_v1_admin_catalog_categories__category_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCategoryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCategoryDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_category_api_v1_admin_catalog_categories__category_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCategoryDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_category_api_v1_admin_catalog_categories__category_id__activate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCategoryDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_service_api_v1_admin_catalog_services_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminServiceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminServiceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_service_api_v1_admin_catalog_services__service_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminServiceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_service_api_v1_admin_catalog_services__service_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminServiceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminServiceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_service_api_v1_admin_catalog_services__service_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AdminServiceDeactivate"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminServiceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_service_api_v1_admin_catalog_services__service_id__activate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminServiceDetail"];
                 };
             };
             /** @description Validation Error */
