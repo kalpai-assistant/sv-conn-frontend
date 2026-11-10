@@ -29,6 +29,11 @@ vi.mock("@/components/provider/JobActions", () => ({
   DoorstepOtpStep: () => <div />,
   CompleteStep: () => <div />,
 }));
+// SVC-453: the call button runs its own query; stubbing keeps this test's
+// render surface the same as before (route-selection branches, not call UX).
+vi.mock("@/components/provider/CallCustomerButton", () => ({
+  CallCustomerButton: () => <div />,
+}));
 
 import { Route } from "@/routes/provider/bookings/$bookingId";
 
