@@ -11,6 +11,8 @@ import { ApiError, apiFetch } from "@/lib/api";
 import type { AdminRole } from "@/lib/auth";
 import { formatIst } from "@/lib/bookings";
 import { formatRupees } from "@/lib/money";
+// The backend's _MONEY_LIMIT (numeric(12, 2)) and _INT_MAX live there too.
+import { parseMoney, parseWhole } from "@/lib/number-input";
 
 // --- Types: app/schemas/admin_coupons.py -------------------------------------
 
@@ -325,32 +327,6 @@ export function formFromRow(row: CouponRow): CouponForm {
     usage_limit_per_user: String(row.usage_limit_per_user),
     is_active: row.is_active,
   };
-}
-
-// Mirrors the backend's _MONEY_LIMIT (numeric(12, 2)) and _INT_MAX.
-const MONEY_LIMIT = 10_000_000_000;
-const INT_MAX = 2_147_483_647;
-
-type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
-
-/** A rupee amount: a stray ₹, comma or space is fine. Empty is null. */
-function parseMoney(text: string): Parsed<number | null> {
-  const cleaned = text.replace(/[₹,\s]/g, "");
-  if (cleaned === "") return { ok: true, value: null };
-  if (!/^\d+(\.\d+)?$|^\.\d+$/.test(cleaned)) return { ok: false, error: "Enter a number." };
-  if (/\.\d{3,}$/.test(cleaned)) return { ok: false, error: "At most 2 decimal places." };
-  const value = Number(cleaned);
-  if (value >= MONEY_LIMIT) return { ok: false, error: "That's too large." };
-  return { ok: true, value };
-}
-
-/** A whole number. Empty is null. */
-function parseWhole(text: string): Parsed<number | null> {
-  const cleaned = text.replace(/[,\s]/g, "");
-  if (cleaned === "") return { ok: true, value: null };
-  if (!/^\d+$/.test(cleaned)) return { ok: false, error: "A whole number." };
-  const value = Number(cleaned);
-  return value > INT_MAX ? { ok: false, error: "That's too large." } : { ok: true, value };
 }
 
 /** The form, checked: every value as the backend takes it. */

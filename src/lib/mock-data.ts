@@ -15,6 +15,9 @@ export interface Category {
    *  L1 for the home view; the category page renders sub-category tiles
    *  when the fetched category has children, or services when it doesn't. */
   parentId: string | null;
+  /** SVC-430: the icon an admin picked (a key of lib/catalog-icons.ts), if any.
+   *  `categoryIcon` uses it only for slugs the curated map doesn't cover. */
+  iconKey?: string | null;
 }
 
 export interface ServiceProvider {
@@ -78,6 +81,9 @@ export interface Service {
   /** SVC-388: the latest qualifying review, picked server-side. Null until the
    *  service has enough qualifying reviews — cards then render nothing. */
   reviewSnippet?: ReviewSnippet | null;
+  /** SVC-430: the icon an admin picked for this service, if any. Wins over the
+   *  category's icon on ServiceCardCompact. */
+  iconKey?: string | null;
 }
 
 export interface ReviewSnippet {

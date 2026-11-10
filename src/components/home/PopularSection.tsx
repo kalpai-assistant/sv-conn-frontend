@@ -63,6 +63,7 @@ export function PopularSection() {
                 service={s}
                 categorySlug={cat?.slug}
                 categorySortOrder={cat?.sortOrder}
+                categoryIconKey={cat?.iconKey}
               />
             );
           })}

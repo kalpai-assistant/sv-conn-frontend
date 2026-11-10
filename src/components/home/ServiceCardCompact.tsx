@@ -25,6 +25,7 @@
  */
 import { Clock } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
+import { catalogIcon } from "@/lib/catalog-icons";
 import { categoryIcon, categoryColor } from "@/lib/category-icons";
 import type { Service } from "@/lib/mock-data";
 import { useServiceSheet } from "@/lib/service-sheet-context";
@@ -39,19 +40,27 @@ interface ServiceCardCompactProps {
    *  Absent on a mixed rail, where the placeholder stays neutral. */
   categorySlug?: string;
   categorySortOrder?: number;
+  /** SVC-430: the owning category's admin-picked icon, for a slug the curated
+   *  map doesn't cover. */
+  categoryIconKey?: string | null;
 }
 
 export function ServiceCardCompact({
   service,
   categorySlug,
   categorySortOrder,
+  categoryIconKey,
 }: ServiceCardCompactProps) {
   const { openService } = useServiceSheet();
 
   // Stands in for the photography this card is designed around (a separate
   // ticket). Tinting it by category at least makes adjacent cards on the rail
   // distinguishable at a glance instead of a row of identical grey blocks.
-  const Icon = categorySlug ? categoryIcon(categorySlug) : undefined;
+  // SVC-430: the service's own icon_key wins; without one it's the category's
+  // icon as before, and on a mixed rail (no slug) the name's first letter.
+  const Icon =
+    catalogIcon(service.iconKey) ??
+    (categorySlug ? categoryIcon(categorySlug, categoryIconKey) : undefined);
   const tint = categoryColor(categorySortOrder ?? 0);
 
   const handleOpen = () => openService(service.id);
