@@ -19,12 +19,14 @@ import { Route as AuthedAnalyticsOverviewRouteImport } from './routes/_authed/an
 import { Route as AuthedAnalyticsSupplyRouteImport } from './routes/_authed/analytics/supply'
 import { Route as AuthedOperatorBookingsRouteImport } from './routes/_authed/operator/bookings'
 import { Route as AuthedOperatorCatalogRouteImport } from './routes/_authed/operator/catalog'
-import { Route as AuthedOperatorCouponsRouteImport } from './routes/_authed/operator/coupons'
 import { Route as AuthedOperatorKycRouteImport } from './routes/_authed/operator/kyc'
 import { Route as AuthedOperatorPayoutsRouteImport } from './routes/_authed/operator/payouts'
 import { Route as AuthedOperatorPricingRouteImport } from './routes/_authed/operator/pricing'
 import { Route as AuthedOperatorRefundsRouteImport } from './routes/_authed/operator/refunds'
 import { Route as AuthedSupportLookupRouteImport } from './routes/_authed/support/lookup'
+import { Route as AuthedOperatorCouponsIndexRouteImport } from './routes/_authed/operator/coupons/index'
+import { Route as AuthedOperatorCouponsCodeRouteImport } from './routes/_authed/operator/coupons/$code'
+import { Route as AuthedOperatorCouponsNewRouteImport } from './routes/_authed/operator/coupons/new'
 import { Route as AuthedOperatorPricingIndexRouteImport } from './routes/_authed/operator/pricing/index'
 import { Route as AuthedOperatorPricingCategoriesRouteImport } from './routes/_authed/operator/pricing/categories'
 import { Route as AuthedOperatorPricingFormulaRouteImport } from './routes/_authed/operator/pricing/formula'
@@ -82,11 +84,6 @@ const AuthedOperatorCatalogRoute = AuthedOperatorCatalogRouteImport.update({
   path: '/operator/catalog',
   getParentRoute: () => AuthedRoute,
 } as any)
-const AuthedOperatorCouponsRoute = AuthedOperatorCouponsRouteImport.update({
-  id: '/operator/coupons',
-  path: '/operator/coupons',
-  getParentRoute: () => AuthedRoute,
-} as any)
 const AuthedOperatorKycRoute = AuthedOperatorKycRouteImport.update({
   id: '/operator/kyc',
   path: '/operator/kyc',
@@ -112,6 +109,24 @@ const AuthedSupportLookupRoute = AuthedSupportLookupRouteImport.update({
   path: '/support/lookup',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedOperatorCouponsIndexRoute =
+  AuthedOperatorCouponsIndexRouteImport.update({
+    id: '/operator/coupons/',
+    path: '/operator/coupons/',
+    getParentRoute: () => AuthedRoute,
+  } as any)
+const AuthedOperatorCouponsCodeRoute =
+  AuthedOperatorCouponsCodeRouteImport.update({
+    id: '/operator/coupons/$code',
+    path: '/operator/coupons/$code',
+    getParentRoute: () => AuthedRoute,
+  } as any)
+const AuthedOperatorCouponsNewRoute =
+  AuthedOperatorCouponsNewRouteImport.update({
+    id: '/operator/coupons/new',
+    path: '/operator/coupons/new',
+    getParentRoute: () => AuthedRoute,
+  } as any)
 const AuthedOperatorPricingIndexRoute =
   AuthedOperatorPricingIndexRouteImport.update({
     id: '/',
@@ -161,16 +176,18 @@ export interface FileRoutesByFullPath {
   '/analytics/supply': typeof AuthedAnalyticsSupplyRoute
   '/operator/bookings': typeof AuthedOperatorBookingsRoute
   '/operator/catalog': typeof AuthedOperatorCatalogRoute
-  '/operator/coupons': typeof AuthedOperatorCouponsRoute
   '/operator/kyc': typeof AuthedOperatorKycRoute
   '/operator/payouts': typeof AuthedOperatorPayoutsRoute
   '/operator/pricing': typeof AuthedOperatorPricingRouteWithChildren
   '/operator/refunds': typeof AuthedOperatorRefundsRoute
   '/support/lookup': typeof AuthedSupportLookupRoute
+  '/operator/coupons/$code': typeof AuthedOperatorCouponsCodeRoute
+  '/operator/coupons/new': typeof AuthedOperatorCouponsNewRoute
   '/operator/pricing/categories': typeof AuthedOperatorPricingCategoriesRoute
   '/operator/pricing/formula': typeof AuthedOperatorPricingFormulaRoute
   '/operator/pros/$proId': typeof AuthedOperatorProsProIdRoute
   '/operator/sps/$spId': typeof AuthedOperatorSpsSpIdRoute
+  '/operator/coupons/': typeof AuthedOperatorCouponsIndexRoute
   '/operator/pricing/': typeof AuthedOperatorPricingIndexRoute
   '/operator/pros/': typeof AuthedOperatorProsIndexRoute
   '/operator/sps/': typeof AuthedOperatorSpsIndexRoute
@@ -185,15 +202,17 @@ export interface FileRoutesByTo {
   '/analytics/supply': typeof AuthedAnalyticsSupplyRoute
   '/operator/bookings': typeof AuthedOperatorBookingsRoute
   '/operator/catalog': typeof AuthedOperatorCatalogRoute
-  '/operator/coupons': typeof AuthedOperatorCouponsRoute
   '/operator/kyc': typeof AuthedOperatorKycRoute
   '/operator/payouts': typeof AuthedOperatorPayoutsRoute
   '/operator/refunds': typeof AuthedOperatorRefundsRoute
   '/support/lookup': typeof AuthedSupportLookupRoute
+  '/operator/coupons/$code': typeof AuthedOperatorCouponsCodeRoute
+  '/operator/coupons/new': typeof AuthedOperatorCouponsNewRoute
   '/operator/pricing/categories': typeof AuthedOperatorPricingCategoriesRoute
   '/operator/pricing/formula': typeof AuthedOperatorPricingFormulaRoute
   '/operator/pros/$proId': typeof AuthedOperatorProsProIdRoute
   '/operator/sps/$spId': typeof AuthedOperatorSpsSpIdRoute
+  '/operator/coupons': typeof AuthedOperatorCouponsIndexRoute
   '/operator/pricing': typeof AuthedOperatorPricingIndexRoute
   '/operator/pros': typeof AuthedOperatorProsIndexRoute
   '/operator/sps': typeof AuthedOperatorSpsIndexRoute
@@ -210,16 +229,18 @@ export interface FileRoutesById {
   '/_authed/analytics/supply': typeof AuthedAnalyticsSupplyRoute
   '/_authed/operator/bookings': typeof AuthedOperatorBookingsRoute
   '/_authed/operator/catalog': typeof AuthedOperatorCatalogRoute
-  '/_authed/operator/coupons': typeof AuthedOperatorCouponsRoute
   '/_authed/operator/kyc': typeof AuthedOperatorKycRoute
   '/_authed/operator/payouts': typeof AuthedOperatorPayoutsRoute
   '/_authed/operator/pricing': typeof AuthedOperatorPricingRouteWithChildren
   '/_authed/operator/refunds': typeof AuthedOperatorRefundsRoute
   '/_authed/support/lookup': typeof AuthedSupportLookupRoute
+  '/_authed/operator/coupons/$code': typeof AuthedOperatorCouponsCodeRoute
+  '/_authed/operator/coupons/new': typeof AuthedOperatorCouponsNewRoute
   '/_authed/operator/pricing/categories': typeof AuthedOperatorPricingCategoriesRoute
   '/_authed/operator/pricing/formula': typeof AuthedOperatorPricingFormulaRoute
   '/_authed/operator/pros/$proId': typeof AuthedOperatorProsProIdRoute
   '/_authed/operator/sps/$spId': typeof AuthedOperatorSpsSpIdRoute
+  '/_authed/operator/coupons/': typeof AuthedOperatorCouponsIndexRoute
   '/_authed/operator/pricing/': typeof AuthedOperatorPricingIndexRoute
   '/_authed/operator/pros/': typeof AuthedOperatorProsIndexRoute
   '/_authed/operator/sps/': typeof AuthedOperatorSpsIndexRoute
@@ -236,16 +257,18 @@ export interface FileRouteTypes {
     | '/analytics/supply'
     | '/operator/bookings'
     | '/operator/catalog'
-    | '/operator/coupons'
     | '/operator/kyc'
     | '/operator/payouts'
     | '/operator/pricing'
     | '/operator/refunds'
     | '/support/lookup'
+    | '/operator/coupons/$code'
+    | '/operator/coupons/new'
     | '/operator/pricing/categories'
     | '/operator/pricing/formula'
     | '/operator/pros/$proId'
     | '/operator/sps/$spId'
+    | '/operator/coupons/'
     | '/operator/pricing/'
     | '/operator/pros/'
     | '/operator/sps/'
@@ -260,15 +283,17 @@ export interface FileRouteTypes {
     | '/analytics/supply'
     | '/operator/bookings'
     | '/operator/catalog'
-    | '/operator/coupons'
     | '/operator/kyc'
     | '/operator/payouts'
     | '/operator/refunds'
     | '/support/lookup'
+    | '/operator/coupons/$code'
+    | '/operator/coupons/new'
     | '/operator/pricing/categories'
     | '/operator/pricing/formula'
     | '/operator/pros/$proId'
     | '/operator/sps/$spId'
+    | '/operator/coupons'
     | '/operator/pricing'
     | '/operator/pros'
     | '/operator/sps'
@@ -284,16 +309,18 @@ export interface FileRouteTypes {
     | '/_authed/analytics/supply'
     | '/_authed/operator/bookings'
     | '/_authed/operator/catalog'
-    | '/_authed/operator/coupons'
     | '/_authed/operator/kyc'
     | '/_authed/operator/payouts'
     | '/_authed/operator/pricing'
     | '/_authed/operator/refunds'
     | '/_authed/support/lookup'
+    | '/_authed/operator/coupons/$code'
+    | '/_authed/operator/coupons/new'
     | '/_authed/operator/pricing/categories'
     | '/_authed/operator/pricing/formula'
     | '/_authed/operator/pros/$proId'
     | '/_authed/operator/sps/$spId'
+    | '/_authed/operator/coupons/'
     | '/_authed/operator/pricing/'
     | '/_authed/operator/pros/'
     | '/_authed/operator/sps/'
@@ -378,13 +405,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOperatorCatalogRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/_authed/operator/coupons': {
-      id: '/_authed/operator/coupons'
-      path: '/operator/coupons'
-      fullPath: '/operator/coupons'
-      preLoaderRoute: typeof AuthedOperatorCouponsRouteImport
-      parentRoute: typeof AuthedRoute
-    }
     '/_authed/operator/kyc': {
       id: '/_authed/operator/kyc'
       path: '/operator/kyc'
@@ -418,6 +438,27 @@ declare module '@tanstack/react-router' {
       path: '/support/lookup'
       fullPath: '/support/lookup'
       preLoaderRoute: typeof AuthedSupportLookupRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/operator/coupons/': {
+      id: '/_authed/operator/coupons/'
+      path: '/operator/coupons'
+      fullPath: '/operator/coupons/'
+      preLoaderRoute: typeof AuthedOperatorCouponsIndexRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/operator/coupons/$code': {
+      id: '/_authed/operator/coupons/$code'
+      path: '/operator/coupons/$code'
+      fullPath: '/operator/coupons/$code'
+      preLoaderRoute: typeof AuthedOperatorCouponsCodeRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/operator/coupons/new': {
+      id: '/_authed/operator/coupons/new'
+      path: '/operator/coupons/new'
+      fullPath: '/operator/coupons/new'
+      preLoaderRoute: typeof AuthedOperatorCouponsNewRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/operator/pricing/': {
@@ -496,14 +537,16 @@ interface AuthedRouteChildren {
   AuthedAnalyticsSupplyRoute: typeof AuthedAnalyticsSupplyRoute
   AuthedOperatorBookingsRoute: typeof AuthedOperatorBookingsRoute
   AuthedOperatorCatalogRoute: typeof AuthedOperatorCatalogRoute
-  AuthedOperatorCouponsRoute: typeof AuthedOperatorCouponsRoute
   AuthedOperatorKycRoute: typeof AuthedOperatorKycRoute
   AuthedOperatorPayoutsRoute: typeof AuthedOperatorPayoutsRoute
   AuthedOperatorPricingRoute: typeof AuthedOperatorPricingRouteWithChildren
   AuthedOperatorRefundsRoute: typeof AuthedOperatorRefundsRoute
   AuthedSupportLookupRoute: typeof AuthedSupportLookupRoute
+  AuthedOperatorCouponsCodeRoute: typeof AuthedOperatorCouponsCodeRoute
+  AuthedOperatorCouponsNewRoute: typeof AuthedOperatorCouponsNewRoute
   AuthedOperatorProsProIdRoute: typeof AuthedOperatorProsProIdRoute
   AuthedOperatorSpsSpIdRoute: typeof AuthedOperatorSpsSpIdRoute
+  AuthedOperatorCouponsIndexRoute: typeof AuthedOperatorCouponsIndexRoute
   AuthedOperatorProsIndexRoute: typeof AuthedOperatorProsIndexRoute
   AuthedOperatorSpsIndexRoute: typeof AuthedOperatorSpsIndexRoute
 }
@@ -515,14 +558,16 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedAnalyticsSupplyRoute: AuthedAnalyticsSupplyRoute,
   AuthedOperatorBookingsRoute: AuthedOperatorBookingsRoute,
   AuthedOperatorCatalogRoute: AuthedOperatorCatalogRoute,
-  AuthedOperatorCouponsRoute: AuthedOperatorCouponsRoute,
   AuthedOperatorKycRoute: AuthedOperatorKycRoute,
   AuthedOperatorPayoutsRoute: AuthedOperatorPayoutsRoute,
   AuthedOperatorPricingRoute: AuthedOperatorPricingRouteWithChildren,
   AuthedOperatorRefundsRoute: AuthedOperatorRefundsRoute,
   AuthedSupportLookupRoute: AuthedSupportLookupRoute,
+  AuthedOperatorCouponsCodeRoute: AuthedOperatorCouponsCodeRoute,
+  AuthedOperatorCouponsNewRoute: AuthedOperatorCouponsNewRoute,
   AuthedOperatorProsProIdRoute: AuthedOperatorProsProIdRoute,
   AuthedOperatorSpsSpIdRoute: AuthedOperatorSpsSpIdRoute,
+  AuthedOperatorCouponsIndexRoute: AuthedOperatorCouponsIndexRoute,
   AuthedOperatorProsIndexRoute: AuthedOperatorProsIndexRoute,
   AuthedOperatorSpsIndexRoute: AuthedOperatorSpsIndexRoute,
 }
