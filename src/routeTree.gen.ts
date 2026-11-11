@@ -32,6 +32,7 @@ import { Route as ProIndexRouteImport } from './routes/pro/index'
 import { Route as ProKycRouteImport } from './routes/pro/kyc'
 import { Route as ProfileCallHistoryRouteImport } from './routes/profile.call-history'
 import { Route as ProviderIndexRouteImport } from './routes/provider/index'
+import { Route as ProviderCallHistoryRouteImport } from './routes/provider/call-history'
 import { Route as ProviderEarningsRouteImport } from './routes/provider/earnings'
 import { Route as ProviderLocationRouteImport } from './routes/provider/location'
 import { Route as ProviderOnboardingRouteImport } from './routes/provider/onboarding'
@@ -165,6 +166,11 @@ const ProviderIndexRoute = ProviderIndexRouteImport.update({
   path: '/provider/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProviderCallHistoryRoute = ProviderCallHistoryRouteImport.update({
+  id: '/provider/call-history',
+  path: '/provider/call-history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProviderEarningsRoute = ProviderEarningsRouteImport.update({
   id: '/provider/earnings',
   path: '/provider/earnings',
@@ -275,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/category/$slug': typeof CategorySlugRoute
   '/pro/kyc': typeof ProKycRoute
   '/profile/call-history': typeof ProfileCallHistoryRoute
+  '/provider/call-history': typeof ProviderCallHistoryRoute
   '/provider/earnings': typeof ProviderEarningsRoute
   '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
@@ -317,6 +324,7 @@ export interface FileRoutesByTo {
   '/category/$slug': typeof CategorySlugRoute
   '/pro/kyc': typeof ProKycRoute
   '/profile/call-history': typeof ProfileCallHistoryRoute
+  '/provider/call-history': typeof ProviderCallHistoryRoute
   '/provider/earnings': typeof ProviderEarningsRoute
   '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
@@ -360,6 +368,7 @@ export interface FileRoutesById {
   '/category/$slug': typeof CategorySlugRoute
   '/pro/kyc': typeof ProKycRoute
   '/profile/call-history': typeof ProfileCallHistoryRoute
+  '/provider/call-history': typeof ProviderCallHistoryRoute
   '/provider/earnings': typeof ProviderEarningsRoute
   '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
@@ -404,6 +413,7 @@ export interface FileRouteTypes {
     | '/category/$slug'
     | '/pro/kyc'
     | '/profile/call-history'
+    | '/provider/call-history'
     | '/provider/earnings'
     | '/provider/location'
     | '/provider/onboarding'
@@ -446,6 +456,7 @@ export interface FileRouteTypes {
     | '/category/$slug'
     | '/pro/kyc'
     | '/profile/call-history'
+    | '/provider/call-history'
     | '/provider/earnings'
     | '/provider/location'
     | '/provider/onboarding'
@@ -488,6 +499,7 @@ export interface FileRouteTypes {
     | '/category/$slug'
     | '/pro/kyc'
     | '/profile/call-history'
+    | '/provider/call-history'
     | '/provider/earnings'
     | '/provider/location'
     | '/provider/onboarding'
@@ -530,6 +542,7 @@ export interface RootRouteChildren {
   AdminProfileRoute: typeof AdminProfileRoute
   CategorySlugRoute: typeof CategorySlugRoute
   ProKycRoute: typeof ProKycRoute
+  ProviderCallHistoryRoute: typeof ProviderCallHistoryRoute
   ProviderEarningsRoute: typeof ProviderEarningsRoute
   ProviderLocationRoute: typeof ProviderLocationRoute
   ProviderOnboardingRoute: typeof ProviderOnboardingRoute
@@ -714,6 +727,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProviderIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/provider/call-history': {
+      id: '/provider/call-history'
+      path: '/provider/call-history'
+      fullPath: '/provider/call-history'
+      preLoaderRoute: typeof ProviderCallHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/provider/earnings': {
       id: '/provider/earnings'
       path: '/provider/earnings'
@@ -868,6 +888,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminProfileRoute: AdminProfileRoute,
   CategorySlugRoute: CategorySlugRoute,
   ProKycRoute: ProKycRoute,
+  ProviderCallHistoryRoute: ProviderCallHistoryRoute,
   ProviderEarningsRoute: ProviderEarningsRoute,
   ProviderLocationRoute: ProviderLocationRoute,
   ProviderOnboardingRoute: ProviderOnboardingRoute,

@@ -122,9 +122,7 @@ function ProviderProfilePage() {
           <PhoneCall className="h-5 w-5 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground">{t("callHistory.navRow")}</p>
-            <p className="truncate text-sm text-muted-foreground">
-              {t("callHistory.navSubtitle")}
-            </p>
+            <p className="truncate text-sm text-muted-foreground">{t("callHistory.navSubtitle")}</p>
           </div>
         </div>
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />

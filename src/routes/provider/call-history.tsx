@@ -25,7 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/i18n/format";
 import { useT } from "@/i18n/LanguageProvider";
 import type { AppLanguage } from "@/i18n/languages";
-import { useProviderCallHistory, type API_CallHistoryEntry } from "@/hooks/useApi";
+import { useProviderCallHistory, type API_ProviderCallHistoryEntry } from "@/hooks/useApi";
 
 export const Route = createFileRoute("/provider/call-history")({
   component: ProviderCallHistoryPage,
@@ -77,7 +77,7 @@ function outcomeLabel(outcome: string, t: ReturnType<typeof useT>["t"]): string 
   }
 }
 
-function directionIcon(direction: API_CallHistoryEntry["direction"]) {
+function directionIcon(direction: API_ProviderCallHistoryEntry["direction"]) {
   if (direction === "customer_to_sp") return PhoneIncoming;
   if (direction === "sp_to_customer") return PhoneOutgoing;
   // Unmatched: stranger dialled the virtual number with no active mapping
@@ -87,7 +87,7 @@ function directionIcon(direction: API_CallHistoryEntry["direction"]) {
 }
 
 function directionLabel(
-  direction: API_CallHistoryEntry["direction"],
+  direction: API_ProviderCallHistoryEntry["direction"],
   t: ReturnType<typeof useT>["t"],
 ): string {
   if (direction === "customer_to_sp") return t("callHistory.directionIn");
@@ -95,7 +95,13 @@ function directionLabel(
   return t("callHistory.directionUnmatched");
 }
 
-function CallHistoryRow({ entry, divided }: { entry: API_CallHistoryEntry; divided: boolean }) {
+function CallHistoryRow({
+  entry,
+  divided,
+}: {
+  entry: API_ProviderCallHistoryEntry;
+  divided: boolean;
+}) {
   const { t, lang } = useT("provider");
   const Icon = directionIcon(entry.direction);
   // First-name-only is a baked privacy default (SVC-453). Backend sends null
