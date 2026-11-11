@@ -30,6 +30,7 @@ import { Route as AdminProfileRouteImport } from './routes/admin.profile'
 import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 import { Route as ProIndexRouteImport } from './routes/pro/index'
 import { Route as ProKycRouteImport } from './routes/pro/kyc'
+import { Route as ProfileCallHistoryRouteImport } from './routes/profile.call-history'
 import { Route as ProviderIndexRouteImport } from './routes/provider/index'
 import { Route as ProviderEarningsRouteImport } from './routes/provider/earnings'
 import { Route as ProviderLocationRouteImport } from './routes/provider/location'
@@ -154,6 +155,11 @@ const ProKycRoute = ProKycRouteImport.update({
   path: '/pro/kyc',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileCallHistoryRoute = ProfileCallHistoryRouteImport.update({
+  id: '/call-history',
+  path: '/call-history',
+  getParentRoute: () => ProfileRoute,
+} as any)
 const ProviderIndexRoute = ProviderIndexRouteImport.update({
   id: '/provider/',
   path: '/provider/',
@@ -257,7 +263,7 @@ export interface FileRoutesByFullPath {
   '/download': typeof DownloadRoute
   '/invite': typeof InviteRoute
   '/privacy': typeof PrivacyRoute
-  '/profile': typeof ProfileRoute
+  '/profile': typeof ProfileRouteWithChildren
   '/refund': typeof RefundRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
@@ -268,6 +274,7 @@ export interface FileRoutesByFullPath {
   '/admin/profile': typeof AdminProfileRoute
   '/category/$slug': typeof CategorySlugRoute
   '/pro/kyc': typeof ProKycRoute
+  '/profile/call-history': typeof ProfileCallHistoryRoute
   '/provider/earnings': typeof ProviderEarningsRoute
   '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
@@ -298,7 +305,7 @@ export interface FileRoutesByTo {
   '/download': typeof DownloadRoute
   '/invite': typeof InviteRoute
   '/privacy': typeof PrivacyRoute
-  '/profile': typeof ProfileRoute
+  '/profile': typeof ProfileRouteWithChildren
   '/refund': typeof RefundRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
@@ -309,6 +316,7 @@ export interface FileRoutesByTo {
   '/admin/profile': typeof AdminProfileRoute
   '/category/$slug': typeof CategorySlugRoute
   '/pro/kyc': typeof ProKycRoute
+  '/profile/call-history': typeof ProfileCallHistoryRoute
   '/provider/earnings': typeof ProviderEarningsRoute
   '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
@@ -340,7 +348,7 @@ export interface FileRoutesById {
   '/download': typeof DownloadRoute
   '/invite': typeof InviteRoute
   '/privacy': typeof PrivacyRoute
-  '/profile': typeof ProfileRoute
+  '/profile': typeof ProfileRouteWithChildren
   '/refund': typeof RefundRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
@@ -351,6 +359,7 @@ export interface FileRoutesById {
   '/admin/profile': typeof AdminProfileRoute
   '/category/$slug': typeof CategorySlugRoute
   '/pro/kyc': typeof ProKycRoute
+  '/profile/call-history': typeof ProfileCallHistoryRoute
   '/provider/earnings': typeof ProviderEarningsRoute
   '/provider/location': typeof ProviderLocationRoute
   '/provider/onboarding': typeof ProviderOnboardingRoute
@@ -394,6 +403,7 @@ export interface FileRouteTypes {
     | '/admin/profile'
     | '/category/$slug'
     | '/pro/kyc'
+    | '/profile/call-history'
     | '/provider/earnings'
     | '/provider/location'
     | '/provider/onboarding'
@@ -435,6 +445,7 @@ export interface FileRouteTypes {
     | '/admin/profile'
     | '/category/$slug'
     | '/pro/kyc'
+    | '/profile/call-history'
     | '/provider/earnings'
     | '/provider/location'
     | '/provider/onboarding'
@@ -476,6 +487,7 @@ export interface FileRouteTypes {
     | '/admin/profile'
     | '/category/$slug'
     | '/pro/kyc'
+    | '/profile/call-history'
     | '/provider/earnings'
     | '/provider/location'
     | '/provider/onboarding'
@@ -507,7 +519,7 @@ export interface RootRouteChildren {
   DownloadRoute: typeof DownloadRoute
   InviteRoute: typeof InviteRoute
   PrivacyRoute: typeof PrivacyRoute
-  ProfileRoute: typeof ProfileRoute
+  ProfileRoute: typeof ProfileRouteWithChildren
   RefundRoute: typeof RefundRoute
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
@@ -688,6 +700,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProKycRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile/call-history': {
+      id: '/profile/call-history'
+      path: '/call-history'
+      fullPath: '/profile/call-history'
+      preLoaderRoute: typeof ProfileCallHistoryRouteImport
+      parentRoute: typeof ProfileRoute
+    }
     '/provider/': {
       id: '/provider/'
       path: '/provider'
@@ -817,6 +836,17 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ProfileRouteChildren {
+  ProfileCallHistoryRoute: typeof ProfileCallHistoryRoute
+}
+
+const ProfileRouteChildren: ProfileRouteChildren = {
+  ProfileCallHistoryRoute: ProfileCallHistoryRoute,
+}
+
+const ProfileRouteWithChildren =
+  ProfileRoute._addFileChildren(ProfileRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -827,7 +857,7 @@ const rootRouteChildren: RootRouteChildren = {
   DownloadRoute: DownloadRoute,
   InviteRoute: InviteRoute,
   PrivacyRoute: PrivacyRoute,
-  ProfileRoute: ProfileRoute,
+  ProfileRoute: ProfileRouteWithChildren,
   RefundRoute: RefundRoute,
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,

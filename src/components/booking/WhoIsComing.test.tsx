@@ -147,19 +147,26 @@ describe("mapping", () => {
     expect(JSON.stringify(b)).not.toContain("Assigned Partner");
   });
 
-  // SVC-360: the old placeholder number is gone; no phone means null.
+  // SVC-452: the customer app no longer reads `provider_phone` — the call
+  // button routes through `GET /bookings/{id}/call-mapping` instead. The
+  // mapper pins the field to `null` regardless of what the backend sends,
+  // so no UI code path can accidentally dial the real SP line. SVC-360's
+  // older "no phone means null" invariant is tightened to "always null".
   it.each([
     ["absent", {}],
     ["null", { provider_phone: null }],
-  ])("never invents a provider phone when provider_phone is %s", (_, over) => {
+    ["a stale backend still sends one", { provider_phone: "+919876500001" }],
+  ])("never reads the SP's real phone from the booking (provider_phone %s)", (_, over) => {
     const b = mapBooking(apiBooking(over));
     expect(b.service.provider?.phone).toBeNull();
-    expect(JSON.stringify(b)).not.toContain("910000000000");
-  });
-
-  it("carries provider_phone through as given", () => {
-    const b = mapBooking(apiBooking({ provider_phone: "+919876500001" }));
-    expect(b.service.provider?.phone).toBe("+919876500001");
+    // The real number never appears anywhere on the mapped booking —
+    // including in a dropped field or a serialised blob a devtools inspect
+    // could screenshot. Pin both the SVC-360 placeholder and the live
+    // number from the `it.each` above.
+    const blob = JSON.stringify(b);
+    expect(blob).not.toContain("910000000000");
+    expect(blob).not.toContain("+919876500001");
+    expect(blob).not.toContain("919876500001");
   });
 });
 

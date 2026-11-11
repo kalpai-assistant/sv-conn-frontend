@@ -1,20 +1,20 @@
 /**
- * The consumer tracking screen's Call button (SVC-360 + SVC-386). Pinned:
+ * The consumer tracking screen's Call button (SVC-360 → SVC-386 → SVC-452).
  *
- * - a provider_phone from the backend becomes a Call link with exactly that
- *   tel: href, and the number never shows as text;
- * - null (backend withheld it) and absent (older backend) both mean no
- *   button at all — not a greyed-out one, not a placeholder number.
+ * Pinned:
  *
- * Rendered at the route, not just at the component, because the whole
- * route → mapper → `WhoIsComingCard` → `ProTrustCard` path is what should
- * decide whether the button exists. Bookings go through the real mapBooking
- * so the mapper → button path is tested end to end.
+ * - the SP's real phone is never readable from the mapped booking, no matter
+ *   what the backend sends (SVC-452 privacy baked default);
+ * - the Call button only renders while the booking is in an active state
+ *   (ACCEPTED / EN_ROUTE / IN_PROGRESS); COMPLETED / CANCELLED / EXPIRED /
+ *   REQUESTED render no button — the mapping either has been released or
+ *   never existed, and the post-completion history lives on a separate
+ *   Call History screen under Profile.
  *
- * SVC-386 moved the Call affordance into `ProTrustCard`, which labels it
- * "Call {proName}" (e.g. "Call Rohan Kumar") rather than the older generic
- * "Call provider" — a /^Call / match covers both historical and current
- * labels without pinning us to one phrasing.
+ * The button itself (`CallSpButton`) is tested exhaustively in its own file.
+ * This file pins the route → mapper → `WhoIsComingCard` → `CallSpButton`
+ * wiring: does the button render on the right states, and does the real SP
+ * line stay buried?
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -40,6 +40,16 @@ vi.mock("@/components/tracking/TrackingMap", () => ({ TrackingMap: () => null })
 vi.mock("@/components/tracking/TipSection", () => ({ TipSection: () => null }));
 vi.mock("@/components/ReviewSheet", () => ({
   ReviewSheet: ({ open }: { open: boolean }) => (open ? <div>Rate your service</div> : null),
+}));
+// SVC-452: stub the masked-call button so this route test stays about the
+// route's wiring, not the mapping fetch. The button's own file pins the
+// toast + tel: handoff.
+vi.mock("@/components/booking/CallSpButton", () => ({
+  CallSpButton: ({ bookingId }: { bookingId: string }) => (
+    <button type="button" aria-label={`Call for booking ${bookingId}`}>
+      Call
+    </button>
+  ),
 }));
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => auth }));
 vi.mock("@/hooks/useApi", async (importOriginal) => {
@@ -107,28 +117,41 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe("Call provider", () => {
-  it("dials exactly the backend's provider_phone", () => {
-    show({ provider_phone: "+919876500001" });
-    const call = screen.getByRole("link", { name: /^Call / });
-    expect(call.getAttribute("href")).toBe("tel:+919876500001");
-  });
-
-  it("never shows the number as text", () => {
-    show({ provider_phone: "+919876500001" });
-    expect(screen.queryByText(/9876500001/)).toBeNull();
-  });
-
-  it("renders no button when the backend sends null", () => {
-    show({ provider_phone: null });
-    expect(screen.queryByRole("link", { name: /^Call / })).toBeNull();
-  });
-
-  it("renders no button when the field is absent (older backend)", () => {
-    show();
-    expect(screen.queryByRole("link", { name: /^Call / })).toBeNull();
+describe("Call provider (masked)", () => {
+  // SVC-452: even if the backend still sends `provider_phone`, the mapper
+  // drops it. Nothing on the screen or in the rendered DOM can expose it.
+  it.each([
+    ["absent", {}],
+    ["null", { provider_phone: null }],
+    ["a stale backend value", { provider_phone: "+919876500001" }],
+  ])("never exposes the SP's real phone (provider_phone %s)", (_, over) => {
+    show(over);
+    expect(document.body.innerHTML).not.toContain("9876500001");
     expect(document.body.innerHTML).not.toContain("910000000000");
+    // And nothing anywhere on the screen tries to open a `tel:` to a raw
+    // number. Only the (stubbed) CallSpButton may initiate a dial, and
+    // that fires at tap time against the masked number.
+    expect(document.body.innerHTML).not.toContain('href="tel:');
   });
+
+  it.each(["accepted", "en_route", "in_progress"] as const)(
+    "renders the masked Call button on a %s booking",
+    (status) => {
+      show({ status });
+      expect(screen.getByRole("button", { name: /^Call for booking b1$/ })).toBeInTheDocument();
+    },
+  );
+
+  it.each(["requested", "completed", "cancelled", "expired"] as const)(
+    "renders no Call button on a %s booking",
+    (status) => {
+      // REQUESTED has the "searching" block instead; terminal states
+      // (COMPLETED/CANCELLED/EXPIRED) have had their mapping released, so
+      // post-booking re-dialing happens from Call History under Profile.
+      show({ status });
+      expect(screen.queryByRole("button", { name: /^Call for booking / })).toBeNull();
+    },
+  );
 });
 
 // SVC-397: the full-screen spinner became the page's own frame, with the

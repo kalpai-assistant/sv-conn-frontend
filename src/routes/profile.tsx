@@ -5,6 +5,7 @@ import {
   AlertCircle,
   Briefcase,
   MapPin,
+  Phone,
   Users,
   HelpCircle,
   Info,
@@ -331,6 +332,28 @@ function ProfilePage() {
                         : selected
                           ? `${addressCount} saved · ${capitalise(selected.label)} in use`
                           : `${addressCount} saved`}
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </Link>
+          </div>
+
+          {/* SVC-452: Call History row. Masked-call audit trail of every
+              bridged call (consumer ↔ SP), hit from `/users/me/call-history`.
+              First-name-only rows, no raw phone numbers. The screen itself
+              deep-links back to the booking when it still exists. Sits
+              under Addresses because both are "things scoped to you that
+              need their own screen, not a sheet". */}
+          <div className="px-4 pt-4">
+            <Link
+              to="/profile/call-history"
+              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:bg-secondary/50"
+            >
+              <Phone className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">Call History</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  Recent calls with service providers
                 </p>
               </div>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
