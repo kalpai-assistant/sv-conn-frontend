@@ -204,6 +204,17 @@ function BookingFacts({ booking }: { booking: Booking }) {
           <MoneyRow label="Platform commission" value={formatRupees(booking.platform_commission)} />
           <MoneyRow label="Provider payout" value={formatRupees(booking.provider_payout)} />
         </dl>
+        {/* Customer disputes (SVC-431), logged by support. Not the Disputed mark
+            above: that one is a Razorpay chargeback. */}
+        <div className="border-t pt-3">
+          <Link
+            to="/operator/refunds/$bookingId"
+            params={{ bookingId: booking.id }}
+            className="text-sm font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Disputes &amp; refunds
+          </Link>
+        </div>
       </Section>
     </div>
   );

@@ -189,6 +189,11 @@ describe("opening a booking", () => {
     const pane = await detailPane();
     expect(await within(pane).findByText(BOOKING_ID)).toBeInTheDocument();
     expect(await within(pane).findByText(/JP Nagar/)).toBeInTheDocument();
+    // SVC-431: the way into a booking's customer disputes.
+    expect(within(pane).getByRole("link", { name: "Disputes & refunds" })).toHaveAttribute(
+      "href",
+      `/operator/refunds/${BOOKING_ID}`,
+    );
   });
 
   it("asks for the full id in the ID box, and opens it when given", async () => {

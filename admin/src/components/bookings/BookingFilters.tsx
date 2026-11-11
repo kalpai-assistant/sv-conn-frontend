@@ -33,7 +33,7 @@ export type FilterPatch = Partial<
 // A Select item can't have an empty value, and no status is called this.
 const ALL = "__all__";
 
-function DateFilter({
+export function DateFilter({
   label,
   value,
   onCommit,
