@@ -11,7 +11,7 @@
  */
 import type { ReactNode } from "react";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Segmented } from "@/components/catalog/Field";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/EmptyState";
 import { WEEK_OPTIONS, formatAsOf, type WeeksOption } from "@/lib/analytics";
@@ -67,23 +67,19 @@ export function AnalyticsHeader({
           </p>
         )}
       </div>
-      <div
-        role="group"
-        aria-label="Weeks shown"
-        className="flex shrink-0 gap-1 self-start rounded-lg border bg-card p-1"
-      >
-        {WEEK_OPTIONS.map((option) => (
-          <Button
-            key={option}
-            size="sm"
-            variant={option === weeks ? "default" : "ghost"}
-            aria-pressed={option === weeks}
-            onClick={() => onWeeksChange(option)}
-          >
-            {option} weeks
-          </Button>
-        ))}
-      </div>
+      {/* The shared one-row control: four fixed buttons were 329px of a 343px
+          phone row and widened the page on narrower screens or fonts. */}
+      <Segmented
+        name="analytics-weeks"
+        label="Weeks shown"
+        value={String(weeks)}
+        options={WEEK_OPTIONS.map((option) => ({
+          value: String(option),
+          label: `${option} weeks`,
+        }))}
+        onChange={(value) => onWeeksChange(Number(value) as WeeksOption)}
+        oneRow
+      />
     </div>
   );
 }

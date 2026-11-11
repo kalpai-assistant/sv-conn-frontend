@@ -328,20 +328,16 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(cohorts.getByRole("row").nth(2)).toContainText("not matured");
 
       expect(unique(requests)).toEqual(["/analytics/overview?weeks=12"]);
-      await page.getByRole("button", { name: "26 weeks" }).click();
+      const weeks = page.getByRole("radiogroup", { name: "Weeks shown" });
+      await expect(weeks.getByRole("radio", { name: "12 weeks" })).toBeChecked();
+      await weeks.getByText("26 weeks").click();
       await expect(page).toHaveURL(/[?&]weeks=26\b/);
-      await expect(page.getByRole("button", { name: "26 weeks" })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      );
+      await expect(weeks.getByRole("radio", { name: "26 weeks" })).toBeChecked();
       await expect.poll(() => requests).toContain("/analytics/overview?weeks=26");
 
       // A pasted link opens the same range.
       await page.goto("/analytics/overview?weeks=52");
-      await expect(page.getByRole("button", { name: "52 weeks" })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      );
+      await expect(weeks.getByRole("radio", { name: "52 weeks" })).toBeChecked();
       await expect(card(page, "Bookings per day").locator("svg.recharts-surface")).toBeVisible();
 
       expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
@@ -411,6 +407,34 @@ for (const colorScheme of ["light", "dark"] as const) {
       const gap = card(page, "Supply gap by pincode and service").getByTestId("card-scroll");
       expect(await gap.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
     });
+
+    // Tushar's iPhone SE pass: the weeks row was wider than the phone and the
+    // whole page widened to fit it. 320 is the narrowest phone we size for.
+    for (const [width, height] of [
+      [375, 667],
+      [320, 568],
+    ]) {
+      test(`at ${width}x${height} the header fits: no page overflow and "52 weeks" on screen`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height });
+        await mockBackend(page, "ops");
+
+        for (const path of ["/analytics/overview", "/analytics/supply"]) {
+          await page.goto(path);
+          await expect(page.getByTestId("as-of")).toBeVisible();
+          expect(
+            await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+          ).toBe(true);
+          const option = await page
+            .getByRole("radiogroup", { name: "Weeks shown" })
+            .getByText("52 weeks")
+            .boundingBox();
+          expect(option!.x).toBeGreaterThanOrEqual(0);
+          expect(option!.x + option!.width).toBeLessThanOrEqual(width);
+        }
+      });
+    }
 
     test("a fresh database shows an empty state on both pages, not zero-filled charts", async ({
       page,
