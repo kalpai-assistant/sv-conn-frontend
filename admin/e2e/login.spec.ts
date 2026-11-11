@@ -235,31 +235,35 @@ test("a blocked network shows a plain message even though the response can't be 
   await expect(page.getByRole("alert")).toContainText("this network may not be allowed");
 });
 
-test("ops sees only Operator, and a hidden route by URL goes home", async ({ page }) => {
+test("ops sees Operator and Analytics, and a hidden route by URL goes home", async ({ page }) => {
   await mockBackend(page, { role: "ops" });
   await signIn(page);
 
   const nav = page.getByRole("navigation", { name: "Admin sections" });
   await expect(nav.getByRole("link", { name: "KYC" })).toBeVisible();
-  await expect(nav.getByRole("heading", { name: "Analytics" })).toHaveCount(0);
+  await expect(nav.getByRole("heading", { name: "Analytics" })).toBeVisible();
   await expect(nav.getByRole("heading", { name: "Support" })).toHaveCount(0);
 
-  await page.goto("/analytics/overview");
+  await page.goto("/support/lookup");
   await expect(page.getByRole("heading", { name: "Admin console" })).toBeVisible();
   await expect(page).toHaveURL(/localhost:5174\/$/);
 });
 
-test("support sees every section, and the same route opens", async ({ page }) => {
+test("support sees Operator and Support, and Analytics by URL goes home (SVC-432)", async ({
+  page,
+}) => {
   await mockBackend(page, { role: "support" });
   await signIn(page);
 
   const nav = page.getByRole("navigation", { name: "Admin sections" });
-  for (const section of ["Operator", "Analytics", "Support"]) {
+  for (const section of ["Operator", "Support"]) {
     await expect(nav.getByRole("heading", { name: section })).toBeVisible();
   }
+  await expect(nav.getByRole("heading", { name: "Analytics" })).toHaveCount(0);
 
   await page.goto("/analytics/overview");
-  await expect(page).toHaveURL(/\/analytics\/overview$/);
+  await expect(page.getByRole("heading", { name: "Admin console" })).toBeVisible();
+  await expect(page).toHaveURL(/localhost:5174\/$/);
 });
 
 test("the session survives a reload and picks up a rolled token", async ({ page }) => {
@@ -314,7 +318,7 @@ test("a signed-in user landing on /login goes home", async ({ page }) => {
 
 test("at phone width the menu is role-filtered and sign-out is reachable", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 });
-  await mockBackend(page, { role: "ops" });
+  await mockBackend(page, { role: "support" });
   await signIn(page);
 
   await page.getByRole("button", { name: "Open menu" }).click();

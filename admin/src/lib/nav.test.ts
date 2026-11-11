@@ -5,12 +5,12 @@ import type { AdminRole } from "@/lib/auth";
 const titles = (role: AdminRole) => sectionsFor(role).map((section) => section.title);
 
 describe("role-based sidebar", () => {
-  it("shows ops the Operator section only", () => {
-    expect(titles("ops")).toEqual(["Operator"]);
+  it("shows ops Operator and Analytics", () => {
+    expect(titles("ops")).toEqual(["Operator", "Analytics"]);
   });
 
-  it("shows support everything except Audit", () => {
-    expect(titles("support")).toEqual(["Operator", "Analytics", "Support"]);
+  it("shows support Operator and Support, without Analytics or Audit", () => {
+    expect(titles("support")).toEqual(["Operator", "Support"]);
   });
 
   it("shows admin every section", () => {
@@ -30,8 +30,18 @@ describe("canOpen", () => {
   });
 
   it("closes the hidden sections to ops", () => {
-    expect(canOpen("ops", "/analytics/overview")).toBe(false);
     expect(canOpen("ops", "/support/lookup")).toBe(false);
+  });
+
+  it.each<AdminRole>(["admin", "ops"])("lets %s open both dashboards (SVC-432)", (role) => {
+    expect(canOpen(role, "/analytics/overview")).toBe(true);
+    expect(canOpen(role, "/analytics/supply")).toBe(true);
+  });
+
+  it("closes the dashboards to support, even typed in (SVC-432)", () => {
+    expect(canOpen("support", "/analytics/overview")).toBe(false);
+    expect(canOpen("support", "/analytics/supply")).toBe(false);
+    expect(canOpen("support", "/analytics/supply/")).toBe(false);
   });
 
   it("opens the audit log to admin only", () => {

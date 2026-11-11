@@ -404,16 +404,21 @@ describe("the _authed guard", () => {
 
   it("redirects a hidden route opened by URL to the home page", async () => {
     setSessionToken("t1");
-    mockApi({ [ME]: () => json(adminUser("ops")) });
+    // Support never sees Analytics (SVC-432); typing the URL lands on home.
+    mockApi({ [ME]: () => json(adminUser("support")) });
     const router = renderApp("/analytics/overview");
 
     await screen.findByRole("heading", { name: "Admin console" });
     expect(pathOf(router)).toBe("/");
   });
 
-  it("lets support open the same route", async () => {
+  it("lets ops open the same route", async () => {
     setSessionToken("t1");
-    mockApi({ [ME]: () => json(adminUser("support")) });
+    mockApi({
+      [ME]: () => json(adminUser("ops")),
+      "GET /admin/analytics/overview?weeks=12": () =>
+        json({ as_of: "2026-11-11T10:15:00Z", gmv: [], weekly: [], daily: [], cohorts: [] }),
+    });
     const router = renderApp("/analytics/overview");
 
     await screen.findByRole("heading", { level: 1, name: "Overview" });

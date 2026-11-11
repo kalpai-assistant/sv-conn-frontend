@@ -129,6 +129,13 @@
     --sidebar-accent-foreground: oklch(0.92 0.08 262);
     --sidebar-border: oklch(0.3 0.01 260);
     --sidebar-ring: oklch(0.6 0.2 262);
+    /* Same hues as light, lifted so a series reads on the dark card (SVC-432).
+       1 and 4 stay near-identical blues: never put them in one chart. */
+    --chart-1: oklch(0.65 0.2 262);
+    --chart-2: oklch(0.72 0.17 165);
+    --chart-3: oklch(0.75 0.15 50);
+    --chart-4: oklch(0.72 0.17 250);
+    --chart-5: oklch(0.8 0.15 80);
   }
 }
 
