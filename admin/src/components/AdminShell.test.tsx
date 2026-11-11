@@ -70,25 +70,28 @@ describe("admin shell", () => {
 
     expect(within(nav).getByRole("heading", { name: "Operator" })).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "KYC" })).toBeInTheDocument();
-    expect(within(nav).queryByRole("heading", { name: "Analytics" })).not.toBeInTheDocument();
+    expect(within(nav).getByRole("heading", { name: "Analytics" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Overview" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Supply" })).toBeInTheDocument();
     expect(within(nav).queryByRole("heading", { name: "Support" })).not.toBeInTheDocument();
-    expect(within(nav).queryByRole("link", { name: "Overview" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Lookup" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Audit log" })).not.toBeInTheDocument();
   });
 
-  it("hides the audit log from support, who keep the other sections", async () => {
+  it("hides Analytics and the audit log from support, who keep Operator and Support", async () => {
     signedInAs("support");
     renderAt("/");
     const nav = await screen.findByRole("navigation", { name: "Admin sections" });
 
     expect(within(nav).getByRole("link", { name: "Lookup" })).toBeInTheDocument();
+    expect(within(nav).queryByRole("heading", { name: "Analytics" })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "Overview" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("heading", { name: "Audit" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Audit log" })).not.toBeInTheDocument();
   });
 
   it("applies the same role filter to the phone menu", async () => {
-    signedInAs("ops");
+    signedInAs("support");
     renderAt("/");
 
     await userEvent.click(await screen.findByRole("button", { name: "Open menu" }));
@@ -96,6 +99,7 @@ describe("admin shell", () => {
 
     expect(within(dialog).getByRole("link", { name: "KYC" })).toBeInTheDocument();
     expect(within(dialog).queryByRole("link", { name: "Overview" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("link", { name: "Audit log" })).not.toBeInTheDocument();
   });
 
   it("shows who is signed in", async () => {

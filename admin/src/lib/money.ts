@@ -29,3 +29,16 @@ export function formatRupees(amount: number): string {
 export function formatPaise(paise: number): string {
   return formatRupees(Math.round(paise) / 100);
 }
+
+const RUPEES_COMPACT = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  notation: "compact",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1,
+});
+
+/** Short rupees for a chart axis, in lakh and crore: ₹500, ₹12K, ₹1.2L, ₹2.5Cr. */
+export function formatRupeesCompact(amount: number): string {
+  return RUPEES_COMPACT.format(amount);
+}

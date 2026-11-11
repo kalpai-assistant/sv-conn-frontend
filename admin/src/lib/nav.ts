@@ -52,7 +52,9 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: "Analytics",
-    roles: ["admin", "support"],
+    // Admin and ops: the market view is ops' job too. Support's is the lookup
+    // (SVC-432); the backend 403s them as well.
+    roles: ["admin", "ops"],
     items: [
       { label: "Overview", to: "/analytics/overview", icon: BarChart3 },
       { label: "Supply", to: "/analytics/supply", icon: Truck },

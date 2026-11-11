@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatRupees } from "@/lib/bookings";
-import { formatPaise, formatRupees as moneyFormatRupees } from "@/lib/money";
+import { formatPaise, formatRupees as moneyFormatRupees, formatRupeesCompact } from "@/lib/money";
 
 describe("formatPaise", () => {
   it.each([
@@ -30,5 +30,17 @@ describe("formatRupees", () => {
     expect(formatRupees).toBe(moneyFormatRupees);
     expect(formatRupees(1499.5)).toBe("₹1,499.50");
     expect(formatRupees(100000)).toBe("₹1,00,000");
+  });
+});
+
+describe("formatRupeesCompact", () => {
+  it.each([
+    [0, "₹0"],
+    [500, "₹500"],
+    [12_000, "₹12K"],
+    [120_000, "₹1.2L"],
+    [25_000_000, "₹2.5Cr"],
+  ])("%i reads %s", (amount, expected) => {
+    expect(formatRupeesCompact(amount)).toBe(expected);
   });
 });
