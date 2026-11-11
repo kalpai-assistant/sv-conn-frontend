@@ -62,6 +62,7 @@ export function Segmented<T extends string>({
   value,
   options,
   onChange,
+  oneRow = false,
 }: {
   id?: string;
   name: string;
@@ -69,17 +70,21 @@ export function Segmented<T extends string>({
   value: T;
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
+  /** Keep every option on one row: smaller text and padding below `sm`. */
+  oneRow?: boolean;
 }) {
   return (
     <div
       role="radiogroup"
       aria-label={label}
-      className="flex w-fit max-w-full flex-wrap gap-1 rounded-lg bg-muted p-1"
+      className={`flex w-fit max-w-full gap-1 rounded-lg bg-muted p-1 ${oneRow ? "flex-nowrap" : "flex-wrap"}`}
     >
       {options.map((option, index) => (
         <label
           key={option.value}
-          className={`cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring ${
+          className={`cursor-pointer rounded-md py-1.5 font-medium has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring ${
+            oneRow ? "px-2 text-xs whitespace-nowrap sm:px-3 sm:text-sm" : "px-3 text-sm"
+          } ${
             value === option.value
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"

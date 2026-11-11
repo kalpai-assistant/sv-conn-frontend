@@ -111,6 +111,7 @@ export function ResolveForm({
           label="Resolution"
           value={type}
           options={options}
+          oneRow
           onChange={(next) => {
             setForm({ ...form, resolution_type: next });
             setErrors({});
