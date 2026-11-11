@@ -14,6 +14,7 @@ import { isBookingGone, useBooking } from "@/hooks/useApi";
 // because Provider Home renders the same ones inline (SVC-274). One
 // implementation, so the guard on completion cannot exist on one screen only.
 import { CompleteStep, DoorstepOtpStep, EnRouteStep } from "@/components/provider/JobActions";
+import { CallCustomerButton } from "@/components/provider/CallCustomerButton";
 import type { Booking } from "@/lib/mock-data";
 import { formatRupees } from "@/i18n/format";
 import { errorText } from "@/i18n/errors";
@@ -106,6 +107,17 @@ function JobBody({ booking }: { booking: Booking }) {
       {/* Who is on the job, and a way to change it (SVC-324). Renders nothing
           for a solo SP. */}
       <AssignedPro booking={booking} />
+
+      {/* SVC-453: "Call customer" via masked virtual number. Only while the
+          booking is in flight — a COMPLETED / CANCELLED booking has no active
+          mapping, and the button would render a toast on every tap. The
+          component itself queries lazily and shows a disabled-feel toast on
+          404, so no `isLoading` plumbing is needed here. */}
+      {travelling(booking.status) && (
+        <div className="mt-4">
+          <CallCustomerButton bookingId={booking.id} />
+        </div>
+      )}
 
       <div className="mt-6">
         {booking.status === "ACCEPTED" && <EnRouteStep bookingId={booking.id} />}

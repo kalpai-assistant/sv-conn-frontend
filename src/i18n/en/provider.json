@@ -498,5 +498,39 @@
   },
   "inviteShare": {
     "message": "You're invited to join my team on Eazyserv. Your invite code is {{code}} (valid for 7 days)."
+  },
+  "call": {
+    "customer": "Call customer",
+    "customerAria": "Call the customer for this booking",
+    "unavailableToast": "Call will be available once the SP accepts the booking.",
+    "failedToast": "Couldn't start the call. Please try again."
+  },
+  "callHistory": {
+    "navRow": "Call history",
+    "navSubtitle": "Recent calls with customers",
+    "title": "Call history",
+    "back": "Account",
+    "loading": "Loading your calls…",
+    "loadFailed": "Couldn't load your call history.",
+    "empty": "No calls yet",
+    "emptyDetail": "Calls you make or receive about a booking will show up here.",
+    "loadMore": "Load more",
+    "loadingMore": "Loading…",
+    "unknownCustomer": "Customer",
+    "unknownService": "Service",
+    "noDuration": "No connect",
+    "durationSeconds": "{{count}}s",
+    "durationMinutes": "{{min}}m {{sec}}s",
+    "directionIn": "Incoming",
+    "directionOut": "Outgoing",
+    "directionUnmatched": "Missed",
+    "outcomeCompleted": "Completed",
+    "outcomeNoAnswer": "No answer",
+    "outcomeBusy": "Busy",
+    "outcomeFailed": "Failed",
+    "outcomeInProgress": "In progress",
+    "outcomeRinging": "Ringing",
+    "outcomeDeclined": "Declined",
+    "outcomeUnknown": "{{status}}"
   }
 }

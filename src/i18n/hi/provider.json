@@ -498,5 +498,39 @@
   },
   "inviteShare": {
     "message": "आपको Eazyserv पर मेरी टीम से जुड़ने का न्योता है। आपका इनवाइट कोड {{code}} है (7 दिन के लिए मान्य)।"
+  },
+  "call": {
+    "customer": "ग्राहक को कॉल करें",
+    "customerAria": "इस बुकिंग के ग्राहक को कॉल करें",
+    "unavailableToast": "कॉल तभी की जा सकेगी जब SP बुकिंग स्वीकार कर ले।",
+    "failedToast": "कॉल शुरू नहीं हो सकी। फिर से कोशिश करें।"
+  },
+  "callHistory": {
+    "navRow": "कॉल हिस्ट्री",
+    "navSubtitle": "ग्राहकों से हाल की कॉल्स",
+    "title": "कॉल हिस्ट्री",
+    "back": "अकाउंट",
+    "loading": "आपकी कॉल्स लोड हो रही हैं…",
+    "loadFailed": "कॉल हिस्ट्री लोड नहीं हो सकी।",
+    "empty": "अभी कोई कॉल नहीं",
+    "emptyDetail": "बुकिंग के बारे में की गई या आई हुई कॉल्स यहाँ दिखेंगी।",
+    "loadMore": "और लोड करें",
+    "loadingMore": "लोड हो रहा है…",
+    "unknownCustomer": "ग्राहक",
+    "unknownService": "सेवा",
+    "noDuration": "कनेक्ट नहीं हुई",
+    "durationSeconds": "{{count}} से.",
+    "durationMinutes": "{{min}} मि. {{sec}} से.",
+    "directionIn": "इनकमिंग",
+    "directionOut": "आउटगोइंग",
+    "directionUnmatched": "मिस्ड",
+    "outcomeCompleted": "पूरी हुई",
+    "outcomeNoAnswer": "कोई जवाब नहीं",
+    "outcomeBusy": "व्यस्त",
+    "outcomeFailed": "विफल",
+    "outcomeInProgress": "चल रही है",
+    "outcomeRinging": "घंटी बज रही है",
+    "outcomeDeclined": "अस्वीकृत",
+    "outcomeUnknown": "{{status}}"
   }
 }

@@ -1982,19 +1982,20 @@ export const useProviderPayouts = (enabled = true) => {
 };
 
 // ---------------------------------------------------------------------------
-// SVC-452: Call masking (customer side)
+// SVC-452 / SVC-453: Call masking (shared + per-role)
 //
-// Two endpoints fronted here:
+// Three endpoints fronted here:
 //
 // - `GET /bookings/{id}/call-mapping` — returns a virtual Exotel number to
-//   dial for the active mapping between this consumer and the booking's SP.
-//   Shared with SVC-453 (SP side) by the same path and response shape. 404
-//   when no mapping is active yet (booking not ACCEPTED) or has been released.
-// - `GET /users/me/call-history?limit=50[&offset=N]` — paginated audit trail
-//   of the consumer's bridged calls, shown on Profile → Call History.
+//   dial for the active mapping between the signed-in user and the booking's
+//   counterparty. Same path + response for both roles (consumer dialing SP;
+//   SP dialing consumer). 404 when no mapping is active yet (booking not
+//   ACCEPTED) or has been released after the 48h grace.
+// - `GET /users/me/call-history?limit=50[&offset=N]` — consumer-side history.
+// - `GET /providers/me/call-history?limit=50[&offset=N]` — SP-side history.
 //
-// Neither endpoint ever surfaces the raw SP phone number — the virtual
-// number is the only dialable address the consumer ever sees, and the
+// Neither call-history endpoint ever surfaces the raw counterparty phone —
+// the virtual number is the only dialable address either role sees, and the
 // history rows carry first-name + service + duration + outcome, not a line.
 // ---------------------------------------------------------------------------
 
@@ -2006,7 +2007,7 @@ export function isCallMappingAbsent(error: unknown): boolean {
 }
 
 export interface API_CallMappingResponse {
-  /** E.164 virtual number for a `tel:` intent. Never the real SP phone. */
+  /** E.164 virtual number for a `tel:` intent. Never the real counterparty phone. */
   virtual_number: string;
 }
 
@@ -2065,6 +2066,29 @@ export interface API_ConsumerCallHistoryPage {
   total: number;
 }
 
+/**
+ * SP-side call-history row (SVC-453). Mirror of the consumer row but keyed on
+ * `customer_first_name` — first-name only is the baked privacy default; the
+ * SP never sees a full name or a phone number anywhere in the app. `outcome`
+ * carries the Exotel terminal status.
+ */
+export interface API_ProviderCallHistoryEntry {
+  id: string;
+  customer_first_name: string | null;
+  service_name: string | null;
+  booking_id: string | null;
+  started_at: string;
+  duration_sec: number | null;
+  outcome: string;
+  direction: "customer_to_sp" | "sp_to_customer" | "unmatched";
+}
+
+export interface API_ProviderCallHistoryPage {
+  items: API_ProviderCallHistoryEntry[];
+  /** Total rows the server holds for this provider, same shape as /bookings/. */
+  total: number;
+}
+
 /** Baked default per ticket. The server caps at 50; asking for more is a 422. */
 export const CALL_HISTORY_PAGE_SIZE = 50;
 
@@ -2091,6 +2115,32 @@ export const useConsumerCallHistory = (enabled: boolean = true) => {
       const loaded = allPages.reduce((n, p) => n + p.items.length, 0);
       if (loaded >= lastPage.total) return undefined;
       // Server returned a short page — no further rows even if `total` lags.
+      if (lastPage.items.length < CALL_HISTORY_PAGE_SIZE) return undefined;
+      return loaded;
+    },
+    enabled,
+  });
+};
+
+/**
+ * Paginated SP call history (SVC-453). Same shape as `useConsumerCallHistory`;
+ * different endpoint and row type. Keep `useProviderCallHistory` for SP code
+ * paths so the queryKey + endpoint stay cleanly partitioned.
+ */
+export const useProviderCallHistory = (enabled: boolean = true) => {
+  return useInfiniteQuery({
+    queryKey: ["provider-call-history"],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const params = new URLSearchParams({
+        limit: String(CALL_HISTORY_PAGE_SIZE),
+        offset: String(pageParam),
+      });
+      return apiFetch<API_ProviderCallHistoryPage>(`/providers/me/call-history?${params}`);
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((n, p) => n + p.items.length, 0);
+      if (loaded >= lastPage.total) return undefined;
       if (lastPage.items.length < CALL_HISTORY_PAGE_SIZE) return undefined;
       return loaded;
     },

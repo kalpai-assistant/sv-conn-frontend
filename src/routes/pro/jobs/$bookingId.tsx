@@ -6,6 +6,7 @@ import { JobAddress } from "@/components/provider/JobAddress";
 import { isBookingGone, useBooking } from "@/hooks/useApi";
 import { statusText } from "@/lib/job-status";
 import { CompleteStep, DoorstepOtpStep, EnRouteStep } from "@/components/provider/JobActions";
+import { CallCustomerButton } from "@/components/provider/CallCustomerButton";
 import { formatRupees } from "@/i18n/format";
 import { useT } from "@/i18n/LanguageProvider";
 import { errorText } from "@/i18n/errors";
@@ -88,6 +89,14 @@ function JobBody({ booking }: { booking: Booking }) {
       <div className="mt-4">
         <JobAddress address={booking.address} showNavigate={travelling(booking.status)} />
       </div>
+
+      {/* SVC-453: masked-number call to the customer. Only while the booking
+          is live — same gate as `showNavigate` above, for the same reason. */}
+      {travelling(booking.status) && (
+        <div className="mt-4">
+          <CallCustomerButton bookingId={booking.id} />
+        </div>
+      )}
 
       {/* The same steps the SP's job screen shows, through the Pro's own
           endpoints (SVC-322). Decline sits under "I'm on my way". */}
