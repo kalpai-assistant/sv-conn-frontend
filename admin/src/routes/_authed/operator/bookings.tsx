@@ -108,7 +108,7 @@ function BookingsPage() {
 
       <BookingFilters search={search} onChange={changeFilters} onClear={clearFilters} />
 
-      {(search.provider_id || search.pro) && (
+      {(search.provider_id || search.pro || search.consumer) && (
         <NarrowedTo
           search={search}
           onShowAll={() =>
@@ -117,6 +117,7 @@ function BookingsPage() {
                 ...prev,
                 provider_id: undefined,
                 pro: undefined,
+                consumer: undefined,
                 page: undefined,
               }),
             })
@@ -177,7 +178,8 @@ function BookingsPage() {
 }
 
 /**
- * The SP and Pro page links narrow the list to one id (SVC-427). Neither has a
+ * The SP and Pro page links narrow the list to one id (SVC-427), and the support
+ * console's customer "View all" does too (SVC-433). Neither has a
  * box of its own above, so this says so, and links back to who it is.
  */
 function NarrowedTo({ search, onShowAll }: { search: BookingsSearch; onShowAll: () => void }) {
@@ -206,6 +208,15 @@ function NarrowedTo({ search, onShowAll }: { search: BookingsSearch; onShowAll: 
           Only{" "}
           <Link to="/operator/pros/$proId" params={{ proId: search.pro }} className={linkClass}>
             this Pro
+          </Link>
+          &apos;s bookings.
+        </span>
+      )}
+      {search.consumer && (
+        <span>
+          Only{" "}
+          <Link to="/support/lookup" search={{ customer: search.consumer }} className={linkClass}>
+            this customer
           </Link>
           &apos;s bookings.
         </span>

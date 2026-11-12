@@ -57,10 +57,12 @@ describe("validateBookingsSearch", () => {
       booking: "3f2c9a1e",
       provider_id: "not-a-uuid",
       pro: 42,
+      consumer: "c1",
     });
     expect(Object.keys(search).sort()).toEqual(
       [
         "booking",
+        "consumer",
         "disputed",
         "from",
         "page",
@@ -82,6 +84,12 @@ describe("validateBookingsSearch", () => {
     });
     expect(search.provider_id).toBe(BOOKING_ID);
     expect(search.pro).toBe(BOOKING_ID);
+  });
+
+  it("keeps an exact customer id, lower-cased (SVC-433)", () => {
+    expect(validateBookingsSearch({ consumer: BOOKING_ID.toUpperCase() }).consumer).toBe(
+      BOOKING_ID,
+    );
   });
 
   it("reads a phone the router parsed into a number as the digits typed", () => {
@@ -135,6 +143,12 @@ describe("bookingsListPath", () => {
     expect(params.get("provider_id")).toBe("sp-1");
     expect(params.get("professional_id")).toBe("pro-1");
     expect(params.get("created_from")).toBe("2026-10-11");
+  });
+
+  it("sends an exact customer as consumer_id, and counts it as a filter (SVC-433)", () => {
+    const params = new URL(bookingsListPath({ consumer: "c-1" }), "http://x").searchParams;
+    expect(params.get("consumer_id")).toBe("c-1");
+    expect(hasFilters({ consumer: "c-1" })).toBe(true);
   });
 
   it("counts an exact SP or Pro as a filter, so Clear filters shows", () => {

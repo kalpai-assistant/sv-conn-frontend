@@ -73,8 +73,9 @@ describe("admin shell", () => {
     expect(within(nav).getByRole("heading", { name: "Analytics" })).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Overview" })).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Supply" })).toBeInTheDocument();
-    expect(within(nav).queryByRole("heading", { name: "Support" })).not.toBeInTheDocument();
-    expect(within(nav).queryByRole("link", { name: "Lookup" })).not.toBeInTheDocument();
+    // Support is every role's (SVC-433); the audit log stays admin's.
+    expect(within(nav).getByRole("heading", { name: "Support" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Lookup" })).toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Audit log" })).not.toBeInTheDocument();
   });
 
