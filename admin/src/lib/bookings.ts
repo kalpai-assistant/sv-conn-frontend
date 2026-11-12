@@ -145,6 +145,8 @@ export interface BookingsSearch {
   provider_id?: string;
   /** Exactly this Pro row, by id (SVC-427): the Pro page's "See all". */
   pro?: string;
+  /** Exactly this customer, by user id (SVC-433): the support console's "View all". */
+  consumer?: string;
   page?: number;
   /** The open booking's full id. */
   booking?: string;
@@ -195,6 +197,7 @@ export function validateBookingsSearch(raw: Record<string, unknown>): BookingsSe
     sp: text(raw.sp),
     provider_id: uuid(raw.provider_id),
     pro: uuid(raw.pro),
+    consumer: uuid(raw.consumer),
     page: typeof page === "number" && Number.isSafeInteger(page) && page > 1 ? page : undefined,
     booking,
   };
@@ -211,6 +214,7 @@ export function bookingsListPath(search: BookingsSearch): string {
   if (search.sp) params.set("provider_name", search.sp);
   if (search.provider_id) params.set("provider_id", search.provider_id);
   if (search.pro) params.set("professional_id", search.pro);
+  if (search.consumer) params.set("consumer_id", search.consumer);
   params.set("page", String(search.page ?? 1));
   params.set("per_page", String(BOOKINGS_PAGE_SIZE));
   return `/admin/bookings?${params}`;
@@ -229,7 +233,8 @@ export function hasFilters(search: BookingsSearch): boolean {
     search.phone ||
     search.sp ||
     search.provider_id ||
-    search.pro,
+    search.pro ||
+    search.consumer,
   );
 }
 

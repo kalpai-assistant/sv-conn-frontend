@@ -5,8 +5,8 @@ import type { AdminRole } from "@/lib/auth";
 const titles = (role: AdminRole) => sectionsFor(role).map((section) => section.title);
 
 describe("role-based sidebar", () => {
-  it("shows ops Operator and Analytics", () => {
-    expect(titles("ops")).toEqual(["Operator", "Analytics"]);
+  it("shows ops Operator, Analytics and Support", () => {
+    expect(titles("ops")).toEqual(["Operator", "Analytics", "Support"]);
   });
 
   it("shows support Operator and Support, without Analytics or Audit", () => {
@@ -29,8 +29,15 @@ describe("canOpen", () => {
     expect(canOpen("ops", "/operator/kyc/some-id")).toBe(true);
   });
 
-  it("closes the hidden sections to ops", () => {
-    expect(canOpen("ops", "/support/lookup")).toBe(false);
+  it.each<AdminRole>(["admin", "ops", "support"])(
+    "lets %s open the support lookup (SVC-433)",
+    (role) => {
+      expect(canOpen(role, "/support/lookup")).toBe(true);
+    },
+  );
+
+  it("still closes the audit log to ops", () => {
+    expect(canOpen("ops", "/audit")).toBe(false);
   });
 
   it.each<AdminRole>(["admin", "ops"])("lets %s open both dashboards (SVC-432)", (role) => {

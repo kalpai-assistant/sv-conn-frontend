@@ -3,7 +3,7 @@
  * to it. Mounted per id (the page keys it), so nothing from one booking can show
  * under another. Names, notes and the address come from outside: all rendered as text.
  */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { BookingStatusPill, DisputedMark } from "@/components/bookings/BookingBadges";
@@ -269,6 +269,15 @@ interface BookingDetailPaneProps {
   onClose: () => void;
   /** After a cancel, or a refused one: the list is out of date either way. */
   onChanged: () => void;
+  /**
+   * Optional (SVC-433): a change reloads the booking and its timeline, for an
+   * action taken outside the pane. Its first value loads nothing extra.
+   */
+  refreshKey?: number;
+  /** Optional (SVC-433): each time the booking loads, for a caller that needs its status. */
+  onLoaded?: (booking: Booking) => void;
+  /** Optional (SVC-433): shown under the header, so it reads as this booking's. */
+  children?: React.ReactNode;
 }
 
 export function BookingDetailPane({
@@ -276,10 +285,30 @@ export function BookingDetailPane({
   canCancel,
   onClose,
   onChanged,
+  refreshKey,
+  onLoaded,
+  children,
 }: BookingDetailPaneProps) {
   const path = bookingPath(bookingId);
   const detail = useApiGet<Booking>(path);
   const timeline = useApiGet<TimelineItem[]>(`${path}/timeline`);
+
+  const seenKey = useRef(refreshKey);
+  const { refresh: refreshDetail } = detail;
+  const { refresh: refreshTimeline } = timeline;
+  useEffect(() => {
+    if (refreshKey === seenKey.current) return;
+    seenKey.current = refreshKey;
+    refreshDetail();
+    refreshTimeline();
+  }, [refreshKey, refreshDetail, refreshTimeline]);
+
+  const loaded = detail.status === "ready" ? detail.data : null;
+  const onLoadedRef = useRef(onLoaded);
+  onLoadedRef.current = onLoaded;
+  useEffect(() => {
+    if (loaded) onLoadedRef.current?.(loaded);
+  }, [loaded]);
 
   const [notice, setNotice] = useState<Notice | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -358,6 +387,8 @@ export function BookingDetailPane({
           <AlertDescription className={WRAP}>{notice.text}</AlertDescription>
         </Alert>
       )}
+
+      {children}
 
       {detail.status === "loading" && <LoadingState rows={4} />}
       {notFound && (

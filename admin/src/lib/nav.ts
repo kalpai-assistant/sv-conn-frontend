@@ -62,7 +62,8 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: "Support",
-    roles: ["admin", "support"],
+    // Every role: admin and ops get everything support has (SVC-433).
+    roles: ["admin", "ops", "support"],
     items: [{ label: "Lookup", to: "/support/lookup", icon: Search }],
   },
   {

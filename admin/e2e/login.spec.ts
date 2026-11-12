@@ -235,16 +235,19 @@ test("a blocked network shows a plain message even though the response can't be 
   await expect(page.getByRole("alert")).toContainText("this network may not be allowed");
 });
 
-test("ops sees Operator and Analytics, and a hidden route by URL goes home", async ({ page }) => {
+test("ops sees Operator, Analytics and Support, and the audit log by URL goes home", async ({
+  page,
+}) => {
   await mockBackend(page, { role: "ops" });
   await signIn(page);
 
   const nav = page.getByRole("navigation", { name: "Admin sections" });
   await expect(nav.getByRole("link", { name: "KYC" })).toBeVisible();
   await expect(nav.getByRole("heading", { name: "Analytics" })).toBeVisible();
-  await expect(nav.getByRole("heading", { name: "Support" })).toHaveCount(0);
+  await expect(nav.getByRole("heading", { name: "Support" })).toBeVisible();
+  await expect(nav.getByRole("heading", { name: "Audit" })).toHaveCount(0);
 
-  await page.goto("/support/lookup");
+  await page.goto("/audit");
   await expect(page.getByRole("heading", { name: "Admin console" })).toBeVisible();
   await expect(page).toHaveURL(/localhost:5174\/$/);
 });
