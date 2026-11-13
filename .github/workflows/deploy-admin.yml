@@ -1,15 +1,12 @@
 # Deploy admin.eazyserv.com → Cloudflare Pages project `eazyserv-admin`.
 #
-# ⚠️ NOT YET LIVE (SVC-421). This is deploy plumbing only: the Pages project,
-# the admin.eazyserv.com DNS record and any access policy in front of it do not
-# exist yet, and are a follow-up ticket. The first step fails the run on
-# purpose, so a manual dispatch cannot push the admin app anywhere before
-# that work is done. To go live: create the Pages project, confirm the API
-# token can deploy to it, then delete the "Not yet live" step.
+# Needs the `eazyserv-admin` Pages project, with admin.eazyserv.com attached as
+# its custom domain, to exist before the first run (SVC-407 cutover). There is
+# no access policy in front of it yet; the login (password + TOTP) is the gate.
 #
 # Modelled on deploy-app.yml, minus everything consumer-specific (SSM Maps
-# key, push service worker, mobile bundle). Manual dispatch only — no push
-# trigger until the target exists.
+# key, push service worker, mobile bundle). Manual dispatch only: run it after
+# a change under admin/ reaches main.
 
 name: Deploy admin
 
@@ -28,11 +25,6 @@ jobs:
       run:
         working-directory: admin
     steps:
-      - name: Not yet live
-        run: |
-          echo "::error::deploy-admin is a stub (SVC-421): the eazyserv-admin Pages project and admin.eazyserv.com do not exist yet."
-          exit 1
-
       - name: Checkout
         uses: actions/checkout@v4
 
