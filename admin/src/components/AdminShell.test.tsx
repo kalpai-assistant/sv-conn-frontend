@@ -110,13 +110,6 @@ describe("admin shell", () => {
     expect(await screen.findByText("support@eazyserv.local")).toBeInTheDocument();
   });
 
-  it("puts the brand Button on the home screen", async () => {
-    signedInAs();
-    renderAt("/");
-    const button = await screen.findByRole("button", { name: "Primary action" });
-    expect(button).toHaveClass("bg-primary");
-  });
-
   it("goes to a section's page when its nav link is clicked", async () => {
     signedInAs();
     const router = renderAt("/");

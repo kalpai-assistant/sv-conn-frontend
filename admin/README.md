@@ -37,12 +37,11 @@ Email + password at `/login`, then a TOTP code at `/totp`, or `/totp-setup` on a
 - `/audit` (SVC-423, admin role only): every admin write action from `GET /admin/audit`, read-only. Filter by admin, action, target type and date; dates are the admin's local days, and the To date's whole day is included. Expand a row for its reason, IP, User-Agent and before/after JSON. Filters live in the page, so a reload clears them.
 - `/operator/kyc` (SVC-424, all 3 roles; admin and ops can act, support is read-only): the queue on the left and one row's detail on the right, stacked below `lg`. It includes team Pros (`kind=all`), and a Pro row uses `/admin/pros/{professional_id}/kyc`, never its user id on the SP routes. The filters (Pending, Approved, Rejected, Auto-approved, All) and the page are in the URL as `?tab=` and `?page=`. The selected row isn't, so no document link reaches the address bar. Documents open in a modal. Their links last an hour, so an image that fails to load offers a retry that fetches new ones. The backend writes the audit row, so this screen doesn't. The sidebar badge is the pending count, team Pros included.
 
-## What's placeholder
+The other sidebar screens (bookings, payouts, pricing, coupons, catalog, SPs, Pros, refunds, analytics and support lookup) have no notes here yet. Which role sees each one is in `src/lib/nav.ts`.
 
-Everything except the shell, sign-in and the screens above:
+## Deploy
 
-- The other 8 sidebar screens (Operator, Analytics and Support) are placeholder pages.
-- Deploy: `.github/workflows/deploy-admin.yml` is a stub that fails on purpose. admin.eazyserv.com does not exist yet.
+`.github/workflows/deploy-admin.yml` builds `admin/` and deploys it to the Cloudflare Pages project `eazyserv-admin`, served at admin.eazyserv.com and pointing at the beta API. It runs only by hand (Actions → Deploy admin → Run workflow, or `gh workflow run deploy-admin.yml`), so run it after a change under `admin/` reaches main.
 
 ## Native-binary pins
 
