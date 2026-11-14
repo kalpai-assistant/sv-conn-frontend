@@ -225,7 +225,7 @@ export function ServicesPicker({ locked = false, title, description }: ServicesP
           {!showingList && (
             <div className="mt-4 grid grid-cols-3 gap-3">
               {(categories ?? []).map((cat) => {
-                const Icon = categoryIcon(cat.slug);
+                const Icon = categoryIcon(cat.slug, cat.iconKey);
                 const tint = categoryColor(cat.sortOrder);
                 const count = selectedPerCategory.get(cat.id) ?? 0;
                 return (

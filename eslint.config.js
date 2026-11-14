@@ -22,6 +22,10 @@ export default tseslint.config(
       // runs feel stuck. Nothing under them is TS/TSX we author anyway.
       "android",
       "ios",
+      // Admin console (SVC-407) is its own app with its own eslint config,
+      // dependencies and CI job; linting it from here would resolve its
+      // imports against the consumer app's node_modules.
+      "admin",
       "src/routeTree.gen.ts",
       // Generated from openapi-typescript (svc_connect.json). Regenerated on
       // every backend spec change — hand-lint would be a fight.

@@ -24,6 +24,7 @@
     "kycVerified": "Your documents were approved.",
     "kycSubmitted": "Your documents are under review. This usually takes a day.",
     "kycRejected": "Your documents were rejected. Please submit them again.",
+    "kycRejectedReason": "Reason: {{reason}}",
     "kycResubmit": "Resubmit documents",
     "kycPending": "Finish onboarding and upload your documents.",
     "kycFinish": "Finish onboarding",

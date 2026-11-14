@@ -81,3 +81,46 @@ jobs:
       # MARKETING_LANDING_WIP.md.
       - name: Build (marketing)
         run: npm run build:marketing
+
+  # Admin console (SVC-407): a separate app in admin/ with its own lockfile,
+  # so it installs and checks on its own. Runs on every push/PR rather than
+  # path-filtered: it takes a few minutes, and a skipped job can't catch a
+  # root change (CI config, Node version) that breaks it.
+  admin:
+    name: admin · lint · typecheck · test · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: admin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: npm run test:e2e

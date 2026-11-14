@@ -22,6 +22,7 @@ import { SearchResultSkeleton } from "@/components/skeletons/ListRowSkeletons";
 import { useServices } from "@/hooks/useApi";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { formatRupees } from "@/lib/currency";
+import { toPlainText } from "@/lib/markdown-text";
 
 const RECENT_KEY = "sc_recent_searches";
 const RECENT_MAX = 5;
@@ -80,7 +81,8 @@ export function SearchSheet({ onClose }: SearchSheetProps) {
     return services.filter(
       (s) =>
         s.name.toLowerCase().includes(trimmed) ||
-        s.description.toLowerCase().includes(trimmed) ||
+        // SVC-430: the description is markdown; search what a reader sees.
+        toPlainText(s.description).toLowerCase().includes(trimmed) ||
         s.categoryName.toLowerCase().includes(trimmed),
     );
   }, [trimmed, services]);
@@ -273,7 +275,7 @@ function ResultsList({
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-foreground">{s.name}</p>
-              <p className="truncate text-xs text-muted-foreground">{s.description}</p>
+              <p className="truncate text-xs text-muted-foreground">{toPlainText(s.description)}</p>
             </div>
             <span className="shrink-0 text-sm font-semibold text-primary">
               {formatRupees(s.price)}

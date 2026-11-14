@@ -1,0 +1,55 @@
+# Deploy admin.eazyserv.com → Cloudflare Pages project `eazyserv-admin`.
+#
+# Needs the `eazyserv-admin` Pages project, with admin.eazyserv.com attached as
+# its custom domain, to exist before the first run (SVC-407 cutover). There is
+# no access policy in front of it yet; the login (password + TOTP) is the gate.
+#
+# Modelled on deploy-app.yml, minus everything consumer-specific (SSM Maps
+# key, push service worker, mobile bundle). Manual dispatch only: run it after
+# a change under admin/ reaches main.
+
+name: Deploy admin
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-admin
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: admin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: admin/.nvmrc
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # VITE_API_BASE_URL must be absolute here: the admin app is served from
+      # its own origin, so the /api/v1 default would hit Pages, not the backend.
+      - name: Build
+        env:
+          VITE_API_BASE_URL: https://api.eazyserv.com/api/v1
+        run: npm run build
+
+      # Same secrets deploy-app.yml already uses; no new ones to create.
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: admin
+          command: pages deploy dist --project-name=eazyserv-admin --branch=main
