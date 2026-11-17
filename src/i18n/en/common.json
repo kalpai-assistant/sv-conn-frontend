@@ -65,7 +65,10 @@
     "EMPTY_FILE": "This photo came through empty. Please take it again.",
     "UNSUPPORTED_FILE_TYPE": "This photo’s format isn’t supported. Please take it again.",
     "KYC_UPLOAD_FAILED": "Your photos couldn’t be uploaded. Please try again.",
-    "generic": "Something went wrong. Please try again."
+    "generic": "Something went wrong. Please try again.",
+    "PRICE_REQUIRED": "Set a price for this option before switching it on or off.",
+    "VARIANT_NOT_FOUND": "This option isn’t available any more.",
+    "SUBSCRIPTION_NOT_FOUND": "You don’t offer this service any more."
   },
   "nav": {
     "home": "Home",

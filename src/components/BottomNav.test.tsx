@@ -15,8 +15,10 @@ import { render, screen } from "@testing-library/react";
 
 const useAuth = vi.fn();
 const useLocation = vi.fn();
+const keyboardOpen = vi.fn(() => false);
 
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => useAuth() }));
+vi.mock("@/hooks/useSoftKeyboardOpen", () => ({ useSoftKeyboardOpen: () => keyboardOpen() }));
 vi.mock("@/lib/cart-context", () => ({ useCart: () => ({ totalQuantity: 0 }) }));
 vi.mock("@tanstack/react-router", () => ({
   useLocation: () => useLocation(),
@@ -190,5 +192,23 @@ describe("which tab is lit", () => {
     expect(indicators.length).toBe(1);
     const lit = screen.getByText("Bookings").closest("a");
     expect(lit?.contains(indicators[0] as Node)).toBe(true);
+  });
+});
+
+// SVC-412 device pass: with the keyboard up, the fixed nav rode on top of it
+// and covered the field being typed in.
+describe("with the soft keyboard open", () => {
+  it.each([
+    ["/provider/profile", "provider"],
+    ["/", "consumer"],
+  ] as const)("hides on %s, and comes back when it closes", (path, role) => {
+    at(path, role);
+    keyboardOpen.mockReturnValue(true);
+    const { rerender } = render(<BottomNav />);
+    expect(screen.queryByRole("navigation")).toBeNull();
+
+    keyboardOpen.mockReturnValue(false);
+    rerender(<BottomNav />);
+    expect(screen.getByRole("navigation")).toBeInTheDocument();
   });
 });

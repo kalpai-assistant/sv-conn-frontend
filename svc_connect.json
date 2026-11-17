@@ -1357,6 +1357,92 @@
         }
       }
     },
+    "/api/v1/providers/me/pricing": {
+      "get": {
+        "tags": [
+          "Providers"
+        ],
+        "summary": "Get My Pricing",
+        "description": "The SP's price, on/off, recommended range and take-home for every active\nvariant of every active service it subscribes to.",
+        "operationId": "get_my_pricing_api_v1_providers_me_pricing_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpPricingResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/providers/me/pricing/{variant_id}": {
+      "patch": {
+        "tags": [
+          "Providers"
+        ],
+        "summary": "Set My Price",
+        "description": "Set the SP's price for one variant, switch it on or off, or both. A price\noutside the recommended range is saved and flagged, never refused.",
+        "operationId": "set_my_price_api_v1_providers_me_pricing__variant_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "variant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Variant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpPriceUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpVariantPricingUpdateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/providers/me/kyc": {
       "post": {
         "tags": [
@@ -17127,6 +17213,25 @@
         ],
         "title": "ReassignResponse"
       },
+      "RecommendedRange": {
+        "properties": {
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "low",
+          "high"
+        ],
+        "title": "RecommendedRange",
+        "description": "The sensitive category's range around the platform price, inclusive at\nboth ends (``app/services/price_range.py``). Exact, not rounded: round the\nlow bound up and the high one down for display."
+      },
       "RefreshTokenRequest": {
         "properties": {
           "refresh_token": {
@@ -18113,6 +18218,273 @@
         ],
         "title": "SpCohort"
       },
+      "SpPriceUpdate": {
+        "properties": {
+          "price_amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Amount"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "title": "SpPriceUpdate",
+        "description": "Either field or both. A price change leaves on/off as it is, except on a\nvariant priced for the first time, which starts on unless ``is_active``\nsays otherwise. ``is_active`` alone needs a price already set\n(422 ``PRICE_REQUIRED``)."
+      },
+      "SpPricingResponse": {
+        "properties": {
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/SpServicePricingGroup"
+            },
+            "type": "array",
+            "title": "Services"
+          }
+        },
+        "type": "object",
+        "required": [
+          "services"
+        ],
+        "title": "SpPricingResponse"
+      },
+      "SpServicePricingGroup": {
+        "properties": {
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          },
+          "service_name": {
+            "type": "string",
+            "title": "Service Name"
+          },
+          "price_unit": {
+            "type": "string",
+            "title": "Price Unit"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/SpVariantPricing"
+            },
+            "type": "array",
+            "title": "Variants"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service_id",
+          "service_name",
+          "price_unit",
+          "variants"
+        ],
+        "title": "SpServicePricingGroup"
+      },
+      "SpVariantPricing": {
+        "properties": {
+          "variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Variant Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "platform_price": {
+            "type": "number",
+            "title": "Platform Price"
+          },
+          "price_unit": {
+            "type": "string",
+            "title": "Price Unit"
+          },
+          "recommended_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecommendedRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "price_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Amount"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "outside_recommended_range": {
+            "type": "boolean",
+            "title": "Outside Recommended Range"
+          },
+          "take_home": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TakeHome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "commission_pct": {
+            "type": "number",
+            "title": "Commission Pct"
+          },
+          "gst_pct": {
+            "type": "number",
+            "title": "Gst Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variant_id",
+          "label",
+          "platform_price",
+          "price_unit",
+          "recommended_range",
+          "price_amount",
+          "is_active",
+          "outside_recommended_range",
+          "take_home",
+          "commission_pct",
+          "gst_pct"
+        ],
+        "title": "SpVariantPricing"
+      },
+      "SpVariantPricingUpdateResponse": {
+        "properties": {
+          "variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Variant Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "platform_price": {
+            "type": "number",
+            "title": "Platform Price"
+          },
+          "price_unit": {
+            "type": "string",
+            "title": "Price Unit"
+          },
+          "recommended_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecommendedRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "price_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Amount"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "outside_recommended_range": {
+            "type": "boolean",
+            "title": "Outside Recommended Range"
+          },
+          "take_home": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TakeHome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "commission_pct": {
+            "type": "number",
+            "title": "Commission Pct"
+          },
+          "gst_pct": {
+            "type": "number",
+            "title": "Gst Pct"
+          },
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variant_id",
+          "label",
+          "platform_price",
+          "price_unit",
+          "recommended_range",
+          "price_amount",
+          "is_active",
+          "outside_recommended_range",
+          "take_home",
+          "commission_pct",
+          "gst_pct",
+          "service_id"
+        ],
+        "title": "SpVariantPricingUpdateResponse"
+      },
       "StartBookingRequest": {
         "properties": {
           "otp": {
@@ -18451,6 +18823,30 @@
           "code"
         ],
         "title": "TOTPVerifyRequest"
+      },
+      "TakeHome": {
+        "properties": {
+          "commission": {
+            "type": "number",
+            "title": "Commission"
+          },
+          "commission_gst": {
+            "type": "number",
+            "title": "Commission Gst"
+          },
+          "sp_receives": {
+            "type": "number",
+            "title": "Sp Receives"
+          }
+        },
+        "type": "object",
+        "required": [
+          "commission",
+          "commission_gst",
+          "sp_receives"
+        ],
+        "title": "TakeHome",
+        "description": "What the SP gets from one unit at its price (``commission.take_home``)."
       },
       "TeamInviteCreate": {
         "properties": {

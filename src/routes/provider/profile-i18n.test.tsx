@@ -42,6 +42,38 @@ vi.mock("@/hooks/useApi", () => ({
   }),
   useProviderServices: () => ({ data: ["s1"], isLoading: false, isError: false }),
   useToggleProviderService: () => ({ mutate: vi.fn() }),
+  // SVC-412: the SP's own prices. One priced variant, switched on.
+  useMyPricing: () => ({
+    data: {
+      services: [
+        {
+          service_id: "s1",
+          service_name: "Bathroom deep cleaning",
+          price_unit: "PER_VISIT",
+          variants: [
+            {
+              variant_id: "v1",
+              label: "1 bathroom",
+              platform_price: 1499,
+              price_unit: "PER_VISIT",
+              recommended_range: null,
+              price_amount: 1250,
+              is_active: true,
+              outside_recommended_range: false,
+              take_home: { commission: 250, commission_gst: 45, sp_receives: 955 },
+              commission_pct: 20,
+              gst_pct: 18,
+            },
+          ],
+        },
+      ],
+    },
+    isPending: false,
+    isFetching: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useSetVariantPrice: () => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false }),
 }));
 vi.mock("@/hooks/useMapOpeningCentre", () => ({
   useMapOpeningCentre: () => ({
@@ -119,6 +151,7 @@ describe.each(["hi", "mr"] as const)("SP set-up screens in %s", (lang) => {
     expect(screen.getByText("Cleaning")).toBeInTheDocument();
     expect(pageText()).toContain(t("services.selected", { count: 1 }));
     expect(pageText()).not.toMatch(/Services I offer|selected/);
+    expect(pageText()).not.toMatch(RAW_KEY);
     expect(pageText()).not.toMatch(DEVANAGARI_DIGIT);
   });
 
