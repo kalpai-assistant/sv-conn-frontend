@@ -39,7 +39,8 @@ vi.mock("sonner", () => ({
   }),
 }));
 
-import { useBookAndPay } from "@/hooks/useBookAndPay";
+import { cartSignature, useBookAndPay } from "@/hooks/useBookAndPay";
+import type { CartLineItem } from "@/lib/cart-context";
 
 /** Captures the options Razorpay was opened with, so the modal can be driven. */
 let lastOptions: {
@@ -342,3 +343,100 @@ describe("failures", () => {
     expect(toastError).toHaveBeenCalled();
   });
 });
+
+/**
+ * SVC-475: cartSignature contract.
+ *
+ * The signature is what decides whether a held booking gets paid for or
+ * discarded on the next tap. The hook-level tests above drive it indirectly
+ * via `bookAndPay`; this block pins the algorithm's invariants directly so a
+ * refactor that tightens its contract (drops the sort, changes null handling,
+ * normalises quantity) can't silently un-discard held bookings for carts the
+ * user considers different.
+ */
+describe("cartSignature contract", () => {
+  // The signature ignores name/unitPrice/variantLabel/duration — only
+  // serviceId, variantId, and quantity feed the join. The factory sets fixed
+  // dummies for the ignored fields so the contract tests stay noise-free.
+  const item = (overrides: Partial<CartLineItem> = {}): CartLineItem => ({
+    serviceId: "svc_a",
+    quantity: 1,
+    name: "ignored",
+    unitPrice: 0,
+    ...overrides,
+  });
+
+  it("is order-independent: swapping item order must not change the signature", async () => {
+    // Failure mode: a refactor drops `.sort()`. The user reorders rows in the
+    // cart UI (e.g. drag-to-reorder), hits Pay — the held booking is wrongly
+    // discarded and a fresh booking is minted. Harmless but creates abandoned
+    // bookings the sweeper has to clean up.
+const a = [item({ serviceId: "a" }), item({ serviceId: "b" })];
+    const b = [item({ serviceId: "b" }), item({ serviceId: "a" })];
+    expect(cartSignature(a)).toBe(cartSignature(b));
+  });
+
+  it("treats variantId null and undefined as the same cart", async () => {
+    // Failure mode: a schema migration serialises missing variantId as `null`
+    // in localStorage while in-memory items leave it `undefined`. Signatures
+    // for the two representations of the same cart must match, or a hydrate
+    // after cold-boot discards a held booking that was actually valid.
+    const withNull: CartLineItemLike[] = [
+      { serviceId: "svc_a", variantId: null, quantity: 1, name: "x", unitPrice: 0 },
+    ];
+    const withUndef: CartLineItemLike[] = [
+      { serviceId: "svc_a", variantId: undefined, quantity: 1, name: "x", unitPrice: 0 },
+    ];
+    // `cartSignature` is typed against CartLineItem (variantId: string | undefined).
+    // Passing `null` where the type expects `string | undefined` must still
+    // yield the same signature at runtime, so the cast is load-bearing.
+    expect(cartSignature(withNull as unknown as CartLineItem[])).toBe(
+      cartSignature(withUndef as unknown as CartLineItem[]),
+    );
+  });
+
+  it("distinguishes quantity 1 from quantity 2 of the same item", async () => {
+    // Failure mode — money bug: user adds +1 after dismissing the Razorpay
+    // modal. Signature matches → held booking reused → user pays the old
+    // single-quantity amount, backend sees quantity 2 at booking time,
+    // ledger drifts. This is the SVC-475 core concern.
+const one = [item({ quantity: 1 })];
+    const two = [item({ quantity: 2 })];
+    expect(cartSignature(one)).not.toBe(cartSignature(two));
+  });
+
+  it("distinguishes different serviceIds even at the same quantity", async () => {
+    // Failure mode — money bug: user swaps a ₹499 service for a ₹1200 one.
+    // The module doc calls this out verbatim: "would charge them ₹499 for a
+    // job they no longer asked for."
+const a = [item({ serviceId: "svc_499" })];
+    const b = [item({ serviceId: "svc_1200" })];
+    expect(cartSignature(a)).not.toBe(cartSignature(b));
+  });
+
+  it("distinguishes an appended extra item from the original single-item cart", async () => {
+    // Failure mode — money bug: user adds a second service after dismissing.
+    // Reusing the held booking charges only the original line item; the new
+    // one is never dispatched.
+const single = [item({ serviceId: "svc_a" })];
+    const plus = [item({ serviceId: "svc_a" }), item({ serviceId: "svc_b" })];
+    expect(cartSignature(single)).not.toBe(cartSignature(plus));
+  });
+
+  it("distinguishes same service with different variantIds", async () => {
+    // Failure mode — money bug: user picks the "deluxe" variant after
+    // dismissing the standard one. Same serviceId, different variantId, same
+    // quantity. Reusing the held booking bills the standard variant price for
+    // the deluxe job.
+    const standard = [item({ variantId: undefined })];
+    const deluxe = [item({ variantId: "var_deluxe" })];
+    expect(cartSignature(standard)).not.toBe(cartSignature(deluxe));
+  });
+});
+
+// Looser variant for the null-vs-undefined invariant test — CartLineItem
+// types variantId as `string | undefined`, but the signature function uses
+// nullish coalescing so `null` at runtime must collapse to the same key.
+type CartLineItemLike = Omit<CartLineItem, "variantId"> & {
+  variantId: string | null | undefined;
+};
