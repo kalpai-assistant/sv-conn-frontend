@@ -56,6 +56,19 @@ vi.mock("@/hooks/useSelectedAddress", () => ({
   }),
 }));
 
+// SVC-417: the cart opens the pro sheet and reads the catalogue for its
+// "Choose a pro" lines; neither is what this file tests.
+vi.mock("@tanstack/react-query", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-query")>()),
+  useQueryClient: () => ({ removeQueries: vi.fn() }),
+}));
+vi.mock("@/lib/pro-selection-context", () => ({
+  useProSelection: () => ({ openProSelection: vi.fn(), closeProSelection: vi.fn() }),
+}));
+vi.mock("@/hooks/useApi", () => ({
+  useServices: () => ({ data: undefined }),
+}));
+
 vi.mock("@/hooks/useBookAndPay", () => ({
   useBookAndPay: () => ({ bookAndPay: vi.fn(), isBusy: false }),
 }));

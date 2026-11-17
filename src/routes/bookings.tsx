@@ -110,9 +110,6 @@ export function BookingsPage() {
       // explicit setSelectedId call here.
       setRebookAddressConfirm(user?.id, outcome.address.previousLabel ?? "");
     }
-    if (outcome.pricingChanged) {
-      toast.message("Pricing updated since your last booking.");
-    }
     void navigate({ to: "/cart" });
   };
 

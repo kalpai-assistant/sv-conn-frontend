@@ -23,9 +23,10 @@
  *   anonymisation sweeps it). The current default stands in, and the caller
  *   flags "please confirm" so the user cannot sleepwalk into a booking at the
  *   wrong location.
- * - **Pricing shift.** The catalogue's current line totals differ from what
- *   the booking was placed at. Caller toasts "Pricing updated" so a user who
- *   paid ₹499 last time and sees ₹599 now is not surprised at checkout.
+ *
+ * No price comparison: under marketplace pricing the price is the pro's, so
+ * the lines land as "Choose a pro" and the real price appears when the
+ * customer picks one (SVC-417 decision 6).
  */
 import type { Booking, Service, Address } from "./mock-data";
 import { isActiveBookingStatus } from "./booking-landing";
@@ -51,7 +52,7 @@ export interface AddressChoice {
  * Shape returned by `prepareRebook`. The caller switches on `kind`:
  * - `"in-flight"` → refuse with the service name in the toast
  * - `"all-deprecated"` → "No longer available"; offer a browse-similar
- * - `"ok"` → act on `items`, `address`, `pricingChanged`, `skipped`
+ * - `"ok"` → act on `items`, `address`, `skipped`
  */
 export type RebookOutcome =
   | {
@@ -70,16 +71,13 @@ export type RebookOutcome =
       /** Lines to hand to `useCart.addMany`. */
       items: RebookPrefill[];
       address: AddressChoice;
-      /** True when the catalogue total for `items` differs from the
-       *  historical booking's `serviceAmount`. */
-      pricingChanged: boolean;
       /** Service ids dropped because catalogue no longer carries them or
        *  the variant is deactivated. Caller toasts per name. */
       skipped: Array<{ serviceId: string; name: string }>;
     };
 
 export interface RebookInput {
-  booking: Pick<Booking, "items" | "address" | "serviceAmount">;
+  booking: Pick<Booking, "items" | "address">;
   catalogue: Service[];
   addresses: Address[] | undefined;
   /** The user's active bookings — ACCEPTED / EN_ROUTE / IN_PROGRESS. The
@@ -101,7 +99,7 @@ export function prepareRebook(input: RebookInput): RebookOutcome {
 
   // In-flight check first. Refusing a rebook on a service already booked
   // is cheaper to compute and more surprising if deferred — the user who
-  // mis-taps twice should see the refusal, not the price-updated toast.
+  // mis-taps twice should see the refusal, not a cart.
   for (const item of booking.items) {
     const collision = activeBookings.find(
       (b) => isActiveBookingStatus(b.status) && b.items.some((i) => i.serviceId === item.serviceId),
@@ -113,7 +111,6 @@ export function prepareRebook(input: RebookInput): RebookOutcome {
 
   const items: RebookPrefill[] = [];
   const skipped: Array<{ serviceId: string; name: string }> = [];
-  let newTotal = 0;
 
   for (const item of booking.items) {
     const service = byId.get(item.serviceId);
@@ -137,11 +134,6 @@ export function prepareRebook(input: RebookInput): RebookOutcome {
       variantId: item.variantId,
       quantity: item.quantity,
     });
-    const variantPrice = item.variantId
-      ? service.variants.find((v) => v.id === item.variantId)?.price
-      : undefined;
-    const unitPrice = variantPrice ?? service.price;
-    newTotal += unitPrice * item.quantity;
   }
 
   if (items.length === 0) {
@@ -171,17 +163,10 @@ export function prepareRebook(input: RebookInput): RebookOutcome {
         previousLabel: booking.address.label || undefined,
       };
 
-  // Pricing-changed detection is "did the subtotal move?" rather than
-  // per-line to keep the toast coherent — one message, not one per item.
-  // Caller shows the toast when this is true; see the pitfall in the
-  // SVC-393 ticket.
-  const pricingChanged = Math.round(newTotal) !== Math.round(booking.serviceAmount);
-
   return {
     kind: "ok",
     items,
     address,
-    pricingChanged,
     skipped,
   };
 }
