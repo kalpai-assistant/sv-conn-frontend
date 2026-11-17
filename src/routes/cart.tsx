@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -131,6 +132,7 @@ export function CartPage() {
     clearPro,
   } = useCart();
   const { openProSelection } = useProSelection();
+  const queryClient = useQueryClient();
   // SVC-417: the Service a "Choose a pro" line opens the sheet with. The same
   // ["services", undefined] cache entry `addMany` reads.
   const { data: catalogueList } = useServices();
@@ -327,8 +329,14 @@ export function CartPage() {
       },
       isOnline: paymentMethod === "online",
       items: lines,
-      onConflict: (c) =>
-        setConflict(c.kind === "price-changed" ? { ...c, spId } : { kind: c.kind, spId }),
+      onConflict: (c) => {
+        // The pro sheet reuses its list for the quote's TTL (SVC-416). After a
+        // 409 that list is known wrong: the old price, or a pro who can't take
+        // the booking. Removed rather than invalidated, so the next sheet
+        // opens on a fresh fetch instead of first rendering the stale list.
+        queryClient.removeQueries({ queryKey: ["service-providers"] });
+        setConflict(c.kind === "price-changed" ? { ...c, spId } : { kind: c.kind, spId });
+      },
       // Only once the money is in (or the booking is cash) — a dismissed
       // checkout must leave the cart intact to retry from.
       onComplete: (bookingId) => {

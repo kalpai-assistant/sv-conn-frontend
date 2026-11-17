@@ -27,6 +27,7 @@ const bookAndPay = vi.fn();
 const openProSelection = vi.fn();
 const storePriceChanges = vi.fn();
 const clearPro = vi.fn();
+const removeQueries = vi.fn();
 let cartItems: CartLineItem[] = [];
 let catalogue: Service[] | undefined;
 
@@ -53,6 +54,11 @@ vi.mock("@/lib/cart-context", () => {
   };
 });
 
+// SVC-417 device pass: a 409 drops the pro sheet's cached list.
+vi.mock("@tanstack/react-query", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-query")>()),
+  useQueryClient: () => ({ removeQueries }),
+}));
 vi.mock("@/lib/pro-selection-context", () => ({
   useProSelection: () => ({ openProSelection, closeProSelection: vi.fn() }),
 }));
@@ -349,6 +355,13 @@ describe("409 PRICE_CHANGED", () => {
     expect(bookAndPay).toHaveBeenCalledOnce();
     expect(screen.queryByRole("alertdialog")).toBeNull();
   });
+
+  it("drops the pro sheet's cached list, so it can't show the old price", async () => {
+    // Found on device: the sheet reuses its list for the quote's TTL, so after
+    // PRICE_CHANGED it still showed the old ₹899 while the pro charged ₹950.
+    await bookIntoPriceChange();
+    expect(removeQueries).toHaveBeenCalledWith({ queryKey: ["service-providers"] });
+  });
 });
 
 describe("409 SP_UNAVAILABLE", () => {
@@ -366,5 +379,11 @@ describe("409 SP_UNAVAILABLE", () => {
 
     expect(clearPro).toHaveBeenCalledWith("sp-a");
     expect(openProSelection).toHaveBeenCalledWith(WASH, "v-suv");
+    // Found on device: the reopened sheet listed the pro who had just failed,
+    // from its cached list. The cache goes before the sheet opens.
+    expect(removeQueries).toHaveBeenCalledWith({ queryKey: ["service-providers"] });
+    expect(removeQueries.mock.invocationCallOrder[0]).toBeLessThan(
+      openProSelection.mock.invocationCallOrder[0],
+    );
   });
 });
