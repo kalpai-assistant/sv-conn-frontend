@@ -628,6 +628,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/providers/me/pricing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Pricing
+         * @description The SP's price, on/off, recommended range and take-home for every active
+         *     variant of every active service it subscribes to.
+         */
+        get: operations["get_my_pricing_api_v1_providers_me_pricing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers/me/pricing/{variant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set My Price
+         * @description Set the SP's price for one variant, switch it on or off, or both. A price
+         *     outside the recommended range is saved and flagged, never refused.
+         */
+        patch: operations["set_my_price_api_v1_providers_me_pricing__variant_id__patch"];
+        trace?: never;
+    };
     "/api/v1/providers/me/kyc": {
         parameters: {
             query?: never;
@@ -6688,6 +6730,18 @@ export interface components {
             /** Self Reenabled */
             self_reenabled: boolean;
         };
+        /**
+         * RecommendedRange
+         * @description The sensitive category's range around the platform price, inclusive at
+         *     both ends (``app/services/price_range.py``). Exact, not rounded: round the
+         *     low bound up and the high one down for display.
+         */
+        RecommendedRange: {
+            /** Low */
+            low: number;
+            /** High */
+            high: number;
+        };
         /** RefreshTokenRequest */
         RefreshTokenRequest: {
             /** Refresh Token */
@@ -7118,6 +7172,95 @@ export interface components {
             /** D90 */
             d90: number | null;
         };
+        /**
+         * SpPriceUpdate
+         * @description Either field or both. A price change leaves on/off as it is, except on a
+         *     variant priced for the first time, which starts on unless ``is_active``
+         *     says otherwise. ``is_active`` alone needs a price already set
+         *     (422 ``PRICE_REQUIRED``).
+         */
+        SpPriceUpdate: {
+            /** Price Amount */
+            price_amount?: number | string | null;
+            /** Is Active */
+            is_active?: boolean | null;
+        };
+        /** SpPricingResponse */
+        SpPricingResponse: {
+            /** Services */
+            services: components["schemas"]["SpServicePricingGroup"][];
+        };
+        /** SpServicePricingGroup */
+        SpServicePricingGroup: {
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** Service Name */
+            service_name: string;
+            /** Price Unit */
+            price_unit: string;
+            /** Variants */
+            variants: components["schemas"]["SpVariantPricing"][];
+        };
+        /** SpVariantPricing */
+        SpVariantPricing: {
+            /**
+             * Variant Id
+             * Format: uuid
+             */
+            variant_id: string;
+            /** Label */
+            label: string;
+            /** Platform Price */
+            platform_price: number;
+            /** Price Unit */
+            price_unit: string;
+            recommended_range: components["schemas"]["RecommendedRange"] | null;
+            /** Price Amount */
+            price_amount: number | null;
+            /** Is Active */
+            is_active: boolean | null;
+            /** Outside Recommended Range */
+            outside_recommended_range: boolean;
+            take_home: components["schemas"]["TakeHome"] | null;
+            /** Commission Pct */
+            commission_pct: number;
+            /** Gst Pct */
+            gst_pct: number;
+        };
+        /** SpVariantPricingUpdateResponse */
+        SpVariantPricingUpdateResponse: {
+            /**
+             * Variant Id
+             * Format: uuid
+             */
+            variant_id: string;
+            /** Label */
+            label: string;
+            /** Platform Price */
+            platform_price: number;
+            /** Price Unit */
+            price_unit: string;
+            recommended_range: components["schemas"]["RecommendedRange"] | null;
+            /** Price Amount */
+            price_amount: number | null;
+            /** Is Active */
+            is_active: boolean | null;
+            /** Outside Recommended Range */
+            outside_recommended_range: boolean;
+            take_home: components["schemas"]["TakeHome"] | null;
+            /** Commission Pct */
+            commission_pct: number;
+            /** Gst Pct */
+            gst_pct: number;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+        };
         /** StartBookingRequest */
         StartBookingRequest: {
             /** Otp */
@@ -7241,6 +7384,18 @@ export interface components {
             challenge_token: string;
             /** Code */
             code: string;
+        };
+        /**
+         * TakeHome
+         * @description What the SP gets from one unit at its price (``commission.take_home``).
+         */
+        TakeHome: {
+            /** Commission */
+            commission: number;
+            /** Commission Gst */
+            commission_gst: number;
+            /** Sp Receives */
+            sp_receives: number;
         };
         /** TeamInviteCreate */
         TeamInviteCreate: {
@@ -8453,6 +8608,61 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_pricing_api_v1_providers_me_pricing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpPricingResponse"];
+                };
+            };
+        };
+    };
+    set_my_price_api_v1_providers_me_pricing__variant_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                variant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpPriceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpVariantPricingUpdateResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

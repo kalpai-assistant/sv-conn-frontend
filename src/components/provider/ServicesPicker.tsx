@@ -3,9 +3,20 @@ import { formatRupees } from "@/i18n/format";
 import { errorText } from "@/i18n/errors";
 import { useT } from "@/i18n/LanguageProvider";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowLeft, Check, Loader2, Lock, Search, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  Loader2,
+  Lock,
+  Search,
+  X,
+} from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { VariantPriceRow } from "@/components/provider/VariantPriceRow";
 import { LoadingRegion } from "@/components/skeletons/LoadingRegion";
 import { TileGridSkeleton } from "@/components/skeletons/TileGridSkeleton";
 import { categoryIcon, categoryColor } from "@/lib/category-icons";
@@ -14,7 +25,11 @@ import {
   useServices,
   useProviderServices,
   useToggleProviderService,
+  useMyPricing,
+  type API_SpPricingResponse,
 } from "@/hooks/useApi";
+
+type PricingGroup = API_SpPricingResponse["services"][number];
 
 interface ServicesPickerProps {
   // When locked (e.g. KYC not yet verified) selection is disabled and a hint
@@ -36,10 +51,13 @@ interface ServicesPickerProps {
  *
  * Two deliberate differences from the consumer surface:
  *
- * - **Earnings, not prices.** A provider decides on what they take home, so
- *   cards read "from ₹349" against `variant.provider_payout`, never the
- *   customer price. Same "cheapest variant" rule the consumer side uses for
- *   `price`, in the currency that matters here.
+ * - **The SP's own prices (SVC-412).** A subscribed card reads "Your price
+ *   from ₹X" (its lowest price that is switched on) and opens a "Prices" panel
+ *   below it, one row per active variant (`VariantPriceRow`). A card the SP
+ *   hasn't taken reads "Platform price from ₹X", the cheapest active variant.
+ *   The panel sits below the card's button, never inside it: a text box can't
+ *   live inside a <button>. Subscribing opens it, because a new service starts
+ *   unpriced and the SP isn't listed for it until it has a price.
  * - **Tap toggles immediately** rather than collecting into a Save button. The
  *   flow is two levels deep, so a batched save invites the trap where backing
  *   out of a category silently discards the selection. The existing per-item
@@ -70,6 +88,7 @@ export function ServicesPicker({ locked = false, title, description }: ServicesP
     refetch: refetchSubs,
   } = useProviderServices();
   const toggle = useToggleProviderService();
+  const pricing = useMyPricing();
 
   // 403 fallback for the unlocked (profile) usage; when `locked` we already block.
   const [kycBlocked, setKycBlocked] = useState(false);
@@ -77,8 +96,23 @@ export function ServicesPicker({ locked = false, title, description }: ServicesP
   // Null = showing the category grid. Set = drilled into that category.
   const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  // Services whose "Prices" panel is open.
+  const [pricesOpen, setPricesOpen] = useState<ReadonlySet<string>>(() => new Set());
 
   const subscribed = useMemo(() => new Set(subscribedIds), [subscribedIds]);
+
+  const pricingByService = useMemo(
+    () => new Map((pricing.data?.services ?? []).map((g) => [g.service_id, g])),
+    [pricing.data],
+  );
+
+  const setOpen = (serviceId: string, open: boolean) =>
+    setPricesOpen((prev) => {
+      const next = new Set(prev);
+      if (open) next.add(serviceId);
+      else next.delete(serviceId);
+      return next;
+    });
 
   // How many of this provider's subscriptions sit in each category, so a tile
   // can say "2 selected" without drilling in. Built once per data change rather
@@ -115,11 +149,13 @@ export function ServicesPicker({ locked = false, title, description }: ServicesP
   const handleToggle = (serviceId: string, subscribe: boolean) => {
     if (locked) return;
     setPendingId(serviceId);
+    setOpen(serviceId, subscribe);
     toggle.mutate(
       { serviceId, subscribe },
       {
         onSuccess: () => setKycBlocked(false),
         onError: (err) => {
+          if (subscribe) setOpen(serviceId, false);
           if (err instanceof ApiError && err.status === 403) {
             setKycBlocked(true);
           } else {
@@ -129,6 +165,25 @@ export function ServicesPicker({ locked = false, title, description }: ServicesP
         onSettled: () => setPendingId(null),
       },
     );
+  };
+
+  // "Your price from ₹X" / "Set your prices" for a subscribed card, "Platform
+  // price from ₹X" otherwise. `price` is the cheapest active variant's (0
+  // when the catalogue priced none, where "from ₹0" would be wrong). Never
+  // `provider_payout`: what the SP receives is shown per row, at its price.
+  const cardSubtitle = (serviceId: string, platformFrom: number, isOn: boolean) => {
+    if (!isOn) {
+      return platformFrom > 0
+        ? t("services.platformFrom", { amount: formatRupees(platformFrom, lang) })
+        : null;
+    }
+    if (pricing.isPending) return null;
+    const own = (pricingByService.get(serviceId)?.variants ?? []).flatMap((v) =>
+      v.is_active === true && v.price_amount !== null ? [v.price_amount] : [],
+    );
+    return own.length > 0
+      ? t("services.yourPriceFrom", { amount: formatRupees(Math.min(...own), lang) })
+      : t("services.setPrices");
   };
 
   const loading = servicesLoading || subsLoading || catsLoading;
@@ -279,6 +334,7 @@ export function ServicesPicker({ locked = false, title, description }: ServicesP
                 {visibleServices.map((service) => {
                   const isOn = subscribed.has(service.id);
                   const isPending = pendingId === service.id;
+                  const subtitle = cardSubtitle(service.id, service.price, isOn);
                   return (
                     <li key={service.id}>
                       <button
@@ -306,16 +362,44 @@ export function ServicesPicker({ locked = false, title, description }: ServicesP
                             {service.name}
                           </span>
                           <span className="block truncate text-xs text-muted-foreground">
-                            {trimmedQuery ? `${service.categoryName} · ` : ""}
-                            {/* Earnings, not the customer price. 0 means the
-                                catalogue has priced no variant yet, and "from
-                                ₹0" would be a worse answer than none. */}
-                            {service.payout > 0
-                              ? t("services.from", { amount: formatRupees(service.payout, lang) })
-                              : t("services.payoutNotSet")}
+                            {[trimmedQuery ? service.categoryName : null, subtitle]
+                              .filter(Boolean)
+                              .join(" · ")}
                           </span>
                         </span>
                       </button>
+
+                      {/* Locked (KYC not verified) shows no rows, in search
+                          results too: the same card renders both. */}
+                      {isOn && !locked && (
+                        <Collapsible
+                          open={pricesOpen.has(service.id)}
+                          onOpenChange={(open) => setOpen(service.id, open)}
+                        >
+                          <CollapsibleTrigger asChild>
+                            <button
+                              type="button"
+                              className="group flex w-full items-center justify-between border-t border-border px-4 py-2.5 text-xs font-semibold text-primary focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                            >
+                              {t("services.pricing.toggle")}
+                              <ChevronDown
+                                className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180"
+                                aria-hidden
+                              />
+                            </button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <PricingRows
+                              group={pricingByService.get(service.id)}
+                              // Until the subscribe settles and the refetch
+                              // brings the new service in.
+                              loading={isPending || pricing.isPending || pricing.isFetching}
+                              failed={pricing.isError}
+                              onRetry={() => pricing.refetch()}
+                            />
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )}
                     </li>
                   );
                 })}
@@ -333,5 +417,59 @@ export function ServicesPicker({ locked = false, title, description }: ServicesP
         </>
       )}
     </section>
+  );
+}
+
+/** The "Prices" panel of one subscribed service. */
+function PricingRows({
+  group,
+  loading,
+  failed,
+  onRetry,
+}: {
+  group: PricingGroup | undefined;
+  loading: boolean;
+  failed: boolean;
+  onRetry: () => void;
+}) {
+  const { t } = useT("provider");
+  if (failed && !group) {
+    return (
+      <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+        <p className="text-xs text-destructive">{t("services.pricing.loadFailed")}</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="shrink-0 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-foreground"
+        >
+          {t("services.tryAgain")}
+        </button>
+      </div>
+    );
+  }
+  if (!group && loading) {
+    // Just subscribed: the pricing query is refetching to bring it in.
+    return (
+      <LoadingRegion>
+        <div className="space-y-2 border-t border-border p-4">
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+      </LoadingRegion>
+    );
+  }
+  if (!group || group.variants.length === 0) {
+    return (
+      <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
+        {t("services.pricing.noVariants")}
+      </p>
+    );
+  }
+  return (
+    <ul className="divide-y divide-border border-t border-border bg-muted/30">
+      {group.variants.map((variant) => (
+        <VariantPriceRow key={variant.variant_id} variant={variant} />
+      ))}
+    </ul>
   );
 }

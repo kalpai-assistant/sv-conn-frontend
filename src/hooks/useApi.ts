@@ -1588,6 +1588,10 @@ export const useAdminReassignPro = () => {
   });
 };
 
+// The SP's own prices (SVC-412, below). Declared here because a change of
+// subscription invalidates it.
+const PROVIDER_PRICING_KEY = ["providerPricing"] as const;
+
 // --- Provider service subscriptions (SVC-92) ---
 
 // GET /providers/me/services → [{ id, provider_id, service_id }]. We expose just the
@@ -1636,6 +1640,97 @@ export const useToggleProviderService = () => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["providerServices"] });
+      // A new subscription brings its variants onto the pricing screen
+      // (unpriced); leaving one switches its prices off (SVC-412).
+      queryClient.invalidateQueries({ queryKey: PROVIDER_PRICING_KEY });
+    },
+  });
+};
+
+// --- The SP's own price per variant (SVC-412) ---
+
+export type API_SpPricingResponse = Schema<"SpPricingResponse">;
+export type API_SpVariantPricing = Schema<"SpVariantPricing">;
+
+// GET /providers/me/pricing → each subscribed active service with its active
+// variants, the SP's price and on/off for each (null until set), the range and
+// the take-home.
+export const useMyPricing = () =>
+  useQuery({
+    queryKey: PROVIDER_PRICING_KEY,
+    queryFn: () => apiFetch<API_SpPricingResponse>("/providers/me/pricing"),
+  });
+
+export interface SetVariantPriceInput {
+  variantId: string;
+  priceAmount?: number;
+  isActive?: boolean;
+}
+
+/** Replace one variant's row in the pricing cache, wherever its service sits. */
+function patchVariant(
+  data: API_SpPricingResponse | undefined,
+  variantId: string,
+  change: (row: API_SpVariantPricing) => API_SpVariantPricing,
+): API_SpPricingResponse | undefined {
+  if (!data) return data;
+  return {
+    services: data.services.map((group) =>
+      group.variants.some((v) => v.variant_id === variantId)
+        ? {
+            ...group,
+            variants: group.variants.map((v) => (v.variant_id === variantId ? change(v) : v)),
+          }
+        : group,
+    ),
+  };
+}
+
+// PATCH /providers/me/pricing/{variant_id} with {price_amount?, is_active?}.
+// Optimistic. The rollback restores only this variant's row, never the whole
+// query, so two rows saving at once can't undo each other. On success the
+// server's row (with its take_home and range flag) replaces the guess.
+export const useSetVariantPrice = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ variantId, priceAmount, isActive }: SetVariantPriceInput) =>
+      apiFetch<Schema<"SpVariantPricingUpdateResponse">>(`/providers/me/pricing/${variantId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          ...(priceAmount !== undefined && { price_amount: priceAmount }),
+          ...(isActive !== undefined && { is_active: isActive }),
+        }),
+      }),
+    onMutate: async ({ variantId, priceAmount, isActive }) => {
+      await queryClient.cancelQueries({ queryKey: PROVIDER_PRICING_KEY });
+      const previous = queryClient
+        .getQueryData<API_SpPricingResponse>(PROVIDER_PRICING_KEY)
+        ?.services.flatMap((g) => g.variants)
+        .find((v) => v.variant_id === variantId);
+      queryClient.setQueryData<API_SpPricingResponse>(PROVIDER_PRICING_KEY, (data) =>
+        patchVariant(data, variantId, (row) => ({
+          ...row,
+          price_amount: priceAmount ?? row.price_amount,
+          // As the server does: a variant priced for the first time starts on.
+          is_active:
+            isActive ??
+            (row.price_amount === null && priceAmount !== undefined ? true : row.is_active),
+        })),
+      );
+      return { previous };
+    },
+    onError: (_err, { variantId }, context) => {
+      const previous = context?.previous;
+      if (!previous) return;
+      queryClient.setQueryData<API_SpPricingResponse>(PROVIDER_PRICING_KEY, (data) =>
+        patchVariant(data, variantId, () => previous),
+      );
+    },
+    onSuccess: (saved, { variantId }) => {
+      const { service_id: _serviceId, ...row } = saved;
+      queryClient.setQueryData<API_SpPricingResponse>(PROVIDER_PRICING_KEY, (data) =>
+        patchVariant(data, variantId, () => row),
+      );
     },
   });
 };
