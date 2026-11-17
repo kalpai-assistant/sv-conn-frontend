@@ -667,6 +667,47 @@ export const useServiceDetail = (serviceId: string | undefined) => {
   });
 };
 
+export type API_ServiceProvidersResponse = Schema<"ServiceProvidersResponse">;
+export type API_RankedProvider = Schema<"RankedProvider">;
+
+/**
+ * The SPs a customer at (lat, lng) can book this service variant with, best
+ * first (SVC-409 / SVC-416). Already sorted: in-range SPs first, then the
+ * ones `outside_recommended_range` (SVC-482).
+ *
+ * Disabled until all four inputs exist. The sheet resolves the location
+ * asynchronously (saved address, or the device as a fallback), and a request
+ * without lat/lng is a 422.
+ *
+ * The response is a price quote: `ttl_seconds` says how long the backend
+ * honours it (SVC-411). `staleTime` follows it, so re-opening the sheet
+ * inside the window reuses the quote and re-opening after it refetches. The
+ * key carries every input, so another variant or address is its own quote.
+ */
+export const useServiceProviders = (
+  serviceId: string | undefined,
+  variantId: string | undefined,
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+) => {
+  const ready = !!serviceId && !!variantId && lat != null && lng != null;
+  return useQuery({
+    enabled: ready,
+    queryKey: ["service-providers", serviceId, variantId, lat, lng],
+    staleTime: (query) => (query.state.data?.ttl_seconds ?? 0) * 1000,
+    queryFn: () => {
+      const params = new URLSearchParams({
+        lat: String(lat),
+        lng: String(lng),
+        variant_id: String(variantId),
+      });
+      return apiFetch<API_ServiceProvidersResponse>(
+        `/services/${serviceId}/providers?${params.toString()}`,
+      );
+    },
+  });
+};
+
 // `enabled` so the root gate can ask "does this user have any address?"
 // without a provider or a logged-out visitor firing the call. Defaults true —
 // every existing caller already knows it wants addresses.

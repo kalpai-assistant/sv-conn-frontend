@@ -85,6 +85,11 @@ vi.mock("@/hooks/useApi", () => ({
 vi.mock("@/lib/cart-context", () => ({
   useCart: () => ({ items: [], add: vi.fn() }),
 }));
+// SVC-416: the CTA opens the pro sheet. Its behaviour is pinned in
+// ServiceSheet.proSelection.test.tsx, with the real providers.
+vi.mock("@/lib/pro-selection-context", () => ({
+  useProSelection: () => ({ openProSelection: vi.fn() }),
+}));
 vi.mock("@tanstack/react-router", () => ({ useNavigate: () => vi.fn() }));
 vi.mock("@/hooks/useLockBodyScroll", () => ({ useLockBodyScroll: vi.fn() }));
 vi.mock("@/lib/back-interceptor", () => ({ pushBackInterceptor: () => () => {} }));
@@ -284,6 +289,6 @@ describe("while the service loads", () => {
     expect(region).toHaveAttribute("aria-busy", "true");
     expect(region).toHaveTextContent("Loading…");
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /add to cart/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /choose a pro/i })).not.toBeInTheDocument();
   });
 });

@@ -1,11 +1,11 @@
 /**
- * SVC-398: the quick-add control fires a Light impact when a service enters
- * the cart, and nothing on the stepper's +/- taps.
+ * The quick-add control: "+" opens the pro-selection sheet (SVC-416), and the
+ * +/− stepper on a line already in the cart only changes the quantity.
  *
- * The ticket is specific: haptics are reserved for primary success moments.
- * Add-to-cart counts; adjusting quantity 1→2→3 does not. These assertions
- * nail the distinction down so a future "let's also buzz on increment" edit
- * has to flip a test, not sneak in silently.
+ * SVC-398's haptic rule still holds: one Light impact per add-to-cart, none on
+ * the stepper. Since SVC-416 a tap on "+" doesn't add anything (the line lands
+ * when an SP is picked), so the buzz moved into the sheet
+ * (ProSelectionSheet.test.tsx asserts it there) and "+" stays silent.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -14,8 +14,9 @@ import userEvent from "@testing-library/user-event";
 const hapticImpactLight = vi.fn();
 const add = vi.fn();
 const updateQuantity = vi.fn();
+const openProSelection = vi.fn();
 const cartItems = vi.hoisted(() => ({
-  current: [] as Array<{ serviceId: string; quantity: number }>,
+  current: [] as Array<{ serviceId: string; quantity: number; spId?: string }>,
 }));
 
 vi.mock("@/lib/haptics", () => ({
@@ -24,13 +25,19 @@ vi.mock("@/lib/haptics", () => ({
 vi.mock("@/lib/cart-context", () => ({
   useCart: () => ({ items: cartItems.current, add, updateQuantity }),
 }));
+vi.mock("@/lib/pro-selection-context", () => ({
+  useProSelection: () => ({ openProSelection }),
+}));
 
 import { QuickAddButton } from "@/components/service/QuickAddButton";
 
 const service = {
   id: "svc-a",
   name: "Deep clean",
-  variants: [{ id: "v1", label: "Studio", price: 499, duration: "45 min" }],
+  variants: [
+    { id: "v1", label: "Studio", price: 499, duration: "45 min" },
+    { id: "v2", label: "1 BHK", price: 799, duration: "1 hr" },
+  ],
 } as Parameters<typeof QuickAddButton>[0]["service"];
 
 beforeEach(() => {
@@ -41,25 +48,41 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("QuickAddButton haptics", () => {
-  it("fires a Light impact once per add-to-cart", async () => {
+describe("QuickAddButton", () => {
+  it("opens the pro-selection sheet for the first variant, adding nothing yet", async () => {
     render(<QuickAddButton service={service} />);
     await userEvent.click(screen.getByRole("button", { name: /add deep clean/i }));
 
-    expect(add).toHaveBeenCalledOnce();
-    expect(hapticImpactLight).toHaveBeenCalledOnce();
+    expect(openProSelection).toHaveBeenCalledExactlyOnceWith(service, "v1");
+    expect(add).not.toHaveBeenCalled();
+    expect(hapticImpactLight).not.toHaveBeenCalled();
   });
 
-  it("stays silent on + / − stepper taps", async () => {
-    // In-cart state: the stepper renders instead of the ADD pill. Buzzing on
-    // every increment would dull the add-to-cart signal to the point of noise.
-    cartItems.current = [{ serviceId: service.id, quantity: 2 }];
+  it("keeps the tap from reaching the card underneath", async () => {
+    const onCardClick = vi.fn();
+    render(
+      <div onClick={onCardClick}>
+        <QuickAddButton service={service} />
+      </div>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /add deep clean/i }));
+
+    expect(onCardClick).not.toHaveBeenCalled();
+  });
+
+  // That the line keeps its SP across +/− is the reducer's job:
+  // cart-context.addQuoted.test.tsx, "the steppers keep the SP".
+  it("steppers change only the quantity and never reopen the sheet", async () => {
+    cartItems.current = [{ serviceId: service.id, quantity: 2, spId: "sp-a" }];
     render(<QuickAddButton service={service} />);
 
     await userEvent.click(screen.getByRole("button", { name: /increase/i }));
     await userEvent.click(screen.getByRole("button", { name: /decrease/i }));
 
-    expect(updateQuantity).toHaveBeenCalledTimes(2);
+    expect(updateQuantity).toHaveBeenNthCalledWith(1, service.id, 3);
+    expect(updateQuantity).toHaveBeenNthCalledWith(2, service.id, 1);
+    expect(openProSelection).not.toHaveBeenCalled();
+    expect(add).not.toHaveBeenCalled();
     expect(hapticImpactLight).not.toHaveBeenCalled();
   });
 });

@@ -1,15 +1,17 @@
 /**
  * Blinkit / Zomato-style quick-add control on a service card.
  *
- * Zero-state: a single "+" pill. Tap adds one of the default variant to the
- * cart, matching what `cart.add(service)` does when called with no variant
- * — the service's first variant, which is what the backend would have
- * fallen back to anyway (SVC-232). Users who want a specific variant open
- * the service sheet, which is the tap-on-card path.
+ * Zero-state: a single "+" pill. Tap opens the pro-selection sheet (SVC-416)
+ * for the service's first variant: the one `cart.add(service)` picks when
+ * called with no variant, and the one the backend would fall back to anyway
+ * (SVC-232). The line lands in the cart only when an SP is picked there.
+ * Users who want a specific variant open the service sheet, which is the
+ * tap-on-card path.
  *
  * In-cart state: a horizontal stepper — [-] [n] [+] — driven by
  * `updateQuantity`. Decrement past 1 removes the line entirely, same shape
- * as `updateQuantity`'s own semantics.
+ * as `updateQuantity`'s own semantics. The stepper never reopens the sheet:
+ * the line keeps the SP and quote it was added with.
  *
  * Sits inside a clickable parent (a ServiceCard row that opens the service
  * sheet on tap). Every button here stops event propagation so tapping the
@@ -23,7 +25,7 @@
  */
 import { Minus, Plus } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
-import { hapticImpactLight } from "@/lib/haptics";
+import { useProSelection } from "@/lib/pro-selection-context";
 import type { Service } from "@/lib/mock-data";
 
 interface QuickAddButtonProps {
@@ -35,6 +37,7 @@ interface QuickAddButtonProps {
 
 export function QuickAddButton({ service, compact = false }: QuickAddButtonProps) {
   const cart = useCart();
+  const { openProSelection } = useProSelection();
 
   if (service.variants.length === 0) return null;
 
@@ -47,11 +50,9 @@ export function QuickAddButton({ service, compact = false }: QuickAddButtonProps
     // handler.
     event.stopPropagation();
     event.preventDefault();
-    cart.add(service, 1);
-    // SVC-398: confirming "that landed" tap. The stepper's increment path
-    // deliberately does NOT fire — the ticket calls out add-to-cart as a
-    // primary success moment, and buzzing on every 1→2→3 would dull it.
-    hapticImpactLight();
+    // SVC-398's "that landed" haptic fires in the sheet, when an SP is picked
+    // and the line actually lands. Opening the sheet adds nothing.
+    openProSelection(service, service.variants[0].id);
   };
 
   const handleDecrement = (event: React.MouseEvent) => {
