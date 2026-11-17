@@ -198,7 +198,17 @@ describe("ServicesPicker pricing (SVC-412)", () => {
     expect(await screen.findByText("Split AC")).toBeVisible();
     expect(screen.getByText("Window AC")).toBeVisible();
     expect(screen.getByText("Free inspection")).toBeVisible();
-    expect(within(row("v1")).getByText("Platform price ₹2,499 · recommended ₹1,875 – ₹3,123"));
+    // The range sits in its own nowrap span, so match the line's whole text.
+    expect(
+      within(row("v1")).getByText(
+        (_, el) =>
+          el?.tagName === "P" &&
+          el.textContent === "Platform price ₹2,499 · recommended ₹1,875 – ₹3,123",
+      ),
+    ).toBeVisible();
+    expect(within(row("v1")).getByText("recommended ₹1,875 – ₹3,123")).toHaveClass(
+      "whitespace-nowrap",
+    );
     expect(within(row("v1")).getByText("Set your price")).toBeVisible();
     expect(within(row("v1")).getByText("/ visit")).toBeVisible();
     expect(within(row("v2")).getByText("You receive ₹1,291.72")).toBeVisible();

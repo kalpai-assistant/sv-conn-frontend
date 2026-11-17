@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 import { isBottomNavHidden, isProRoute } from "@/lib/nav-visibility";
 import { useT } from "@/i18n/LanguageProvider";
+import { useSoftKeyboardOpen } from "@/hooks/useSoftKeyboardOpen";
 
 // Two tab sets — the app is single-APK, role-gated (SVC-41). Selected in the
 // render based on user.role. Cart is a consumer tab only; providers have no
@@ -45,10 +46,13 @@ export function BottomNav() {
   // SVC-375: in the route's language — English everywhere but provider and
   // Pro screens, so the consumer tabs never change.
   const { t } = useT();
+  // While the keyboard is up the nav would ride on top of it and cover the
+  // field being typed in (found on the SVC-412 device pass).
+  const keyboardOpen = useSoftKeyboardOpen();
 
   // Which routes have no nav lives in one shared module — see the drift
   // history in `nav-visibility.ts`.
-  if (isBottomNavHidden(location.pathname)) {
+  if (isBottomNavHidden(location.pathname) || keyboardOpen) {
     return null;
   }
 

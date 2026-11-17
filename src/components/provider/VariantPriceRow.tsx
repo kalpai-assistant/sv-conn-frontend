@@ -109,11 +109,18 @@ export function VariantPriceRow({ variant }: { variant: API_SpVariantPricing }) 
         {t("services.pricing.platformPrice", {
           amount: formatRupees(variant.platform_price, lang),
         })}
-        {shownRange &&
-          ` · ${t("services.pricing.recommended", {
-            low: formatRupees(shownRange.low, lang),
-            high: formatRupees(shownRange.high, lang),
-          })}`}
+        {shownRange && (
+          <>
+            {" · "}
+            {/* One unit, so a narrow screen never splits "₹1,875 –" from "₹3,123". */}
+            <span className="whitespace-nowrap">
+              {t("services.pricing.recommended", {
+                low: formatRupees(shownRange.low, lang),
+                high: formatRupees(shownRange.high, lang),
+              })}
+            </span>
+          </>
+        )}
       </p>
 
       {variant.price_amount === null && (
