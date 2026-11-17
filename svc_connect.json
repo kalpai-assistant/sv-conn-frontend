@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "ServiceConnect",
+    "title": "Eazyserv",
     "description": "On-demand home services marketplace API",
     "version": "1.0.0"
   },
@@ -2028,6 +2028,106 @@
         }
       }
     },
+    "/api/v1/services/{service_id}/providers": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Rank Service Providers",
+        "description": "The SPs a customer at (lat, lng) can book this service with, best first\n(SVC-409): the ones dispatch would offer it to that have an active price\nfor the variant, each with its price, signals, score and up to three \"why\"\nchips.\n\nPrices are per variant (SVC-480): ``variant_id``, else the service's first\nactive variant, the one a booking without a variant is billed for. A service\nwhose variants are all switched off has no variant to price, so it lists\nnobody.\n\nNeeds a login, unlike the catalog: each row's distance is measured from the\nSP's service-area centre. 404 for an unknown or inactive service, and for a\n``variant_id`` that isn't an active variant of this service.",
+        "operationId": "rank_service_providers_api_v1_services__service_id__providers_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Service Id"
+            }
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "maximum": 90.0,
+              "minimum": -90.0,
+              "title": "Lat"
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "maximum": 180.0,
+              "minimum": -180.0,
+              "title": "Lng"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "variant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Variant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceProvidersResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/bookings/": {
       "post": {
         "tags": [
@@ -2080,10 +2180,10 @@
             }
           },
           "409": {
-            "description": "A request with this Idempotency-Key is already in progress. Retry after a short backoff."
+            "description": "A request with this Idempotency-Key is already in progress. Retry after a short backoff. Or SP_UNAVAILABLE (SVC-479): the chosen sp_id can't take this cart right now; no booking was created, so pick another SP (also when that SP has no active price for an item's variant, SVC-411). Or PRICE_CHANGED (SVC-411): the chosen SP's price for an item differs from its quoted_price; details.items lists each one with its current_price, and no booking was created."
           },
           "422": {
-            "description": "Idempotency-Key was reused with a different request body. Generate a new key for each distinct request."
+            "description": "Idempotency-Key was reused with a different request body. Generate a new key for each distinct request. Or, with sp_id, an item without service_variant_id or quoted_price (SVC-411)."
           }
         }
       },
@@ -4459,10 +4559,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter to bookings with (or without) a charged-back payment",
+              "description": "Filter to bookings that were (or were never) disputed: a charged-back payment or any customer dispute",
               "title": "Disputed"
             },
-            "description": "Filter to bookings with (or without) a charged-back payment"
+            "description": "Filter to bookings that were (or were never) disputed: a charged-back payment or any customer dispute"
           },
           {
             "name": "created_from",
@@ -4537,6 +4637,25 @@
               "title": "Provider Name"
             },
             "description": "Case-insensitive substring of the SP's name"
+          },
+          {
+            "name": "consumer_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exactly this customer (their user id); finds a deleted account too",
+              "title": "Consumer Id"
+            },
+            "description": "Exactly this customer (their user id); finds a deleted account too"
           },
           {
             "name": "provider_id",
@@ -7353,6 +7472,921 @@
         }
       }
     },
+    "/api/v1/admin/disputes": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List Disputes",
+        "description": "Every dispute, newest first. A datetime with no offset is read as UTC.",
+        "operationId": "list_disputes_api_v1_admin_disputes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "RAISED",
+                    "IN_REVIEW",
+                    "RESOLVED",
+                    "CLOSED"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "reason_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "NO_SHOW",
+                    "QUALITY",
+                    "BILLING",
+                    "BEHAVIOR",
+                    "OTHER"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason Code"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "created_at >= this",
+              "title": "Date From"
+            },
+            "description": "created_at >= this"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "created_at < this",
+              "title": "Date To"
+            },
+            "description": "created_at < this"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Per Page"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDisputeListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Create Dispute",
+        "description": "Log a dispute on the customer's behalf. 409 ``DISPUTE_BOOKING_NOT_FINISHED``\nunless the booking is completed or cancelled; 409 ``DISPUTE_ALREADY_OPEN``\n(``details.dispute_id``) if one is RAISED or IN_REVIEW.",
+        "operationId": "create_dispute_api_v1_admin_disputes_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminDisputeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDisputeRow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/disputes/bookings/{booking_id}": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Get Booking Disputes",
+        "description": "A booking's dispute page: the booking, what is left to refund, its open\ndispute and every earlier one. 200 with no disputes too, so support can see\nthe booking before logging one. 404 ``BOOKING_NOT_FOUND``.",
+        "operationId": "get_booking_disputes_api_v1_admin_disputes_bookings__booking_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDisputeDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/disputes/{dispute_id}/review": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Review Dispute",
+        "description": "Pick up a RAISED dispute (→ IN_REVIEW). Optional: resolve works from either.\n409 ``DISPUTE_INVALID_STATE`` otherwise.",
+        "operationId": "review_dispute_api_v1_admin_disputes__dispute_id__review_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dispute_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dispute Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDisputeRow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/disputes/{dispute_id}/resolve": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Resolve Dispute",
+        "description": "Settle the dispute. An online refund goes to Razorpay before anything is\nsaved and the dispute stays RESOLVED until ``refund.processed`` closes it. A\ncash refund is a record of money paid outside the app, and it and NO_REFUND\nclose at once. The customer gets a push after the commit.\n\n* 409 ``DISPUTE_INVALID_STATE`` (already resolved), ``NOTHING_TO_REFUND``.\n* 422 ``DISPUTE_INVALID`` (``details.field``; ``details.refundable`` for an\n  amount over what is left).\n* 403 ``REFUND_OVER_SUPPORT_LIMIT`` (``details.limit``).\n* 422 ``REFUND_REJECTED`` (``details.razorpay_error``): Razorpay said no.\n* 502 ``REFUND_GATEWAY_ERROR``: no answer. A retry is safe; it finds a\n  refund already made for this dispute instead of refunding twice.",
+        "operationId": "resolve_dispute_api_v1_admin_disputes__dispute_id__resolve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dispute_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dispute Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminDisputeResolve"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDisputeRow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/analytics/overview": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Analytics Overview",
+        "operationId": "analytics_overview_api_v1_admin_analytics_overview_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "weeks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 52,
+              "minimum": 1,
+              "description": "Trend length in IST weeks, current week last.",
+              "default": 12,
+              "title": "Weeks"
+            },
+            "description": "Trend length in IST weeks, current week last."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/analytics/supply": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Analytics Supply",
+        "operationId": "analytics_supply_api_v1_admin_analytics_supply_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "weeks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 52,
+              "minimum": 1,
+              "description": "Trend length in IST weeks, current week last.",
+              "default": 12,
+              "title": "Weeks"
+            },
+            "description": "Trend length in IST weeks, current week last."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/support/lookup": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Support Lookup",
+        "description": "One search box. The input is tried as every type it fits, and each one is\nsearched:\n\n* **phone**: digits with optional spaces, dashes, brackets and a +91 / 91 / 0\n  prefix, 10 digits after that → customers, SPs and team Pros with that\n  number;\n* **booking_id**: a full uuid → that booking. **booking_id_suffix**: exactly\n  6 hex characters → bookings whose id ends with them;\n* **name**: anything with a letter (not a full uuid) → SPs whose name or\n  business name contains every word.\n\n\"facade\" is both a suffix and a name, so both run: ``interpreted_as`` lists\nwhat was searched, and results come back grouped by kind. At most 20 per\nkind; ``truncated`` names a kind that had more.",
+        "operationId": "support_lookup_api_v1_admin_support_lookup_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 100,
+              "description": "Phone, booking id or SP name",
+              "title": "Q"
+            },
+            "description": "Phone, booking id or SP name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/support/customers/{user_id}": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Support Customer",
+        "description": "A customer's profile, lifetime numbers and last 10 bookings, newest first.\nDeleted accounts too (``deleted_at`` set). See ``CustomerProfile`` for what\nlifetime spend counts.",
+        "operationId": "support_customer_api_v1_admin_support_customers__user_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerProfile"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "USER_NOT_FOUND: no such customer"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/bookings/{booking_id}/notes": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List Support Notes",
+        "description": "Support's notes and \"contacted\" marks on a booking, newest first, each\nwith its author.",
+        "operationId": "list_support_notes_api_v1_admin_bookings__booking_id__notes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SupportNote"
+                  },
+                  "title": "Response List Support Notes Api V1 Admin Bookings  Booking Id  Notes Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such booking"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Add Support Note",
+        "description": "Add a note. Notes are append-only: there is no edit or delete. 422\n``NOTE_EMPTY`` for only whitespace. Audited as ``booking.note_add``.",
+        "operationId": "add_support_note_api_v1_admin_bookings__booking_id__notes_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportNoteCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportNote"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such booking"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/bookings/{booking_id}/contacted": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Mark Contacted",
+        "description": "Record that support contacted the customer. Text is optional. Audited as\n``booking.contacted``.",
+        "operationId": "mark_contacted_api_v1_admin_bookings__booking_id__contacted_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ContactedCreate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportNote"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such booking"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/bookings/{booking_id}/retry-dispatch": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Retry Dispatch",
+        "description": "Offer a waiting booking to providers again: the same broadcast a new\nbooking gets, with a fresh offer window. No body. SPs who already declined\nit aren't asked again. The customer isn't notified. Audited as\n``booking.retry_dispatch``.",
+        "operationId": "retry_dispatch_api_v1_admin_bookings__booking_id__retry_dispatch_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetryDispatchResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such booking"
+          },
+          "409": {
+            "description": "BOOKING_NOT_REQUESTED (details.status): only a booking still waiting for a provider; DISPATCH_RETRY_TOO_SOON (details.retry_after_seconds): retried in the last 30 s; NO_ELIGIBLE_PROVIDERS (details.reason, e.g. none_online): nobody to offer it to, and nothing was changed"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/bookings/{booking_id}/eligible-pros": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Eligible Pros",
+        "description": "The booking's SP's active Pros, and for each whether a reassign would be\naccepted (``refusal_code`` is the 409 it would get).",
+        "operationId": "eligible_pros_api_v1_admin_bookings__booking_id__eligible_pros_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EligibleProsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such booking"
+          },
+          "409": {
+            "description": "BOOKING_NOT_REASSIGNABLE: not ACCEPTED with a provider"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/bookings/{booking_id}/reassign-pro": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Reassign Pro",
+        "description": "Give an accepted booking to another Pro of the same SP, by the same rules\nas the SP's own re-pick. The new team Pro is pushed, and so is the old one.\nThe SP and the customer are not. The same Pro again is a 200 with no\nchange. Audited as ``booking.reassign_pro``. Returns the admin booking\ndetail.",
+        "operationId": "reassign_pro_api_v1_admin_bookings__booking_id__reassign_pro_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReassignProRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such booking; PRO_NOT_FOUND: not an active Pro of this SP"
+          },
+          "409": {
+            "description": "BOOKING_NOT_REASSIGNABLE (details.status): not ACCEPTED with a provider; or the Pro can't take it: PRO_DECLINED_THIS_BOOKING, SELF_NOT_TAKING_JOBS, PRO_KYC_INCOMPLETE, PRO_OFFLINE, PRO_BUSY"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/downloads/sms-link": {
       "post": {
         "tags": [
@@ -7475,6 +8509,109 @@
           "token"
         ],
         "title": "AcceptInviteRequest"
+      },
+      "AcceptWeek": {
+        "properties": {
+          "week_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Week Start"
+          },
+          "accepted": {
+            "type": "integer",
+            "title": "Accepted"
+          },
+          "p50_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P50 Seconds"
+          },
+          "p90_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P90 Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "week_start",
+          "accepted",
+          "p50_seconds",
+          "p90_seconds"
+        ],
+        "title": "AcceptWeek"
+      },
+      "ActiveSupply": {
+        "properties": {
+          "sps_7d": {
+            "type": "integer",
+            "title": "Sps 7D"
+          },
+          "sps_30d": {
+            "type": "integer",
+            "title": "Sps 30D"
+          },
+          "pros_7d": {
+            "type": "integer",
+            "title": "Pros 7D"
+          },
+          "pros_30d": {
+            "type": "integer",
+            "title": "Pros 30D"
+          },
+          "weekly": {
+            "items": {
+              "$ref": "#/components/schemas/ActiveWeek"
+            },
+            "type": "array",
+            "title": "Weekly"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sps_7d",
+          "sps_30d",
+          "pros_7d",
+          "pros_30d",
+          "weekly"
+        ],
+        "title": "ActiveSupply"
+      },
+      "ActiveWeek": {
+        "properties": {
+          "week_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Week Start"
+          },
+          "active_sps": {
+            "type": "integer",
+            "title": "Active Sps"
+          },
+          "active_pros": {
+            "type": "integer",
+            "title": "Active Pros"
+          }
+        },
+        "type": "object",
+        "required": [
+          "week_start",
+          "active_sps",
+          "active_pros"
+        ],
+        "title": "ActiveWeek"
       },
       "AddressResponse": {
         "properties": {
@@ -8949,6 +10086,650 @@
         "type": "object",
         "title": "AdminCouponUpdate",
         "description": "Any subset of the editable fields. ``code``, ``user_id`` and ``is_active``\naren't editable here (deactivate / activate change the last). ``null`` clears\n``max_discount``, ``min_order_amount`` or ``usage_limit`` and is refused on\nthe others."
+      },
+      "AdminDisputeBookingContext": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookingStatus"
+          },
+          "payment_method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment_status": {
+            "$ref": "#/components/schemas/PaymentStatus"
+          },
+          "settlement_status": {
+            "$ref": "#/components/schemas/SettlementStatus"
+          },
+          "service_amount": {
+            "type": "number",
+            "title": "Service Amount"
+          },
+          "discount_amount": {
+            "type": "number",
+            "title": "Discount Amount"
+          },
+          "tip_amount": {
+            "type": "number",
+            "title": "Tip Amount"
+          },
+          "scheduled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "cancellation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancellation Reason"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/AdminDisputeParty"
+          },
+          "customer_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Phone"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminDisputeParty"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "professional": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminDisputeParty"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "payment_method",
+          "payment_status",
+          "settlement_status",
+          "service_amount",
+          "discount_amount",
+          "tip_amount",
+          "scheduled_at",
+          "created_at",
+          "cancellation_reason",
+          "customer",
+          "customer_phone",
+          "provider",
+          "professional"
+        ],
+        "title": "AdminDisputeBookingContext",
+        "description": "The booking as support needs it to decide a dispute."
+      },
+      "AdminDisputeCreate": {
+        "properties": {
+          "booking_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Booking Id"
+          },
+          "reason_code": {
+            "type": "string",
+            "enum": [
+              "NO_SHOW",
+              "QUALITY",
+              "BILLING",
+              "BEHAVIOR",
+              "OTHER"
+            ],
+            "title": "Reason Code"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "booking_id",
+          "reason_code",
+          "description"
+        ],
+        "title": "AdminDisputeCreate",
+        "description": "Log a dispute on the customer's behalf. Only on a COMPLETED or CANCELLED\nbooking, and one open dispute per booking."
+      },
+      "AdminDisputeDetail": {
+        "properties": {
+          "booking": {
+            "$ref": "#/components/schemas/AdminDisputeBookingContext"
+          },
+          "refunds": {
+            "$ref": "#/components/schemas/AdminDisputeRefunds"
+          },
+          "open_dispute": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminDisputeRow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "disputes": {
+            "items": {
+              "$ref": "#/components/schemas/AdminDisputeRow"
+            },
+            "type": "array",
+            "title": "Disputes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "booking",
+          "refunds",
+          "open_dispute",
+          "disputes"
+        ],
+        "title": "AdminDisputeDetail",
+        "description": "A booking's dispute page. ``open_dispute`` is the RAISED / IN_REVIEW one,\nif any; ``disputes`` is every dispute on the booking, newest first."
+      },
+      "AdminDisputeListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminDisputeRow"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "per_page": {
+            "type": "integer",
+            "title": "Per Page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "title": "AdminDisputeListResponse"
+      },
+      "AdminDisputeParty": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "AdminDisputeParty"
+      },
+      "AdminDisputeRefunds": {
+        "properties": {
+          "channel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "RAZORPAY",
+                  "MANUAL"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel"
+          },
+          "captured": {
+            "type": "number",
+            "title": "Captured"
+          },
+          "cancel_refund": {
+            "type": "number",
+            "title": "Cancel Refund"
+          },
+          "cancel_refund_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Refund Id"
+          },
+          "cancel_refunded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Refunded At"
+          },
+          "dispute_refunds": {
+            "type": "number",
+            "title": "Dispute Refunds"
+          },
+          "refundable": {
+            "type": "number",
+            "title": "Refundable"
+          },
+          "support_refund_limit": {
+            "type": "number",
+            "title": "Support Refund Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "channel",
+          "captured",
+          "cancel_refund",
+          "cancel_refund_id",
+          "cancel_refunded_at",
+          "dispute_refunds",
+          "refundable",
+          "support_refund_limit"
+        ],
+        "title": "AdminDisputeRefunds",
+        "description": "What has been, and can still be, refunded on the booking.\n\n``captured`` is what the customer paid for the service (service − discount;\nthe tip is never refundable), 0 when nothing was paid. ``cancel_refund`` is\nthe cancel-time refund (``payments.refund_*``), counted whatever its state.\n``dispute_refunds`` sums earlier dispute refunds, a failed Razorpay one left\nout. ``refundable`` = captured − both, never below 0. ``channel`` is how a\nrefund here would be paid: RAZORPAY (online), MANUAL (cash) or null\n(nothing was paid)."
+      },
+      "AdminDisputeResolve": {
+        "properties": {
+          "resolution_type": {
+            "type": "string",
+            "enum": [
+              "FULL_REFUND",
+              "PARTIAL_REFUND",
+              "NO_REFUND"
+            ],
+            "title": "Resolution Type"
+          },
+          "refund_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Amount"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "resolution_type",
+          "notes"
+        ],
+        "title": "AdminDisputeResolve",
+        "description": "Settle a RAISED or IN_REVIEW dispute.\n\n* ``FULL_REFUND``: everything still refundable. ``refund_amount`` may be left\n  out; if sent it must equal the refundable amount.\n* ``PARTIAL_REFUND``: ``refund_amount`` is required, > 0 and ≤ refundable.\n* ``NO_REFUND``: no ``refund_amount``.\n\n``notes`` is required: the decision, and for a cash booking how the money was\npaid back."
+      },
+      "AdminDisputeRow": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "booking_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Booking Id"
+          },
+          "booking_status": {
+            "$ref": "#/components/schemas/BookingStatus"
+          },
+          "payment_method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason_code": {
+            "type": "string",
+            "enum": [
+              "NO_SHOW",
+              "QUALITY",
+              "BILLING",
+              "BEHAVIOR",
+              "OTHER"
+            ],
+            "title": "Reason Code"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RAISED",
+              "IN_REVIEW",
+              "RESOLVED",
+              "CLOSED"
+            ],
+            "title": "Status"
+          },
+          "resolution_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "FULL_REFUND",
+                  "PARTIAL_REFUND",
+                  "NO_REFUND"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Type"
+          },
+          "refund_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Amount"
+          },
+          "refund_channel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "RAZORPAY",
+                  "MANUAL"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Channel"
+          },
+          "refund_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "PROCESSED",
+                  "FAILED"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Status"
+          },
+          "refund_failed_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Failed Reason"
+          },
+          "razorpay_refund_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Razorpay Refund Id"
+          },
+          "resolution_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Notes"
+          },
+          "customer_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Customer Id"
+          },
+          "customer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Name"
+          },
+          "customer_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Phone"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Name"
+          },
+          "resolved_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved By"
+          },
+          "resolved_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved By Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "booking_id",
+          "booking_status",
+          "payment_method",
+          "reason_code",
+          "description",
+          "status",
+          "resolution_type",
+          "refund_amount",
+          "refund_channel",
+          "refund_status",
+          "refund_failed_reason",
+          "razorpay_refund_id",
+          "resolution_notes",
+          "customer_id",
+          "customer_name",
+          "customer_phone",
+          "created_by",
+          "created_by_name",
+          "resolved_by",
+          "resolved_by_name",
+          "created_at",
+          "updated_at",
+          "resolved_at",
+          "closed_at"
+        ],
+        "title": "AdminDisputeRow",
+        "description": "One dispute.\n\n``refund_channel`` RAZORPAY: refunded on the booking's Razorpay payment, and\n``refund_status`` tracks the webhook (PENDING → PROCESSED, or FAILED with\n``refund_failed_reason``). MANUAL: a cash booking refunded outside the app;\nthe amount is a record only and ``refund_status`` is null."
       },
       "AdminInviteRow": {
         "properties": {
@@ -10771,6 +12552,60 @@
         "title": "BookingStatusLogResponse",
         "description": "One state transition on a booking, as the tracking timeline sees it.\n\nA deliberately narrow projection of ``booking_status_logs``, which is an\ninternal audit trail and not a consumer-facing record (SVC-248). Two\ncolumns are withheld on purpose:\n\n``changed_by`` is a user id — usually the assigned provider's, sometimes an\nadmin's. Who moved a booking is an operational fact; handing it to the\nconsumer's app turns an audit row into a disclosure about another person.\n\n``metadata_`` is free-form JSONB written by whatever called\n``_log_transition``. Nobody has audited what is already in those rows\nacross the project's history, and a field whose contents are unknown\ncannot be knowingly published. If some part of it is worth showing, it\nshould be promoted to a named column first.\n\n``from_status`` is left out for a plainer reason: on an ordered list the\nprevious state is always the ``to_status`` of the entry before it."
       },
+      "BookingsDay": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "requested": {
+            "type": "integer",
+            "title": "Requested"
+          },
+          "accepted": {
+            "type": "integer",
+            "title": "Accepted"
+          },
+          "en_route": {
+            "type": "integer",
+            "title": "En Route"
+          },
+          "in_progress": {
+            "type": "integer",
+            "title": "In Progress"
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed"
+          },
+          "cancelled": {
+            "type": "integer",
+            "title": "Cancelled"
+          },
+          "expired": {
+            "type": "integer",
+            "title": "Expired"
+          },
+          "refunded": {
+            "type": "integer",
+            "title": "Refunded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "requested",
+          "accepted",
+          "en_route",
+          "in_progress",
+          "completed",
+          "cancelled",
+          "expired",
+          "refunded"
+        ],
+        "title": "BookingsDay"
+      },
       "CancelBookingRequest": {
         "properties": {
           "reason": {
@@ -10785,6 +12620,55 @@
           "reason"
         ],
         "title": "CancelBookingRequest"
+      },
+      "CategoryPrices": {
+        "properties": {
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Category Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "min": {
+            "type": "number",
+            "title": "Min"
+          },
+          "p25": {
+            "type": "number",
+            "title": "P25"
+          },
+          "median": {
+            "type": "number",
+            "title": "Median"
+          },
+          "p75": {
+            "type": "number",
+            "title": "P75"
+          },
+          "max": {
+            "type": "number",
+            "title": "Max"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category_id",
+          "name",
+          "count",
+          "min",
+          "p25",
+          "median",
+          "p75",
+          "max"
+        ],
+        "title": "CategoryPrices"
       },
       "CategoryPricingRow": {
         "properties": {
@@ -11057,6 +12941,83 @@
         ],
         "title": "CategoryResponse"
       },
+      "ChurnMonth": {
+        "properties": {
+          "signup_month": {
+            "type": "string",
+            "title": "Signup Month"
+          },
+          "verified": {
+            "type": "integer",
+            "title": "Verified"
+          },
+          "churned": {
+            "type": "integer",
+            "title": "Churned"
+          },
+          "rate": {
+            "type": "number",
+            "title": "Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "signup_month",
+          "verified",
+          "churned",
+          "rate"
+        ],
+        "title": "ChurnMonth"
+      },
+      "ConsumerCohort": {
+        "properties": {
+          "signup_week": {
+            "type": "string",
+            "format": "date",
+            "title": "Signup Week"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "d7": {
+            "$ref": "#/components/schemas/RetentionCell"
+          },
+          "d30": {
+            "$ref": "#/components/schemas/RetentionCell"
+          },
+          "d90": {
+            "$ref": "#/components/schemas/RetentionCell"
+          }
+        },
+        "type": "object",
+        "required": [
+          "signup_week",
+          "size",
+          "d7",
+          "d30",
+          "d90"
+        ],
+        "title": "ConsumerCohort"
+      },
+      "ContactedCreate": {
+        "properties": {
+          "body": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "title": "ContactedCreate"
+      },
       "CouponResponse": {
         "properties": {
           "id": {
@@ -11302,6 +13263,21 @@
             "minimum": 1.0,
             "title": "Quantity",
             "default": 1
+          },
+          "quoted_price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quoted Price"
           }
         },
         "type": "object",
@@ -11373,6 +13349,18 @@
               }
             ],
             "title": "Coupon Code"
+          },
+          "sp_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sp Id"
           }
         },
         "type": "object",
@@ -11474,6 +13462,239 @@
           "base_price"
         ],
         "title": "CreateServiceRequest"
+      },
+      "CustomerBooking": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookingStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "scheduled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled At"
+          },
+          "service_summary": {
+            "type": "string",
+            "title": "Service Summary"
+          },
+          "total": {
+            "type": "number",
+            "title": "Total"
+          },
+          "payment_method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerBookingProvider"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "professional": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerBookingPro"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "created_at",
+          "scheduled_at",
+          "service_summary",
+          "total",
+          "payment_method",
+          "provider",
+          "professional"
+        ],
+        "title": "CustomerBooking"
+      },
+      "CustomerBookingPro": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name"
+        ],
+        "title": "CustomerBookingPro"
+      },
+      "CustomerBookingProvider": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "business_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "business_name"
+        ],
+        "title": "CustomerBookingProvider"
+      },
+      "CustomerProfile": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "address_count": {
+            "type": "integer",
+            "title": "Address Count"
+          },
+          "lifetime_bookings": {
+            "type": "integer",
+            "title": "Lifetime Bookings"
+          },
+          "completed_bookings": {
+            "type": "integer",
+            "title": "Completed Bookings"
+          },
+          "lifetime_spend": {
+            "type": "number",
+            "title": "Lifetime Spend"
+          },
+          "recent_bookings": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerBooking"
+            },
+            "type": "array",
+            "title": "Recent Bookings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "phone",
+          "email",
+          "created_at",
+          "deleted_at",
+          "is_active",
+          "address_count",
+          "lifetime_bookings",
+          "completed_bookings",
+          "lifetime_spend",
+          "recent_bookings"
+        ],
+        "title": "CustomerProfile",
+        "description": "``GET /admin/support/customers/{id}``.\n\n``lifetime_spend``: over COMPLETED bookings, service_amount − discount_amount\n+ tip_amount, minus what dispute refunds on those bookings actually paid\nback (a Razorpay refund that is PROCESSED, or a cash refund recorded as\npaid). Cash and online both count. Cancelled and expired bookings count 0."
       },
       "DeactivateUserRequest": {
         "properties": {
@@ -11732,6 +13953,108 @@
         "title": "EarningsSummaryResponse",
         "description": "All-time totals, with no per-booking breakdown (SVC-275).\n\nDeliberately two scalars. ``EarningsResponse`` carries one row per booking,\nwhich is fine over a window and unbounded over a lifetime — Provider Home\nwould download every job a provider has ever completed to render a single\nnumber."
       },
+      "EligiblePro": {
+        "properties": {
+          "professional_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Professional Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "is_self": {
+            "type": "boolean",
+            "title": "Is Self"
+          },
+          "is_online": {
+            "type": "boolean",
+            "title": "Is Online"
+          },
+          "kyc_status": {
+            "$ref": "#/components/schemas/KYCStatus"
+          },
+          "is_current": {
+            "type": "boolean",
+            "title": "Is Current"
+          },
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          },
+          "refusal_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refusal Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "professional_id",
+          "display_name",
+          "phone",
+          "is_self",
+          "is_online",
+          "kyc_status",
+          "is_current",
+          "eligible",
+          "refusal_code"
+        ],
+        "title": "EligiblePro",
+        "description": "One of the SP's active Pros. ``refusal_code`` is what\n``POST .../reassign-pro`` would answer for them (a 409 code), or null when\nthey can take it. The current Pro is ``is_current`` with no refusal, and not\n``eligible``: there is nothing to change."
+      },
+      "EligibleProsResponse": {
+        "properties": {
+          "booking_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Booking Id"
+          },
+          "service_provider_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Provider Id"
+          },
+          "current_professional_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Professional Id"
+          },
+          "pros": {
+            "items": {
+              "$ref": "#/components/schemas/EligiblePro"
+            },
+            "type": "array",
+            "title": "Pros"
+          }
+        },
+        "type": "object",
+        "required": [
+          "booking_id",
+          "service_provider_id",
+          "current_professional_id",
+          "pros"
+        ],
+        "title": "EligibleProsResponse"
+      },
       "ForceCancelBookingRequest": {
         "properties": {
           "reason": {
@@ -11784,6 +14107,101 @@
           "self_reenabled"
         ],
         "title": "ForceRemoveResponse"
+      },
+      "GapCell": {
+        "properties": {
+          "pincode": {
+            "type": "string",
+            "title": "Pincode"
+          },
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          },
+          "demand": {
+            "type": "integer",
+            "title": "Demand"
+          },
+          "unmet": {
+            "type": "integer",
+            "title": "Unmet"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pincode",
+          "service_id",
+          "demand",
+          "unmet"
+        ],
+        "title": "GapCell"
+      },
+      "GapService": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "GapService"
+      },
+      "GmvWindow": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "gmv": {
+            "type": "number",
+            "title": "Gmv"
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed"
+          },
+          "previous_gmv": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Gmv"
+          },
+          "change_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "gmv",
+          "completed",
+          "previous_gmv",
+          "change_pct"
+        ],
+        "title": "GmvWindow"
       },
       "HTTPValidationError": {
         "properties": {
@@ -12197,6 +14615,357 @@
         "title": "LogoutRequest",
         "description": "SVC-241: refresh token to blacklist. The access token is short-lived\nand expires on its own; the refresh token is the durable credential a\nthief could otherwise use to mint fresh access tokens for 30 days."
       },
+      "LookupBooking": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookingStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "scheduled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled At"
+          },
+          "service_summary": {
+            "type": "string",
+            "title": "Service Summary"
+          },
+          "consumer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consumer Name"
+          },
+          "consumer_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consumer Phone"
+          },
+          "provider_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Name"
+          },
+          "matched_by": {
+            "type": "string",
+            "enum": [
+              "id",
+              "id_suffix"
+            ],
+            "title": "Matched By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "created_at",
+          "scheduled_at",
+          "service_summary",
+          "consumer_name",
+          "consumer_phone",
+          "provider_name",
+          "matched_by"
+        ],
+        "title": "LookupBooking"
+      },
+      "LookupCustomer": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "deleted": {
+            "type": "boolean",
+            "title": "Deleted"
+          },
+          "booking_count": {
+            "type": "integer",
+            "title": "Booking Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "phone",
+          "created_at",
+          "is_active",
+          "deleted",
+          "booking_count"
+        ],
+        "title": "LookupCustomer"
+      },
+      "LookupPro": {
+        "properties": {
+          "professional_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Professional Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "is_online": {
+            "type": "boolean",
+            "title": "Is Online"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "service_provider": {
+            "$ref": "#/components/schemas/LookupProOwner"
+          }
+        },
+        "type": "object",
+        "required": [
+          "professional_id",
+          "display_name",
+          "phone",
+          "is_online",
+          "is_active",
+          "service_provider"
+        ],
+        "title": "LookupPro",
+        "description": "A team Pro. Nobody's Pro-for-self: that person is listed as the provider."
+      },
+      "LookupProOwner": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "business_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "business_name"
+        ],
+        "title": "LookupProOwner"
+      },
+      "LookupProvider": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "business_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Name"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "kyc_status": {
+            "$ref": "#/components/schemas/KYCStatus"
+          },
+          "is_online": {
+            "type": "boolean",
+            "title": "Is Online"
+          },
+          "matched_by": {
+            "type": "string",
+            "enum": [
+              "phone",
+              "name"
+            ],
+            "title": "Matched By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "business_name",
+          "phone",
+          "kyc_status",
+          "is_online",
+          "matched_by"
+        ],
+        "title": "LookupProvider"
+      },
+      "LookupResponse": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "interpreted_as": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "phone",
+                "booking_id",
+                "booking_id_suffix",
+                "name"
+              ]
+            },
+            "type": "array",
+            "title": "Interpreted As"
+          },
+          "customers": {
+            "items": {
+              "$ref": "#/components/schemas/LookupCustomer"
+            },
+            "type": "array",
+            "title": "Customers"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/LookupProvider"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "pros": {
+            "items": {
+              "$ref": "#/components/schemas/LookupPro"
+            },
+            "type": "array",
+            "title": "Pros"
+          },
+          "bookings": {
+            "items": {
+              "$ref": "#/components/schemas/LookupBooking"
+            },
+            "type": "array",
+            "title": "Bookings"
+          },
+          "truncated": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "customers",
+                "providers",
+                "pros",
+                "bookings"
+              ]
+            },
+            "type": "array",
+            "title": "Truncated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "interpreted_as",
+          "customers",
+          "providers",
+          "pros",
+          "bookings",
+          "truncated"
+        ],
+        "title": "LookupResponse",
+        "description": "``GET /admin/support/lookup``. ``interpreted_as`` lists every type the\ninput fits, and each was searched: \"facade\" is both a booking id suffix and\na name. Results are grouped by kind, so the screen never has to guess.\n``truncated`` names the kinds that had more rows than the cap."
+      },
       "NearbyProviderResponse": {
         "properties": {
           "id": {
@@ -12244,6 +15013,105 @@
         "title": "NearbyProviderResponse",
         "description": "Slim response for the 'nearby providers' discovery endpoint."
       },
+      "OverviewResponse": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "title": "As Of"
+          },
+          "gmv": {
+            "items": {
+              "$ref": "#/components/schemas/GmvWindow"
+            },
+            "type": "array",
+            "title": "Gmv"
+          },
+          "weekly": {
+            "items": {
+              "$ref": "#/components/schemas/OverviewWeek"
+            },
+            "type": "array",
+            "title": "Weekly"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/BookingsDay"
+            },
+            "type": "array",
+            "title": "Daily"
+          },
+          "cohorts": {
+            "items": {
+              "$ref": "#/components/schemas/ConsumerCohort"
+            },
+            "type": "array",
+            "title": "Cohorts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of",
+          "gmv",
+          "weekly",
+          "daily",
+          "cohorts"
+        ],
+        "title": "OverviewResponse"
+      },
+      "OverviewWeek": {
+        "properties": {
+          "week_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Week Start"
+          },
+          "gmv": {
+            "type": "number",
+            "title": "Gmv"
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed"
+          },
+          "commission": {
+            "type": "number",
+            "title": "Commission"
+          },
+          "take_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Take Rate"
+          },
+          "aov": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aov"
+          }
+        },
+        "type": "object",
+        "required": [
+          "week_start",
+          "gmv",
+          "completed",
+          "commission",
+          "take_rate",
+          "aov"
+        ],
+        "title": "OverviewWeek"
+      },
       "PaymentMethod": {
         "type": "string",
         "enum": [
@@ -12279,6 +15147,18 @@
           "razorpay_key_id"
         ],
         "title": "PaymentOrderResponse"
+      },
+      "PaymentStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "paid",
+          "refunded",
+          "expired",
+          "refund_processing",
+          "refund_failed"
+        ],
+        "title": "PaymentStatus"
       },
       "PayoutBookingRow": {
         "properties": {
@@ -14094,6 +16974,107 @@
         "title": "PushCapabilityReport",
         "description": "What the client can tell us about its ability to receive push (SVC-255).\n\nSent on every registration attempt, successful or not. That \"or not\" is the\nwhole point: Sentry already records failures, but with no denominator —\n\"12 failures this week\" is unreadable without knowing whether that is 12 out\nof 12 or 12 out of 400. Reporting every attempt supplies the denominator.\n\nNothing here is stored. The handler logs one line and returns; the question\nit answers (\"how many providers can actually receive push, and on what?\") is\na one-off scoping question, not a per-user fact worth a column."
       },
+      "RankedProvider": {
+        "properties": {
+          "sp_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sp Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "price_amount": {
+            "type": "number",
+            "title": "Price Amount"
+          },
+          "price_unit": {
+            "type": "string",
+            "title": "Price Unit"
+          },
+          "rating_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Avg"
+          },
+          "rating_count": {
+            "type": "integer",
+            "title": "Rating Count"
+          },
+          "distance_km": {
+            "type": "number",
+            "title": "Distance Km"
+          },
+          "reliability_score": {
+            "type": "number",
+            "title": "Reliability Score"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "why": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Why"
+          },
+          "is_boosted": {
+            "type": "boolean",
+            "title": "Is Boosted"
+          },
+          "outside_recommended_range": {
+            "type": "boolean",
+            "title": "Outside Recommended Range"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sp_id",
+          "name",
+          "price_amount",
+          "price_unit",
+          "rating_avg",
+          "rating_count",
+          "distance_km",
+          "reliability_score",
+          "score",
+          "why",
+          "is_boosted",
+          "outside_recommended_range"
+        ],
+        "title": "RankedProvider",
+        "description": "One SP on the customer's \"pick your SP\" sheet (SVC-409).\n\nPlain floats, never Decimal: a Decimal serialises as a JSON string. No field\nhas a default, so every one stays ``required`` in the OpenAPI schema."
+      },
+      "ReassignProRequest": {
+        "properties": {
+          "professional_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Professional Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "professional_id"
+        ],
+        "title": "ReassignProRequest"
+      },
       "ReassignRequest": {
         "properties": {
           "target_sp_user_id": {
@@ -14233,6 +17214,72 @@
         ],
         "title": "RemoveProResponse",
         "description": "``DELETE /providers/me/team/{pro_id}`` (SVC-326)."
+      },
+      "RetentionCell": {
+        "properties": {
+          "matured": {
+            "type": "integer",
+            "title": "Matured"
+          },
+          "rebooked": {
+            "type": "integer",
+            "title": "Rebooked"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "matured",
+          "rebooked",
+          "rate"
+        ],
+        "title": "RetentionCell"
+      },
+      "RetryDispatchResponse": {
+        "properties": {
+          "booking_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Booking Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookingStatus"
+          },
+          "recipients": {
+            "type": "integer",
+            "title": "Recipients"
+          },
+          "retried_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Retried At"
+          },
+          "offer_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Offer Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "booking_id",
+          "status",
+          "recipients",
+          "retried_at",
+          "offer_expires_at"
+        ],
+        "title": "RetryDispatchResponse",
+        "description": "``recipients``: how many SPs the new broadcast goes to, counted when the\nbutton was pressed: everyone eligible, minus SPs who already accepted or\ndeclined this booking. The pushes go out in the background and delivery is\nbest-effort."
       },
       "ReviewListResponse": {
         "properties": {
@@ -14706,6 +17753,52 @@
         "title": "ServiceProviderBrief",
         "description": "The business behind the job (SVC-324): the SP's brand, never payout details."
       },
+      "ServiceProvidersResponse": {
+        "properties": {
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          },
+          "service_variant_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Variant Id"
+          },
+          "quoted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Quoted At"
+          },
+          "ttl_seconds": {
+            "type": "integer",
+            "title": "Ttl Seconds"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/RankedProvider"
+            },
+            "type": "array",
+            "title": "Providers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service_id",
+          "service_variant_id",
+          "quoted_at",
+          "ttl_seconds",
+          "providers"
+        ],
+        "title": "ServiceProvidersResponse"
+      },
       "ServiceResponse": {
         "properties": {
           "id": {
@@ -14965,6 +18058,61 @@
         ],
         "title": "SmsLinkRequest"
       },
+      "SpCohort": {
+        "properties": {
+          "kyc_week": {
+            "type": "string",
+            "format": "date",
+            "title": "Kyc Week"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "d30": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "D30"
+          },
+          "d60": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "D60"
+          },
+          "d90": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "D90"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kyc_week",
+          "size",
+          "d30",
+          "d60",
+          "d90"
+        ],
+        "title": "SpCohort"
+      },
       "StartBookingRequest": {
         "properties": {
           "otp": {
@@ -15047,6 +18195,217 @@
         ],
         "title": "StatusTimelineItem",
         "description": "A ``booking_status_logs`` row. ``metadata`` is withheld for the reason\n``BookingStatusLogResponse`` gives: free-form JSONB nobody has audited."
+      },
+      "SupplyGap": {
+        "properties": {
+          "pincodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pincodes"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/GapService"
+            },
+            "type": "array",
+            "title": "Services"
+          },
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/GapCell"
+            },
+            "type": "array",
+            "title": "Cells"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          },
+          "total_pincodes": {
+            "type": "integer",
+            "title": "Total Pincodes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pincodes",
+          "services",
+          "cells",
+          "truncated",
+          "total_pincodes"
+        ],
+        "title": "SupplyGap"
+      },
+      "SupplyResponse": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "title": "As Of"
+          },
+          "active": {
+            "$ref": "#/components/schemas/ActiveSupply"
+          },
+          "sp_cohorts": {
+            "items": {
+              "$ref": "#/components/schemas/SpCohort"
+            },
+            "type": "array",
+            "title": "Sp Cohorts"
+          },
+          "churn": {
+            "items": {
+              "$ref": "#/components/schemas/ChurnMonth"
+            },
+            "type": "array",
+            "title": "Churn"
+          },
+          "supply_gap": {
+            "$ref": "#/components/schemas/SupplyGap"
+          },
+          "prices": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryPrices"
+            },
+            "type": "array",
+            "title": "Prices"
+          },
+          "time_to_accept": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptWeek"
+            },
+            "type": "array",
+            "title": "Time To Accept"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of",
+          "active",
+          "sp_cohorts",
+          "churn",
+          "supply_gap",
+          "prices",
+          "time_to_accept"
+        ],
+        "title": "SupplyResponse"
+      },
+      "SupportNote": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "booking_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Booking Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "note",
+              "contacted"
+            ],
+            "title": "Kind"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "author": {
+            "$ref": "#/components/schemas/SupportNoteAuthor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "booking_id",
+          "kind",
+          "body",
+          "created_at",
+          "author"
+        ],
+        "title": "SupportNote"
+      },
+      "SupportNoteAuthor": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "admin_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "email",
+          "admin_role"
+        ],
+        "title": "SupportNoteAuthor"
+      },
+      "SupportNoteCreate": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "SupportNoteCreate"
       },
       "TOTPSetupRequest": {
         "properties": {

@@ -879,6 +879,38 @@ export interface paths {
         patch: operations["update_service_api_v1_services__service_id__patch"];
         trace?: never;
     };
+    "/api/v1/services/{service_id}/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rank Service Providers
+         * @description The SPs a customer at (lat, lng) can book this service with, best first
+         *     (SVC-409): the ones dispatch would offer it to that have an active price
+         *     for the variant, each with its price, signals, score and up to three "why"
+         *     chips.
+         *
+         *     Prices are per variant (SVC-480): ``variant_id``, else the service's first
+         *     active variant, the one a booking without a variant is billed for. A service
+         *     whose variants are all switched off has no variant to price, so it lists
+         *     nobody.
+         *
+         *     Needs a login, unlike the catalog: each row's distance is measured from the
+         *     SP's service-area centre. 404 for an unknown or inactive service, and for a
+         *     ``variant_id`` that isn't an active variant of this service.
+         */
+        get: operations["rank_service_providers_api_v1_services__service_id__providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bookings/": {
         parameters: {
             query?: never;
@@ -2798,6 +2830,310 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/disputes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Disputes
+         * @description Every dispute, newest first. A datetime with no offset is read as UTC.
+         */
+        get: operations["list_disputes_api_v1_admin_disputes_get"];
+        put?: never;
+        /**
+         * Create Dispute
+         * @description Log a dispute on the customer's behalf. 409 ``DISPUTE_BOOKING_NOT_FINISHED``
+         *     unless the booking is completed or cancelled; 409 ``DISPUTE_ALREADY_OPEN``
+         *     (``details.dispute_id``) if one is RAISED or IN_REVIEW.
+         */
+        post: operations["create_dispute_api_v1_admin_disputes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/bookings/{booking_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Disputes
+         * @description A booking's dispute page: the booking, what is left to refund, its open
+         *     dispute and every earlier one. 200 with no disputes too, so support can see
+         *     the booking before logging one. 404 ``BOOKING_NOT_FOUND``.
+         */
+        get: operations["get_booking_disputes_api_v1_admin_disputes_bookings__booking_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/{dispute_id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review Dispute
+         * @description Pick up a RAISED dispute (→ IN_REVIEW). Optional: resolve works from either.
+         *     409 ``DISPUTE_INVALID_STATE`` otherwise.
+         */
+        post: operations["review_dispute_api_v1_admin_disputes__dispute_id__review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/disputes/{dispute_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Dispute
+         * @description Settle the dispute. An online refund goes to Razorpay before anything is
+         *     saved and the dispute stays RESOLVED until ``refund.processed`` closes it. A
+         *     cash refund is a record of money paid outside the app, and it and NO_REFUND
+         *     close at once. The customer gets a push after the commit.
+         *
+         *     * 409 ``DISPUTE_INVALID_STATE`` (already resolved), ``NOTHING_TO_REFUND``.
+         *     * 422 ``DISPUTE_INVALID`` (``details.field``; ``details.refundable`` for an
+         *       amount over what is left).
+         *     * 403 ``REFUND_OVER_SUPPORT_LIMIT`` (``details.limit``).
+         *     * 422 ``REFUND_REJECTED`` (``details.razorpay_error``): Razorpay said no.
+         *     * 502 ``REFUND_GATEWAY_ERROR``: no answer. A retry is safe; it finds a
+         *       refund already made for this dispute instead of refunding twice.
+         */
+        post: operations["resolve_dispute_api_v1_admin_disputes__dispute_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/analytics/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analytics Overview */
+        get: operations["analytics_overview_api_v1_admin_analytics_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/analytics/supply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analytics Supply */
+        get: operations["analytics_supply_api_v1_admin_analytics_supply_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/support/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Support Lookup
+         * @description One search box. The input is tried as every type it fits, and each one is
+         *     searched:
+         *
+         *     * **phone**: digits with optional spaces, dashes, brackets and a +91 / 91 / 0
+         *       prefix, 10 digits after that → customers, SPs and team Pros with that
+         *       number;
+         *     * **booking_id**: a full uuid → that booking. **booking_id_suffix**: exactly
+         *       6 hex characters → bookings whose id ends with them;
+         *     * **name**: anything with a letter (not a full uuid) → SPs whose name or
+         *       business name contains every word.
+         *
+         *     "facade" is both a suffix and a name, so both run: ``interpreted_as`` lists
+         *     what was searched, and results come back grouped by kind. At most 20 per
+         *     kind; ``truncated`` names a kind that had more.
+         */
+        get: operations["support_lookup_api_v1_admin_support_lookup_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/support/customers/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Support Customer
+         * @description A customer's profile, lifetime numbers and last 10 bookings, newest first.
+         *     Deleted accounts too (``deleted_at`` set). See ``CustomerProfile`` for what
+         *     lifetime spend counts.
+         */
+        get: operations["support_customer_api_v1_admin_support_customers__user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/bookings/{booking_id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Support Notes
+         * @description Support's notes and "contacted" marks on a booking, newest first, each
+         *     with its author.
+         */
+        get: operations["list_support_notes_api_v1_admin_bookings__booking_id__notes_get"];
+        put?: never;
+        /**
+         * Add Support Note
+         * @description Add a note. Notes are append-only: there is no edit or delete. 422
+         *     ``NOTE_EMPTY`` for only whitespace. Audited as ``booking.note_add``.
+         */
+        post: operations["add_support_note_api_v1_admin_bookings__booking_id__notes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/bookings/{booking_id}/contacted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark Contacted
+         * @description Record that support contacted the customer. Text is optional. Audited as
+         *     ``booking.contacted``.
+         */
+        post: operations["mark_contacted_api_v1_admin_bookings__booking_id__contacted_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/bookings/{booking_id}/retry-dispatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Dispatch
+         * @description Offer a waiting booking to providers again: the same broadcast a new
+         *     booking gets, with a fresh offer window. No body. SPs who already declined
+         *     it aren't asked again. The customer isn't notified. Audited as
+         *     ``booking.retry_dispatch``.
+         */
+        post: operations["retry_dispatch_api_v1_admin_bookings__booking_id__retry_dispatch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/bookings/{booking_id}/eligible-pros": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Eligible Pros
+         * @description The booking's SP's active Pros, and for each whether a reassign would be
+         *     accepted (``refusal_code`` is the 409 it would get).
+         */
+        get: operations["eligible_pros_api_v1_admin_bookings__booking_id__eligible_pros_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/bookings/{booking_id}/reassign-pro": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reassign Pro
+         * @description Give an accepted booking to another Pro of the same SP, by the same rules
+         *     as the SP's own re-pick. The new team Pro is pushed, and so is the old one.
+         *     The SP and the customer are not. The same Pro again is a 200 with no
+         *     change. Audited as ``booking.reassign_pro``. Returns the admin booking
+         *     detail.
+         */
+        post: operations["reassign_pro_api_v1_admin_bookings__booking_id__reassign_pro_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/downloads/sms-link": {
         parameters: {
             query?: never;
@@ -2914,6 +3250,45 @@ export interface components {
              * @example 004217
              */
             token: string;
+        };
+        /** AcceptWeek */
+        AcceptWeek: {
+            /**
+             * Week Start
+             * Format: date
+             */
+            week_start: string;
+            /** Accepted */
+            accepted: number;
+            /** P50 Seconds */
+            p50_seconds: number | null;
+            /** P90 Seconds */
+            p90_seconds: number | null;
+        };
+        /** ActiveSupply */
+        ActiveSupply: {
+            /** Sps 7D */
+            sps_7d: number;
+            /** Sps 30D */
+            sps_30d: number;
+            /** Pros 7D */
+            pros_7d: number;
+            /** Pros 30D */
+            pros_30d: number;
+            /** Weekly */
+            weekly: components["schemas"]["ActiveWeek"][];
+        };
+        /** ActiveWeek */
+        ActiveWeek: {
+            /**
+             * Week Start
+             * Format: date
+             */
+            week_start: string;
+            /** Active Sps */
+            active_sps: number;
+            /** Active Pros */
+            active_pros: number;
         };
         /** AddressResponse */
         AddressResponse: {
@@ -3440,6 +3815,226 @@ export interface components {
             usage_limit?: number | null;
             /** Usage Limit Per User */
             usage_limit_per_user?: number | null;
+        };
+        /**
+         * AdminDisputeBookingContext
+         * @description The booking as support needs it to decide a dispute.
+         */
+        AdminDisputeBookingContext: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["BookingStatus"];
+            payment_method: components["schemas"]["PaymentMethod"] | null;
+            payment_status: components["schemas"]["PaymentStatus"];
+            settlement_status: components["schemas"]["SettlementStatus"];
+            /** Service Amount */
+            service_amount: number;
+            /** Discount Amount */
+            discount_amount: number;
+            /** Tip Amount */
+            tip_amount: number;
+            /** Scheduled At */
+            scheduled_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Cancellation Reason */
+            cancellation_reason: string | null;
+            customer: components["schemas"]["AdminDisputeParty"];
+            /** Customer Phone */
+            customer_phone: string | null;
+            provider: components["schemas"]["AdminDisputeParty"] | null;
+            professional: components["schemas"]["AdminDisputeParty"] | null;
+        };
+        /**
+         * AdminDisputeCreate
+         * @description Log a dispute on the customer's behalf. Only on a COMPLETED or CANCELLED
+         *     booking, and one open dispute per booking.
+         */
+        AdminDisputeCreate: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /**
+             * Reason Code
+             * @enum {string}
+             */
+            reason_code: "NO_SHOW" | "QUALITY" | "BILLING" | "BEHAVIOR" | "OTHER";
+            /** Description */
+            description: string;
+        };
+        /**
+         * AdminDisputeDetail
+         * @description A booking's dispute page. ``open_dispute`` is the RAISED / IN_REVIEW one,
+         *     if any; ``disputes`` is every dispute on the booking, newest first.
+         */
+        AdminDisputeDetail: {
+            booking: components["schemas"]["AdminDisputeBookingContext"];
+            refunds: components["schemas"]["AdminDisputeRefunds"];
+            open_dispute: components["schemas"]["AdminDisputeRow"] | null;
+            /** Disputes */
+            disputes: components["schemas"]["AdminDisputeRow"][];
+        };
+        /** AdminDisputeListResponse */
+        AdminDisputeListResponse: {
+            /** Items */
+            items: components["schemas"]["AdminDisputeRow"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+        };
+        /** AdminDisputeParty */
+        AdminDisputeParty: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string | null;
+        };
+        /**
+         * AdminDisputeRefunds
+         * @description What has been, and can still be, refunded on the booking.
+         *
+         *     ``captured`` is what the customer paid for the service (service − discount;
+         *     the tip is never refundable), 0 when nothing was paid. ``cancel_refund`` is
+         *     the cancel-time refund (``payments.refund_*``), counted whatever its state.
+         *     ``dispute_refunds`` sums earlier dispute refunds, a failed Razorpay one left
+         *     out. ``refundable`` = captured − both, never below 0. ``channel`` is how a
+         *     refund here would be paid: RAZORPAY (online), MANUAL (cash) or null
+         *     (nothing was paid).
+         */
+        AdminDisputeRefunds: {
+            /** Channel */
+            channel: ("RAZORPAY" | "MANUAL") | null;
+            /** Captured */
+            captured: number;
+            /** Cancel Refund */
+            cancel_refund: number;
+            /** Cancel Refund Id */
+            cancel_refund_id: string | null;
+            /** Cancel Refunded At */
+            cancel_refunded_at: string | null;
+            /** Dispute Refunds */
+            dispute_refunds: number;
+            /** Refundable */
+            refundable: number;
+            /** Support Refund Limit */
+            support_refund_limit: number;
+        };
+        /**
+         * AdminDisputeResolve
+         * @description Settle a RAISED or IN_REVIEW dispute.
+         *
+         *     * ``FULL_REFUND``: everything still refundable. ``refund_amount`` may be left
+         *       out; if sent it must equal the refundable amount.
+         *     * ``PARTIAL_REFUND``: ``refund_amount`` is required, > 0 and ≤ refundable.
+         *     * ``NO_REFUND``: no ``refund_amount``.
+         *
+         *     ``notes`` is required: the decision, and for a cash booking how the money was
+         *     paid back.
+         */
+        AdminDisputeResolve: {
+            /**
+             * Resolution Type
+             * @enum {string}
+             */
+            resolution_type: "FULL_REFUND" | "PARTIAL_REFUND" | "NO_REFUND";
+            /** Refund Amount */
+            refund_amount?: number | string | null;
+            /** Notes */
+            notes: string;
+        };
+        /**
+         * AdminDisputeRow
+         * @description One dispute.
+         *
+         *     ``refund_channel`` RAZORPAY: refunded on the booking's Razorpay payment, and
+         *     ``refund_status`` tracks the webhook (PENDING → PROCESSED, or FAILED with
+         *     ``refund_failed_reason``). MANUAL: a cash booking refunded outside the app;
+         *     the amount is a record only and ``refund_status`` is null.
+         */
+        AdminDisputeRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            booking_status: components["schemas"]["BookingStatus"];
+            payment_method: components["schemas"]["PaymentMethod"] | null;
+            /**
+             * Reason Code
+             * @enum {string}
+             */
+            reason_code: "NO_SHOW" | "QUALITY" | "BILLING" | "BEHAVIOR" | "OTHER";
+            /** Description */
+            description: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "RAISED" | "IN_REVIEW" | "RESOLVED" | "CLOSED";
+            /** Resolution Type */
+            resolution_type: ("FULL_REFUND" | "PARTIAL_REFUND" | "NO_REFUND") | null;
+            /** Refund Amount */
+            refund_amount: number | null;
+            /** Refund Channel */
+            refund_channel: ("RAZORPAY" | "MANUAL") | null;
+            /** Refund Status */
+            refund_status: ("PENDING" | "PROCESSED" | "FAILED") | null;
+            /** Refund Failed Reason */
+            refund_failed_reason: string | null;
+            /** Razorpay Refund Id */
+            razorpay_refund_id: string | null;
+            /** Resolution Notes */
+            resolution_notes: string | null;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** Customer Name */
+            customer_name: string | null;
+            /** Customer Phone */
+            customer_phone: string | null;
+            /** Created By */
+            created_by: string | null;
+            /** Created By Name */
+            created_by_name: string | null;
+            /** Resolved By */
+            resolved_by: string | null;
+            /** Resolved By Name */
+            resolved_by_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Resolved At */
+            resolved_at: string | null;
+            /** Closed At */
+            closed_at: string | null;
         };
         /**
          * AdminInviteRow
@@ -4257,10 +4852,56 @@ export interface components {
              */
             created_at: string;
         };
+        /** BookingsDay */
+        BookingsDay: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Requested */
+            requested: number;
+            /** Accepted */
+            accepted: number;
+            /** En Route */
+            en_route: number;
+            /** In Progress */
+            in_progress: number;
+            /** Completed */
+            completed: number;
+            /** Cancelled */
+            cancelled: number;
+            /** Expired */
+            expired: number;
+            /** Refunded */
+            refunded: number;
+        };
         /** CancelBookingRequest */
         CancelBookingRequest: {
             /** Reason */
             reason: string;
+        };
+        /** CategoryPrices */
+        CategoryPrices: {
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Name */
+            name: string;
+            /** Count */
+            count: number;
+            /** Min */
+            min: number;
+            /** P25 */
+            p25: number;
+            /** Median */
+            median: number;
+            /** P75 */
+            p75: number;
+            /** Max */
+            max: number;
         };
         /**
          * CategoryPricingRow
@@ -4338,6 +4979,35 @@ export interface components {
             sort_order: number;
             /** Parent Id */
             parent_id: string | null;
+        };
+        /** ChurnMonth */
+        ChurnMonth: {
+            /** Signup Month */
+            signup_month: string;
+            /** Verified */
+            verified: number;
+            /** Churned */
+            churned: number;
+            /** Rate */
+            rate: number;
+        };
+        /** ConsumerCohort */
+        ConsumerCohort: {
+            /**
+             * Signup Week
+             * Format: date
+             */
+            signup_week: string;
+            /** Size */
+            size: number;
+            d7: components["schemas"]["RetentionCell"];
+            d30: components["schemas"]["RetentionCell"];
+            d90: components["schemas"]["RetentionCell"];
+        };
+        /** ContactedCreate */
+        ContactedCreate: {
+            /** Body */
+            body?: string | null;
         };
         /**
          * CouponResponse
@@ -4438,6 +5108,8 @@ export interface components {
              * @default 1
              */
             quantity: number;
+            /** Quoted Price */
+            quoted_price?: number | string | null;
         };
         /**
          * CreateBookingRequest
@@ -4469,6 +5141,8 @@ export interface components {
             payment_method: string;
             /** Coupon Code */
             coupon_code?: string | null;
+            /** Sp Id */
+            sp_id?: string | null;
         };
         /** CreatePaymentOrderRequest */
         CreatePaymentOrderRequest: {
@@ -4508,6 +5182,92 @@ export interface components {
              * @default 60
              */
             duration_minutes: number;
+        };
+        /** CustomerBooking */
+        CustomerBooking: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["BookingStatus"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Scheduled At */
+            scheduled_at: string | null;
+            /** Service Summary */
+            service_summary: string;
+            /** Total */
+            total: number;
+            payment_method: components["schemas"]["PaymentMethod"] | null;
+            provider: components["schemas"]["CustomerBookingProvider"] | null;
+            professional: components["schemas"]["CustomerBookingPro"] | null;
+        };
+        /** CustomerBookingPro */
+        CustomerBookingPro: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Display Name */
+            display_name: string;
+        };
+        /** CustomerBookingProvider */
+        CustomerBookingProvider: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string | null;
+            /** Business Name */
+            business_name: string | null;
+        };
+        /**
+         * CustomerProfile
+         * @description ``GET /admin/support/customers/{id}``.
+         *
+         *     ``lifetime_spend``: over COMPLETED bookings, service_amount − discount_amount
+         *     + tip_amount, minus what dispute refunds on those bookings actually paid
+         *     back (a Razorpay refund that is PROCESSED, or a cash refund recorded as
+         *     paid). Cash and online both count. Cancelled and expired bookings count 0.
+         */
+        CustomerProfile: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string | null;
+            /** Phone */
+            phone: string;
+            /** Email */
+            email: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Deleted At */
+            deleted_at: string | null;
+            /** Is Active */
+            is_active: boolean;
+            /** Address Count */
+            address_count: number;
+            /** Lifetime Bookings */
+            lifetime_bookings: number;
+            /** Completed Bookings */
+            completed_bookings: number;
+            /** Lifetime Spend */
+            lifetime_spend: number;
+            /** Recent Bookings */
+            recent_bookings: components["schemas"]["CustomerBooking"][];
         };
         /** DeactivateUserRequest */
         DeactivateUserRequest: {
@@ -4641,6 +5401,52 @@ export interface components {
             completed_count: number;
         };
         /**
+         * EligiblePro
+         * @description One of the SP's active Pros. ``refusal_code`` is what
+         *     ``POST .../reassign-pro`` would answer for them (a 409 code), or null when
+         *     they can take it. The current Pro is ``is_current`` with no refusal, and not
+         *     ``eligible``: there is nothing to change.
+         */
+        EligiblePro: {
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Phone */
+            phone: string;
+            /** Is Self */
+            is_self: boolean;
+            /** Is Online */
+            is_online: boolean;
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Is Current */
+            is_current: boolean;
+            /** Eligible */
+            eligible: boolean;
+            /** Refusal Code */
+            refusal_code: string | null;
+        };
+        /** EligibleProsResponse */
+        EligibleProsResponse: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /**
+             * Service Provider Id
+             * Format: uuid
+             */
+            service_provider_id: string;
+            /** Current Professional Id */
+            current_professional_id: string | null;
+            /** Pros */
+            pros: components["schemas"]["EligiblePro"][];
+        };
+        /**
          * ForceCancelBookingRequest
          * @description Admin-driven cancel request (SVC-299).
          *
@@ -4671,6 +5477,43 @@ export interface components {
             professional_id: string;
             /** Self Reenabled */
             self_reenabled: boolean;
+        };
+        /** GapCell */
+        GapCell: {
+            /** Pincode */
+            pincode: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** Demand */
+            demand: number;
+            /** Unmet */
+            unmet: number;
+        };
+        /** GapService */
+        GapService: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** GmvWindow */
+        GmvWindow: {
+            /** Days */
+            days: number;
+            /** Gmv */
+            gmv: number;
+            /** Completed */
+            completed: number;
+            /** Previous Gmv */
+            previous_gmv: number | null;
+            /** Change Pct */
+            change_pct: number | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -4805,6 +5648,135 @@ export interface components {
             /** Refresh Token */
             refresh_token: string;
         };
+        /** LookupBooking */
+        LookupBooking: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["BookingStatus"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Scheduled At */
+            scheduled_at: string | null;
+            /** Service Summary */
+            service_summary: string;
+            /** Consumer Name */
+            consumer_name: string | null;
+            /** Consumer Phone */
+            consumer_phone: string | null;
+            /** Provider Name */
+            provider_name: string | null;
+            /**
+             * Matched By
+             * @enum {string}
+             */
+            matched_by: "id" | "id_suffix";
+        };
+        /** LookupCustomer */
+        LookupCustomer: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string | null;
+            /** Phone */
+            phone: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Deleted */
+            deleted: boolean;
+            /** Booking Count */
+            booking_count: number;
+        };
+        /**
+         * LookupPro
+         * @description A team Pro. Nobody's Pro-for-self: that person is listed as the provider.
+         */
+        LookupPro: {
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Phone */
+            phone: string;
+            /** Is Online */
+            is_online: boolean;
+            /** Is Active */
+            is_active: boolean;
+            service_provider: components["schemas"]["LookupProOwner"];
+        };
+        /** LookupProOwner */
+        LookupProOwner: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string | null;
+            /** Business Name */
+            business_name: string | null;
+        };
+        /** LookupProvider */
+        LookupProvider: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string | null;
+            /** Business Name */
+            business_name: string | null;
+            /** Phone */
+            phone: string;
+            kyc_status: components["schemas"]["KYCStatus"];
+            /** Is Online */
+            is_online: boolean;
+            /**
+             * Matched By
+             * @enum {string}
+             */
+            matched_by: "phone" | "name";
+        };
+        /**
+         * LookupResponse
+         * @description ``GET /admin/support/lookup``. ``interpreted_as`` lists every type the
+         *     input fits, and each was searched: "facade" is both a booking id suffix and
+         *     a name. Results are grouped by kind, so the screen never has to guess.
+         *     ``truncated`` names the kinds that had more rows than the cap.
+         */
+        LookupResponse: {
+            /** Query */
+            query: string;
+            /** Interpreted As */
+            interpreted_as: ("phone" | "booking_id" | "booking_id_suffix" | "name")[];
+            /** Customers */
+            customers: components["schemas"]["LookupCustomer"][];
+            /** Providers */
+            providers: components["schemas"]["LookupProvider"][];
+            /** Pros */
+            pros: components["schemas"]["LookupPro"][];
+            /** Bookings */
+            bookings: components["schemas"]["LookupBooking"][];
+            /** Truncated */
+            truncated: ("customers" | "providers" | "pros" | "bookings")[];
+        };
         /**
          * NearbyProviderResponse
          * @description Slim response for the 'nearby providers' discovery endpoint.
@@ -4829,6 +5801,40 @@ export interface components {
             /** Distance Km */
             distance_km?: number | null;
         };
+        /** OverviewResponse */
+        OverviewResponse: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /** Gmv */
+            gmv: components["schemas"]["GmvWindow"][];
+            /** Weekly */
+            weekly: components["schemas"]["OverviewWeek"][];
+            /** Daily */
+            daily: components["schemas"]["BookingsDay"][];
+            /** Cohorts */
+            cohorts: components["schemas"]["ConsumerCohort"][];
+        };
+        /** OverviewWeek */
+        OverviewWeek: {
+            /**
+             * Week Start
+             * Format: date
+             */
+            week_start: string;
+            /** Gmv */
+            gmv: number;
+            /** Completed */
+            completed: number;
+            /** Commission */
+            commission: number;
+            /** Take Rate */
+            take_rate: number | null;
+            /** Aov */
+            aov: number | null;
+        };
         /**
          * PaymentMethod
          * @enum {string}
@@ -4848,6 +5854,11 @@ export interface components {
             /** Razorpay Key Id */
             razorpay_key_id: string;
         };
+        /**
+         * PaymentStatus
+         * @enum {string}
+         */
+        PaymentStatus: "pending" | "paid" | "refunded" | "expired" | "refund_processing" | "refund_failed";
         /**
          * PayoutBookingRow
          * @description One booking behind an SP's payout figures: the split that went into it.
@@ -5607,6 +6618,50 @@ export interface components {
              */
             interactive: boolean;
         };
+        /**
+         * RankedProvider
+         * @description One SP on the customer's "pick your SP" sheet (SVC-409).
+         *
+         *     Plain floats, never Decimal: a Decimal serialises as a JSON string. No field
+         *     has a default, so every one stays ``required`` in the OpenAPI schema.
+         */
+        RankedProvider: {
+            /**
+             * Sp Id
+             * Format: uuid
+             */
+            sp_id: string;
+            /** Name */
+            name: string | null;
+            /** Price Amount */
+            price_amount: number;
+            /** Price Unit */
+            price_unit: string;
+            /** Rating Avg */
+            rating_avg: number | null;
+            /** Rating Count */
+            rating_count: number;
+            /** Distance Km */
+            distance_km: number;
+            /** Reliability Score */
+            reliability_score: number;
+            /** Score */
+            score: number;
+            /** Why */
+            why: string[];
+            /** Is Boosted */
+            is_boosted: boolean;
+            /** Outside Recommended Range */
+            outside_recommended_range: boolean;
+        };
+        /** ReassignProRequest */
+        ReassignProRequest: {
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
+        };
         /** ReassignRequest */
         ReassignRequest: {
             /**
@@ -5693,6 +6748,42 @@ export interface components {
         RemoveProResponse: {
             /** Self Reenabled */
             self_reenabled: boolean;
+        };
+        /** RetentionCell */
+        RetentionCell: {
+            /** Matured */
+            matured: number;
+            /** Rebooked */
+            rebooked: number;
+            /** Rate */
+            rate: number | null;
+        };
+        /**
+         * RetryDispatchResponse
+         * @description ``recipients``: how many SPs the new broadcast goes to, counted when the
+         *     button was pressed: everyone eligible, minus SPs who already accepted or
+         *     declined this booking. The pushes go out in the background and delivery is
+         *     best-effort.
+         */
+        RetryDispatchResponse: {
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            status: components["schemas"]["BookingStatus"];
+            /** Recipients */
+            recipients: number;
+            /**
+             * Retried At
+             * Format: date-time
+             */
+            retried_at: string;
+            /**
+             * Offer Expires At
+             * Format: date-time
+             */
+            offer_expires_at: string;
         };
         /** ReviewListResponse */
         ReviewListResponse: {
@@ -5883,6 +6974,25 @@ export interface components {
             /** Business Image Url */
             business_image_url: string | null;
         };
+        /** ServiceProvidersResponse */
+        ServiceProvidersResponse: {
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** Service Variant Id */
+            service_variant_id: string | null;
+            /**
+             * Quoted At
+             * Format: date-time
+             */
+            quoted_at: string;
+            /** Ttl Seconds */
+            ttl_seconds: number;
+            /** Providers */
+            providers: components["schemas"]["RankedProvider"][];
+        };
         /** ServiceResponse */
         ServiceResponse: {
             /**
@@ -5992,6 +7102,22 @@ export interface components {
              */
             phone: string;
         };
+        /** SpCohort */
+        SpCohort: {
+            /**
+             * Kyc Week
+             * Format: date
+             */
+            kyc_week: string;
+            /** Size */
+            size: number;
+            /** D30 */
+            d30: number | null;
+            /** D60 */
+            d60: number | null;
+            /** D90 */
+            d90: number | null;
+        };
         /** StartBookingRequest */
         StartBookingRequest: {
             /** Otp */
@@ -6023,6 +7149,81 @@ export interface components {
             actor_name: string | null;
             /** Note */
             note: string | null;
+        };
+        /** SupplyGap */
+        SupplyGap: {
+            /** Pincodes */
+            pincodes: string[];
+            /** Services */
+            services: components["schemas"]["GapService"][];
+            /** Cells */
+            cells: components["schemas"]["GapCell"][];
+            /** Truncated */
+            truncated: boolean;
+            /** Total Pincodes */
+            total_pincodes: number;
+        };
+        /** SupplyResponse */
+        SupplyResponse: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            active: components["schemas"]["ActiveSupply"];
+            /** Sp Cohorts */
+            sp_cohorts: components["schemas"]["SpCohort"][];
+            /** Churn */
+            churn: components["schemas"]["ChurnMonth"][];
+            supply_gap: components["schemas"]["SupplyGap"];
+            /** Prices */
+            prices: components["schemas"]["CategoryPrices"][];
+            /** Time To Accept */
+            time_to_accept: components["schemas"]["AcceptWeek"][];
+        };
+        /** SupportNote */
+        SupportNote: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Booking Id
+             * Format: uuid
+             */
+            booking_id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "note" | "contacted";
+            /** Body */
+            body: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            author: components["schemas"]["SupportNoteAuthor"];
+        };
+        /** SupportNoteAuthor */
+        SupportNoteAuthor: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string | null;
+            /** Email */
+            email: string | null;
+            admin_role: components["schemas"]["AdminRole"] | null;
+        };
+        /** SupportNoteCreate */
+        SupportNoteCreate: {
+            /** Body */
+            body: string;
         };
         /** TOTPSetupRequest */
         TOTPSetupRequest: {
@@ -7716,6 +8917,42 @@ export interface operations {
             };
         };
     };
+    rank_service_providers_api_v1_services__service_id__providers_get: {
+        parameters: {
+            query: {
+                lat: number;
+                lng: number;
+                limit?: number;
+                variant_id?: string | null;
+            };
+            header?: never;
+            path: {
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceProvidersResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_bookings_api_v1_bookings__get: {
         parameters: {
             query?: {
@@ -7773,14 +9010,14 @@ export interface operations {
                     "application/json": components["schemas"]["BookingResponse"];
                 };
             };
-            /** @description A request with this Idempotency-Key is already in progress. Retry after a short backoff. */
+            /** @description A request with this Idempotency-Key is already in progress. Retry after a short backoff. Or SP_UNAVAILABLE (SVC-479): the chosen sp_id can't take this cart right now; no booking was created, so pick another SP (also when that SP has no active price for an item's variant, SVC-411). Or PRICE_CHANGED (SVC-411): the chosen SP's price for an item differs from its quoted_price; details.items lists each one with its current_price, and no booking was created. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Idempotency-Key was reused with a different request body. Generate a new key for each distinct request. */
+            /** @description Idempotency-Key was reused with a different request body. Generate a new key for each distinct request. Or, with sp_id, an item without service_variant_id or quoted_price (SVC-411). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -9383,7 +10620,7 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string | null;
-                /** @description Filter to bookings with (or without) a charged-back payment */
+                /** @description Filter to bookings that were (or were never) disputed: a charged-back payment or any customer dispute */
                 disputed?: boolean | null;
                 /** @description Created on or after this day, in IST (YYYY-MM-DD) */
                 created_from?: string | null;
@@ -9393,6 +10630,8 @@ export interface operations {
                 consumer_phone?: string | null;
                 /** @description Case-insensitive substring of the SP's name */
                 provider_name?: string | null;
+                /** @description Exactly this customer (their user id); finds a deleted account too */
+                consumer_id?: string | null;
                 /** @description Exactly this SP (its user id) */
                 provider_id?: string | null;
                 /** @description Exactly this Pro row */
@@ -10848,6 +12087,569 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AdminServiceDetail"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_disputes_api_v1_admin_disputes_get: {
+        parameters: {
+            query?: {
+                status?: ("RAISED" | "IN_REVIEW" | "RESOLVED" | "CLOSED") | null;
+                reason_code?: ("NO_SHOW" | "QUALITY" | "BILLING" | "BEHAVIOR" | "OTHER") | null;
+                /** @description created_at >= this */
+                date_from?: string | null;
+                /** @description created_at < this */
+                date_to?: string | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDisputeListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_dispute_api_v1_admin_disputes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminDisputeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDisputeRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_booking_disputes_api_v1_admin_disputes_bookings__booking_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDisputeDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_dispute_api_v1_admin_disputes__dispute_id__review_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dispute_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDisputeRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_dispute_api_v1_admin_disputes__dispute_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dispute_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminDisputeResolve"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDisputeRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_overview_api_v1_admin_analytics_overview_get: {
+        parameters: {
+            query?: {
+                /** @description Trend length in IST weeks, current week last. */
+                weeks?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_supply_api_v1_admin_analytics_supply_get: {
+        parameters: {
+            query?: {
+                /** @description Trend length in IST weeks, current week last. */
+                weeks?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupplyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    support_lookup_api_v1_admin_support_lookup_get: {
+        parameters: {
+            query: {
+                /** @description Phone, booking id or SP name */
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LookupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    support_customer_api_v1_admin_support_customers__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerProfile"];
+                };
+            };
+            /** @description USER_NOT_FOUND: no such customer */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_support_notes_api_v1_admin_bookings__booking_id__notes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportNote"][];
+                };
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_support_note_api_v1_admin_bookings__booking_id__notes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportNoteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportNote"];
+                };
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_contacted_api_v1_admin_bookings__booking_id__contacted_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ContactedCreate"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportNote"];
+                };
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_dispatch_api_v1_admin_bookings__booking_id__retry_dispatch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetryDispatchResponse"];
+                };
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description BOOKING_NOT_REQUESTED (details.status): only a booking still waiting for a provider; DISPATCH_RETRY_TOO_SOON (details.retry_after_seconds): retried in the last 30 s; NO_ELIGIBLE_PROVIDERS (details.reason, e.g. none_online): nobody to offer it to, and nothing was changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    eligible_pros_api_v1_admin_bookings__booking_id__eligible_pros_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EligibleProsResponse"];
+                };
+            };
+            /** @description No such booking */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description BOOKING_NOT_REASSIGNABLE: not ACCEPTED with a provider */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reassign_pro_api_v1_admin_bookings__booking_id__reassign_pro_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReassignProRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description No such booking; PRO_NOT_FOUND: not an active Pro of this SP */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description BOOKING_NOT_REASSIGNABLE (details.status): not ACCEPTED with a provider; or the Pro can't take it: PRO_DECLINED_THIS_BOOKING, SELF_NOT_TAKING_JOBS, PRO_KYC_INCOMPLETE, PRO_OFFLINE, PRO_BUSY */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
