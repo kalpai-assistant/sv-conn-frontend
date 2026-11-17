@@ -20,7 +20,7 @@ import { PAGE_CTA_HEIGHT_VAR } from "@/hooks/usePageCtaHeight";
 import { formatRupees } from "@/lib/currency";
 
 export function CartFab() {
-  const { totalQuantity, subtotal } = useCart();
+  const { totalQuantity, subtotal, needsProCount } = useCart();
   const location = useLocation();
 
   // An allow-list now, not a hide-list. The old one had to be kept in sync
@@ -59,7 +59,9 @@ export function CartFab() {
                   {totalQuantity} {totalQuantity === 1 ? "item" : "items"}
                 </p>
                 <p className="text-xs text-primary-foreground/85 leading-tight">
-                  {formatRupees(subtotal)}
+                  {/* SVC-417: a line without a pro has no price yet, so any
+                      total here would be wrong (all-unpriced reads as ₹0). */}
+                  {needsProCount > 0 ? "Choose a pro" : formatRupees(subtotal)}
                 </p>
               </div>
             </div>

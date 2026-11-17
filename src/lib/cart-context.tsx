@@ -31,6 +31,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./auth-context";
 import type { Service } from "./mock-data";
 import type { PrefillItem } from "@/components/home/banner-destination";
+import { applyPriceChanges, type CartPriceChange } from "./cart-pricing";
 
 // v2 (SVC-232): line items gained `variantId`. A cart persisted under v1
 // predates that field, so loading one would send no service_variant_id and
@@ -59,19 +60,42 @@ export interface CartLineItem {
   duration?: string;
   // SVC-416: the SP the customer picked on the pro-selection sheet, and the
   // price quote they picked it at. Optional on the v2 cart (no key bump):
-  // lines added before this, or through `add()`, carry none of these, and
-  // SVC-417 owns clearing such legacy lines. When set, `unitPrice` equals
-  // `quotedPrice`. The steppers (`updateQuantity`) only change `quantity`,
-  // so a line keeps its SP and quote across +/−.
+  // lines added before this, or through `add()`, carry none of these. Such a
+  // line is a "Choose a pro" line (SVC-417): it shows no price, is left out of
+  // `subtotal`, and blocks Book until a pro is picked. Nothing clears it.
+  // When set, `unitPrice` equals `quotedPrice`. The steppers
+  // (`updateQuantity`) only change `quantity`, so a line keeps its SP and
+  // quote across +/−.
   spId?: string;
   /** Null when the SP has no name; the UI shows "Service pro". */
   spName?: string | null;
   quotedPrice?: number;
-  /** ISO timestamp from the ranking response. The TTL re-check is SVC-417's. */
+  /**
+   * ISO timestamp of the quote. Informational only: nothing expires on it.
+   * The server re-checks every chosen-pro booking against the live price
+   * and answers 409 PRICE_CHANGED (SVC-417 decision 2).
+   */
   quotedAt?: string;
   /** The variant the quote was priced for, as the ranking response named it. */
   serviceVariantId?: string;
   outsideRecommendedRange?: boolean;
+}
+
+/** The quote fields a line carries once a pro is picked. */
+const QUOTE_FIELDS = [
+  "spId",
+  "spName",
+  "quotedPrice",
+  "quotedAt",
+  "serviceVariantId",
+  "outsideRecommendedRange",
+] as const;
+
+/** The same line as a "Choose a pro" line: variant and quantity kept. */
+function withoutQuote(line: CartLineItem): CartLineItem {
+  const next = { ...line };
+  for (const field of QUOTE_FIELDS) delete next[field];
+  return next;
 }
 
 /** What the pro-selection sheet hands the cart when a customer picks an SP. */
@@ -87,7 +111,13 @@ export interface CartSpQuote {
 interface CartContextValue {
   items: CartLineItem[];
   totalQuantity: number;
+  /**
+   * The lines with a pro, at their quoted price. "Choose a pro" lines are
+   * left out: they have no price yet (SVC-417).
+   */
   subtotal: number;
+  /** How many lines still need a pro. While > 0, no total is a real one. */
+  needsProCount: number;
   add: (service: Service, quantity?: number, variantId?: string) => void;
   // SVC-347: batch add used by `coupon-prefill-cart` banner taps. Resolves
   // each `serviceId` against the cached service catalogue so pricing +
@@ -105,8 +135,8 @@ interface CartContextValue {
    * changed who does it or which option, not how many. A new line starts at 1.
    *
    * `replaceOtherSps` is the "Replace cart?" answer: it also drops every line
-   * held by a different SP, in the same update. Lines with no SP stay; they
-   * are SVC-417's to clear.
+   * held by a different SP, in the same update. Lines with no SP stay, as
+   * "Choose a pro" lines.
    */
   addQuoted: (
     service: Service,
@@ -114,6 +144,13 @@ interface CartContextValue {
     quote: CartSpQuote,
     options?: { replaceOtherSps?: boolean },
   ) => void;
+  /** SVC-411: store the prices a 409 PRICE_CHANGED returned. */
+  applyPriceChanges: (changes: CartPriceChange[]) => void;
+  /**
+   * SVC-411: a 409 SP_UNAVAILABLE. That pro's lines go back to "Choose a pro";
+   * their variant and quantity stay, so the sheet reopens on the same option.
+   */
+  clearPro: (spId: string) => void;
   updateQuantity: (key: string, quantity: number) => void;
   remove: (key: string) => void;
   clear: () => void;
@@ -191,9 +228,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
           // per service (uix_booking_item_service), so this replaces the
           // choice rather than adding a second line — and re-prices the line
           // to match. Quantity is preserved: the user changed which option
-          // they want, not how many.
+          // they want, not how many. Any pro quote was for the OLD variant,
+          // so it goes too: the line becomes "Choose a pro" (SVC-417).
           next[existing] = {
-            ...line,
+            ...withoutQuote(line),
             variantId: variant?.id,
             variantLabel: variant?.label,
             unitPrice: variant?.price ?? service.price,
@@ -284,6 +322,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const applyChanges = useCallback((changes: CartPriceChange[]) => {
+    setItems((prev) => applyPriceChanges(prev, changes));
+  }, []);
+
+  const clearPro = useCallback((spId: string) => {
+    setItems((prev) => prev.map((i) => (i.spId === spId ? withoutQuote(i) : i)));
+  }, []);
+
   const updateQuantity = useCallback((serviceId: string, quantity: number) => {
     setItems((prev) => {
       if (quantity <= 0) {
@@ -303,19 +349,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<CartContextValue>(() => {
     const totalQuantity = items.reduce((n, i) => n + i.quantity, 0);
-    const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+    const subtotal = items.reduce((s, i) => (i.spId ? s + i.unitPrice * i.quantity : s), 0);
+    const needsProCount = items.filter((i) => !i.spId).length;
     return {
       items,
       totalQuantity,
       subtotal,
+      needsProCount,
       add,
       addMany,
       addQuoted,
+      applyPriceChanges: applyChanges,
+      clearPro,
       updateQuantity,
       remove,
       clear,
     };
-  }, [items, add, addMany, addQuoted, updateQuantity, remove, clear]);
+  }, [items, add, addMany, addQuoted, applyChanges, clearPro, updateQuantity, remove, clear]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

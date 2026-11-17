@@ -34,6 +34,19 @@
  * job they no longer asked for. So any change to `items` discards it and the
  * next tap books afresh. This is a money bug, not a tidiness concern.
  *
+ * The pro and the quoted price are part of that identity too (SVC-417). After
+ * "Change pro", or a re-price from a 409 PRICE_CHANGED, the held booking is
+ * for the old pro at the old price, and paying for it would be the same bug.
+ *
+ * ## Two 409s the cart answers itself (SVC-411)
+ *
+ * A chosen-pro booking can fail with 409 `PRICE_CHANGED` (the pro's price
+ * moved since the quote) or 409 `SP_UNAVAILABLE` (the pro can't take it right
+ * now). Each needs a dialog, not a toast, so they go to `onConflict`. The
+ * branch is on `ApiError.code`, never the status alone: a double tap gets a
+ * 409 with no code (the idempotency store's "still in progress"), and that one
+ * keeps the toast.
+ *
  * The cart persists in localStorage but the held booking is React state, so a
  * force-close mid-flow also drops it — the next tap books afresh, which is the
  * behaviour we want and gets it for free.
@@ -43,10 +56,61 @@ import { toast } from "sonner";
 import type { RazorpayCheckoutOptions, RazorpaySuccessResponse } from "@/types/razorpay";
 import { useCreatePaymentOrder, useVerifyPayment } from "@/hooks/useApi";
 import { useCreateBookingFromCart } from "@/hooks/useCreateBookingFromCart";
+import { ApiError } from "@/lib/api";
 import { hapticImpactLight } from "@/lib/haptics";
 import type { CartLineItem } from "@/lib/cart-context";
 
 type CreateBookingArgs = Parameters<ReturnType<typeof useCreateBookingFromCart>["mutateAsync"]>[0];
+
+/** One line of a 409 PRICE_CHANGED, as `details.items` carries it. */
+export interface PriceChangedItem {
+  serviceId: string;
+  serviceVariantId: string;
+  quotedPrice: number;
+  currentPrice: number;
+}
+
+export type BookingConflict =
+  { kind: "price-changed"; items: PriceChangedItem[] } | { kind: "sp-unavailable" };
+
+/**
+ * The conflict a booking error stands for, or null for any other error.
+ *
+ * A PRICE_CHANGED whose `details.items` doesn't parse is null too: a dialog
+ * with no lines to confirm would be worse than the backend's message in a
+ * toast.
+ */
+export function bookingConflictFrom(error: unknown): BookingConflict | null {
+  if (!(error instanceof ApiError)) return null;
+  if (error.code === "SP_UNAVAILABLE") return { kind: "sp-unavailable" };
+  if (error.code !== "PRICE_CHANGED") return null;
+  const raw = error.details?.items;
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const items: PriceChangedItem[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "object" || entry === null) return null;
+    const e = entry as Record<string, unknown>;
+    const quoted = Number(e.quoted_price);
+    const current = Number(e.current_price);
+    if (
+      typeof e.service_id !== "string" ||
+      typeof e.service_variant_id !== "string" ||
+      e.quoted_price == null ||
+      e.current_price == null ||
+      !Number.isFinite(quoted) ||
+      !Number.isFinite(current)
+    ) {
+      return null;
+    }
+    items.push({
+      serviceId: e.service_id,
+      serviceVariantId: e.service_variant_id,
+      quotedPrice: quoted,
+      currentPrice: current,
+    });
+  }
+  return { kind: "price-changed", items };
+}
 
 interface BookAndPayArgs {
   /** Everything `createBooking` needs, minus the idempotency key. */
@@ -57,12 +121,20 @@ interface BookAndPayArgs {
   items: CartLineItem[];
   /** Paid, or a cash booking created. Navigate and clear the cart here. */
   onComplete: (bookingId: string) => void;
+  /** A 409 PRICE_CHANGED / SP_UNAVAILABLE. Without it, those toast too. */
+  onConflict?: (conflict: BookingConflict) => void;
 }
 
-/** Stable identity for a cart, so a change to it can be detected. */
-function cartSignature(items: CartLineItem[]): string {
+/**
+ * Stable identity for a cart, so a change to it can be detected. Includes the
+ * pro and the quoted price: a held booking is for one pro at one price.
+ */
+export function cartSignature(items: CartLineItem[]): string {
   return items
-    .map((i) => `${i.serviceId}:${i.variantId ?? ""}:${i.quantity}`)
+    .map(
+      (i) =>
+        `${i.serviceId}:${i.variantId ?? ""}:${i.quantity}:${i.spId ?? ""}:${i.quotedPrice ?? ""}`,
+    )
     .sort()
     .join("|");
 }
@@ -80,7 +152,7 @@ export function useBookAndPay() {
   const heldBooking = useRef<{ id: string; cart: string } | null>(null);
 
   const bookAndPay = useCallback(
-    async ({ booking, isOnline, items, onComplete }: BookAndPayArgs) => {
+    async ({ booking, isOnline, items, onComplete, onConflict }: BookAndPayArgs) => {
       if (isBusy) return;
       setIsBusy(true);
       try {
@@ -197,6 +269,13 @@ export function useBookAndPay() {
         };
         new window.Razorpay(options).open();
       } catch (e) {
+        const conflict = onConflict ? bookingConflictFrom(e) : null;
+        if (conflict && onConflict) {
+          // No booking was written (the backend checks before inserting), so
+          // there is nothing to hold. The cart's dialog takes it from here.
+          onConflict(conflict);
+          return;
+        }
         const msg = e instanceof Error ? e.message : "Something went wrong. Please try again.";
         toast.error(msg);
       } finally {

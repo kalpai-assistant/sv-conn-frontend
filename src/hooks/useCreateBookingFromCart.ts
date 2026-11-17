@@ -24,8 +24,26 @@ type BookingResponseLike = components["schemas"]["BookingResponse"] & {
   tip_amount?: number;
 };
 
+type ApiBookingRequest = components["schemas"]["CreateBookingRequest"];
+type ApiBookingItem = components["schemas"]["CreateBookingItemRequest"];
+
+/**
+ * One cart line on the wire. SVC-411: with `sp_id`, every item must carry
+ * `service_variant_id` and `quoted_price` (the unit price the customer was
+ * quoted), else the backend answers 422. No `quoted_at` or `price_unit`: the
+ * backend takes neither.
+ */
+export interface CreateCartBookingItem {
+  service_id: ApiBookingItem["service_id"];
+  quantity: ApiBookingItem["quantity"];
+  service_variant_id?: NonNullable<ApiBookingItem["service_variant_id"]>;
+  quoted_price?: Extract<NonNullable<ApiBookingItem["quoted_price"]>, number>;
+}
+
 export interface CreateCartBookingRequest {
-  items: Array<{ service_id: string; quantity: number }>;
+  items: CreateCartBookingItem[];
+  /** SVC-479/411: the one pro the customer picked for the whole booking. */
+  sp_id?: NonNullable<ApiBookingRequest["sp_id"]>;
   address_id: string;
   scheduled_at: string | null;
   payment_method: "online" | "cash";

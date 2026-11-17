@@ -91,14 +91,13 @@ describe("prepareRebook — ok paths", () => {
     expect(outcome.kind).toBe("ok");
     if (outcome.kind !== "ok") return;
     expect(outcome.items).toEqual([{ serviceId: "svc-1", variantId: "v-std", quantity: 2 }]);
-    expect(outcome.pricingChanged).toBe(false);
     expect(outcome.address).toEqual({ id: "addr-1", fellBack: false });
     expect(outcome.skipped).toEqual([]);
   });
 
-  it("flags pricing changed when the catalogue total differs from the historical total", () => {
-    // Caller toasts "Pricing updated" — the ticket's SVC-393 pitfall. We
-    // don't silently reprice the user's historical bill, we tell them.
+  it("carries no price verdict: the lines land as 'Choose a pro' (SVC-417)", () => {
+    // The old "Pricing updated" toast compared the booking total with the
+    // catalogue, which is wrong under marketplace pricing almost every time.
     const service = makeService({ price: 650 });
     const booking = makeBooking({ serviceAmount: 500 });
 
@@ -110,8 +109,7 @@ describe("prepareRebook — ok paths", () => {
     });
 
     expect(outcome.kind).toBe("ok");
-    if (outcome.kind !== "ok") return;
-    expect(outcome.pricingChanged).toBe(true);
+    expect(outcome).not.toHaveProperty("pricingChanged");
   });
 
   it("falls back to the default address and flags it when the historical address is gone", () => {

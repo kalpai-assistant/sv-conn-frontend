@@ -1,8 +1,8 @@
 /**
  * SVC-393: "Book again" lives on COMPLETED past bookings. The CTA must
  * (1) only render for those rows, (2) hand the rebook outcome to the cart,
- * (3) surface the right side-effects (toast on deprecated / in-flight /
- * pricing changed, sticky-row signal when the address falls back, cart
+ * (3) surface the right side-effects (toast on deprecated / in-flight,
+ * sticky-row signal when the address falls back, cart
  * navigation on success).
  *
  * Pure logic lives in `rebook.test.ts`; this file wires the button to the
@@ -191,10 +191,9 @@ describe("Book again CTA", () => {
     expect(getRebookAddressConfirm("u-1")).toBe("home");
   });
 
-  it("toasts 'Pricing updated' when the catalogue total differs from the historical total", async () => {
-    // Caller surfaces the pricing shift — users who paid ₹500 last time and
-    // see ₹650 on checkout get an honest heads-up, not surprise at the pay
-    // sheet.
+  it("adds the lines with no 'Pricing updated' toast, even when the catalogue moved (SVC-417)", async () => {
+    // Book again's lines land as "Choose a pro"; the real price appears when
+    // the customer picks one, so a catalogue comparison would only mislead.
     services.mockReturnValue([{ ...SERVICE, price: 650 }]);
     bookings.mockReturnValue([completedBooking()]);
     render(<BookingsPage />);
@@ -202,9 +201,11 @@ describe("Book again CTA", () => {
     await userEvent.click(screen.getByRole("button", { name: /^past$/i }));
     await userEvent.click(screen.getByRole("button", { name: /book .* again/i }));
 
-    expect(toastSpies.toast.message).toHaveBeenCalledWith(
+    expect(addMany).toHaveBeenCalledOnce();
+    expect(toastSpies.toast.message).not.toHaveBeenCalledWith(
       expect.stringMatching(/pricing updated/i),
     );
+    expect(navigate).toHaveBeenCalledWith({ to: "/cart" });
   });
 
   it("shows a 'no longer available' toast with Browse similar when the service is gone", async () => {

@@ -39,7 +39,8 @@ vi.mock("sonner", () => ({
   }),
 }));
 
-import { useBookAndPay } from "@/hooks/useBookAndPay";
+import { bookingConflictFrom, cartSignature, useBookAndPay } from "@/hooks/useBookAndPay";
+import { ApiError } from "@/lib/api";
 
 /** Captures the options Razorpay was opened with, so the modal can be driven. */
 let lastOptions: {
@@ -340,5 +341,132 @@ describe("failures", () => {
       "booking-1",
     );
     expect(toastError).toHaveBeenCalled();
+  });
+});
+
+describe("SVC-417: the held booking is for one pro at one price", () => {
+  const proLine = (over: Record<string, unknown> = {}) =>
+    [
+      {
+        serviceId: "svc-a",
+        variantId: "v1",
+        quantity: 1,
+        name: "x",
+        unitPrice: 450,
+        spId: "sp-a",
+        quotedPrice: 450,
+        serviceVariantId: "v1",
+        ...over,
+      },
+    ] as never;
+
+  it("the signature changes when the pro or the quoted price changes", () => {
+    const base = cartSignature(proLine());
+    expect(cartSignature(proLine({ spId: "sp-b" }))).not.toBe(base);
+    expect(cartSignature(proLine({ quotedPrice: 520, unitPrice: 520 }))).not.toBe(base);
+    // quotedAt is informational: a new timestamp alone is the same cart.
+    expect(cartSignature(proLine({ quotedAt: "2026-11-17T12:00:00Z" }))).toBe(base);
+  });
+
+  it("after 'Change pro', a retry books afresh instead of paying the old booking", async () => {
+    const { result } = renderHook(() => useBookAndPay());
+    await act(async () => {
+      await result.current.bookAndPay(args({ items: proLine() }));
+    });
+    act(() => lastOptions!.modal.ondismiss());
+
+    createBooking.mockResolvedValue({ id: "booking-2" });
+    await act(async () => {
+      await result.current.bookAndPay(args({ items: proLine({ spId: "sp-b" }) }));
+    });
+
+    expect(createBooking).toHaveBeenCalledTimes(2);
+    expect(createPaymentOrder).toHaveBeenLastCalledWith(
+      expect.objectContaining({ bookingId: "booking-2" }),
+    );
+  });
+});
+
+describe("SVC-411: the 409s the cart answers with a dialog", () => {
+  const priceChanged = () =>
+    new ApiError(409, "This professional's price has changed.", undefined, "PRICE_CHANGED", {
+      items: [
+        {
+          service_id: "svc-a",
+          service_variant_id: "v1",
+          quoted_price: 450,
+          current_price: 520,
+        },
+      ],
+    });
+
+  it("PRICE_CHANGED goes to onConflict with the parsed lines, and no toast", async () => {
+    createBooking.mockRejectedValue(priceChanged());
+    const onConflict = vi.fn();
+    const { result } = renderHook(() => useBookAndPay());
+
+    await act(async () => {
+      await result.current.bookAndPay(args({ onConflict }));
+    });
+
+    expect(onConflict).toHaveBeenCalledWith({
+      kind: "price-changed",
+      items: [{ serviceId: "svc-a", serviceVariantId: "v1", quotedPrice: 450, currentPrice: 520 }],
+    });
+    expect(toastError).not.toHaveBeenCalled();
+    expect(createPaymentOrder).not.toHaveBeenCalled();
+  });
+
+  it("SP_UNAVAILABLE goes to onConflict, and no toast", async () => {
+    createBooking.mockRejectedValue(
+      new ApiError(409, "This professional can't take your booking", undefined, "SP_UNAVAILABLE"),
+    );
+    const onConflict = vi.fn();
+    const { result } = renderHook(() => useBookAndPay());
+
+    await act(async () => {
+      await result.current.bookAndPay(args({ onConflict }));
+    });
+
+    expect(onConflict).toHaveBeenCalledWith({ kind: "sp-unavailable" });
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it("a 409 with no code (idempotency in progress) keeps the toast", async () => {
+    createBooking.mockRejectedValue(
+      new ApiError(409, "A request with this Idempotency-Key is already in progress."),
+    );
+    const onConflict = vi.fn();
+    const { result } = renderHook(() => useBookAndPay());
+
+    await act(async () => {
+      await result.current.bookAndPay(args({ onConflict }));
+    });
+
+    expect(onConflict).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith(
+      "A request with this Idempotency-Key is already in progress.",
+    );
+  });
+
+  it("a PRICE_CHANGED whose details don't parse falls back to the toast", async () => {
+    createBooking.mockRejectedValue(
+      new ApiError(409, "Price changed", undefined, "PRICE_CHANGED", { items: [{ nope: 1 }] }),
+    );
+    const onConflict = vi.fn();
+    const { result } = renderHook(() => useBookAndPay());
+
+    await act(async () => {
+      await result.current.bookAndPay(args({ onConflict }));
+    });
+
+    expect(onConflict).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith("Price changed");
+  });
+
+  it("bookingConflictFrom ignores non-API errors and other codes", () => {
+    expect(bookingConflictFrom(new Error("x"))).toBeNull();
+    expect(bookingConflictFrom(new ApiError(409, "x", undefined, "OTHER"))).toBeNull();
+    expect(bookingConflictFrom(priceChanged())).toMatchObject({ kind: "price-changed" });
   });
 });

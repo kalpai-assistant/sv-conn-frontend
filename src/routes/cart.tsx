@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-r
 import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import {
+  AlertTriangle,
   ArrowLeft,
   MapPin,
   Clock,
@@ -19,11 +20,27 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/EmptyState";
 import { CartEmptyIllustration } from "@/components/EmptyStateIllustrations";
 import { Celebration } from "@/components/Celebration";
-import { useCart } from "@/lib/cart-context";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { OUT_OF_RANGE_WARNING } from "@/components/service/ProSelectionSheet";
+import { useCart, type CartLineItem } from "@/lib/cart-context";
+import { applyPriceChanges } from "@/lib/cart-pricing";
+import { useProSelection } from "@/lib/pro-selection-context";
+import { proDisplayName } from "@/lib/pro-selection";
+import type { Service } from "@/lib/mock-data";
+import { useServices } from "@/hooks/useApi";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { useAuth } from "@/lib/auth-context";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
-import { useBookAndPay } from "@/hooks/useBookAndPay";
+import { useBookAndPay, type PriceChangedItem } from "@/hooks/useBookAndPay";
 import { SavedAddressesSheet } from "@/components/SavedAddressesSheet";
 import { SlotPickerSheet } from "@/components/cart/SlotPickerSheet";
 import { CouponsSheet } from "@/components/cart/CouponsSheet";
@@ -78,10 +95,49 @@ function CartHeader({ name }: { name?: string | null }) {
   );
 }
 
+export const CHOOSE_PRO_FOR_EACH = "Choose a pro for each service";
+export const REMOVE_UNAVAILABLE = "Remove unavailable services to continue";
+
+/**
+ * Where a line's "Choose a pro" / "Change pro" opens the sheet, if anywhere.
+ * The variant is the line's, or the service's first, as `cart.add()` picks.
+ * `null` while the catalogue is unknown; "gone" once it is known and the
+ * service (or every variant of it) is not in it.
+ */
+type ProTarget = { service: Service; variantId: string } | "gone" | null;
+
+function proTargetFor(line: CartLineItem, catalogue: Map<string, Service> | null): ProTarget {
+  if (!catalogue) return null;
+  const service = catalogue.get(line.serviceId);
+  const variant = service?.variants.find((v) => v.id === line.variantId) ?? service?.variants[0];
+  return service && variant ? { service, variantId: variant.id } : "gone";
+}
+
+/** A 409 the cart answers with a dialog (SVC-411), with the pro it was for. */
+type CartConflict =
+  | { kind: "price-changed"; spId: string; items: PriceChangedItem[] }
+  | { kind: "sp-unavailable"; spId: string };
+
 export function CartPage() {
   const navigate = useNavigate();
   const { coupon: couponFromUrl } = useSearch({ from: Route.fullPath });
-  const { items, subtotal, updateQuantity, remove, clear } = useCart();
+  const {
+    items,
+    needsProCount,
+    updateQuantity,
+    remove,
+    clear,
+    applyPriceChanges: storePriceChanges,
+    clearPro,
+  } = useCart();
+  const { openProSelection } = useProSelection();
+  // SVC-417: the Service a "Choose a pro" line opens the sheet with. The same
+  // ["services", undefined] cache entry `addMany` reads.
+  const { data: catalogueList } = useServices();
+  const catalogue = useMemo(
+    () => (catalogueList ? new Map(catalogueList.map((s) => [s.id, s])) : null),
+    [catalogueList],
+  );
   // Only for the header avatar's initials.
   const { user } = useAuth();
   const userId = user?.id;
@@ -195,13 +251,37 @@ export function CartPage() {
     }
   }, [items.length, pendingCouponCode]);
 
+  // SVC-417: lines whose service left the catalogue. The backend refuses an
+  // inactive or unknown service (400), with a pro or without, so they can
+  // only be removed, and Book waits until they are.
+  const unavailableIds = new Set(
+    items.filter((i) => proTargetFor(i, catalogue) === "gone").map((i) => i.serviceId),
+  );
+  // The cart's subtotal (lines with a pro) minus any of those: they won't be
+  // booked, so they're not in the bill, and not what a coupon is checked on.
+  const subtotal = items.reduce(
+    (sum, i) => (i.spId && !unavailableIds.has(i.serviceId) ? sum + i.unitPrice * i.quantity : sum),
+    0,
+  );
+
   const bill = useMemo(() => {
     const discount = coupon ? Math.min(coupon.discount, subtotal) : 0;
     const total = Math.max(0, subtotal - discount);
     return { discount, total };
   }, [subtotal, coupon]);
 
-  const canBook = items.length > 0 && !!selectedAddress && !isBusy;
+  // SVC-417: one booking goes to one pro, at the price they quoted. Book
+  // waits until every line has a pro, all the same one.
+  const cartSpIds = new Set(items.map((i) => i.spId).filter(Boolean));
+  const everyLineHasThePro = items.length > 0 && needsProCount === 0 && cartSpIds.size === 1;
+  const canBook = everyLineHasThePro && unavailableIds.size === 0 && !!selectedAddress && !isBusy;
+
+  const [conflict, setConflict] = useState<CartConflict | null>(null);
+
+  const openSheetFor = (line: CartLineItem) => {
+    const target = proTargetFor(line, catalogue);
+    if (target && target !== "gone") openProSelection(target.service, target.variantId);
+  };
 
   // SVC-390: celebration overlay bridges the gap between "payment succeeded"
   // and "tracking page loads". The cart isn't cleared and nav isn't fired
@@ -210,9 +290,20 @@ export function CartPage() {
   // from, same as before.
   const [celebratingBookingId, setCelebratingBookingId] = useState<string | null>(null);
 
-  const handleBookAndPay = async () => {
+  // Takes the lines rather than reading `items`, so the "Price updated"
+  // Confirm can book the repriced lines in the same tap that stores them.
+  const book = async (lines: CartLineItem[]) => {
     if (!selectedAddress) {
       toast.error("Add an address first.");
+      return;
+    }
+    // canBook already holds this; re-checked because `lines` may not be the
+    // rendered `items`, and a line without its quote would be a 422.
+    const spId = lines[0]?.spId;
+    if (
+      !spId ||
+      lines.some((l) => l.spId !== spId || !l.serviceVariantId || l.quotedPrice == null)
+    ) {
       return;
     }
     // SVC-259: the whole booking-and-pay intent is one tap now. Checkout opens
@@ -220,13 +311,14 @@ export function CartPage() {
     // with a Pay Now button they have to go looking for.
     await bookAndPay({
       booking: {
-        // service_variant_id is what the booking is actually priced against.
-        // Omitted only for a service the catalogue hasn't given variants —
-        // the backend then falls back as it always did.
-        items: items.map((i) => ({
+        // SVC-411: the chosen pro once, and per line the variant and unit
+        // price they quoted. The backend books at that price or answers 409.
+        sp_id: spId,
+        items: lines.map((i) => ({
           service_id: i.serviceId,
           quantity: i.quantity,
-          ...(i.variantId ? { service_variant_id: i.variantId } : {}),
+          service_variant_id: i.serviceVariantId,
+          quoted_price: i.quotedPrice,
         })),
         address_id: selectedAddress.id,
         scheduled_at: scheduledAt ? scheduledAt.toISOString() : null,
@@ -234,7 +326,9 @@ export function CartPage() {
         coupon_code: coupon?.code,
       },
       isOnline: paymentMethod === "online",
-      items,
+      items: lines,
+      onConflict: (c) =>
+        setConflict(c.kind === "price-changed" ? { ...c, spId } : { kind: c.kind, spId }),
       // Only once the money is in (or the booking is cash) — a dismissed
       // checkout must leave the cart intact to retry from.
       onComplete: (bookingId) => {
@@ -255,6 +349,29 @@ export function CartPage() {
         setCelebratingBookingId(bookingId);
       },
     });
+  };
+
+  const handleBookAndPay = () => book(items);
+
+  // SVC-411 "Price updated" -> Confirm: store the pro's live prices and book
+  // again at them. The new tap mints a new idempotency key, as any tap does.
+  const confirmPriceChange = (changed: PriceChangedItem[]) => {
+    const changes = changed.map((c) => ({
+      serviceVariantId: c.serviceVariantId,
+      currentPrice: c.currentPrice,
+    }));
+    storePriceChanges(changes);
+    setConflict(null);
+    void book(applyPriceChanges(items, changes));
+  };
+
+  // SVC-411 SP_UNAVAILABLE: that pro's lines go back to "Choose a pro", and
+  // the sheet opens for the first of them.
+  const repickPro = (spId: string) => {
+    const first = items.find((i) => i.spId === spId);
+    clearPro(spId);
+    setConflict(null);
+    if (first) openSheetFor(first);
   };
 
   const handleCelebrationComplete = () => {
@@ -353,63 +470,16 @@ export function CartPage() {
       <section className="px-4 pt-4">
         <h2 className="pb-3 text-sm font-semibold text-foreground">Services ({items.length})</h2>
         <ul className="flex flex-col gap-3">
-          {items.map((item) => {
-            // Keyed on serviceId: a booking can hold only one row per service
-            // (uix_booking_item_service), so the variant lives ON the line
-            // rather than making a second one.
-            // Name the control by variant too, so the label reads
-            // "Remove Vehicle wash SUV" rather than being ambiguous.
-            const itemLabel = item.variantLabel ? `${item.name} ${item.variantLabel}` : item.name;
-            return (
-              <li
-                key={item.serviceId}
-                className="flex items-start gap-3 rounded-xl border border-border bg-card p-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-foreground">{item.name}</p>
-                  {item.variantLabel && (
-                    <p className="mt-0.5 text-xs font-medium text-muted-foreground">
-                      {item.variantLabel}
-                    </p>
-                  )}
-                  {item.duration && (
-                    <p className="text-xs text-muted-foreground">{item.duration}</p>
-                  )}
-                  <p className="mt-1 text-sm font-bold text-primary">
-                    {formatRupees(item.unitPrice * item.quantity)}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <button
-                    onClick={() => remove(item.serviceId)}
-                    aria-label={`Remove ${itemLabel}`}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                  <div className="flex items-center gap-2 rounded-full border border-border">
-                    <button
-                      onClick={() => updateQuantity(item.serviceId, item.quantity - 1)}
-                      aria-label={`Decrease ${itemLabel} quantity`}
-                      className="flex h-7 w-7 items-center justify-center text-foreground"
-                    >
-                      <Minus className="h-3.5 w-3.5" />
-                    </button>
-                    <span className="min-w-4 text-center text-sm font-semibold">
-                      {item.quantity}
-                    </span>
-                    <button
-                      onClick={() => updateQuantity(item.serviceId, item.quantity + 1)}
-                      aria-label={`Increase ${itemLabel} quantity`}
-                      className="flex h-7 w-7 items-center justify-center text-foreground"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
+          {items.map((item) => (
+            <CartLine
+              key={item.serviceId}
+              item={item}
+              target={proTargetFor(item, catalogue)}
+              onChoosePro={() => openSheetFor(item)}
+              onRemove={() => remove(item.serviceId)}
+              onQuantity={(q) => updateQuantity(item.serviceId, q)}
+            />
+          ))}
         </ul>
       </section>
 
@@ -471,11 +541,21 @@ export function CartPage() {
         chip that reveals the lines on tap. Shape is identical: Service
         subtotal / Discount (if applied) / GST / Convenience fee / Total.
       */}
-      <PricingBreakdown
-        subtotal={subtotal}
-        discount={bill.discount}
-        couponCode={coupon?.code ?? null}
-      />
+      {/* SVC-417: no total while a line has no price, or can't be booked. A
+          subtotal of only the other lines would read as the bill. */}
+      {unavailableIds.size > 0 || needsProCount > 0 ? (
+        <p className="mx-4 mt-4 rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
+          {unavailableIds.size > 0
+            ? "Remove unavailable services to see your total."
+            : "Choose a pro for each service to see your total."}
+        </p>
+      ) : (
+        <PricingBreakdown
+          subtotal={subtotal}
+          discount={bill.discount}
+          couponCode={coupon?.code ?? null}
+        />
+      )}
 
       {/* Cancellation policy notice */}
       <p className="mx-4 mt-4 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">
@@ -485,14 +565,6 @@ export function CartPage() {
         </Link>
         .
       </p>
-
-      {/* Multi-service note. Honest about matching-policy (i). */}
-      {items.length > 1 && (
-        <p className="mx-4 mt-3 rounded-xl bg-accent/50 p-3 text-xs text-muted-foreground">
-          We'll look for a pro who can do all {items.length} services. If none is available for the
-          combination, we'll suggest booking them separately.
-        </p>
-      )}
 
       {/* Sticky Book & Pay */}
       {/*
@@ -515,6 +587,10 @@ export function CartPage() {
         >
           {isBusy ? (
             <Loader2 className="h-5 w-5 animate-spin" />
+          ) : unavailableIds.size > 0 ? (
+            REMOVE_UNAVAILABLE
+          ) : !everyLineHasThePro ? (
+            CHOOSE_PRO_FOR_EACH
           ) : (
             `Book${paymentMethod === "online" ? " & Pay" : ""} · ${formatRupees(bill.total)}`
           )}
@@ -570,9 +646,207 @@ export function CartPage() {
         )}
       </AnimatePresence>
 
+      {/* SVC-411: 409 PRICE_CHANGED. Cancel leaves the cart as it was. */}
+      <AlertDialog
+        open={conflict?.kind === "price-changed"}
+        onOpenChange={(open) => {
+          if (!open) setConflict(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Price updated</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your pro's price changed since you picked them. Book at the new price?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {conflict?.kind === "price-changed" && (
+            <ul aria-label="Changed prices" className="flex flex-col gap-2">
+              {conflict.items.map((c) => (
+                <li
+                  key={c.serviceVariantId}
+                  className="flex items-baseline justify-between gap-3 text-sm"
+                >
+                  <span className="min-w-0 text-foreground">{changedLineName(items, c)}</span>
+                  <span className="shrink-0 font-semibold text-foreground">
+                    <span className="text-muted-foreground line-through">
+                      {formatRupees(c.quotedPrice)}
+                    </span>
+                    {" → "}
+                    {formatRupees(c.currentPrice)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (conflict?.kind === "price-changed") confirmPriceChange(conflict.items);
+              }}
+            >
+              Book at new price
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* SVC-411: 409 SP_UNAVAILABLE. The pro went offline, left the area, or
+          switched the price off between the pick and the tap. */}
+      <AlertDialog
+        open={conflict?.kind === "sp-unavailable"}
+        onOpenChange={(open) => {
+          if (!open) setConflict(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>This pro can't take your booking right now</AlertDialogTitle>
+            <AlertDialogDescription>
+              Pick another pro for your services. Your cart stays as it is.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => {
+                if (conflict) repickPro(conflict.spId);
+              }}
+            >
+              Choose another pro
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* SVC-390: celebration overlay bridges payment success and tracking. */}
       {celebratingBookingId && <Celebration onComplete={handleCelebrationComplete} />}
     </div>
+  );
+}
+
+/** "Deep cleaning · 2 BHK" for a PRICE_CHANGED line, matched by variant. */
+function changedLineName(items: CartLineItem[], c: PriceChangedItem): string {
+  const line =
+    items.find((i) => i.serviceVariantId === c.serviceVariantId) ??
+    items.find((i) => i.serviceId === c.serviceId);
+  if (!line) return "A service";
+  return line.variantLabel ? `${line.name} · ${line.variantLabel}` : line.name;
+}
+
+/**
+ * One cart line (SVC-417).
+ *
+ * With a pro: who does it, the line total at their quoted price, the
+ * out-of-range note the sheet showed, and "Change pro".
+ *
+ * Without one ("Book again", an old cart, a variant change): "Choose a pro"
+ * where the price would be.
+ *
+ * A service the catalogue no longer has shows "No longer available" and can
+ * only be removed, pro or not: the backend refuses an inactive service.
+ *
+ * Keyed on serviceId by the caller: a booking can hold only one row per
+ * service (uix_booking_item_service), so the variant lives ON the line.
+ */
+function CartLine({
+  item,
+  target,
+  onChoosePro,
+  onRemove,
+  onQuantity,
+}: {
+  item: CartLineItem;
+  target: ProTarget;
+  onChoosePro: () => void;
+  onRemove: () => void;
+  onQuantity: (quantity: number) => void;
+}) {
+  // Name the controls by variant too, so the label reads "Remove Vehicle
+  // wash SUV" rather than being ambiguous.
+  const itemLabel = item.variantLabel ? `${item.name} ${item.variantLabel}` : item.name;
+  const hasPro = !!item.spId;
+  const gone = target === "gone";
+  const showPro = hasPro && !gone;
+  const subtitle = [item.variantLabel, showPro ? proDisplayName(item.spName ?? null) : null]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <li className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-foreground">{item.name}</p>
+          {subtitle && (
+            <p className="mt-0.5 text-xs font-medium text-muted-foreground">{subtitle}</p>
+          )}
+          {item.duration && <p className="text-xs text-muted-foreground">{item.duration}</p>}
+          {gone ? (
+            <p className="mt-1 text-sm font-semibold text-destructive">No longer available</p>
+          ) : hasPro ? (
+            <p className="mt-1 text-sm font-bold text-primary">
+              {formatRupees(item.unitPrice * item.quantity)}
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={onChoosePro}
+              disabled={target === null}
+              aria-label={`Choose a pro for ${itemLabel}`}
+              className="mt-1.5 rounded-lg border border-primary px-3 py-1 text-xs font-semibold text-primary disabled:opacity-50"
+            >
+              Choose a pro
+            </button>
+          )}
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          <button
+            onClick={onRemove}
+            aria-label={`Remove ${itemLabel}`}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+          {!gone && (
+            <div className="flex items-center gap-2 rounded-full border border-border">
+              <button
+                onClick={() => onQuantity(item.quantity - 1)}
+                aria-label={`Decrease ${itemLabel} quantity`}
+                className="flex h-7 w-7 items-center justify-center text-foreground"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+              <span className="min-w-4 text-center text-sm font-semibold">{item.quantity}</span>
+              <button
+                onClick={() => onQuantity(item.quantity + 1)}
+                aria-label={`Increase ${itemLabel} quantity`}
+                className="flex h-7 w-7 items-center justify-center text-foreground"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      {showPro && item.outsideRecommendedRange && (
+        // Destructive at low strength, as on the sheet: there is no warning
+        // token, and a literal amber would clash in night mode (SVC-383).
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-2.5 py-2">
+          <AlertTriangle aria-hidden className="h-3.5 w-3.5 shrink-0 text-destructive" />
+          <p className="text-xs text-foreground">{OUT_OF_RANGE_WARNING}</p>
+        </div>
+      )}
+      {showPro && target !== null && (
+        <button
+          type="button"
+          onClick={onChoosePro}
+          aria-label={`Change pro for ${itemLabel}`}
+          className="self-start text-xs font-semibold text-primary"
+        >
+          Change pro
+        </button>
+      )}
+    </li>
   );
 }
 
