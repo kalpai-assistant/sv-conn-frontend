@@ -151,6 +151,10 @@ export function ContributingBookings({
                     label="Commission"
                     value={formatPaise(booking.platform_commission_paise)}
                   />
+                  <Money
+                    label="GST on commission"
+                    value={formatPaise(booking.commission_gst_paise)}
+                  />
                   <Money label="SP payout" value={formatPaise(booking.provider_payout_paise)} />
                   <Money label="Tip" value={tip(booking.tip_amount_paise)} />
                   <Money label="Pro" value={booking.professional_name ?? "Not recorded"} />
@@ -173,6 +177,7 @@ export function ContributingBookings({
                   <TableHead className="text-right">Price at booking</TableHead>
                   <TableHead className="text-right">Discount</TableHead>
                   <TableHead className="text-right">Commission</TableHead>
+                  <TableHead className="text-right">GST</TableHead>
                   <TableHead className="text-right">SP payout</TableHead>
                   <TableHead className="text-right">Tip</TableHead>
                   <TableHead>Status</TableHead>
@@ -195,6 +200,9 @@ export function ContributingBookings({
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatPaise(booking.platform_commission_paise)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatPaise(booking.commission_gst_paise)}
                     </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
                       {formatPaise(booking.provider_payout_paise)}

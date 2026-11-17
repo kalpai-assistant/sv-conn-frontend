@@ -76,6 +76,10 @@ export interface Booking {
   status: string;
   service_amount: number;
   platform_commission: number;
+  /** SVC-410: the GST on the commission, taken off the SP's share, so
+   * service_amount = platform_commission + commission_gst + provider_payout.
+   * 0 on bookings made before SVC-410, which were charged none. */
+  commission_gst: number;
   provider_payout: number;
   discount_amount: number;
   tip_amount: number;
