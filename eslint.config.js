@@ -86,6 +86,9 @@ export default tseslint.config(
             // which owns the context they read. Same edit-once pattern.
             "useT",
             "useLanguage",
+            // SVC-416: the pro-selection hook sits with ProSelectionProvider,
+            // the same pattern as useServiceSheet.
+            "useProSelection",
           ],
         },
       ],

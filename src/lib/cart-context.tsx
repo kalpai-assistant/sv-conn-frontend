@@ -57,6 +57,31 @@ export interface CartLineItem {
   unitPrice: number;
   quantity: number;
   duration?: string;
+  // SVC-416: the SP the customer picked on the pro-selection sheet, and the
+  // price quote they picked it at. Optional on the v2 cart (no key bump):
+  // lines added before this, or through `add()`, carry none of these, and
+  // SVC-417 owns clearing such legacy lines. When set, `unitPrice` equals
+  // `quotedPrice`. The steppers (`updateQuantity`) only change `quantity`,
+  // so a line keeps its SP and quote across +/−.
+  spId?: string;
+  /** Null when the SP has no name; the UI shows "Service pro". */
+  spName?: string | null;
+  quotedPrice?: number;
+  /** ISO timestamp from the ranking response. The TTL re-check is SVC-417's. */
+  quotedAt?: string;
+  /** The variant the quote was priced for, as the ranking response named it. */
+  serviceVariantId?: string;
+  outsideRecommendedRange?: boolean;
+}
+
+/** What the pro-selection sheet hands the cart when a customer picks an SP. */
+export interface CartSpQuote {
+  spId: string;
+  spName: string | null;
+  quotedPrice: number;
+  quotedAt: string;
+  serviceVariantId: string;
+  outsideRecommendedRange: boolean;
 }
 
 interface CartContextValue {
@@ -72,6 +97,23 @@ interface CartContextValue {
   // longer in the catalogue) so a caller can log or toast — the dropped
   // services are reported, not swallowed silently.
   addMany: (items: PrefillItem[]) => { skipped: string[] };
+  /**
+   * SVC-416: add a service at the price an SP quoted for it.
+   *
+   * One line per service, like `add()`. A service already in the cart has its
+   * variant, SP and price replaced, and its quantity kept: the customer
+   * changed who does it or which option, not how many. A new line starts at 1.
+   *
+   * `replaceOtherSps` is the "Replace cart?" answer: it also drops every line
+   * held by a different SP, in the same update. Lines with no SP stay; they
+   * are SVC-417's to clear.
+   */
+  addQuoted: (
+    service: Service,
+    variantId: string,
+    quote: CartSpQuote,
+    options?: { replaceOtherSps?: boolean },
+  ) => void;
   updateQuantity: (key: string, quantity: number) => void;
   remove: (key: string) => void;
   clear: () => void;
@@ -203,6 +245,45 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [add, queryClient],
   );
 
+  const addQuoted = useCallback(
+    (
+      service: Service,
+      variantId: string,
+      quote: CartSpQuote,
+      options?: { replaceOtherSps?: boolean },
+    ) => {
+      const variant = service.variants.find((v) => v.id === variantId);
+      const quoted = {
+        variantId: variant?.id ?? variantId,
+        variantLabel: variant?.label,
+        unitPrice: quote.quotedPrice,
+        duration: variant?.duration ?? service.duration,
+        spId: quote.spId,
+        spName: quote.spName,
+        quotedPrice: quote.quotedPrice,
+        quotedAt: quote.quotedAt,
+        serviceVariantId: quote.serviceVariantId,
+        outsideRecommendedRange: quote.outsideRecommendedRange,
+      };
+
+      setItems((prev) => {
+        const kept = options?.replaceOtherSps
+          ? prev.filter((i) => i.serviceId === service.id || !i.spId || i.spId === quote.spId)
+          : prev;
+        const existing = kept.findIndex((i) => i.serviceId === service.id);
+        if (existing >= 0) {
+          const next = [...kept];
+          // Every quote field overrides the old line; `quantity` survives
+          // because `quoted` carries none.
+          next[existing] = { ...kept[existing], ...quoted };
+          return next;
+        }
+        return [...kept, { serviceId: service.id, name: service.name, quantity: 1, ...quoted }];
+      });
+    },
+    [],
+  );
+
   const updateQuantity = useCallback((serviceId: string, quantity: number) => {
     setItems((prev) => {
       if (quantity <= 0) {
@@ -223,8 +304,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const value = useMemo<CartContextValue>(() => {
     const totalQuantity = items.reduce((n, i) => n + i.quantity, 0);
     const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-    return { items, totalQuantity, subtotal, add, addMany, updateQuantity, remove, clear };
-  }, [items, add, addMany, updateQuantity, remove, clear]);
+    return {
+      items,
+      totalQuantity,
+      subtotal,
+      add,
+      addMany,
+      addQuoted,
+      updateQuantity,
+      remove,
+      clear,
+    };
+  }, [items, add, addMany, addQuoted, updateQuantity, remove, clear]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

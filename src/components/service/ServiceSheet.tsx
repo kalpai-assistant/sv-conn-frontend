@@ -10,6 +10,11 @@
  * taps used to be ambiguous ("did I open the service or add it?"); a card is
  * now purely a preview trigger, and the button in here is the commit.
  *
+ * SVC-416: the button opens the pro-selection sheet for the picked variant,
+ * and the line lands when an SP is picked there. This sheet stays open
+ * underneath and turns its CTA into "Added to your cart / Go to cart". A
+ * dismissed pro sheet leaves it as it was.
+ *
  * SVC-292 layers the three related-services sections below the trust
  * statements: "You might also like" (cross-domain hook rail), "Add these
  * too" (obvious same-context upsell rail), "More like this" (similar
@@ -35,10 +40,10 @@ import { ServiceSheetSkeleton } from "@/components/skeletons/ServiceSheetSkeleto
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { useDragDismiss } from "@/hooks/useDragDismiss";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
-import { hapticImpactLight } from "@/lib/haptics";
 import { useCategories, useServices, useServiceDetail } from "@/hooks/useApi";
 import type { UI_RelatedServiceEntry } from "@/hooks/useApi";
 import { useCart } from "@/lib/cart-context";
+import { useProSelection } from "@/lib/pro-selection-context";
 import type { Service } from "@/lib/mock-data";
 import { VariantPicker } from "@/components/service/VariantPicker";
 import { ServiceBanner } from "@/components/service/ServiceBanner";
@@ -68,6 +73,7 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
   const related = detail?.related;
   const service = services?.find((s) => s.id === serviceId);
   const cart = useCart();
+  const { openProSelection } = useProSelection();
 
   // Undefined until the catalogue resolves, then defaulted to the first
   // variant in render. Deliberately not seeded from `service` in an effect:
@@ -109,15 +115,16 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
   const inCart = !!cartLine && cartLine.variantId === selectedVariant?.id;
   const inCartAsOtherVariant = !!cartLine && cartLine.variantId !== selectedVariant?.id;
 
-  const ctaPrice = selectedVariant?.price ?? service?.price ?? 0;
-
-  const handleAddToCart = () => {
-    if (!service) return;
-    cart.add(service, 1, selectedVariant?.id);
-    // SVC-398: single Light tap confirming the line landed. Fired here, not
-    // in cart-context's `add`, because `addMany` (SVC-347 bulk prefill) runs
-    // through the same reducer and must not buzz once per restored line.
-    hapticImpactLight();
+  // SVC-416: no price on the CTA. The customer pays the price of the SP they
+  // pick, not the variant's platform price, so a ₹ here would be wrong the
+  // moment they pick (the bait-and-switch SVC-415 warns about). The variant
+  // rows above keep the platform price: it's the reference the recommended
+  // range is built on.
+  //
+  // The SVC-398 haptic moved into the pro sheet, where the line lands.
+  const handleChoosePro = () => {
+    if (!service || !selectedVariant) return;
+    openProSelection(service, selectedVariant.id);
   };
 
   const handleGoToCart = () => {
@@ -336,13 +343,15 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
               ) : (
                 <button
                   type="button"
-                  onClick={handleAddToCart}
-                  className="flex h-14 w-full items-center justify-center rounded-xl bg-primary text-base font-semibold text-primary-foreground"
+                  onClick={handleChoosePro}
+                  // A service with no priced variant has nothing to rank SPs
+                  // for (the backend lists nobody), so there is no pick to make.
+                  disabled={!selectedVariant}
+                  className="flex h-14 w-full items-center justify-center rounded-xl bg-primary text-base font-semibold text-primary-foreground disabled:opacity-50"
                 >
-                  {/* "Update" not "Add" when the service is already in the cart
-                      under another variant — tapping replaces the choice, it
-                      does not add a second line. */}
-                  {inCartAsOtherVariant ? "Update to" : "Add to cart ·"} {formatRupees(ctaPrice)}
+                  {/* Already in the cart under another variant: picking replaces
+                      that line's option and SP, it does not add a second line. */}
+                  {inCartAsOtherVariant ? "Choose a pro for this option" : "Choose a pro"}
                 </button>
               )}
             </div>
