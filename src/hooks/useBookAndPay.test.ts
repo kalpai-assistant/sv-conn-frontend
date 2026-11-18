@@ -371,7 +371,7 @@ describe("cartSignature contract", () => {
     // cart UI (e.g. drag-to-reorder), hits Pay — the held booking is wrongly
     // discarded and a fresh booking is minted. Harmless but creates abandoned
     // bookings the sweeper has to clean up.
-const a = [item({ serviceId: "a" }), item({ serviceId: "b" })];
+    const a = [item({ serviceId: "a" }), item({ serviceId: "b" })];
     const b = [item({ serviceId: "b" }), item({ serviceId: "a" })];
     expect(cartSignature(a)).toBe(cartSignature(b));
   });
@@ -400,7 +400,7 @@ const a = [item({ serviceId: "a" }), item({ serviceId: "b" })];
     // modal. Signature matches → held booking reused → user pays the old
     // single-quantity amount, backend sees quantity 2 at booking time,
     // ledger drifts. This is the SVC-475 core concern.
-const one = [item({ quantity: 1 })];
+    const one = [item({ quantity: 1 })];
     const two = [item({ quantity: 2 })];
     expect(cartSignature(one)).not.toBe(cartSignature(two));
   });
@@ -409,7 +409,7 @@ const one = [item({ quantity: 1 })];
     // Failure mode — money bug: user swaps a ₹499 service for a ₹1200 one.
     // The module doc calls this out verbatim: "would charge them ₹499 for a
     // job they no longer asked for."
-const a = [item({ serviceId: "svc_499" })];
+    const a = [item({ serviceId: "svc_499" })];
     const b = [item({ serviceId: "svc_1200" })];
     expect(cartSignature(a)).not.toBe(cartSignature(b));
   });
@@ -418,7 +418,7 @@ const a = [item({ serviceId: "svc_499" })];
     // Failure mode — money bug: user adds a second service after dismissing.
     // Reusing the held booking charges only the original line item; the new
     // one is never dispatched.
-const single = [item({ serviceId: "svc_a" })];
+    const single = [item({ serviceId: "svc_a" })];
     const plus = [item({ serviceId: "svc_a" }), item({ serviceId: "svc_b" })];
     expect(cartSignature(single)).not.toBe(cartSignature(plus));
   });
