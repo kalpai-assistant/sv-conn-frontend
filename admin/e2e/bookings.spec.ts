@@ -34,7 +34,8 @@ function makeBooking(id: string, status: string, overrides: Record<string, unkno
     status,
     service_amount: 1499,
     platform_commission: 224.85,
-    provider_payout: 1274.15,
+    commission_gst: 40.47,
+    provider_payout: 1233.68,
     discount_amount: 0,
     tip_amount: 0,
     payment_method: "cash",
@@ -234,7 +235,10 @@ for (const colorScheme of ["light", "dark"] as const) {
     test("support reads a booking and can't cancel it", async ({ page }) => {
       await mockBackend(page, "support");
       await page.goto(`/operator/bookings?booking=${ID_A}`);
-      await expect(pane(page).getByRole("region", { name: "Payment" })).toBeVisible();
+      const payment = pane(page).getByRole("region", { name: "Payment" });
+      await expect(payment).toBeVisible();
+      // SVC-410: commission + GST + payout = the service amount (224.85 + 40.47 + 1,233.68).
+      await expect(payment).toContainText("GST on commission₹40.47");
       await expect(page.getByRole("button", { name: "Force cancel" })).toHaveCount(0);
       // The SP and the Pro open their own pages (SVC-427).
       const people = pane(page).getByRole("region", { name: "People and place" });

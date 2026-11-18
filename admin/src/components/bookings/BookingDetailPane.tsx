@@ -202,6 +202,8 @@ function BookingFacts({ booking }: { booking: Booking }) {
         </dl>
         <dl className="space-y-1 border-t pt-3">
           <MoneyRow label="Platform commission" value={formatRupees(booking.platform_commission)} />
+          {/* Always shown: ₹0 on a booking made before SVC-410 is the truth. */}
+          <MoneyRow label="GST on commission" value={formatRupees(booking.commission_gst)} />
           <MoneyRow label="Provider payout" value={formatRupees(booking.provider_payout)} />
         </dl>
         {/* Customer disputes (SVC-431), logged by support. Not the Disputed mark

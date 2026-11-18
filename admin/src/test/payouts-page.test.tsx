@@ -173,7 +173,8 @@ describe("the detail", () => {
     expect(bookings).toHaveTextContent("Price at booking₹1,499");
     expect(bookings).toHaveTextContent("Discount− ₹100");
     expect(bookings).toHaveTextContent("Commission₹224.85");
-    expect(bookings).toHaveTextContent("SP payout₹1,174.15");
+    expect(bookings).toHaveTextContent("GST on commission₹40.47");
+    expect(bookings).toHaveTextContent("SP payout₹1,233.68");
     expect(bookings).toHaveTextContent("Tip₹50");
     expect(bookings).toHaveTextContent("ProVikram Sharma");
 
@@ -182,6 +183,49 @@ describe("the detail", () => {
     const items = within(card).getAllByRole("listitem");
     expect(items[0]).toHaveTextContent("Source: Admin · By Asha Admin");
     expect(items[1]).toHaveTextContent("Source: System · By System");
+  });
+
+  it("shows the GST on the commission (SVC-410) right after Commission, in the card and the table", async () => {
+    const { detail } = await openPane("support");
+    const bookings = await within(detail).findByRole("region", { name: "Contributing bookings" });
+
+    const [card] = await within(bookings).findAllByRole("list", { name: "Bookings" });
+    const [first] = within(card).getAllByRole("listitem");
+    const cardLabels = within(first)
+      .getAllByRole("term")
+      .map((term) => term.textContent);
+    expect(cardLabels.slice(2, 5)).toEqual(["Commission", "GST on commission", "SP payout"]);
+
+    const table = within(bookings).getByRole("table");
+    const headers = within(table)
+      .getAllByRole("columnheader")
+      .map((header) => header.textContent);
+    const gst = headers.indexOf("GST");
+    expect(headers.slice(gst - 1, gst + 2)).toEqual(["Commission", "GST", "SP payout"]);
+    const [, row] = within(table).getAllByRole("row");
+    expect(within(row).getAllByRole("cell")[gst]).toHaveTextContent(/^₹40\.47$/);
+  });
+
+  it("shows ₹0 GST on a booking from before SVC-410, not blank or None", async () => {
+    const { detail } = await openPane("support", {
+      [BOOKINGS]: () =>
+        json({
+          bookings: [payoutBooking({ commission_gst_paise: 0, provider_payout_paise: 127_415 })],
+          total: 1,
+          page: 1,
+          per_page: 25,
+        }),
+    });
+    const bookings = await within(detail).findByRole("region", { name: "Contributing bookings" });
+
+    await within(bookings).findAllByRole("link", { name: "Booking 8d3f4e5a" });
+    expect(bookings).toHaveTextContent("GST on commission₹0");
+    const table = within(bookings).getByRole("table");
+    const gst = within(table)
+      .getAllByRole("columnheader")
+      .findIndex((header) => header.textContent === "GST");
+    const [, row] = within(table).getAllByRole("row");
+    expect(within(row).getAllByRole("cell")[gst]).toHaveTextContent(/^₹0$/);
   });
 
   it("filters the SP's bookings into the URL and the bookings call", async () => {

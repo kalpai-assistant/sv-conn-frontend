@@ -44,7 +44,8 @@ function makeBooking(id: string, status: string, overrides: Json = {}): Json {
     status,
     service_amount: 450,
     platform_commission: 67.5,
-    provider_payout: 382.5,
+    commission_gst: 12.15,
+    provider_payout: 370.35,
     discount_amount: 0,
     tip_amount: 0,
     payment_method: "cash",
@@ -395,6 +396,9 @@ test("lookup → open a booking → add a note → the audit log shows booking.n
   await expect(detail.getByRole("heading", { name: "Booking 4d1dd8c9" })).toBeVisible();
   // The reused pane: money, including the platform commission.
   await expect(detail.getByText("Platform commission")).toBeVisible();
+  await expect(detail.getByRole("region", { name: "Payment" })).toContainText(
+    "GST on commission₹12.15",
+  );
 
   // A whitespace-only note never leaves the browser.
   await detail.getByLabel("Add a note").fill("   ");

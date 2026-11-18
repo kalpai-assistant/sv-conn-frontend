@@ -72,10 +72,14 @@ export interface PayoutProvidersPage {
 export interface PayoutBooking {
   booking_id: string;
   completed_at: string | null;
-  /** The price fixed at booking time. There is no locked_price column (SVC-406/410). */
+  /** The price fixed at booking time: the items' sum before any coupon, the
+   * same value as bookings.locked_price. */
   service_amount_paise: number;
   discount_amount_paise: number;
   platform_commission_paise: number;
+  /** SVC-410: the GST on the commission, taken off the SP's share, so
+   * service_amount = commission + GST + provider_payout. 0 before SVC-410. */
+  commission_gst_paise: number;
   provider_payout_paise: number;
   tip_amount_paise: number;
   /** A string, not SettlementStatus: a status added later must still render. */

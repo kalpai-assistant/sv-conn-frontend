@@ -239,7 +239,8 @@ describe("the detail", () => {
     expect(payment).toHaveTextContent("Tip₹50");
     expect(payment).toHaveTextContent("Total charged₹1,849");
     expect(payment).toHaveTextContent("Platform commission₹299.85");
-    expect(payment).toHaveTextContent("Provider payout₹1,699.15");
+    expect(payment).toHaveTextContent("GST on commission₹53.97");
+    expect(payment).toHaveTextContent("Provider payout₹1,645.18");
     expect(payment).toHaveTextContent("Online");
     expect(payment).toHaveTextContent("Paid");
 
@@ -252,6 +253,31 @@ describe("the detail", () => {
     const items = within(pane).getByRole("region", { name: "Items" });
     expect(items).toHaveTextContent("Deep Clean · 2 BHK × 1₹1,499");
     expect(items).toHaveTextContent("Sofa Shampoo × 2₹500");
+  });
+
+  it("splits the service amount: commission, then the GST on it (SVC-410), then the payout", async () => {
+    signedIn();
+    renderApp("/operator/bookings");
+    const pane = await openFirstRow();
+
+    const payment = await within(pane).findByRole("region", { name: "Payment" });
+    const split = within(payment).getByText("GST on commission").closest("dl")!;
+    const labels = within(split)
+      .getAllByRole("term")
+      .map((term) => term.textContent);
+    expect(labels).toEqual(["Platform commission", "GST on commission", "Provider payout"]);
+  });
+
+  it("shows ₹0 GST on a booking made before SVC-410, not blank or None", async () => {
+    signedIn({
+      [DETAIL]: () => json(bookingDetail({ commission_gst: 0, provider_payout: 1699.15 })),
+    });
+    renderApp("/operator/bookings");
+    const pane = await openFirstRow();
+
+    const payment = await within(pane).findByRole("region", { name: "Payment" });
+    expect(payment).toHaveTextContent("GST on commission₹0");
+    expect(payment).toHaveTextContent("Provider payout₹1,699.15");
   });
 
   it("shows the reason, settlement and dispute once the backend sends them", async () => {

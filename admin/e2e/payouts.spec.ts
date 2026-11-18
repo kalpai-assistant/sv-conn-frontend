@@ -123,7 +123,7 @@ async function mockBackend(page: Page, role: Role = "admin") {
           "Content-Type": "text/csv; charset=utf-8",
           "Content-Disposition": `attachment; filename="payouts_${url.searchParams.get("from")}_${url.searchParams.get("to")}.csv"`,
         },
-        body: "sp_id,sp_name,booking_id,locked_price,commission,sp_payout,booking_completed_at,payout_status\n",
+        body: "sp_id,sp_name,booking_id,locked_price,commission,commission_gst,sp_payout,booking_completed_at,payout_status\n",
       });
     }
     const match = path.match(/^\/providers\/([^/]+)\/(payout-bookings|payouts|payout)$/);
@@ -139,7 +139,8 @@ async function mockBackend(page: Page, role: Role = "admin") {
                   service_amount_paise: 149_900,
                   discount_amount_paise: 10_000,
                   platform_commission_paise: 22_485,
-                  provider_payout_paise: 117_415,
+                  commission_gst_paise: 4_047,
+                  provider_payout_paise: 123_368,
                   tip_amount_paise: 5_000,
                   settlement_status: "pending",
                   settlement_payout_id: null,
@@ -215,7 +216,9 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(recon).toContainText("₹7,499.50");
 
       const bookings = pane(page).getByRole("region", { name: "Contributing bookings" });
-      await expect(bookings).toContainText("₹1,174.15");
+      await expect(bookings).toContainText("₹1,233.68");
+      // SVC-410: the GST on the commission, between Commission and SP payout.
+      await expect(bookings).toContainText("₹40.47");
       const link = bookings.getByRole("link", { name: "Booking 8d3f4e5a" }).first();
       await expect(link).toHaveAttribute("href", `/operator/bookings?booking=${BOOKING_A}`);
 
@@ -300,7 +303,7 @@ test.describe("at phone width", () => {
 
     await page.goto(`/operator/payouts?sp=${SP_A}`);
     await expect(pane(page).getByRole("region", { name: "Contributing bookings" })).toContainText(
-      "₹1,174.15",
+      "₹1,233.68",
     );
     expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
   });
