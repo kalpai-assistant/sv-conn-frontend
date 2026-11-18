@@ -133,22 +133,20 @@ function MarketError({ onRetry }: { onRetry: () => void }) {
 }
 
 /**
- * The lowest-to-highest bar: the median as a tall tick, the SP as a dot above
- * it. The tick sticks out above and below the dot, so both stay visible when
- * they coincide. aria-hidden: the text figures above say the same.
+ * The lowest-to-highest bar: the median as a tall tick, the SP as a dot. The
+ * tick is drawn over the dot and runs 5px past it top and bottom, so when they
+ * coincide it reads as a line through the dot (a tick only 1px taller than the
+ * dot vanished on device). aria-hidden: the text figures above say the same.
  */
 function MarketBar({ median, you, t }: { median: number; you: number | null; t: Translate }) {
   return (
     <div aria-hidden className="pt-1" data-testid="market-bar">
       {/* The inset keeps a marker at 0% or 100% inside the row. */}
       <div className="px-2">
-        <div className="relative h-5">
-          <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-muted" />
-          <div
-            className="absolute top-0 h-5 w-0.5 -translate-x-1/2 rounded-full bg-foreground/60"
-            style={{ left: `${median}%` }}
-            data-testid="market-median"
-          />
+        <div className="relative h-7">
+          {/* foreground/10, not muted: muted vanished on the row's tinted
+              background in light mode. */}
+          <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-foreground/10" />
           {you !== null && (
             <div
               className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-background"
@@ -156,6 +154,11 @@ function MarketBar({ median, you, t }: { median: number; you: number | null; t: 
               data-testid="market-you"
             />
           )}
+          <div
+            className="absolute top-0 h-7 w-0.5 -translate-x-1/2 rounded-full bg-foreground/70"
+            style={{ left: `${median}%` }}
+            data-testid="market-median"
+          />
         </div>
       </div>
       <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
@@ -166,7 +169,7 @@ function MarketBar({ median, you, t }: { median: number; you: number | null; t: 
           </span>
         )}
         <span className="inline-flex items-center gap-1">
-          <span className="h-3 w-0.5 rounded-full bg-foreground/60" />
+          <span className="h-3 w-0.5 rounded-full bg-foreground/70" />
           {t("services.pricing.market.legendMedian")}
         </span>
       </div>
