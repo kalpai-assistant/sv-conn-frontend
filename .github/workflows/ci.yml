@@ -44,6 +44,15 @@ jobs:
       - name: Check public-asset references
         run: npm run check:assets
 
+      # Catches a stale src/routeTree.gen.ts (SVC-476 / wave-1 G8). Same
+      # failure shape as check:assets above — a merge resolved in favour
+      # of the old tree, or a PR that added a route file without
+      # regenerating, silently 404s at that route. Runs here (before
+      # typecheck) so the diff is reported with the route churn, not
+      # masked by a TS error cascading from the stale types.
+      - name: Check TanStack route tree is up to date
+        run: npm run check:routes
+
       - name: Lint
         run: npm run lint
 
