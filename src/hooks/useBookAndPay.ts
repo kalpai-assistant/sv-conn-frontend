@@ -59,8 +59,15 @@ interface BookAndPayArgs {
   onComplete: (bookingId: string) => void;
 }
 
-/** Stable identity for a cart, so a change to it can be detected. */
-function cartSignature(items: CartLineItem[]): string {
+/**
+ * Stable identity for a cart, so a change to it can be detected.
+ *
+ * Exported so the SVC-475 contract test can pin the algorithm's invariants
+ * directly — a signature whose order, null-handling, or quantity semantics
+ * drift silently un-discards held bookings on effectively-different carts and
+ * reaches straight for the user's wallet.
+ */
+export function cartSignature(items: CartLineItem[]): string {
   return items
     .map((i) => `${i.serviceId}:${i.variantId ?? ""}:${i.quantity}`)
     .sort()
