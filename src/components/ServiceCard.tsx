@@ -67,7 +67,11 @@ export function ServiceCard({ service }: { service: Service }) {
           {service.name.charAt(0)}
         </motion.div>
         <div className="flex min-w-0 flex-1 flex-col justify-center">
-          <h3 className="truncate text-sm font-semibold text-foreground">{service.name}</h3>
+          {/* SVC-415: two lines, not one. The price column can now hold a
+              2-line status, which left too little width for one-line names. */}
+          <h3 className="line-clamp-2 break-words text-sm font-semibold leading-tight text-foreground">
+            {service.name}
+          </h3>
           <p className="truncate text-xs text-muted-foreground">{service.categoryName}</p>
           <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
