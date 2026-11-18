@@ -909,6 +909,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/services/from-prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Service From Prices
+         * @description The service tiles' "from ₹X" for a customer at (lat, lng) (SVC-415), one
+         *     entry per ACTIVE service, in one request.
+         *
+         *     - ``from_price``: the lowest price among the SPs the "pick your SP" sheet
+         *       could list right now (in-range prices first; the lowest out-of-range one
+         *       only when the service has no in-range price), or null when nobody is
+         *       listable now.
+         *     - ``served``: some SP covers this point with an active price, online or
+         *       not. Null ``from_price`` + ``served`` = "No pros online right now";
+         *       not ``served`` = "Coming soon".
+         *
+         *     A service_id missing from the list is an inactive service: show its
+         *     catalogue price. Cached per point (lat/lng to 4 decimals) for 10 minutes.
+         *     Needs a login, like the sheet.
+         */
+        get: operations["service_from_prices_api_v1_services_from_prices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/services/{service_id}": {
         parameters: {
             query?: never;
@@ -7077,6 +7110,28 @@ export interface components {
             answer: string;
         };
         /**
+         * ServiceFromPrice
+         * @description One service's tile price at the customer's point (SVC-415).
+         *
+         *     ``GET /services/from-prices`` returns one of these per ACTIVE service. A
+         *     service_id missing from the list is an inactive service: the client shows
+         *     its catalogue price, as when the request fails.
+         *
+         *     Plain float, never Decimal: a Decimal serialises as a JSON string. No field
+         *     has a default, so every one stays ``required`` in the OpenAPI schema.
+         */
+        ServiceFromPrice: {
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** From Price */
+            from_price: number | null;
+            /** Served */
+            served: boolean;
+        };
+        /**
          * ServiceProviderBrief
          * @description The business behind the job (SVC-324): the SP's brand, never payout details.
          */
@@ -9113,6 +9168,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServiceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    service_from_prices_api_v1_services_from_prices_get: {
+        parameters: {
+            query: {
+                lat: number;
+                lng: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceFromPrice"][];
                 };
             };
             /** @description Validation Error */
