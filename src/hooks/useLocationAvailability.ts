@@ -41,6 +41,7 @@ import {
   type LocationFailure,
 } from "@/lib/geolocation";
 import { MAP_PICKER_LOCATE_TIMEOUT_MS } from "@/lib/map-picker-timeouts";
+import { setLaunchFix } from "@/lib/tile-location";
 
 /**
  * Why we cannot locate them — the gate's copy turns on this, because the
@@ -179,6 +180,10 @@ export function useLocationAvailability(enabled = true): LocationAvailability {
         result = await requestLocation(PROBE_TIMEOUT_MS);
       }
       if (cancelled) return;
+
+      // SVC-415: keep the fix for the service tiles, in memory only. Nothing
+      // here reads it back; the gate's decision below is unchanged.
+      if (result.ok && result.coords) setLaunchFix(result.coords, Date.now());
 
       settle(result.ok || !result.failure ? AVAILABLE : blockedBy(REASON_FOR[result.failure]));
     })();

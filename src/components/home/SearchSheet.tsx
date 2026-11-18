@@ -21,7 +21,7 @@ import { LoadingRegion } from "@/components/skeletons/LoadingRegion";
 import { SearchResultSkeleton } from "@/components/skeletons/ListRowSkeletons";
 import { useServices } from "@/hooks/useApi";
 import { useServiceSheet } from "@/lib/service-sheet-context";
-import { formatRupees } from "@/lib/currency";
+import { TilePrice } from "@/components/TilePrice";
 import { toPlainText } from "@/lib/markdown-text";
 
 const RECENT_KEY = "sc_recent_searches";
@@ -277,9 +277,14 @@ function ResultsList({
               <p className="text-sm font-semibold text-foreground">{s.name}</p>
               <p className="truncate text-xs text-muted-foreground">{toPlainText(s.description)}</p>
             </div>
-            <span className="shrink-0 text-sm font-semibold text-primary">
-              {formatRupees(s.price)}
-            </span>
+            {/* SVC-415: max-w so a wrapped status can't squeeze the name. */}
+            <TilePrice
+              service={s}
+              className="max-w-[7rem] shrink-0 text-right"
+              labelClassName="text-xs text-muted-foreground"
+              priceClassName="text-sm font-semibold text-primary"
+              statusClassName="text-xs font-medium text-muted-foreground"
+            />
           </button>
         </li>
       ))}

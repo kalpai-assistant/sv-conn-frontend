@@ -13,7 +13,7 @@ import { useMemo } from "react";
 import { Repeat } from "lucide-react";
 import { useBookings } from "@/hooks/useApi";
 import { useServiceSheet } from "@/lib/service-sheet-context";
-import { formatRupees } from "@/lib/currency";
+import { TilePrice } from "@/components/TilePrice";
 
 const MAX_CARDS = 8;
 
@@ -55,7 +55,16 @@ export function BookAgainRow() {
               <p className="line-clamp-2 text-sm font-semibold text-foreground">{s.name}</p>
               {s.duration && <p className="mt-1 text-[11px] text-muted-foreground">{s.duration}</p>}
             </div>
-            <p className="mt-3 text-sm font-bold text-primary">{formatRupees(s.price)}</p>
+            {/* SVC-415: `s` is the catalogue service (mapBooking's
+                catalogueSrv), so this is today's price, not the past booking's. */}
+            <p className="mt-3">
+              <TilePrice
+                service={s}
+                labelClassName="text-xs text-muted-foreground"
+                priceClassName="text-sm font-bold text-primary"
+                statusClassName="text-xs font-medium text-muted-foreground"
+              />
+            </p>
           </button>
         ))}
         <div className="w-4 shrink-0" aria-hidden />

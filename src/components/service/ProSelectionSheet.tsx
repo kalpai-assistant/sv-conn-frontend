@@ -50,7 +50,7 @@ import { SavedAddressesSheet } from "@/components/SavedAddressesSheet";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { useDragDismiss } from "@/hooks/useDragDismiss";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
-import { useServiceProviders, type API_RankedProvider } from "@/hooks/useApi";
+import { useFromPrices, useServiceProviders, type API_RankedProvider } from "@/hooks/useApi";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
 import { useCart } from "@/lib/cart-context";
 import { formatRupees } from "@/lib/currency";
@@ -72,6 +72,11 @@ import {
  * Ten seconds matches the launch gate: a cold GPS can take that long.
  */
 export const DEVICE_LOCATE_TIMEOUT_MS = 10_000;
+
+/** Empty list, but some SP covers this point (from-prices `served`). */
+export const NO_PROS_ONLINE_MESSAGE = "No pros online right now";
+/** Empty list, and nobody covers it — or the from-prices lookup is unavailable. */
+export const NO_PROS_IN_AREA_MESSAGE = "No pros available for this service in your area yet.";
 
 export const OUT_OF_RANGE_HEADING = "Outside the recommended price";
 export const OUT_OF_RANGE_WARNING = "This pro's price is outside our recommended range";
@@ -146,6 +151,11 @@ export function ProSelectionSheet({ service, variantId, onClose }: ProSelectionS
     ready ? location.lat : null,
     ready ? location.lng : null,
   );
+  // SVC-415: only read when the list comes back empty, to tell "nobody online
+  // now" apart from "nobody covers this area". Measured at the sheet's own
+  // ranking point, never the tiles'.
+  const fromPrices = useFromPrices(ready ? { lat: location.lat, lng: location.lng } : null);
+  const servedHere = fromPrices.data?.find((r) => r.service_id === service.id)?.served === true;
 
   const [pickerOpen, setPickerOpen] = useState(false);
   // The out-of-range row whose warning strip is showing, if any.
@@ -268,7 +278,7 @@ export function ProSelectionSheet({ service, variantId, onClose }: ProSelectionS
             />
           ) : !query.data || query.data.providers.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              No pros available for this service in your area yet.
+              {servedHere ? NO_PROS_ONLINE_MESSAGE : NO_PROS_IN_AREA_MESSAGE}
             </p>
           ) : (
             <ProLists

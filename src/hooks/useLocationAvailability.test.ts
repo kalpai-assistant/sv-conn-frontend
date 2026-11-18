@@ -23,6 +23,7 @@ vi.mock("@/lib/geolocation", () => ({
 }));
 
 import { useLocationAvailability } from "@/hooks/useLocationAvailability";
+import { getLaunchFix, resetLaunchFix } from "@/lib/tile-location";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -226,4 +227,44 @@ describe("where a position cannot be asked for without a gesture", () => {
       expect(result.current.reason).toBe("unknown");
     },
   );
+});
+
+// SVC-415: the one addition — the probe's fix is kept, in memory, for the
+// service tiles. The cases above are unchanged, which is what shows the gate's
+// decisions did not move.
+describe("keeping the launch fix for the tiles", () => {
+  beforeEach(() => resetLaunchFix());
+
+  it("stores the coordinates when the probe succeeds, and still settles open", async () => {
+    requestLocation.mockResolvedValue({
+      ok: true,
+      failure: null,
+      coords: { lat: 12.97, lng: 77.59 },
+    });
+
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+    expect(result.current.blocked).toBe(false);
+    expect(getLaunchFix()).toMatchObject({ lat: 12.97, lng: 77.59 });
+  });
+
+  it("stores nothing when the probe fails, and still gates", async () => {
+    requestLocation.mockResolvedValue({ ok: false, failure: "permission-denied", coords: null });
+
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.blocked).toBe(true));
+    expect(getLaunchFix()).toBeNull();
+  });
+
+  it("stores nothing on the read-only path, which takes no fix", async () => {
+    canProbeWithoutGesture.mockReturnValue(false);
+    peekBrowserPermission.mockResolvedValue("granted");
+
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+    expect(getLaunchFix()).toBeNull();
+  });
 });

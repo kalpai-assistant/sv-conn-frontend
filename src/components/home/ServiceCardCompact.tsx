@@ -30,7 +30,7 @@ import { categoryIcon, categoryColor } from "@/lib/category-icons";
 import type { Service } from "@/lib/mock-data";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { QuickAddButton } from "@/components/service/QuickAddButton";
-import { formatRupees } from "@/lib/currency";
+import { TilePrice } from "@/components/TilePrice";
 import { serviceHeroLayoutId } from "@/lib/shared-hero";
 import { ReviewSnippetLine } from "@/components/service/ReviewSnippetLine";
 
@@ -117,11 +117,10 @@ export function ServiceCardCompact({
           <Clock className="h-3 w-3" />
           {service.duration}
         </div>
-        {/* "starting at" because `price` is the cheapest variant, not a fixed
-            charge — the user picks the real one on the detail screen. */}
+        {/* SVC-415: "from ₹X" at the customer's point, or the status, which
+            may wrap to two lines on this narrow card. */}
         <p className="text-xs text-muted-foreground">
-          starting at{" "}
-          <span className="text-sm font-bold text-primary">{formatRupees(service.price)}</span>
+          <TilePrice service={service} priceClassName="text-sm font-bold text-primary" />
         </p>
       </div>
     </div>

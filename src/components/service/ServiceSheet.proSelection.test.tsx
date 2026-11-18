@@ -81,8 +81,10 @@ vi.mock("@/hooks/useApi", () => ({
   useServices: () => ({ data: [SERVICE], isLoading: false, isError: false, refetch: vi.fn() }),
   useCategories: () => ({ data: [] }),
   useServiceDetail: () => ({ data: DETAIL }),
+  useFromPrices: () => ({ data: undefined }),
   useServiceProviders: (...args: [unknown, unknown]) => useServiceProviders(...args),
 }));
+vi.mock("@/hooks/useTilePoint", () => ({ useTilePoint: () => null }));
 vi.mock("@/hooks/useSelectedAddress", () => ({
   useSelectedAddress: () => ({
     selected: HOME,

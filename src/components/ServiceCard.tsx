@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import type { Service } from "@/lib/mock-data";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { QuickAddButton } from "@/components/service/QuickAddButton";
-import { formatRupees } from "@/lib/currency";
+import { TilePrice } from "@/components/TilePrice";
 import { serviceHeroLayoutId } from "@/lib/shared-hero";
 import { ReviewSnippetLine } from "@/components/service/ReviewSnippetLine";
 
@@ -75,11 +75,15 @@ export function ServiceCard({ service }: { service: Service }) {
           </div>
         </div>
         <div className="flex flex-col items-end justify-between gap-2">
-          <div className="flex flex-col items-end">
-            {/* "from" because `price` is the cheapest variant, not a fixed charge. */}
-            <span className="text-[10px] text-muted-foreground">from</span>
-            <span className="text-sm font-bold text-primary">{formatRupees(service.price)}</span>
-          </div>
+          {/* SVC-415: "from ₹X" at the customer's point, or the status. Status
+              text may wrap; max-w keeps it from crowding the name column. */}
+          <TilePrice
+            service={service}
+            className="flex max-w-[6.5rem] flex-col items-end text-right"
+            labelClassName="text-[10px] text-muted-foreground"
+            priceClassName="text-sm font-bold text-primary"
+            statusClassName="text-xs font-medium text-muted-foreground"
+          />
           <QuickAddButton service={service} />
         </div>
       </div>
