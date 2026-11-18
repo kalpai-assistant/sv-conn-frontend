@@ -670,6 +670,28 @@ export interface paths {
         patch: operations["set_my_price_api_v1_providers_me_pricing__variant_id__patch"];
         trace?: never;
     };
+    "/api/v1/providers/me/market-insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Market Insights
+         * @description Where the SP's price for one variant sits among the SPs whose areas
+         *     overlap its own (SVC-413): aggregates only, none below 3 SPs. The SP's own
+         *     price is always fresh; the others' can be up to an hour old.
+         */
+        get: operations["get_my_market_insights_api_v1_providers_me_market_insights_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/providers/me/kyc": {
         parameters: {
             query?: never;
@@ -4562,6 +4584,21 @@ export interface components {
             /** Last Login At */
             last_login_at: string | null;
         };
+        /** AreaStats */
+        AreaStats: {
+            /** Sp Count */
+            sp_count: number;
+            /** Median Price */
+            median_price: number;
+            /** Min Price */
+            min_price: number;
+            /** Max Price */
+            max_price: number;
+            /** My Percentile */
+            my_percentile: number | null;
+            /** My Bucket */
+            my_bucket: ("lower" | "middle" | "upper") | null;
+        };
         /** AssignRequest */
         AssignRequest: {
             /**
@@ -4815,6 +4852,8 @@ export interface components {
             service_amount: number;
             /** Platform Commission */
             platform_commission: number;
+            /** Commission Gst */
+            commission_gst: number;
             /** Provider Payout */
             provider_payout: number;
             /** Discount Amount */
@@ -5819,6 +5858,28 @@ export interface components {
             /** Truncated */
             truncated: ("customers" | "providers" | "pros" | "bookings")[];
         };
+        /** MarketInsightsResponse */
+        MarketInsightsResponse: {
+            /**
+             * Service Variant Id
+             * Format: uuid
+             */
+            service_variant_id: string;
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** Service Name */
+            service_name: string;
+            /** My Price */
+            my_price: number | null;
+            /** Reference Price */
+            reference_price: number;
+            /** Insufficient Competition */
+            insufficient_competition: boolean;
+            area_stats: components["schemas"]["AreaStats"] | null;
+        };
         /**
          * NearbyProviderResponse
          * @description Slim response for the 'nearby providers' discovery endpoint.
@@ -5919,6 +5980,8 @@ export interface components {
             discount_amount_paise: number;
             /** Platform Commission Paise */
             platform_commission_paise: number;
+            /** Commission Gst Paise */
+            commission_gst_paise: number;
             /** Provider Payout Paise */
             provider_payout_paise: number;
             /** Tip Amount Paise */
@@ -8662,6 +8725,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpVariantPricingUpdateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_market_insights_api_v1_providers_me_market_insights_get: {
+        parameters: {
+            query: {
+                service_variant_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketInsightsResponse"];
                 };
             };
             /** @description Validation Error */
