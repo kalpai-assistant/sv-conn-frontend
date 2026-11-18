@@ -1443,6 +1443,55 @@
         }
       }
     },
+    "/api/v1/providers/me/market-insights": {
+      "get": {
+        "tags": [
+          "Providers"
+        ],
+        "summary": "Get My Market Insights",
+        "description": "Where the SP's price for one variant sits among the SPs whose areas\noverlap its own (SVC-413): aggregates only, none below 3 SPs. The SP's own\nprice is always fresh; the others' can be up to an hour old.",
+        "operationId": "get_my_market_insights_api_v1_providers_me_market_insights_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "service_variant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Service Variant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketInsightsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/providers/me/kyc": {
       "post": {
         "tags": [
@@ -11966,6 +12015,63 @@
         ],
         "title": "AdminUserResponse"
       },
+      "AreaStats": {
+        "properties": {
+          "sp_count": {
+            "type": "integer",
+            "title": "Sp Count"
+          },
+          "median_price": {
+            "type": "number",
+            "title": "Median Price"
+          },
+          "min_price": {
+            "type": "number",
+            "title": "Min Price"
+          },
+          "max_price": {
+            "type": "number",
+            "title": "Max Price"
+          },
+          "my_percentile": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Percentile"
+          },
+          "my_bucket": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "lower",
+                  "middle",
+                  "upper"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Bucket"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sp_count",
+          "median_price",
+          "min_price",
+          "max_price",
+          "my_percentile",
+          "my_bucket"
+        ],
+        "title": "AreaStats"
+      },
       "AssignRequest": {
         "properties": {
           "professional_id": {
@@ -12404,6 +12510,10 @@
             "type": "number",
             "title": "Platform Commission"
           },
+          "commission_gst": {
+            "type": "number",
+            "title": "Commission Gst"
+          },
           "provider_payout": {
             "type": "number",
             "title": "Provider Payout"
@@ -12590,6 +12700,7 @@
           "status",
           "service_amount",
           "platform_commission",
+          "commission_gst",
           "provider_payout",
           "discount_amount",
           "tip_amount",
@@ -15052,6 +15163,64 @@
         "title": "LookupResponse",
         "description": "``GET /admin/support/lookup``. ``interpreted_as`` lists every type the\ninput fits, and each was searched: \"facade\" is both a booking id suffix and\na name. Results are grouped by kind, so the screen never has to guess.\n``truncated`` names the kinds that had more rows than the cap."
       },
+      "MarketInsightsResponse": {
+        "properties": {
+          "service_variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Variant Id"
+          },
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          },
+          "service_name": {
+            "type": "string",
+            "title": "Service Name"
+          },
+          "my_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Price"
+          },
+          "reference_price": {
+            "type": "number",
+            "title": "Reference Price"
+          },
+          "insufficient_competition": {
+            "type": "boolean",
+            "title": "Insufficient Competition"
+          },
+          "area_stats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AreaStats"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "service_variant_id",
+          "service_id",
+          "service_name",
+          "my_price",
+          "reference_price",
+          "insufficient_competition",
+          "area_stats"
+        ],
+        "title": "MarketInsightsResponse"
+      },
       "NearbyProviderResponse": {
         "properties": {
           "id": {
@@ -15277,6 +15446,10 @@
             "type": "integer",
             "title": "Platform Commission Paise"
           },
+          "commission_gst_paise": {
+            "type": "integer",
+            "title": "Commission Gst Paise"
+          },
           "provider_payout_paise": {
             "type": "integer",
             "title": "Provider Payout Paise"
@@ -15330,6 +15503,7 @@
           "service_amount_paise",
           "discount_amount_paise",
           "platform_commission_paise",
+          "commission_gst_paise",
           "provider_payout_paise",
           "tip_amount_paise",
           "settlement_status",

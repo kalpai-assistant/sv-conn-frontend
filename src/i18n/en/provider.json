@@ -424,6 +424,24 @@
         "perSqft": "/ sq ft",
         "perHour": "/ hour",
         "perItem": "/ item"
+      },
+      "market": {
+        "toggle": "Market near you",
+        "loadFailed": "Couldn’t load market data.",
+        "insufficient": "Not enough service providers in your area yet to show market data.",
+        "count_one": "{{count}} service provider in your area",
+        "count_other": "{{count}} service providers in your area",
+        "figures": "Lowest {{min}} · Median {{median}} · Highest {{max}}",
+        "bucket": {
+          "lower": "You’re in the lower third of prices.",
+          "middle": "You’re in the middle third of prices.",
+          "upper": "You’re in the upper third of prices."
+        },
+        "setPrice": "Set a price to see where you stand.",
+        "switchOn": "Switch this price on to see where you stand.",
+        "footnote": "Other service providers’ prices update every hour.",
+        "legendYou": "You",
+        "legendMedian": "Median"
       }
     },
     "noMatch": "No services match “{{query}}”.",

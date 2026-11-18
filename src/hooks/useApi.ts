@@ -1591,6 +1591,9 @@ export const useAdminReassignPro = () => {
 // The SP's own prices (SVC-412, below). Declared here because a change of
 // subscription invalidates it.
 const PROVIDER_PRICING_KEY = ["providerPricing"] as const;
+// The SP's "Market near you" per variant (SVC-413, below); a price save or a
+// subscription change resets it.
+const MARKET_INSIGHTS_KEY = ["marketInsights"] as const;
 
 // --- Provider service subscriptions (SVC-92) ---
 
@@ -1643,6 +1646,10 @@ export const useToggleProviderService = () => {
       // A new subscription brings its variants onto the pricing screen
       // (unpriced); leaving one switches its prices off (SVC-412).
       queryClient.invalidateQueries({ queryKey: PROVIDER_PRICING_KEY });
+      // Unsubscribing switches every price of the service off, so no variant's
+      // market position can be trusted. Reset, not invalidate: see
+      // useSetVariantPrice.
+      queryClient.resetQueries({ queryKey: MARKET_INSIGHTS_KEY });
     },
   });
 };
@@ -1703,6 +1710,8 @@ export const useSetVariantPrice = () => {
       }),
     onMutate: async ({ variantId, priceAmount, isActive }) => {
       await queryClient.cancelQueries({ queryKey: PROVIDER_PRICING_KEY });
+      // A market fetch still in flight would read the row from before this save.
+      await queryClient.cancelQueries({ queryKey: [...MARKET_INSIGHTS_KEY, variantId] });
       const previous = queryClient
         .getQueryData<API_SpPricingResponse>(PROVIDER_PRICING_KEY)
         ?.services.flatMap((g) => g.variants)
@@ -1732,8 +1741,36 @@ export const useSetVariantPrice = () => {
         patchVariant(data, variantId, () => row),
       );
     },
+    // The SP's own price, on/off and so its place in the market have (maybe)
+    // changed. Reset, not invalidate: invalidate keeps showing the cached
+    // position until the refetch lands (SVC-417's lesson), while reset drops it
+    // back to loading, so an open panel shows its Skeleton and refetches and a
+    // closed one starts from scratch. On settle, not on mutate: a refetch
+    // during the PATCH could read the old row. Error too, as a failed save may
+    // still have committed. Not returned: a returned promise would keep the
+    // save pending (the Save spinner) until the market refetch lands.
+    onSettled: (_data, _err, { variantId }) => {
+      void queryClient.resetQueries({ queryKey: [...MARKET_INSIGHTS_KEY, variantId] });
+    },
   });
 };
+
+// --- The SP's market near it, per variant (SVC-413) ---
+
+export type API_MarketInsights = Schema<"MarketInsightsResponse">;
+
+// GET /providers/me/market-insights?service_variant_id= → how many SPs in the
+// SP's area price this variant, their min / median / max, and the SP's third.
+// `enabled` is the panel being open: nothing is fetched for a closed panel.
+export const useMarketInsights = (variantId: string, enabled: boolean) =>
+  useQuery({
+    queryKey: [...MARKET_INSIGHTS_KEY, variantId],
+    queryFn: () =>
+      apiFetch<API_MarketInsights>(
+        `/providers/me/market-insights?service_variant_id=${encodeURIComponent(variantId)}`,
+      ),
+    enabled,
+  });
 
 // --- Provider onboarding (SVC-93) ---
 

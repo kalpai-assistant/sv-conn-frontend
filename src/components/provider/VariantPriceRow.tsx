@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { MarketPanel } from "@/components/provider/MarketPanel";
 import { useSetVariantPrice, type API_SpVariantPricing } from "@/hooks/useApi";
 import { errorText } from "@/i18n/errors";
 import { formatPaise, formatRupees } from "@/i18n/format";
@@ -35,7 +36,8 @@ const RUPEE = "₹";
  * price and recommended range, the SP's own price with Save, the on/off switch,
  * and what the SP receives at that price.
  *
- * Its own component because SVC-413 adds a "Market near you" panel to it.
+ * Its own component so SVC-413's "Market near you" panel (MarketPanel) sits
+ * under the row's price.
  *
  * - The switch needs a price: the server refuses on/off without one (422
  *   PRICE_REQUIRED). A variant priced for the first time starts on.
@@ -201,6 +203,8 @@ export function VariantPriceRow({ variant }: { variant: API_SpVariantPricing }) 
           {errorText(save.error, t("services.pricing.saveFailed"), lang)}
         </p>
       )}
+
+      <MarketPanel variant={variant} saving={save.isPending} />
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
