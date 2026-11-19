@@ -10,12 +10,6 @@
  * user lands on tracking with a toast — no fresh booking, no fresh
  * payment order.
  *
- * Why test.fixme: same consumer-app bootstrap cascade as money-path.spec.ts
- * — SplashGate → AuthFlow restore → LocationGate → pro-state gate →
- * bookings-landing → cart hydration throws before Cart renders. The spec
- * body is correct; it just needs the mock-shape fix documented in
- * money-path.spec.ts to unblock. Once that lands, drop `test.fixme`.
- *
  * The companion vitest unit-level coverage of this exact path already
  * exists in `src/hooks/useBookAndPay.test.ts` under "still opens the
  * booking when the money was taken but verify failed". The Playwright
@@ -38,9 +32,7 @@ const CART_ITEM = {
   duration: DEFAULT_SERVICE.duration,
 };
 
-test.fixme("verify-failure does not double-create booking or double-mint payment", async ({
-  page,
-}) => {
+test("verify-failure does not double-create booking or double-mint payment", async ({ page }) => {
   await seedSession(page.context(), {
     cartItems: [CART_ITEM],
     selectedAddressId: "addr-test-1",
@@ -48,18 +40,31 @@ test.fixme("verify-failure does not double-create booking or double-mint payment
   await stubRazorpay(page, { outcome: "success" });
   const backend = await mockBackend(page, { user: DEFAULT_USER });
 
-  // Override: verify returns 400. Added AFTER mockBackend so it wins
-  // the most-recent-first matcher.
-  await page.route("**/api/v1/payments/verify", (route) =>
-    route.fulfill({
+  // Override: verify returns 400. Added AFTER mockBackend so it wins the
+  // most-recent-first matcher. Since the override fulfills, mockBackend's
+  // handler never runs for /payments/verify — track calls on a local
+  // counter instead of backend.count().
+  let verifyAttempts = 0;
+  await page.route("**/api/v1/payments/verify", (route) => {
+    verifyAttempts++;
+    return route.fulfill({
       status: 400,
       json: { detail: "Signature mismatch", code: "VERIFY_FAILED" },
-    }),
-  );
+    });
+  });
 
   await page.goto("/cart");
+
+  // Dismiss the LocationGate (SVC-281, module-scoped per launch).
+  await expect(page.getByRole("heading", { name: /Location permission/i })).toBeVisible({
+    timeout: 10_000,
+  });
+  await page.getByRole("button", { name: /Flat 101, Test Residency/i }).click();
+
   await expect(page.getByText(DEFAULT_SERVICE.name)).toBeVisible({ timeout: 15_000 });
-  await page.getByRole("button", { name: /book\s*&\s*pay/i }).click();
+  const payBtn = page.getByRole("button", { name: /^Book & Pay/i });
+  await expect(payBtn).toBeEnabled();
+  await payBtn.click();
 
   // Hook contract: still navigates to tracking even on verify failure
   // (useBookAndPay.ts lines 168-177 — "booking must not be lost"). The
@@ -68,9 +73,11 @@ test.fixme("verify-failure does not double-create booking or double-mint payment
   await page.waitForURL(/\/tracking\/booking-test-1/, { timeout: 15_000 });
 
   // The double-charge guard: exactly ONE booking creation, ONE payment
-  // order, ONE verify attempt. A refactor that retried the whole chain
-  // would show 2+ on bookings/orders here.
-  expect(backend.count("/bookings")).toBe(1);
-  expect(backend.count("/payments/order")).toBe(1);
-  expect(backend.count("/payments/verify")).toBe(1);
+  // order, ONE verify attempt. Method-scoped because the tracking screen
+  // reads /bookings/ (GET) once landed; only POSTs are what count for
+  // "did we re-trigger the chain". Real client paths are /bookings/
+  // (trailing slash) and /payments/orders (plural).
+  expect(backend.count("/bookings/", "POST")).toBe(1);
+  expect(backend.count("/payments/orders", "POST")).toBe(1);
+  expect(verifyAttempts).toBe(1);
 });
