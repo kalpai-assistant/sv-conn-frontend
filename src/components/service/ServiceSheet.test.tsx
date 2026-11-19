@@ -71,6 +71,7 @@ const withDetail = (partial: Partial<UI_ServiceDetail>): UI_ServiceDetail => ({
 
 let detail: UI_ServiceDetail | undefined;
 let servicesLoading = false;
+let fromPrices: { service_id: string; from_price: number | null; served: boolean }[] | undefined;
 
 vi.mock("@/hooks/useApi", () => ({
   useServices: () => ({
@@ -81,7 +82,10 @@ vi.mock("@/hooks/useApi", () => ({
   }),
   useCategories: () => ({ data: [] }),
   useServiceDetail: () => ({ data: detail }),
+  useFromPrices: () => ({ data: fromPrices }),
 }));
+// SVC-415: the header label is TilePrice. A fixed point so it reads `fromPrices`.
+vi.mock("@/hooks/useTilePoint", () => ({ useTilePoint: () => ({ lat: 12.97, lng: 77.59 }) }));
 vi.mock("@/lib/cart-context", () => ({
   useCart: () => ({ items: [], add: vi.fn() }),
 }));
@@ -121,6 +125,7 @@ const renderSheet = () => render(<ServiceSheet serviceId="s1" onClose={vi.fn()} 
 beforeEach(() => {
   detail = undefined;
   servicesLoading = false;
+  fromPrices = undefined;
   // The sheet resets its scroll on every service swap; jsdom has no layout.
   Element.prototype.scrollTo = vi.fn();
   // jsdom doesn't ship matchMedia (TrustStrip subscribes to it).
@@ -191,6 +196,19 @@ describe("section-level empty-state hiding", () => {
 
     expect(screen.getByRole("heading", { name: /frequently asked/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /recent reviews/i })).toBeInTheDocument();
+  });
+
+  // SVC-415: the header uses the shared tile label, always with "from".
+  it("shows the tile label in the header: catalogue fallback, then the point's state", () => {
+    fromPrices = undefined;
+    const { unmount } = renderSheet();
+    expect(document.querySelector("[data-tile-price]")?.textContent).toBe("from ₹4,999");
+    unmount();
+
+    fromPrices = [{ service_id: SERVICE.id, from_price: null, served: false }];
+    renderSheet();
+    expect(screen.getByText("Coming soon")).toBeInTheDocument();
+    fromPrices = undefined;
   });
 
   it("renders the base sheet (title + description + price) when the detail query hasn't landed yet", () => {

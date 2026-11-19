@@ -708,6 +708,38 @@ export const useServiceProviders = (
   });
 };
 
+export type API_ServiceFromPrice = Schema<"ServiceFromPrice">;
+
+/** Round to 4 decimals (~11 m), the backend's own cache granularity. */
+const round4 = (n: number) => Math.round(n * 1e4) / 1e4;
+
+/**
+ * The service tiles' "from ₹X" at a point (SVC-415): one row per ACTIVE
+ * service, `from_price` null when nobody is listable now, `served` false when
+ * nobody covers the point at all.
+ *
+ * Disabled without a point; the tiles then show catalogue prices. The key is
+ * the point rounded to 4 decimals, matching the backend's 10-minute per-point
+ * cache, so two GPS fixes a few metres apart share one request. No
+ * `placeholderData`: while a NEW point loads, the tiles must show the
+ * catalogue fallback, never the previous point's "Coming soon". No retry: a
+ * failure is simply "no data", and the tiles fall back without an error UI.
+ */
+export const useFromPrices = (point: { lat: number; lng: number } | null) => {
+  const lat = point ? round4(point.lat) : null;
+  const lng = point ? round4(point.lng) : null;
+  return useQuery({
+    enabled: lat != null && lng != null,
+    queryKey: ["from-prices", lat, lng],
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+    queryFn: () => {
+      const params = new URLSearchParams({ lat: String(lat), lng: String(lng) });
+      return apiFetch<API_ServiceFromPrice[]>(`/services/from-prices?${params.toString()}`);
+    },
+  });
+};
+
 // `enabled` so the root gate can ask "does this user have any address?"
 // without a provider or a logged-out visitor firing the call. Defaults true —
 // every existing caller already knows it wants addresses.

@@ -55,7 +55,7 @@ import { ReviewSnippetsSection } from "@/components/service/ReviewSnippetsSectio
 import { ErrorState } from "@/components/ErrorState";
 import { ServiceCard } from "@/components/ServiceCard";
 import { ServiceCardCompact } from "@/components/home/ServiceCardCompact";
-import { formatRupees } from "@/lib/currency";
+import { TilePrice } from "@/components/TilePrice";
 import { ServiceDescription } from "@/components/service/ServiceDescription";
 
 interface ServiceSheetProps {
@@ -261,12 +261,15 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
                       <Clock className="h-4 w-4" />
                       {selectedVariant?.duration ?? service.duration}
                     </div>
-                    <span className="text-xl font-bold text-primary">
-                      {variants.length > 1 && (
-                        <span className="mr-1 text-xs font-medium text-muted-foreground">from</span>
-                      )}
-                      {formatRupees(service.price)}
-                    </span>
+                    {/* SVC-415: always "from" now — even a single variant's
+                        price depends on the pro chosen in the marketplace. */}
+                    <TilePrice
+                      service={service}
+                      className="text-right"
+                      labelClassName="text-xs font-medium text-muted-foreground"
+                      priceClassName="text-xl font-bold text-primary"
+                      statusClassName="text-sm font-medium text-muted-foreground"
+                    />
                   </div>
                 </div>
               </div>

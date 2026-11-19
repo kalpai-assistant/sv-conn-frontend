@@ -14,6 +14,12 @@ import { ReviewSnippetLine } from "./ReviewSnippetLine";
 import { ServiceCard } from "@/components/ServiceCard";
 import { ServiceCardCompact } from "@/components/home/ServiceCardCompact";
 
+// SVC-415: the card's price label reads these; no QueryClient in this test.
+vi.mock("@/hooks/useTilePoint", () => ({ useTilePoint: () => null }));
+vi.mock("@/hooks/useApi", async (orig) => ({
+  ...(await orig<typeof import("@/hooks/useApi")>()),
+  useFromPrices: () => ({ data: undefined }),
+}));
 vi.mock("@/lib/service-sheet-context", () => ({
   useServiceSheet: () => ({ openService: vi.fn(), closeService: vi.fn(), openServiceId: null }),
 }));

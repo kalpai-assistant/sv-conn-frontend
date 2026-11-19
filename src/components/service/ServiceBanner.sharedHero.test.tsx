@@ -17,6 +17,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
 import type { Service } from "@/lib/mock-data";
 
+// SVC-415: the card's price label reads these; no QueryClient in this test.
+vi.mock("@/hooks/useTilePoint", () => ({ useTilePoint: () => null }));
+vi.mock("@/hooks/useApi", async (orig) => ({
+  ...(await orig<typeof import("@/hooks/useApi")>()),
+  useFromPrices: () => ({ data: undefined }),
+}));
+
 const useReducedMotionMock = vi.fn<() => boolean | null>(() => false);
 
 vi.mock("framer-motion", async () => {

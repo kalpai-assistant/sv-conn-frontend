@@ -315,6 +315,30 @@ export async function peekLocationPermission(): Promise<"granted" | "denied" | "
   }
 }
 
+/**
+ * A coarse position, for callers that must never prompt (SVC-415).
+ *
+ * Unlike `requestLocation`, this never calls `checkPermissions` or
+ * `requestPermissions`: it is the bare position call, and the caller must have
+ * read the permission as "granted" with `peekLocationPermission` first. With
+ * permission already granted, Android shows no dialog for this call. Any
+ * failure is null — the caller keeps whatever it had.
+ */
+export async function peekCurrentPosition(
+  timeoutMs: number,
+): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const { Geolocation } = await import("@capacitor/geolocation");
+    const position = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: false,
+      timeout: timeoutMs,
+    });
+    return { lat: position.coords.latitude, lng: position.coords.longitude };
+  } catch {
+    return null;
+  }
+}
+
 /** True on a real device, where the native plugin is in play. */
 export function isNativeLocation(): boolean {
   return Capacitor.isNativePlatform();

@@ -44,6 +44,7 @@ import { AuthFlow } from "@/components/AuthFlow";
 import { ConsumerLocationGate, ProviderLocationGate } from "@/components/LocationGateHost";
 import { useLocationConfirmed } from "@/hooks/useLocationConfirmed";
 import { useLocationAvailability } from "@/hooks/useLocationAvailability";
+import { useLaunchFixRefresh } from "@/hooks/useTilePoint";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useEdgeSwipeBack } from "@/hooks/useEdgeSwipeBack";
 import { readSelectedAddressCache } from "@/hooks/useSelectedAddress";
@@ -576,8 +577,17 @@ function AppGate({ children }: { children: React.ReactNode }) {
           only while i18n_enabled. Here, in the app shell, so it never stacks
           on a gate; the rules are in `shouldAskLanguage`. */}
       <FirstRunLanguagePrompt />
+      {/* SVC-415: refreshes the tiles' launch fix on resume. Its own component
+          so its address read only runs for a signed-in consumer. */}
+      {isConsumer && <LaunchFixRefresh />}
     </div>
   );
+}
+
+/** Mounts `useLaunchFixRefresh`; renders nothing. */
+function LaunchFixRefresh() {
+  useLaunchFixRefresh();
+  return null;
 }
 
 function RootComponent() {

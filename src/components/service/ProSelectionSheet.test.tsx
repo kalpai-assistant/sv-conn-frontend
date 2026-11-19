@@ -24,6 +24,8 @@ const h = vi.hoisted(() => ({
 }));
 
 const useServiceProviders = vi.fn((..._args: unknown[]) => h.query);
+// SVC-415: the empty message reads from-prices at the sheet's point.
+const useFromPrices = vi.fn((..._args: unknown[]) => ({ data: undefined }) as { data: unknown });
 const setSelectedId = vi.fn();
 const requestLocation = vi.fn();
 const addQuoted = vi.fn();
@@ -33,6 +35,7 @@ const refetch = vi.fn();
 
 vi.mock("@/hooks/useApi", () => ({
   useServiceProviders: (...args: unknown[]) => useServiceProviders(...args),
+  useFromPrices: (...args: unknown[]) => useFromPrices(...args),
 }));
 vi.mock("@/hooks/useSelectedAddress", () => ({
   useSelectedAddress: () => ({ ...h.address, setSelectedId }),
@@ -118,6 +121,7 @@ const rows = () => screen.queryAllByTestId("pro-row");
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useFromPrices.mockReturnValue({ data: undefined });
   h.address = { selected: HOME, addresses: [HOME], isLoading: false };
   h.items = [];
   loaded([sp()]);
@@ -447,6 +451,40 @@ describe("states", () => {
       screen.getByText("No pros available for this service in your area yet."),
     ).toBeInTheDocument();
     expect(screen.queryByText(/notify/i)).not.toBeInTheDocument();
+  });
+
+  // SVC-415: from-prices at the sheet's own ranking point decides the copy.
+  it("says no pros online when from-prices says the service is served here", () => {
+    loaded([]);
+    useFromPrices.mockReturnValue({
+      data: [{ service_id: SERVICE.id, from_price: null, served: true }],
+    });
+    renderSheet();
+
+    expect(screen.getByText("No pros online right now")).toBeInTheDocument();
+    expect(useFromPrices).toHaveBeenLastCalledWith({ lat: HOME.lat, lng: HOME.lng });
+  });
+
+  it("keeps the area message when the service is not served here", () => {
+    loaded([]);
+    useFromPrices.mockReturnValue({
+      data: [{ service_id: SERVICE.id, from_price: null, served: false }],
+    });
+    renderSheet();
+
+    expect(
+      screen.getByText("No pros available for this service in your area yet."),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the area message when from-prices is unavailable", () => {
+    loaded([]);
+    useFromPrices.mockReturnValue({ data: undefined });
+    renderSheet();
+
+    expect(
+      screen.getByText("No pros available for this service in your area yet."),
+    ).toBeInTheDocument();
   });
 
   it("shows an inline error that retries", async () => {
