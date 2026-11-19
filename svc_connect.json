@@ -3948,6 +3948,46 @@
         ]
       }
     },
+    "/api/v1/analytics/events": {
+      "post": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Ingest Event",
+        "description": "Store one marketplace event. 422 for a name the app may not send, a field\nthe event doesn't declare, a value out of bounds, or an id that names no row\n(``ANALYTICS_UNKNOWN_REFERENCE``, nothing stored). A repeated ``event_id``\nstores nothing and is still 204.",
+        "operationId": "ingest_event_api_v1_analytics_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientEventBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/admin/auth/login": {
       "post": {
         "tags": [
@@ -13231,6 +13271,37 @@
         ],
         "title": "ChurnMonth"
       },
+      "ClientEventBody": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SheetOpenedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SheetAbandonedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SpSelectedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/PriceChangeAtCheckoutEvent"
+          },
+          {
+            "$ref": "#/components/schemas/TileComingSoonTappedEvent"
+          }
+        ],
+        "title": "ClientEventBody",
+        "description": "The request body. A RootModel, because FastAPI rebuilds a bare annotated\nunion from ``Body(...)`` and drops its discriminator and validator.",
+        "discriminator": {
+          "propertyName": "name",
+          "mapping": {
+            "marketplace.price_change_at_checkout": "#/components/schemas/PriceChangeAtCheckoutEvent",
+            "marketplace.sheet_abandoned": "#/components/schemas/SheetAbandonedEvent",
+            "marketplace.sheet_opened": "#/components/schemas/SheetOpenedEvent",
+            "marketplace.sp_selected": "#/components/schemas/SpSelectedEvent",
+            "marketplace.tile_coming_soon_tapped": "#/components/schemas/TileComingSoonTappedEvent"
+          }
+        }
+      },
       "ConsumerCohort": {
         "properties": {
           "signup_week": {
@@ -15932,6 +16003,107 @@
         "title": "PlatformVersion",
         "description": "Version metadata for one platform (android / pwa / ios).\n\n``version`` and ``min_supported_version`` are SemVer strings. Clients\ncompare using SemVer semantics — a lex compare would treat 1.10 < 1.2."
       },
+      "PriceChangeAtCheckout": {
+        "properties": {
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          },
+          "service_variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Variant Id"
+          },
+          "sp_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sp Id"
+          },
+          "old_price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 9999999999.99,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Old Price"
+          },
+          "new_price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 9999999999.99,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "New Price"
+          },
+          "user_action": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "abandoned"
+            ],
+            "title": "User Action"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "service_id",
+          "service_variant_id",
+          "sp_id",
+          "old_price",
+          "new_price",
+          "user_action"
+        ],
+        "title": "PriceChangeAtCheckout"
+      },
+      "PriceChangeAtCheckoutEvent": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Event Id"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At"
+          },
+          "name": {
+            "type": "string",
+            "const": "marketplace.price_change_at_checkout",
+            "title": "Name"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/PriceChangeAtCheckout"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_id",
+          "name",
+          "properties"
+        ],
+        "title": "PriceChangeAtCheckoutEvent"
+      },
       "PriceUnit": {
         "type": "string",
         "enum": [
@@ -18419,6 +18591,160 @@
         "title": "SettlementStatus",
         "description": "Provider-payout lifecycle. Driven by ``PayoutService`` — every read/write of\n``bookings.settlement_status`` goes through it."
       },
+      "SheetAbandoned": {
+        "properties": {
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          },
+          "service_variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Variant Id"
+          },
+          "time_spent_ms": {
+            "type": "integer",
+            "maximum": 86400000.0,
+            "minimum": 0.0,
+            "title": "Time Spent Ms"
+          },
+          "scroll_depth_pct": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Scroll Depth Pct"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "service_id",
+          "service_variant_id",
+          "time_spent_ms",
+          "scroll_depth_pct"
+        ],
+        "title": "SheetAbandoned"
+      },
+      "SheetAbandonedEvent": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Event Id"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At"
+          },
+          "name": {
+            "type": "string",
+            "const": "marketplace.sheet_abandoned",
+            "title": "Name"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/SheetAbandoned"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_id",
+          "name",
+          "properties"
+        ],
+        "title": "SheetAbandonedEvent"
+      },
+      "SheetOpened": {
+        "properties": {
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          },
+          "service_variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Variant Id"
+          },
+          "sp_count_in_area": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sp Count In Area"
+          },
+          "has_boosted": {
+            "type": "boolean",
+            "title": "Has Boosted"
+          },
+          "user_pincode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{6}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Pincode"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "service_id",
+          "service_variant_id",
+          "sp_count_in_area",
+          "has_boosted",
+          "user_pincode"
+        ],
+        "title": "SheetOpened"
+      },
+      "SheetOpenedEvent": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Event Id"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At"
+          },
+          "name": {
+            "type": "string",
+            "const": "marketplace.sheet_opened",
+            "title": "Name"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/SheetOpened"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_id",
+          "name",
+          "properties"
+        ],
+        "title": "SheetOpenedEvent"
+      },
       "SmsLinkRequest": {
         "properties": {
           "phone": {
@@ -18537,6 +18863,106 @@
           "services"
         ],
         "title": "SpPricingResponse"
+      },
+      "SpSelected": {
+        "properties": {
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          },
+          "service_variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Variant Id"
+          },
+          "sp_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sp Id"
+          },
+          "sp_rank_in_sheet": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sp Rank In Sheet"
+          },
+          "sp_score": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Sp Score"
+          },
+          "price_amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 9999999999.99,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Price Amount"
+          },
+          "is_boosted_sp": {
+            "type": "boolean",
+            "title": "Is Boosted Sp"
+          },
+          "is_outside_range": {
+            "type": "boolean",
+            "title": "Is Outside Range"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "service_id",
+          "service_variant_id",
+          "sp_id",
+          "sp_rank_in_sheet",
+          "sp_score",
+          "price_amount",
+          "is_boosted_sp",
+          "is_outside_range"
+        ],
+        "title": "SpSelected"
+      },
+      "SpSelectedEvent": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Event Id"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At"
+          },
+          "name": {
+            "type": "string",
+            "const": "marketplace.sp_selected",
+            "title": "Name"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/SpSelected"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_id",
+          "name",
+          "properties"
+        ],
+        "title": "SpSelectedEvent"
       },
       "SpServicePricingGroup": {
         "properties": {
@@ -19252,6 +19678,80 @@
         ],
         "title": "TeamPickResponse",
         "description": "202 from ``PATCH /bookings/{id}/accept`` with ``X-Team-Pick: 1``, for a\nteam SP. Nothing has been claimed: the claim is ``POST /bookings/{id}/assign``."
+      },
+      "TileComingSoonTapped": {
+        "properties": {
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "coming_soon",
+              "no_pros_online"
+            ],
+            "title": "State"
+          },
+          "user_pincode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{6}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Pincode"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "service_id",
+          "state",
+          "user_pincode"
+        ],
+        "title": "TileComingSoonTapped"
+      },
+      "TileComingSoonTappedEvent": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Event Id"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At"
+          },
+          "name": {
+            "type": "string",
+            "const": "marketplace.tile_coming_soon_tapped",
+            "title": "Name"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/TileComingSoonTapped"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_id",
+          "name",
+          "properties"
+        ],
+        "title": "TileComingSoonTappedEvent"
       },
       "TimelinePro": {
         "properties": {

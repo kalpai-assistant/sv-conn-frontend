@@ -16,7 +16,7 @@
  * (cart-context.svc417.test.tsx). What this file pins is the route.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import type { CartLineItem } from "@/lib/cart-context";
@@ -89,12 +89,15 @@ vi.mock("@/components/cart/PricingBreakdown", () => ({
   ),
 }));
 vi.mock("@/components/AccountAvatar", () => ({ AccountAvatar: () => null }));
+const track = vi.fn();
+vi.mock("@/lib/analytics", () => ({ track: (...a: unknown[]) => track(...a) }));
 vi.mock("@/lib/last-payment-method", () => ({
   readLastPaymentMethod: () => "cash",
   writeLastPaymentMethod: vi.fn(),
 }));
 
 import { CHOOSE_PRO_FOR_EACH, CartPage, REMOVE_UNAVAILABLE } from "@/routes/cart";
+import { runBackInterceptors } from "@/lib/back-interceptor";
 
 const WASH: Service = {
   id: "svc-wash",
@@ -364,7 +367,151 @@ describe("409 PRICE_CHANGED", () => {
   });
 });
 
+describe("409 PRICE_CHANGED analytics (SVC-419)", () => {
+  const changed = {
+    kind: "price-changed" as const,
+    items: [
+      { serviceId: "svc-wash", serviceVariantId: "v-suv", quotedPrice: 450, currentPrice: 520 },
+      { serviceId: "svc-wash", serviceVariantId: "v-hatch", quotedPrice: 300, currentPrice: 280 },
+    ],
+  };
+  const events = () =>
+    track.mock.calls.filter((c) => c[0] === "marketplace.price_change_at_checkout");
+  const actions = () => events().map((c) => (c[1] as { user_action: string }).user_action);
+
+  async function bookIntoPriceChange() {
+    bookAndPay.mockImplementationOnce(async (a: { onConflict: (c: unknown) => void }) =>
+      a.onConflict(changed),
+    );
+    cartItems = [proLine(), proLine({ variantId: "v-hatch", serviceVariantId: "v-hatch" })];
+    render(<CartPage />);
+    await userEvent.click(bookButton());
+    return screen.findByRole("alertdialog");
+  }
+
+  it("Android back on the open dialog acts as Cancel: closes it, keeps the cart, one abandoned per line", async () => {
+    await bookIntoPriceChange();
+    let handled = false;
+    act(() => {
+      handled = runBackInterceptors();
+    });
+
+    expect(handled).toBe(true);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(bookButton()).toBeTruthy();
+    expect(storePriceChanges).not.toHaveBeenCalled();
+    expect(actions()).toEqual(["abandoned", "abandoned"]);
+    expect(events()[0][1]).toEqual({
+      service_id: "svc-wash",
+      service_variant_id: "v-suv",
+      sp_id: "sp-a",
+      old_price: 450,
+      new_price: 520,
+      user_action: "abandoned",
+    });
+  });
+
+  it("after Book at new price, back is no longer ours and adds no row", async () => {
+    const dialog = await bookIntoPriceChange();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Book at new price" }));
+    let handled = true;
+    act(() => {
+      handled = runBackInterceptors();
+    });
+    expect(handled).toBe(false);
+    expect(actions()).toEqual(["confirmed", "confirmed"]);
+  });
+
+  it("with no dialog open, back is not intercepted", () => {
+    cartItems = [proLine()];
+    render(<CartPage />);
+    expect(runBackInterceptors()).toBe(false);
+  });
+
+  it("sends nothing until the dialog is answered", async () => {
+    await bookIntoPriceChange();
+    expect(events()).toHaveLength(0);
+  });
+
+  it("Book at new price sends one 'confirmed' per changed line, and never 'abandoned'", async () => {
+    const dialog = await bookIntoPriceChange();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Book at new price" }));
+
+    expect(events()).toEqual([
+      [
+        "marketplace.price_change_at_checkout",
+        {
+          service_id: "svc-wash",
+          service_variant_id: "v-suv",
+          sp_id: "sp-a",
+          old_price: 450,
+          new_price: 520,
+          user_action: "confirmed",
+        },
+      ],
+      [
+        "marketplace.price_change_at_checkout",
+        {
+          service_id: "svc-wash",
+          service_variant_id: "v-hatch",
+          sp_id: "sp-a",
+          old_price: 300,
+          new_price: 280,
+          user_action: "confirmed",
+        },
+      ],
+    ]);
+  });
+
+  it("Cancel sends one 'abandoned' per changed line, and never 'confirmed'", async () => {
+    const dialog = await bookIntoPriceChange();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(actions()).toEqual(["abandoned", "abandoned"]);
+  });
+
+  it("Escape sends 'abandoned' once per line", async () => {
+    await bookIntoPriceChange();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(actions()).toEqual(["abandoned", "abandoned"]);
+  });
+
+  it("a second 409 is a new dialog with its own events", async () => {
+    const dialog = await bookIntoPriceChange();
+    // The rebook's 409 arrives after a round trip, as on a real network.
+    bookAndPay.mockImplementationOnce(async (a: { onConflict: (c: unknown) => void }) => {
+      await new Promise((r) => setTimeout(r, 0));
+      a.onConflict(changed);
+    });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Book at new price" }));
+    const again = await screen.findByRole("alertdialog");
+    await userEvent.click(within(again).getByRole("button", { name: "Cancel" }));
+
+    expect(actions()).toEqual(["confirmed", "confirmed", "abandoned", "abandoned"]);
+  });
+});
+
 describe("409 SP_UNAVAILABLE", () => {
+  it("Android back dismisses it and keeps the cart, with no analytics row", async () => {
+    bookAndPay.mockImplementationOnce(async (a: { onConflict: (c: unknown) => void }) =>
+      a.onConflict({ kind: "sp-unavailable" }),
+    );
+    cartItems = [proLine()];
+    render(<CartPage />);
+    await userEvent.click(bookButton());
+    await screen.findByRole("alertdialog");
+    let handled = false;
+    act(() => {
+      handled = runBackInterceptors();
+    });
+    expect(handled).toBe(true);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(clearPro).not.toHaveBeenCalled();
+    expect(track).not.toHaveBeenCalled();
+    expect(runBackInterceptors()).toBe(false);
+  });
   it("takes the pro's lines back to 'Choose a pro' and opens the sheet", async () => {
     bookAndPay.mockImplementationOnce(async (a: { onConflict: (c: unknown) => void }) =>
       a.onConflict({ kind: "sp-unavailable" }),

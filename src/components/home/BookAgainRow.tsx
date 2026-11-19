@@ -14,12 +14,13 @@ import { Repeat } from "lucide-react";
 import { useBookings } from "@/hooks/useApi";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { TilePrice } from "@/components/TilePrice";
+import { useTileComingSoonTap } from "@/hooks/useTileComingSoonTap";
+import type { Service } from "@/lib/mock-data";
 
 const MAX_CARDS = 8;
 
 export function BookAgainRow() {
   const { data: bookings } = useBookings();
-  const { openService } = useServiceSheet();
 
   // Reduce to unique services from completed bookings, preserving order so
   // the most recently completed sits first. Using a Map keyed by service.id
@@ -45,30 +46,41 @@ export function BookAgainRow() {
       </h2>
       <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pl-4 scrollbar-none">
         {services.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => openService(s.id)}
-            className="flex w-40 shrink-0 snap-start flex-col justify-between rounded-2xl border border-border bg-card p-3 text-left"
-          >
-            <div>
-              <p className="line-clamp-2 text-sm font-semibold text-foreground">{s.name}</p>
-              {s.duration && <p className="mt-1 text-[11px] text-muted-foreground">{s.duration}</p>}
-            </div>
-            {/* SVC-415: `s` is the catalogue service (mapBooking's
-                catalogueSrv), so this is today's price, not the past booking's. */}
-            <p className="mt-3">
-              <TilePrice
-                service={s}
-                labelClassName="text-xs text-muted-foreground"
-                priceClassName="text-sm font-bold text-primary"
-                statusClassName="text-xs font-medium text-muted-foreground"
-              />
-            </p>
-          </button>
+          <BookAgainCard key={s.id} service={s} />
         ))}
         <div className="w-4 shrink-0" aria-hidden />
       </div>
     </section>
+  );
+}
+
+/** One card. Its own component so it can hold the SVC-419 tap hook. */
+function BookAgainCard({ service: s }: { service: Service }) {
+  const { openService } = useServiceSheet();
+  const trackComingSoonTap = useTileComingSoonTap(s);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        trackComingSoonTap();
+        openService(s.id);
+      }}
+      className="flex w-40 shrink-0 snap-start flex-col justify-between rounded-2xl border border-border bg-card p-3 text-left"
+    >
+      <div>
+        <p className="line-clamp-2 text-sm font-semibold text-foreground">{s.name}</p>
+        {s.duration && <p className="mt-1 text-[11px] text-muted-foreground">{s.duration}</p>}
+      </div>
+      {/* SVC-415: `s` is the catalogue service (mapBooking's
+          catalogueSrv), so this is today's price, not the past booking's. */}
+      <p className="mt-3">
+        <TilePrice
+          service={s}
+          labelClassName="text-xs text-muted-foreground"
+          priceClassName="text-sm font-bold text-primary"
+          statusClassName="text-xs font-medium text-muted-foreground"
+        />
+      </p>
+    </button>
   );
 }

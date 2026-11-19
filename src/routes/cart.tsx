@@ -42,6 +42,7 @@ import { AccountAvatar } from "@/components/AccountAvatar";
 import { useAuth } from "@/lib/auth-context";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import { useBookAndPay, type PriceChangedItem } from "@/hooks/useBookAndPay";
+import { pushBackInterceptor } from "@/lib/back-interceptor";
 import { SavedAddressesSheet } from "@/components/SavedAddressesSheet";
 import { SlotPickerSheet } from "@/components/cart/SlotPickerSheet";
 import { CouponsSheet } from "@/components/cart/CouponsSheet";
@@ -51,6 +52,7 @@ import { clearPendingCoupon, getPendingCoupon } from "@/lib/pending-coupon";
 import { clearRebookAddressConfirm, getRebookAddressConfirm } from "@/lib/rebook-address-confirm";
 import { readLastPaymentMethod, writeLastPaymentMethod } from "@/lib/last-payment-method";
 import { hapticSuccess } from "@/lib/haptics";
+import { track } from "@/lib/analytics";
 
 // SVC-310: the hero banner's "coupon" destination hands off the code
 // through this param so the cart opens with the coupons sheet pre-filled.
@@ -118,6 +120,30 @@ function proTargetFor(line: CartLineItem, catalogue: Map<string, Service> | null
 type CartConflict =
   | { kind: "price-changed"; spId: string; items: PriceChangedItem[] }
   | { kind: "sp-unavailable"; spId: string };
+
+/**
+ * SVC-419: one `price_change_at_checkout` per changed line, once per "Price
+ * updated" dialog. The dialog answered is remembered by identity, and marked
+ * before any row goes out, so a second path for the same dialog is a no-op.
+ */
+function sendPriceChange(
+  answered: { current: CartConflict | null },
+  conflict: CartConflict | null,
+  userAction: "confirmed" | "abandoned",
+) {
+  if (conflict?.kind !== "price-changed" || answered.current === conflict) return;
+  answered.current = conflict;
+  for (const c of conflict.items) {
+    track("marketplace.price_change_at_checkout", {
+      service_id: c.serviceId,
+      service_variant_id: c.serviceVariantId,
+      sp_id: conflict.spId,
+      old_price: c.quotedPrice,
+      new_price: c.currentPrice,
+      user_action: userAction,
+    });
+  }
+}
 
 export function CartPage() {
   const navigate = useNavigate();
@@ -279,6 +305,26 @@ export function CartPage() {
   const canBook = everyLineHasThePro && unavailableIds.size === 0 && !!selectedAddress && !isBusy;
 
   const [conflict, setConflict] = useState<CartConflict | null>(null);
+
+  // SVC-419: Radix's Action also fires onOpenChange(false) right after its
+  // onClick, which must not send "abandoned" on top of "confirmed".
+  const answeredPriceChange = useRef<CartConflict | null>(null);
+  const trackPriceChange = (userAction: "confirmed" | "abandoned") =>
+    sendPriceChange(answeredPriceChange, conflict, userAction);
+
+  // Android back (and the edge swipe) on an open 409 dialog acts as its
+  // Cancel and keeps the cart. Without this the router took back, left /cart,
+  // and the dialog went with it: no answer and no "abandoned" row (SVC-419).
+  useEffect(() => {
+    if (!conflict) return;
+    return pushBackInterceptor(() => {
+      if (conflict.kind === "price-changed") {
+        sendPriceChange(answeredPriceChange, conflict, "abandoned");
+      }
+      setConflict(null);
+      return true;
+    });
+  }, [conflict]);
 
   const openSheetFor = (line: CartLineItem) => {
     const target = proTargetFor(line, catalogue);
@@ -658,7 +704,11 @@ export function CartPage() {
       <AlertDialog
         open={conflict?.kind === "price-changed"}
         onOpenChange={(open) => {
-          if (!open) setConflict(null);
+          if (open) return;
+          // Cancel or Escape (an AlertDialog ignores taps outside it). After
+          // the Action this is a no-op.
+          trackPriceChange("abandoned");
+          setConflict(null);
         }}
       >
         <AlertDialogContent>
@@ -691,7 +741,9 @@ export function CartPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (conflict?.kind === "price-changed") confirmPriceChange(conflict.items);
+                if (conflict?.kind !== "price-changed") return;
+                trackPriceChange("confirmed");
+                confirmPriceChange(conflict.items);
               }}
             >
               Book at new price

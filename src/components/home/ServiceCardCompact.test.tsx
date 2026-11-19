@@ -10,6 +10,8 @@ import type { Service } from "@/lib/mock-data";
 import { ServiceCardCompact } from "./ServiceCardCompact";
 
 // SVC-415: the card's price label reads these; no QueryClient in this test.
+// SVC-419's tile-tap event has its own suite (useTileComingSoonTap.test.tsx).
+vi.mock("@/hooks/useTileComingSoonTap", () => ({ useTileComingSoonTap: () => () => {} }));
 vi.mock("@/hooks/useTilePoint", () => ({ useTilePoint: () => null }));
 vi.mock("@/hooks/useApi", async (orig) => ({
   ...(await orig<typeof import("@/hooks/useApi")>()),

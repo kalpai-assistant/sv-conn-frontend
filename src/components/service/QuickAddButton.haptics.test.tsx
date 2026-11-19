@@ -19,6 +19,8 @@ const cartItems = vi.hoisted(() => ({
   current: [] as Array<{ serviceId: string; quantity: number; spId?: string }>,
 }));
 
+// SVC-419's tile-tap event has its own suite (useTileComingSoonTap.test.tsx).
+vi.mock("@/hooks/useTileComingSoonTap", () => ({ useTileComingSoonTap: () => () => {} }));
 vi.mock("@/lib/haptics", () => ({
   hapticImpactLight: (...args: unknown[]) => hapticImpactLight(...args),
 }));

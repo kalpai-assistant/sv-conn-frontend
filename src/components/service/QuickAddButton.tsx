@@ -26,6 +26,7 @@
 import { Minus, Plus } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
 import { useProSelection } from "@/lib/pro-selection-context";
+import { useTileComingSoonTap } from "@/hooks/useTileComingSoonTap";
 import type { Service } from "@/lib/mock-data";
 
 interface QuickAddButtonProps {
@@ -38,6 +39,9 @@ interface QuickAddButtonProps {
 export function QuickAddButton({ service, compact = false }: QuickAddButtonProps) {
   const cart = useCart();
   const { openProSelection } = useProSelection();
+  // SVC-419: ADD on an offline / coming-soon tile. Called before the
+  // early return below so the hook order never changes.
+  const trackComingSoonTap = useTileComingSoonTap(service);
 
   if (service.variants.length === 0) return null;
 
@@ -50,6 +54,7 @@ export function QuickAddButton({ service, compact = false }: QuickAddButtonProps
     // handler.
     event.stopPropagation();
     event.preventDefault();
+    trackComingSoonTap();
     // SVC-398's "that landed" haptic fires in the sheet, when an SP is picked
     // and the line actually lands. Opening the sheet adds nothing.
     openProSelection(service, service.variants[0].id);

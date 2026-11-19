@@ -31,6 +31,7 @@ import type { Service } from "@/lib/mock-data";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { QuickAddButton } from "@/components/service/QuickAddButton";
 import { TilePrice } from "@/components/TilePrice";
+import { useTileComingSoonTap } from "@/hooks/useTileComingSoonTap";
 import { serviceHeroLayoutId } from "@/lib/shared-hero";
 import { ReviewSnippetLine } from "@/components/service/ReviewSnippetLine";
 
@@ -63,7 +64,13 @@ export function ServiceCardCompact({
     (categorySlug ? categoryIcon(categorySlug, categoryIconKey) : undefined);
   const tint = categoryColor(categorySortOrder ?? 0);
 
-  const handleOpen = () => openService(service.id);
+  // SVC-419: every activation (tap, Enter, Space) on an offline or
+  // coming-soon tile sends one event. ADD stops propagation, so it sends its own.
+  const trackComingSoonTap = useTileComingSoonTap(service);
+  const handleOpen = () => {
+    trackComingSoonTap();
+    openService(service.id);
+  };
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();

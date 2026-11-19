@@ -21,6 +21,8 @@ const SERVICE: Service = {
   variants: [],
 };
 
+// SVC-419's tile-tap event has its own suite (useTileComingSoonTap.test.tsx).
+vi.mock("@/hooks/useTileComingSoonTap", () => ({ useTileComingSoonTap: () => () => {} }));
 vi.mock("@/hooks/useTilePoint", () => ({ useTilePoint: () => ({ lat: 12.97, lng: 77.59 }) }));
 vi.mock("@/hooks/useApi", () => ({
   useFromPrices: () => ({ data: [{ service_id: "svc-1", from_price: null, served: false }] }),
