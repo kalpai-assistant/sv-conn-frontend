@@ -1645,6 +1645,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ingest Event
+         * @description Store one marketplace event. 422 for a name the app may not send, a field
+         *     the event doesn't declare, a value out of bounds, or an id that names no row
+         *     (``ANALYTICS_UNKNOWN_REFERENCE``, nothing stored). A repeated ``event_id``
+         *     stores nothing and is still 204.
+         */
+        post: operations["ingest_event_api_v1_analytics_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/auth/login": {
         parameters: {
             query?: never;
@@ -5105,6 +5128,12 @@ export interface components {
             /** Rate */
             rate: number;
         };
+        /**
+         * ClientEventBody
+         * @description The request body. A RootModel, because FastAPI rebuilds a bare annotated
+         *     union from ``Body(...)`` and drops its discriminator and validator.
+         */
+        ClientEventBody: components["schemas"]["SheetOpenedEvent"] | components["schemas"]["SheetAbandonedEvent"] | components["schemas"]["SpSelectedEvent"] | components["schemas"]["PriceChangeAtCheckoutEvent"] | components["schemas"]["TileComingSoonTappedEvent"];
         /** ConsumerCohort */
         ConsumerCohort: {
             /**
@@ -6181,6 +6210,49 @@ export interface components {
              * Format: date-time
              */
             released_at: string;
+        };
+        /** PriceChangeAtCheckout */
+        PriceChangeAtCheckout: {
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /**
+             * Service Variant Id
+             * Format: uuid
+             */
+            service_variant_id: string;
+            /**
+             * Sp Id
+             * Format: uuid
+             */
+            sp_id: string;
+            /** Old Price */
+            old_price: number | string;
+            /** New Price */
+            new_price: number | string;
+            /**
+             * User Action
+             * @enum {string}
+             */
+            user_action: "confirmed" | "abandoned";
+        };
+        /** PriceChangeAtCheckoutEvent */
+        PriceChangeAtCheckoutEvent: {
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /** Occurred At */
+            occurred_at?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            name: "marketplace.price_change_at_checkout";
+            properties: components["schemas"]["PriceChangeAtCheckout"];
         };
         /**
          * PriceUnit
@@ -7266,6 +7338,74 @@ export interface components {
          * @enum {string}
          */
         SettlementStatus: "pending" | "processing" | "completed" | "failed" | "reversed";
+        /** SheetAbandoned */
+        SheetAbandoned: {
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /**
+             * Service Variant Id
+             * Format: uuid
+             */
+            service_variant_id: string;
+            /** Time Spent Ms */
+            time_spent_ms: number;
+            /** Scroll Depth Pct */
+            scroll_depth_pct: number;
+        };
+        /** SheetAbandonedEvent */
+        SheetAbandonedEvent: {
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /** Occurred At */
+            occurred_at?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            name: "marketplace.sheet_abandoned";
+            properties: components["schemas"]["SheetAbandoned"];
+        };
+        /** SheetOpened */
+        SheetOpened: {
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /**
+             * Service Variant Id
+             * Format: uuid
+             */
+            service_variant_id: string;
+            /** Sp Count In Area */
+            sp_count_in_area: number;
+            /** Has Boosted */
+            has_boosted: boolean;
+            /** User Pincode */
+            user_pincode: string | null;
+        };
+        /** SheetOpenedEvent */
+        SheetOpenedEvent: {
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /** Occurred At */
+            occurred_at?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            name: "marketplace.sheet_opened";
+            properties: components["schemas"]["SheetOpened"];
+        };
         /** SmsLinkRequest */
         SmsLinkRequest: {
             /**
@@ -7307,6 +7447,50 @@ export interface components {
         SpPricingResponse: {
             /** Services */
             services: components["schemas"]["SpServicePricingGroup"][];
+        };
+        /** SpSelected */
+        SpSelected: {
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /**
+             * Service Variant Id
+             * Format: uuid
+             */
+            service_variant_id: string;
+            /**
+             * Sp Id
+             * Format: uuid
+             */
+            sp_id: string;
+            /** Sp Rank In Sheet */
+            sp_rank_in_sheet: number;
+            /** Sp Score */
+            sp_score: number;
+            /** Price Amount */
+            price_amount: number | string;
+            /** Is Boosted Sp */
+            is_boosted_sp: boolean;
+            /** Is Outside Range */
+            is_outside_range: boolean;
+        };
+        /** SpSelectedEvent */
+        SpSelectedEvent: {
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /** Occurred At */
+            occurred_at?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            name: "marketplace.sp_selected";
+            properties: components["schemas"]["SpSelected"];
         };
         /** SpServicePricingGroup */
         SpServicePricingGroup: {
@@ -7590,6 +7774,37 @@ export interface components {
             booking_id: string;
             /** Pros */
             pros: components["schemas"]["TeamPickPro"][];
+        };
+        /** TileComingSoonTapped */
+        TileComingSoonTapped: {
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "coming_soon" | "no_pros_online";
+            /** User Pincode */
+            user_pincode: string | null;
+        };
+        /** TileComingSoonTappedEvent */
+        TileComingSoonTappedEvent: {
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /** Occurred At */
+            occurred_at?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            name: "marketplace.tile_coming_soon_tapped";
+            properties: components["schemas"]["TileComingSoonTapped"];
         };
         /**
          * TimelinePro
@@ -10525,6 +10740,37 @@ export interface operations {
             };
             /** @description Coupon is not applicable to this cart */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ingest_event_api_v1_analytics_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientEventBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
