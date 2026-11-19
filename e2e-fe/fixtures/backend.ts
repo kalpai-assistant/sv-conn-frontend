@@ -9,8 +9,10 @@
 import type { Page } from "@playwright/test";
 
 export interface MockBackendHandle {
-  /** Count of fulfilled requests for a given endpoint tail (e.g. "/payments/verify"). */
-  count(tail: string): number;
+  /** Count of fulfilled requests for a given endpoint tail (e.g. "/payments/verify").
+   *  Optionally scope to an HTTP method so a POST-count isn't inflated by
+   *  the GETs the same route serves (tracking screen reads /bookings/ a lot). */
+  count(tail: string, method?: string): number;
   /** The raw body of the N-th call (0-indexed) to a tail, if any. */
   bodyAt(tail: string, index: number): unknown;
   /** All recorded calls, oldest first. */
@@ -80,11 +82,16 @@ export const DEFAULT_SERVICE: MockService = {
 export const DEFAULT_ADDRESS = {
   id: "addr-test-1",
   label: "Home",
+  // Backend returns a flat `full_address` (see useApi.ts line 342). The
+  // frontend remaps it to `full` on the client and LocationGateHost's
+  // `localityFrom(a.full, a.label)` tries to `.split(",")` it — a missing
+  // field here would TypeError at bootstrap, before the cart renders.
+  full_address: "Flat 101, Test Residency, Koramangala, Bangalore, 560034",
   line1: "Flat 101, Test Residency",
   line2: null,
   city: "Bangalore",
   state: "Karnataka",
-  pincode: "560001",
+  pincode: "560034",
   latitude: 12.9716,
   longitude: 77.5946,
   is_default: true,
@@ -223,8 +230,10 @@ export async function mockBackend(
       return route.fulfill({ json: { capable: false } });
     }
 
-    // Booking creation
-    if (tail === "/bookings" && method === "POST") {
+    // Booking creation. Real client POSTs to `/bookings/` (trailing slash
+    // — see src/hooks/useApi.ts). The list GET hits the same path with
+    // query params.
+    if ((tail === "/bookings" || tail === "/bookings/") && method === "POST") {
       return route.fulfill({
         json: {
           id: bookingId,
@@ -238,8 +247,9 @@ export async function mockBackend(
       });
     }
 
-    // Payment order
-    if (tail.match(/^\/payments\/order$/) && method === "POST") {
+    // Payment order — real path is `/payments/orders` (plural); see
+    // src/hooks/useApi.ts line 967.
+    if (tail === "/payments/orders" && method === "POST") {
       return route.fulfill({
         json: {
           razorpay_key_id: "rzp_test_playwright",
@@ -290,7 +300,8 @@ export async function mockBackend(
   });
 
   return {
-    count: (tail) => calls.filter((c) => c.tail === tail).length,
+    count: (tail, method) =>
+      calls.filter((c) => c.tail === tail && (method === undefined || c.method === method)).length,
     bodyAt: (tail, index) => calls.filter((c) => c.tail === tail)[index]?.body ?? null,
     calls: () => calls.slice(),
   };

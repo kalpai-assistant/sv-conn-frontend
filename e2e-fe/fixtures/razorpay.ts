@@ -27,6 +27,16 @@ export async function stubRazorpay(page: Page, opts: RazorpayStubOptions = {}): 
   const outcome = opts.outcome ?? "success";
   const delayMs = opts.delayMs ?? 30;
 
+  // Intercept the real checkout.js script. index.mobile.html loads it from
+  // https://checkout.razorpay.com — in the test harness DNS doesn't resolve,
+  // and the pending-script tag can keep the page "not ready" long enough to
+  // race the init-script. Return an empty body so the browser completes the
+  // request synchronously and moves on; the init script below installs our
+  // stub regardless.
+  await page.route("**/checkout.razorpay.com/**", (route) =>
+    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
+  );
+
   await page.addInitScript(
     ({ outcome, delayMs }) => {
       type Response = {
