@@ -24,13 +24,19 @@
  *
  * In-range SPs first. Then, under their own heading, the ones priced outside
  * the recommended range (SVC-482). Picking one of those takes a second tap
- * past a warning. `is_boosted` is never read: boost is a ranking tilt, and
- * labelling it would hurt trust.
+ * past a warning. `is_boosted` is never shown: boost is a ranking tilt, and
+ * labelling it would hurt trust. Only the SVC-419 analytics events read it.
+ *
+ * ## Analytics (SVC-419)
+ *
+ * `sheet_opened` once per open, on the first list that loads; `sp_selected`
+ * in `commit()`, the one place a pick lands; `sheet_abandoned` on any close
+ * without a pick, only after `sheet_opened`. See `src/lib/analytics.ts`.
  *
  * Matches ServiceSheet's hand-rolled backdrop + slide-up rather than the
  * shadcn Sheet, like the app's other sheets.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, MapPin, Star, User, X } from "lucide-react";
 import { toast } from "sonner";
@@ -51,6 +57,7 @@ import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { useDragDismiss } from "@/hooks/useDragDismiss";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
 import { useFromPrices, useServiceProviders, type API_RankedProvider } from "@/hooks/useApi";
+import { MAX_TIME_SPENT_MS, pincodeOrNull, track } from "@/lib/analytics";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
 import { useCart } from "@/lib/cart-context";
 import { formatRupees } from "@/lib/currency";
@@ -63,6 +70,7 @@ import {
   hasSpConflict,
   priceUnitLabel,
   proDisplayName,
+  scrollDepthPct,
   splitProviders,
 } from "@/lib/pro-selection";
 
@@ -89,7 +97,8 @@ interface ProSelectionSheetProps {
 
 type RankingLocation =
   | { kind: "pending" }
-  | { kind: "ready"; lat: number; lng: number }
+  /** `pincode`: the selected address's, for analytics; null when from the device. */
+  | { kind: "ready"; lat: number; lng: number; pincode: string | null }
   /** The selected address has no coordinates. */
   | { kind: "needs-address" }
   /** No saved address, and the device couldn't say where it is. */
@@ -130,15 +139,21 @@ function useRankingLocation(): RankingLocation {
   if (isLoading) return { kind: "pending" };
   if (selected) {
     return selected.lat != null && selected.lng != null
-      ? { kind: "ready", lat: selected.lat, lng: selected.lng }
+      ? { kind: "ready", lat: selected.lat, lng: selected.lng, pincode: pincodeOrNull(selected) }
       : { kind: "needs-address" };
   }
-  if (device.status === "ok") return { kind: "ready", lat: device.lat, lng: device.lng };
+  if (device.status === "ok") {
+    return { kind: "ready", lat: device.lat, lng: device.lng, pincode: null };
+  }
   if (device.status === "failed") return { kind: "device-failed" };
   return { kind: "pending" };
 }
 
-export function ProSelectionSheet({ service, variantId, onClose }: ProSelectionSheetProps) {
+export function ProSelectionSheet({
+  service,
+  variantId,
+  onClose: closeSheet,
+}: ProSelectionSheetProps) {
   useLockBodyScroll(true);
 
   const cart = useCart();
@@ -163,6 +178,76 @@ export function ProSelectionSheet({ service, variantId, onClose }: ProSelectionS
   // The SP waiting on the "Replace cart?" answer.
   const [confirmFor, setConfirmFor] = useState<API_RankedProvider | null>(null);
 
+  // SVC-419 analytics, per open (a new open is a new mount, see
+  // pro-selection-context). `sheet_opened` once, on the first successful
+  // list; `sheet_abandoned` on a close with no pick, only after an open.
+  const mountedAt = useRef(Date.now());
+  const openedRef = useRef(false);
+  const committedRef = useRef(false);
+  const abandonedSentRef = useRef(false);
+  const maxDepthRef = useRef(0);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const serviceVariantIdRef = useRef(variantId);
+  const unmountTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const measureScroll = useCallback(() => {
+    const el = scrollerRef.current;
+    if (el) maxDepthRef.current = Math.max(maxDepthRef.current, scrollDepthPct(el));
+  }, []);
+
+  const sendAbandoned = useCallback(() => {
+    if (!openedRef.current || committedRef.current || abandonedSentRef.current) return;
+    abandonedSentRef.current = true;
+    track("marketplace.sheet_abandoned", {
+      service_id: service.id,
+      service_variant_id: serviceVariantIdRef.current,
+      time_spent_ms: Math.min(MAX_TIME_SPENT_MS, Math.max(0, Date.now() - mountedAt.current)),
+      scroll_depth_pct: maxDepthRef.current,
+    });
+  }, [service.id]);
+
+  // Every close (X, backdrop, drag, Android back) goes through here. Sent at
+  // the close, not the unmount: AnimatePresence keeps the sheet mounted
+  // through its exit animation, which isn't time spent.
+  const onClose = useCallback(() => {
+    sendAbandoned();
+    closeSheet();
+  }, [sendAbandoned, closeSheet]);
+
+  // An unmount without a close (route change, a remount for another service).
+  // The guards make it a no-op after a close or a pick. Deferred one tick and
+  // cancelled on re-mount, because StrictMode's dev mount → unmount → mount
+  // runs this cleanup once while the sheet stays on screen, possibly after
+  // `sheet_opened` already went (a cached list loads in the first pass).
+  useEffect(() => {
+    const pending = unmountTimerRef.current;
+    if (pending !== null) clearTimeout(pending);
+    unmountTimerRef.current = null;
+    return () => {
+      unmountTimerRef.current = setTimeout(sendAbandoned, 0);
+    };
+  }, [sendAbandoned]);
+
+  const listLoaded = ready && !query.isLoading && !query.isError && !!query.data;
+  useEffect(() => {
+    if (!listLoaded || openedRef.current || !query.data || location.kind !== "ready") return;
+    openedRef.current = true;
+    const { providers, service_variant_id } = query.data;
+    serviceVariantIdRef.current = service_variant_id ?? variantId;
+    track("marketplace.sheet_opened", {
+      service_id: service.id,
+      service_variant_id: serviceVariantIdRef.current,
+      sp_count_in_area: providers.length,
+      has_boosted: providers.some((p) => p.is_boosted),
+      user_pincode: location.pincode,
+    });
+  });
+
+  // Measure once the list is on screen too: a list that never scrolls is 100.
+  useEffect(() => {
+    if (listLoaded) measureScroll();
+  }, [listLoaded, query.data, measureScroll]);
+
   // Hardware back closes this sheet first. When opened from ServiceSheet,
   // it registered later, and the last-registered interceptor wins.
   useEffect(
@@ -180,6 +265,21 @@ export function ProSelectionSheet({ service, variantId, onClose }: ProSelectionS
   const commit = (provider: API_RankedProvider, replaceOtherSps: boolean) => {
     const data = query.data;
     if (!data) return;
+    const serviceVariantId = data.service_variant_id ?? variantId;
+    committedRef.current = true;
+    track("marketplace.sp_selected", {
+      service_id: service.id,
+      service_variant_id: serviceVariantId,
+      sp_id: provider.sp_id,
+      sp_rank_in_sheet: Math.max(
+        0,
+        data.providers.findIndex((p) => p.sp_id === provider.sp_id),
+      ),
+      sp_score: Math.max(0, provider.score),
+      price_amount: provider.price_amount,
+      is_boosted_sp: provider.is_boosted,
+      is_outside_range: provider.outside_recommended_range,
+    });
     cart.addQuoted(
       service,
       variantId,
@@ -188,7 +288,7 @@ export function ProSelectionSheet({ service, variantId, onClose }: ProSelectionS
         spName: provider.name,
         quotedPrice: provider.price_amount,
         quotedAt: data.quoted_at,
-        serviceVariantId: data.service_variant_id ?? variantId,
+        serviceVariantId,
         outsideRecommendedRange: provider.outside_recommended_range,
       },
       { replaceOtherSps },
@@ -252,7 +352,11 @@ export function ProSelectionSheet({ service, variantId, onClose }: ProSelectionS
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div
+          ref={scrollerRef}
+          onScroll={measureScroll}
+          className="flex-1 overflow-y-auto px-4 pb-4"
+        >
           {location.kind === "needs-address" || location.kind === "device-failed" ? (
             <div className="flex flex-col items-center gap-3 py-10 text-center">
               <MapPin className="h-8 w-8 text-muted-foreground" />

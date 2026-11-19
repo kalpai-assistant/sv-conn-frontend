@@ -22,6 +22,7 @@ import { SearchResultSkeleton } from "@/components/skeletons/ListRowSkeletons";
 import { useServices } from "@/hooks/useApi";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { TilePrice } from "@/components/TilePrice";
+import { useTileComingSoonTap } from "@/hooks/useTileComingSoonTap";
 import { toPlainText } from "@/lib/markdown-text";
 
 const RECENT_KEY = "sc_recent_searches";
@@ -228,19 +229,21 @@ function SuggestionsList({
   );
 }
 
+interface SearchResult {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  duration: string;
+}
+
 function ResultsList({
   results,
   isLoading,
   query,
   onResultTap,
 }: {
-  results: Array<{
-    id: string;
-    name: string;
-    description: string;
-    price: number;
-    duration: string;
-  }>;
+  results: SearchResult[];
   isLoading: boolean;
   query: string;
   onResultTap: (serviceId: string) => void;
@@ -264,30 +267,41 @@ function ResultsList({
   return (
     <ul className="flex flex-col divide-y divide-border px-4">
       {results.map((s) => (
-        <li key={s.id}>
-          <button
-            type="button"
-            onClick={() => onResultTap(s.id)}
-            className="flex w-full items-start gap-3 py-3 text-left"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent">
-              <Search className="h-4 w-4 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-foreground">{s.name}</p>
-              <p className="truncate text-xs text-muted-foreground">{toPlainText(s.description)}</p>
-            </div>
-            {/* SVC-415: max-w so a wrapped status can't squeeze the name. */}
-            <TilePrice
-              service={s}
-              className="max-w-[7rem] shrink-0 text-right"
-              labelClassName="text-xs text-muted-foreground"
-              priceClassName="text-sm font-semibold text-primary"
-              statusClassName="text-xs font-medium text-muted-foreground"
-            />
-          </button>
-        </li>
+        <ResultRow key={s.id} service={s} onTap={() => onResultTap(s.id)} />
       ))}
     </ul>
+  );
+}
+
+/** One result. Its own component so it can hold the SVC-419 tap hook. */
+function ResultRow({ service: s, onTap }: { service: SearchResult; onTap: () => void }) {
+  const trackComingSoonTap = useTileComingSoonTap(s);
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => {
+          trackComingSoonTap();
+          onTap();
+        }}
+        className="flex w-full items-start gap-3 py-3 text-left"
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent">
+          <Search className="h-4 w-4 text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-foreground">{s.name}</p>
+          <p className="truncate text-xs text-muted-foreground">{toPlainText(s.description)}</p>
+        </div>
+        {/* SVC-415: max-w so a wrapped status can't squeeze the name. */}
+        <TilePrice
+          service={s}
+          className="max-w-[7rem] shrink-0 text-right"
+          labelClassName="text-xs text-muted-foreground"
+          priceClassName="text-sm font-semibold text-primary"
+          statusClassName="text-xs font-medium text-muted-foreground"
+        />
+      </button>
+    </li>
   );
 }

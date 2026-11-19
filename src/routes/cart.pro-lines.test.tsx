@@ -89,6 +89,8 @@ vi.mock("@/components/cart/PricingBreakdown", () => ({
   ),
 }));
 vi.mock("@/components/AccountAvatar", () => ({ AccountAvatar: () => null }));
+const track = vi.fn();
+vi.mock("@/lib/analytics", () => ({ track: (...a: unknown[]) => track(...a) }));
 vi.mock("@/lib/last-payment-method", () => ({
   readLastPaymentMethod: () => "cash",
   writeLastPaymentMethod: vi.fn(),
@@ -361,6 +363,91 @@ describe("409 PRICE_CHANGED", () => {
     // PRICE_CHANGED it still showed the old ₹899 while the pro charged ₹950.
     await bookIntoPriceChange();
     expect(removeQueries).toHaveBeenCalledWith({ queryKey: ["service-providers"] });
+  });
+});
+
+describe("409 PRICE_CHANGED analytics (SVC-419)", () => {
+  const changed = {
+    kind: "price-changed" as const,
+    items: [
+      { serviceId: "svc-wash", serviceVariantId: "v-suv", quotedPrice: 450, currentPrice: 520 },
+      { serviceId: "svc-wash", serviceVariantId: "v-hatch", quotedPrice: 300, currentPrice: 280 },
+    ],
+  };
+  const events = () =>
+    track.mock.calls.filter((c) => c[0] === "marketplace.price_change_at_checkout");
+  const actions = () => events().map((c) => (c[1] as { user_action: string }).user_action);
+
+  async function bookIntoPriceChange() {
+    bookAndPay.mockImplementationOnce(async (a: { onConflict: (c: unknown) => void }) =>
+      a.onConflict(changed),
+    );
+    cartItems = [proLine(), proLine({ variantId: "v-hatch", serviceVariantId: "v-hatch" })];
+    render(<CartPage />);
+    await userEvent.click(bookButton());
+    return screen.findByRole("alertdialog");
+  }
+
+  it("sends nothing until the dialog is answered", async () => {
+    await bookIntoPriceChange();
+    expect(events()).toHaveLength(0);
+  });
+
+  it("Book at new price sends one 'confirmed' per changed line, and never 'abandoned'", async () => {
+    const dialog = await bookIntoPriceChange();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Book at new price" }));
+
+    expect(events()).toEqual([
+      [
+        "marketplace.price_change_at_checkout",
+        {
+          service_id: "svc-wash",
+          service_variant_id: "v-suv",
+          sp_id: "sp-a",
+          old_price: 450,
+          new_price: 520,
+          user_action: "confirmed",
+        },
+      ],
+      [
+        "marketplace.price_change_at_checkout",
+        {
+          service_id: "svc-wash",
+          service_variant_id: "v-hatch",
+          sp_id: "sp-a",
+          old_price: 300,
+          new_price: 280,
+          user_action: "confirmed",
+        },
+      ],
+    ]);
+  });
+
+  it("Cancel sends one 'abandoned' per changed line, and never 'confirmed'", async () => {
+    const dialog = await bookIntoPriceChange();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(actions()).toEqual(["abandoned", "abandoned"]);
+  });
+
+  it("Escape sends 'abandoned' once per line", async () => {
+    await bookIntoPriceChange();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(actions()).toEqual(["abandoned", "abandoned"]);
+  });
+
+  it("a second 409 is a new dialog with its own events", async () => {
+    const dialog = await bookIntoPriceChange();
+    // The rebook's 409 arrives after a round trip, as on a real network.
+    bookAndPay.mockImplementationOnce(async (a: { onConflict: (c: unknown) => void }) => {
+      await new Promise((r) => setTimeout(r, 0));
+      a.onConflict(changed);
+    });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Book at new price" }));
+    const again = await screen.findByRole("alertdialog");
+    await userEvent.click(within(again).getByRole("button", { name: "Cancel" }));
+
+    expect(actions()).toEqual(["confirmed", "confirmed", "abandoned", "abandoned"]);
   });
 });
 

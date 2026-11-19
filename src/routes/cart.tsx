@@ -51,6 +51,7 @@ import { clearPendingCoupon, getPendingCoupon } from "@/lib/pending-coupon";
 import { clearRebookAddressConfirm, getRebookAddressConfirm } from "@/lib/rebook-address-confirm";
 import { readLastPaymentMethod, writeLastPaymentMethod } from "@/lib/last-payment-method";
 import { hapticSuccess } from "@/lib/haptics";
+import { track } from "@/lib/analytics";
 
 // SVC-310: the hero banner's "coupon" destination hands off the code
 // through this param so the cart opens with the coupons sheet pre-filled.
@@ -279,6 +280,26 @@ export function CartPage() {
   const canBook = everyLineHasThePro && unavailableIds.size === 0 && !!selectedAddress && !isBusy;
 
   const [conflict, setConflict] = useState<CartConflict | null>(null);
+
+  // SVC-419: one `price_change_at_checkout` per changed line, once per
+  // "Price updated" dialog. The dialog answered is remembered by identity:
+  // Radix's Action also fires onOpenChange(false) right after its onClick,
+  // which must not send "abandoned" on top of "confirmed".
+  const answeredPriceChange = useRef<CartConflict | null>(null);
+  const trackPriceChange = (userAction: "confirmed" | "abandoned") => {
+    if (conflict?.kind !== "price-changed" || answeredPriceChange.current === conflict) return;
+    answeredPriceChange.current = conflict;
+    for (const c of conflict.items) {
+      track("marketplace.price_change_at_checkout", {
+        service_id: c.serviceId,
+        service_variant_id: c.serviceVariantId,
+        sp_id: conflict.spId,
+        old_price: c.quotedPrice,
+        new_price: c.currentPrice,
+        user_action: userAction,
+      });
+    }
+  };
 
   const openSheetFor = (line: CartLineItem) => {
     const target = proTargetFor(line, catalogue);
@@ -658,7 +679,11 @@ export function CartPage() {
       <AlertDialog
         open={conflict?.kind === "price-changed"}
         onOpenChange={(open) => {
-          if (!open) setConflict(null);
+          if (open) return;
+          // Cancel or Escape (an AlertDialog ignores taps outside it). After
+          // the Action this is a no-op.
+          trackPriceChange("abandoned");
+          setConflict(null);
         }}
       >
         <AlertDialogContent>
@@ -691,7 +716,9 @@ export function CartPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (conflict?.kind === "price-changed") confirmPriceChange(conflict.items);
+                if (conflict?.kind !== "price-changed") return;
+                trackPriceChange("confirmed");
+                confirmPriceChange(conflict.items);
               }}
             >
               Book at new price

@@ -67,3 +67,16 @@ export const MAX_WHY_CHIPS = 3;
 export function hasSpConflict(items: CartLineItem[], serviceId: string, spId: string): boolean {
   return items.some((i) => i.serviceId !== serviceId && !!i.spId && i.spId !== spId);
 }
+
+/**
+ * How far down a scroller the customer has seen, as a whole percent: the
+ * bottom edge of the view over the content height. 100 when the content
+ * fits without scrolling. For SVC-419's `sheet_abandoned.scroll_depth_pct`.
+ */
+export function scrollDepthPct(
+  el: Pick<HTMLElement, "scrollTop" | "clientHeight" | "scrollHeight">,
+) {
+  if (el.scrollHeight <= el.clientHeight) return 100;
+  const pct = Math.round(((el.scrollTop + el.clientHeight) / el.scrollHeight) * 100);
+  return Math.min(100, Math.max(0, pct));
+}
