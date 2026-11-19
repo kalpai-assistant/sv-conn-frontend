@@ -44,6 +44,24 @@ jobs:
       - name: Check public-asset references
         run: npm run check:assets
 
+      # Catches a stale src/routeTree.gen.ts (SVC-476 / wave-1 G8). Same
+      # failure shape as check:assets above — a merge resolved in favour
+      # of the old tree, or a PR that added a route file without
+      # regenerating, silently 404s at that route. Runs here (before
+      # typecheck) so the diff is reported with the route churn, not
+      # masked by a TS error cascading from the stale types.
+      - name: Check TanStack route tree is up to date
+        run: npm run check:routes
+
+      # Catches API-type drift (SVC-469 / wave-1 G2). svc_connect.json is
+      # the backend's OpenAPI spec; src/types/api.ts is the generated
+      # typed client. Backend ships a field rename, someone commits the
+      # updated spec, nobody re-runs `npm run generate:api-types`, and the
+      # tracking screen shows "N/A" in prod. Mirrors check:routes at the
+      # type layer.
+      - name: Check API types are up to date
+        run: npm run check:api-types
+
       - name: Lint
         run: npm run lint
 

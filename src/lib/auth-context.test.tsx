@@ -10,7 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { ReactNode } from "react";
-import { apiFetch, clearTokens, hasStoredAuth } from "./api";
+import { apiFetch, clearTokens, hasStoredAuth, setTokens } from "./api";
 import { AuthProvider, useAuth } from "./auth-context";
 import { CartProvider, useCart } from "./cart-context";
 import type { Service } from "./mock-data";
@@ -251,6 +251,101 @@ describe("a session that already ended", () => {
     expect(result.current.auth.user).not.toBeNull();
     expect(hasStoredAuth()).toBe(true);
     expect(localStorage.getItem("eazyserv:user")).not.toBeNull();
+  });
+});
+
+/**
+ * SVC-474: cold-boot with stale tokens.
+ *
+ * The existing "session that already ended" block covers the mid-session case
+ * — the user is logged in, their token goes dead, and the refresh flow signs
+ * them out. What those tests don't cover is the **cold-boot chain** that
+ * `src/lib/api.ts` lines 117-121 call out as the one found on device: the app
+ * starts with a stored access+refresh pair that have both since been
+ * invalidated (account deleted elsewhere), `AuthProvider` fires its probe,
+ * the probe's refresh-on-401 fallback also 401s, and the user must land on
+ * `AuthFlow` — not sit on a spinner across relaunches.
+ */
+describe("cold-boot with stale tokens (SVC-474)", () => {
+  const USER = {
+    id: "u-stale",
+    name: "Stale User",
+    phone: "+911111111111",
+    email: null,
+    role: "consumer" as const,
+  };
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("clears tokens and resolves isRestoring when /users/me AND /auth/refresh both 401", async () => {
+    // Seed the pre-probe state: stored access + refresh + cached user, as a
+    // cold boot would find them. `hasStoredAuth()` must return true so
+    // AuthProvider's initial render sets isRestoring = true (would otherwise
+    // jump straight to AuthFlow and we'd be testing nothing).
+    setTokens("stale_access", "stale_refresh");
+    localStorage.setItem("eazyserv:user", JSON.stringify(USER));
+    expect(hasStoredAuth()).toBe(true);
+
+    // Every backend hit is a refusal — the account is dead both ways.
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(new Response(JSON.stringify({ detail: "inactive" }), { status: 401 })),
+        ),
+    );
+
+    const { result } = mount();
+    // Wait a tick for the useEffect probe to run and resolve.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    // Tokens gone, user gone, spinner gone. Failure mode: regression to the
+    // "account deleted elsewhere → app sat on a spinner" symptom.
+    expect(result.current.auth.isRestoring).toBe(false);
+    expect(result.current.auth.user).toBeNull();
+    expect(result.current.auth.isAuthenticated).toBe(false);
+    expect(hasStoredAuth()).toBe(false);
+    expect(localStorage.getItem("eazyserv:user")).toBeNull();
+  });
+
+  it("preserves tokens and cached user when /auth/refresh 503s on cold boot", async () => {
+    // Same cold-boot seed, but /auth/refresh returns 503 instead of 401. This
+    // is a deploy or a proxy blip — not a session-ended signal. Signing out
+    // here (as a naive fix to the 401 case would do) wipes the cart and the
+    // push token for a hiccup. Failure mode: a refactor that merged the 4xx
+    // and 5xx branches of `refreshAccessToken`, logging out on any refresh
+    // failure.
+    setTokens("stale_access", "stale_refresh");
+    localStorage.setItem("eazyserv:user", JSON.stringify(USER));
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation((url: string) =>
+          Promise.resolve(
+            String(url).endsWith("/auth/refresh")
+              ? new Response("upstream", { status: 503 })
+              : new Response(JSON.stringify({ detail: "expired" }), { status: 401 }),
+          ),
+        ),
+    );
+
+    const { result } = mount();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    // Probe resolved either way (we don't block the UI), but we kept the
+    // offline-boot session intact.
+    expect(result.current.auth.isRestoring).toBe(false);
+    expect(hasStoredAuth()).toBe(true);
+    expect(localStorage.getItem("eazyserv:user")).not.toBeNull();
+    // Cached user still present — the app renders authenticated-UI offline
+    // until the network recovers.
+    expect(result.current.auth.user).not.toBeNull();
   });
 });
 

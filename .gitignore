@@ -15,6 +15,11 @@ node_modules
 # Testing
 coverage
 
+# Playwright (SVC-468) — e2e-fe artifacts (reports, screenshots, traces)
+playwright-report
+test-results
+playwright/.cache
+
 # Production
 dist
 dist-ssr
