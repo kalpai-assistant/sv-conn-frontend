@@ -85,19 +85,32 @@ export function ServiceCard({ service }: { service: Service }) {
             {service.duration}
           </div>
         </div>
-        <div className="flex flex-col items-end justify-between gap-2">
-          {/* SVC-415: "from ₹X" at the customer's point, or the status. Status
-              text may wrap; max-w keeps it from crowding the name column. */}
+        <div className="flex flex-col items-end justify-between gap-2" data-card-column="right">
+          {/* SVC-415: "from ₹X" at the customer's point. With no price
+              (SVC-485) this renders nothing and the column holds only ADD. */}
           <TilePrice
             service={service}
+            show="price"
             className="flex max-w-[6.5rem] flex-col items-end text-right"
             labelClassName="text-[10px] text-muted-foreground"
             priceClassName="text-sm font-bold text-primary"
-            statusClassName="text-xs font-medium text-muted-foreground"
           />
-          <QuickAddButton service={service} />
+          {/* mt-auto: with no price ADD is the only child and still sits on
+              the duration row; with a price this is today's justify-between. */}
+          <div className="mt-auto">
+            <QuickAddButton service={service} />
+          </div>
         </div>
       </div>
+      {/* SVC-485: "No pros online right now" / "Coming soon" on its own line
+          under the duration, indented to the text column (thumbnail w-16 +
+          gap-3) and running under ADD, so it never has to wrap. */}
+      <TilePrice
+        service={service}
+        show="status"
+        className="-mt-1 block truncate pl-[4.75rem]"
+        statusClassName="text-xs text-muted-foreground"
+      />
       <ReviewSnippetLine snippet={service.reviewSnippet} />
     </div>
   );

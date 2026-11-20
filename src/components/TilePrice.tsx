@@ -48,6 +48,13 @@ interface TilePriceProps {
   priceClassName?: string;
   /** "No pros online right now" / "Coming soon". Defaults to `labelClassName`. */
   statusClassName?: string;
+  /**
+   * SVC-485: render only one half, so a place can put the price and the
+   * status in different spots (ServiceCard). "price" renders only the price
+   * state, catalogue fallback included; "status" only offline / coming soon.
+   * Null otherwise. Omitted = both, as before. Same cached query either way.
+   */
+  show?: "price" | "status";
 }
 
 export function TilePrice({
@@ -56,11 +63,15 @@ export function TilePrice({
   labelClassName,
   priceClassName,
   statusClassName,
+  show,
 }: TilePriceProps) {
   const point = useTilePoint();
   const { data } = useFromPrices(point);
   const row = data?.find((r) => r.service_id === service.id);
   const state = tilePriceState(row, service.price);
+
+  if (show === "price" && state.kind !== "price") return null;
+  if (show === "status" && state.kind === "price") return null;
 
   if (state.kind !== "price") {
     return (
