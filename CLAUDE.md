@@ -2,6 +2,25 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Claude skills (reach for these first)
+
+KALP AI's custom skill library — [`kalpai-skills`](https://github.com/kalpai-assistant/kalpai-skills) — is installed globally at `~/.claude/skills/`. Fresh agents should route to these before rolling their own approach.
+
+| Situation in this repo | Skill |
+|---|---|
+| Picking up a Jira ticket (make-or-plan, branch name, hands-off check) | `jira-triage` |
+| Non-trivial work spanning >1 file or >1 reversible step | `planning` |
+| New integration, cross-service change, breaking schema change | `architecture-design` |
+| Proposing or writing tests (every test must name the failure it catches) | `meaningful-testing` |
+| Opening or self-reviewing a PR (correctness-first, block/comment/nit/approve) | `kalpai-review` (NOT built-in `/review`) |
+| Writing a run doc or spawn prompt for a sub-agent | `handoff-writer` |
+| Launching an epic with 3+ subtasks / parallel sub-agents | `epic-orchestrator` |
+| Cutting a release or publishing an artifact | `release-engineer` |
+
+**Frontend-specific:** `release-engineer` catches the traps that have bitten us — the `release-apk notify=false` overwrite-latest-apk gate, the Vite chunk-hash busting pattern (minifier eats trailing comments, use the sourcemap + exported-referenced constant), and the brand-color discipline (oklch tokens, not hex). Reach for it before touching `release-apk.yml`, `release-aab.yml`, or vite build config.
+
+**Install if missing:** `git clone https://github.com/kalpai-assistant/kalpai-skills.git && cd kalpai-skills && ./install.sh`. See [LIBRARY.md](https://github.com/kalpai-assistant/kalpai-skills/blob/main/LIBRARY.md) for the user manual, update workflow, and add-a-skill workflow.
+
 ## First-time setup (Windows or macOS)
 
 The dev loop is identical either OS — only the shell + package manager differ. Note where relevant.
