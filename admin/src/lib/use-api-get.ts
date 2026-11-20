@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "./api";
 
 export type ApiGetState<T> =
@@ -17,13 +17,19 @@ const LOADING = { status: "loading" } as const;
  * the state becomes an error rather than leaving old data looking current.
  *
  * A null path asks for nothing and stays loading: for a call only some views need.
+ *
+ * `replace` puts data on screen as the current answer without a call: for a write
+ * that returns the fresh resource (SVC-481's variant editor). A call still in
+ * flight is cancelled, so an older answer can't land on top of it.
  */
 export function useApiGet<T>(path: string | null): ApiGetState<T> & {
   retry: () => void;
   refresh: () => void;
+  replace: (data: T) => void;
 } {
   const [settled, setSettled] = useState<{ path: string; state: ApiGetState<T> } | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const inFlight = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (path === null) {
@@ -31,6 +37,7 @@ export function useApiGet<T>(path: string | null): ApiGetState<T> & {
       return;
     }
     const controller = new AbortController();
+    inFlight.current = controller;
     setSettled((current) => (current?.path === path ? current : null));
     apiFetch<T>(path, { signal: controller.signal }).then(
       (data) => {
@@ -52,7 +59,15 @@ export function useApiGet<T>(path: string | null): ApiGetState<T> & {
     setAttempt((n) => n + 1);
   }, []);
   const refresh = useCallback(() => setAttempt((n) => n + 1), []);
+  const replace = useCallback(
+    (data: T) => {
+      if (path === null) return;
+      inFlight.current?.abort();
+      setSettled({ path, state: { status: "ready", data } });
+    },
+    [path],
+  );
 
   const state: ApiGetState<T> = path !== null && settled?.path === path ? settled.state : LOADING;
-  return { ...state, retry, refresh };
+  return { ...state, retry, refresh, replace };
 }

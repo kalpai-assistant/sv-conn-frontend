@@ -3,7 +3,9 @@
  * of each mock is the backend's app/schemas/admin_catalog.py, and the mock keeps
  * state and applies the backend's refusals (CATEGORY_NOT_EMPTY,
  * SERVICE_HAS_ACTIVE_BOOKINGS without confirm, CATALOG_NAME_TAKEN, min_qty for
- * PER_SQFT / PER_HOUR), so a reload shows what a write really persisted. The
+ * PER_SQFT / PER_HOUR; SVC-481's LAST_ACTIVE_VARIANT, VARIANT_LABEL_TAKEN,
+ * COMMISSION_INCREASE_NEEDS_NOTICE without confirm, base_price on a service priced
+ * per variant), so a reload shows what a write really persisted. The
  * write-heavy flows run in both colour schemes, because night mode only swaps
  * tokens and fixed colours can clash.
  */
@@ -33,6 +35,10 @@ interface Variant {
   duration_minutes: number | null;
   sort_order: number;
   is_active: boolean;
+  platform_commission: number;
+  provider_payout: number;
+  commission_pct: number;
+  gst_percent: number;
 }
 
 interface Service {
@@ -87,6 +93,14 @@ function svc(id: string, categoryId: string, name: string, extra: Partial<Servic
   };
 }
 
+/** Rounded half up to paise, near enough the backend's Decimal for these prices. */
+const round2 = (value: number) => Math.round(value * 100 + 1e-9) / 100;
+
+function split(price: number, pct: number) {
+  const commission = round2((price * pct) / 100);
+  return { platform_commission: commission, provider_payout: round2(price - commission) };
+}
+
 const variant = (id: string, label: string, price: number, is_active = true): Variant => ({
   id,
   label,
@@ -95,6 +109,9 @@ const variant = (id: string, label: string, price: number, is_active = true): Va
   duration_minutes: 60,
   sort_order: Number(id.slice(-1)),
   is_active,
+  ...split(price, 30),
+  commission_pct: 30,
+  gst_percent: 18,
 });
 
 function refusal(status: number, code: string, message: string, details: Json | null = null) {
@@ -117,13 +134,17 @@ async function mockBackend(page: Page, role: Role) {
     svc("s-basin", "c-plumber", "Basin installation", {
       active_bookings: 1,
       description: "**Includes:**\n- Fitting\n- Leak test",
+      base_price: 599,
       variants: [
         variant("v1", "Wall-mounted", 599),
         variant("v2", "Pedestal", 799, false),
         variant("v3", "Counter-top", 699),
       ],
     }),
-    svc("s-tap", "c-plumber", "Tap repair", { base_price: 199 }),
+    svc("s-tap", "c-plumber", "Tap repair", {
+      base_price: 199,
+      variants: [variant("v1-tap", "Standard", 199)],
+    }),
     svc("s-door", "c-carpenter", "Door repair", {
       price_unit: "PER_HOUR",
       min_qty: 2,
@@ -147,7 +168,13 @@ async function mockBackend(page: Page, role: Role) {
     created_at: CREATED,
     updated_at: CREATED,
     variants: s.variants,
+    priced_per_variant: s.variants.length >= 2,
   });
+  /** After every variant write the service's price follows its cheapest active variant. */
+  const followCheapest = (s: Service) => {
+    const active = s.variants.filter((v) => v.is_active).map((v) => v.base_price);
+    if (active.length) s.base_price = Math.min(...active);
+  };
   const sorted = (list: Category[]) =>
     [...list].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
   const node = (c: Category): Json => ({
@@ -269,13 +296,113 @@ async function mockBackend(page: Page, role: Role) {
       return route.fulfill({ json: categoryDetail(found) });
     }
 
+    const variantsMatch = path.match(
+      /^\/catalog\/services\/([^/]+)\/variants(?:\/([^/]+)(?:\/(activate|deactivate|price-impact))?)?$/,
+    );
+    if (variantsMatch) {
+      const found = services.find((s) => s.id === decodeURIComponent(variantsMatch[1]));
+      if (!found) return route.fulfill(refusal(404, "SERVICE_NOT_FOUND", "Service not found"));
+      const labelTaken = (label: string, except: string | null) =>
+        found.variants.some(
+          (v) => v.id !== except && v.label.toLowerCase() === label.trim().toLowerCase(),
+        );
+      const taken = (label: string) =>
+        route.fulfill(
+          refusal(409, "VARIANT_LABEL_TAKEN", `This service already has a variant named ${label}`, {
+            field: "label",
+          }),
+        );
+      if (!variantsMatch[2] && method === "POST") {
+        const label = String(body!.label).trim();
+        if (labelTaken(label, null)) return taken(label);
+        const price = body!.base_price as number;
+        const pct = body!.commission_pct as number;
+        const created: Variant = {
+          ...variant(`v-new-${found.variants.length}`, label, price),
+          ...split(price, pct),
+          commission_pct: pct,
+          duration_minutes: (body!.duration_minutes as number | undefined) ?? null,
+          sort_order:
+            (body!.sort_order as number | undefined) ??
+            Math.max(-1, ...found.variants.map((v) => v.sort_order)) + 1,
+          gst_percent: found.variants[0]?.gst_percent ?? 0,
+        };
+        found.variants.push(created);
+        followCheapest(found);
+        return route.fulfill({ status: 201, json: serviceDetail(found) });
+      }
+      const v = found.variants.find((x) => x.id === decodeURIComponent(variantsMatch[2] ?? ""));
+      if (!v) return route.fulfill(refusal(404, "VARIANT_NOT_FOUND", "Variant not found"));
+      if (variantsMatch[3] === "price-impact") {
+        return route.fulfill({
+          json: { sp_prices: 3, outside_now: 0, outside_after: 1, moving_out: 1, moving_in: 0 },
+        });
+      }
+      if (variantsMatch[3] === "deactivate" && v.is_active) {
+        if (!found.variants.some((x) => x.id !== v.id && x.is_active)) {
+          return route.fulfill(
+            refusal(
+              409,
+              "LAST_ACTIVE_VARIANT",
+              "This is the service's last active variant; switch off the service instead",
+            ),
+          );
+        }
+      }
+      if (variantsMatch[3]) {
+        v.is_active = variantsMatch[3] === "activate";
+        followCheapest(found);
+        return route.fulfill({ json: serviceDetail(found) });
+      }
+      if (method === "PATCH") {
+        const { confirm, ...patch } = body as Json;
+        if (typeof patch.label === "string" && labelTaken(patch.label, v.id)) {
+          return taken(patch.label);
+        }
+        const pct = patch.commission_pct as number | undefined;
+        if (pct !== undefined && pct > v.commission_pct && confirm !== true) {
+          return route.fulfill(
+            refusal(
+              409,
+              "COMMISSION_INCREASE_NEEDS_NOTICE",
+              "Give pros at least 14 days' notice before saving",
+              { old_pct: v.commission_pct, new_pct: pct, notice_days: 14 },
+            ),
+          );
+        }
+        const price = (patch.base_price as number | undefined) ?? v.base_price;
+        const amounts = split(price, pct ?? (v.platform_commission / v.base_price) * 100);
+        Object.assign(v, patch, amounts, {
+          commission_pct: round2((amounts.platform_commission / price) * 100),
+        });
+        followCheapest(found);
+        return route.fulfill({ json: serviceDetail(found) });
+      }
+    }
+
     const svcMatch = path.match(/^\/catalog\/services\/([^/]+)(?:\/(activate|deactivate))?$/);
     if (svcMatch) {
       const found = services.find((s) => s.id === decodeURIComponent(svcMatch[1]));
       if (!found) return route.fulfill(refusal(404, "SERVICE_NOT_FOUND", "Service not found"));
       if (method === "GET") return route.fulfill({ json: serviceDetail(found) });
       if (method === "PATCH") {
+        if (body && "base_price" in body && found.variants.length >= 2) {
+          return route.fulfill(
+            refusal(
+              422,
+              "CATALOG_INVALID",
+              "Priced per variant: edit the variants' prices instead",
+              {
+                field: "base_price",
+              },
+            ),
+          );
+        }
         Object.assign(found, body);
+        if (body && "base_price" in body && found.variants.length === 1) {
+          // SVC-480: a single-variant service's price edit moves its variant too.
+          found.variants[0].base_price = found.base_price;
+        }
         return route.fulfill({ json: serviceDetail(found) });
       }
       if (svcMatch[2] === "deactivate" && found.active_bookings > 0 && body?.confirm !== true) {
@@ -330,7 +457,7 @@ test("the tree shows every level, inactive rows, prices, variants and bookings",
   await expect(categoryLink(page, "Electrician, plumber, carpenter")).toBeVisible();
   await expect(categoryLink(page, "Plumber")).toBeVisible();
   await expect(categoryLink(page, "Old trade")).toContainText("Inactive");
-  await expect(serviceLink(page, "Basin installation")).toContainText("₹499 / visit");
+  await expect(serviceLink(page, "Basin installation")).toContainText("₹599 / visit");
   await expect(serviceLink(page, "Basin installation")).toContainText("2 active variants");
   await expect(serviceLink(page, "Basin installation")).toContainText("1 active booking");
   await expect(serviceLink(page, "Door repair")).toContainText("₹350 / hour · min 2");
@@ -590,6 +717,135 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(page).toHaveURL(/\/operator\/catalog$/);
       expect(writes).toEqual([]);
     });
+
+    // --- SVC-481: the variant editor ---------------------------------------------
+
+    test("admin adds a variant; the price follows the cheapest; a taken label is refused", async ({
+      page,
+    }) => {
+      const { writes } = await mockBackend(page, "admin");
+      await page.goto("/operator/catalog/services/s-basin");
+      const variants = page.getByRole("region", { name: "Variants" });
+      await expect(variants.getByRole("table", { name: "Variants" })).toContainText("Counter-top");
+      await expect(page.getByText("from ₹599 / visit")).toBeVisible();
+
+      await variants.getByRole("button", { name: "Add variant" }).click();
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toContainText(
+        "18% · read-only, copied from the service's first variant",
+      );
+      await dialog.getByLabel("Label").fill("wall-mounted");
+      await dialog.getByLabel("Price (₹)").fill("499");
+      await dialog.getByLabel("Commission (%)").fill("25");
+      await expect(dialog).toContainText("₹124.75 commission · ₹374.25 payout");
+      await dialog.getByRole("button", { name: "Add variant" }).click();
+      await expect(dialog.getByLabel("Label")).toHaveAttribute("aria-invalid", "true");
+      await expect(dialog).toContainText("This service already has a variant named wall-mounted");
+
+      await dialog.getByLabel("Label").fill("Corner");
+      await dialog.getByRole("button", { name: "Add variant" }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(variants.getByText("Corner is added and active.")).toBeVisible();
+      await expect(variants.getByRole("table")).toContainText("Corner");
+      await expect(page.getByText("from ₹499 / visit")).toBeVisible();
+      await expect(page.getByLabel("Base price (₹)")).toHaveAttribute("readonly", "");
+      await expect(page.getByText("Priced per variant, from ₹499")).toBeVisible();
+      expect(writes.at(-1)).toEqual({
+        method: "POST",
+        path: "/catalog/services/s-basin/variants",
+        body: { label: "Corner", base_price: 499, commission_pct: 25 },
+      });
+
+      await page.reload();
+      await expect(variants.getByRole("table")).toContainText("Corner");
+    });
+
+    test("a price edit shows the pros affected first, and sends only the price", async ({
+      page,
+    }) => {
+      const { writes } = await mockBackend(page, "ops");
+      await page.goto("/operator/catalog/services/s-basin");
+      await page.getByRole("button", { name: "Edit Counter-top" }).click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByLabel("Price (₹)").fill("749");
+      await expect(dialog).toContainText("₹224.70 commission · ₹524.30 payout");
+      await dialog.getByRole("button", { name: "Save", exact: true }).click();
+      await expect(dialog).toContainText(
+        "1 pro moves outside the recommended range, 0 move back in.",
+      );
+      await expect(dialog).toContainText("₹699 → ₹749");
+
+      await dialog.getByRole("button", { name: "Back" }).click();
+      expect(writes).toEqual([]);
+      await dialog.getByRole("button", { name: "Save", exact: true }).click();
+      await dialog.getByRole("button", { name: "Save price" }).click();
+      await expect(dialog).toHaveCount(0);
+      expect(writes).toEqual([
+        {
+          method: "PATCH",
+          path: "/catalog/services/s-basin/variants/v3",
+          body: { base_price: 749 },
+        },
+      ]);
+      await expect(page.getByRole("table", { name: "Variants" })).toContainText("₹749");
+    });
+
+    test("a commission increase needs the 14 days' notice, then confirms", async ({ page }) => {
+      const { writes } = await mockBackend(page, "admin");
+      await page.goto("/operator/catalog/services/s-basin");
+      await page.getByRole("button", { name: "Edit Wall-mounted" }).click();
+      const dialog = page.getByRole("dialog");
+      await expect(dialog.getByLabel("Commission (%)")).toHaveValue("30");
+      await dialog.getByLabel("Commission (%)").fill("35");
+      await dialog.getByRole("button", { name: "Save", exact: true }).click();
+      await expect(dialog).toContainText("Give pros at least 14 days' notice before saving.");
+      await expect(dialog).toContainText("Wall-mounted: 30% → 35%");
+      await dialog.getByRole("button", { name: "Confirm increase" }).click();
+      await expect(dialog).toHaveCount(0);
+      expect(writes).toEqual([
+        {
+          method: "PATCH",
+          path: "/catalog/services/s-basin/variants/v1",
+          body: { commission_pct: 35 },
+        },
+        {
+          method: "PATCH",
+          path: "/catalog/services/s-basin/variants/v1",
+          body: { commission_pct: 35, confirm: true },
+        },
+      ]);
+      await expect(page.getByRole("table", { name: "Variants" })).toContainText("35%");
+    });
+
+    test("the last active variant can't be switched off; a single variant's price still edits", async ({
+      page,
+    }) => {
+      const { writes } = await mockBackend(page, "admin");
+      await page.goto("/operator/catalog/services/s-basin");
+      const counterTop = page.getByRole("switch", { name: "Active: Counter-top" });
+      await counterTop.click();
+      await expect(counterTop).toHaveAttribute("aria-checked", "false");
+      await expect(page.getByText("Counter-top is off.")).toBeVisible();
+
+      await page.goto("/operator/catalog/services/s-tap");
+      const standard = page.getByRole("switch", { name: "Active: Standard" });
+      await standard.click();
+      await expect(
+        page.getByText("This is the service's last active variant, so it can't be switched off."),
+      ).toBeVisible();
+      await expect(standard).toHaveAttribute("aria-checked", "true");
+
+      const price = page.getByLabel("Base price (₹)");
+      await expect(price).not.toHaveAttribute("readonly");
+      await price.fill("749");
+      await page.getByRole("button", { name: "Save changes" }).click();
+      await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
+      expect(writes.at(-1)).toEqual({
+        method: "PATCH",
+        path: "/catalog/services/s-tap",
+        body: { base_price: 749 },
+      });
+    });
   });
 }
 
@@ -608,6 +864,19 @@ for (const colorScheme of ["light", "dark"] as const) {
       await page.goto("/operator/catalog/services/s-basin");
       await expect(page.getByRole("list", { name: "Variants" })).toBeVisible();
       expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+      // The variant dialog fits the phone too.
+      await page.getByRole("button", { name: "Edit Wall-mounted" }).click();
+      const dialog = page.getByRole("dialog");
+      await expect(dialog.getByLabel("Commission (%)")).toBeVisible();
+      // Polled: the dialog zooms in, so its box is scaled for the first frames.
+      await expect
+        .poll(async () => {
+          const box = (await dialog.boundingBox())!;
+          return box.x >= 0 && box.x + box.width <= 375;
+        })
+        .toBe(true);
+      expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+      await dialog.getByRole("button", { name: "Cancel" }).click();
 
       await page.goto("/operator/catalog/services/new");
       await expect(page.getByRole("radio", { name: "Washing machine" })).toBeAttached();

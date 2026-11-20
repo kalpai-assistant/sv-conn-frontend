@@ -19,6 +19,9 @@ import {
   notEmptyCounts,
   parentOptions,
   priceLabel,
+  rebaseServiceForm,
+  servicePriceLabel,
+  LAST_ACTIVE_VARIANT_MESSAGE,
   serviceCategoryGroups,
   serviceCreateBody,
   serviceFormFrom,
@@ -94,6 +97,7 @@ function serviceDetail(extra: Partial<ServiceDetail> = {}): ServiceDetail {
     created_at: "2026-11-01T00:00:00Z",
     updated_at: "2026-11-01T00:00:00Z",
     variants: [],
+    priced_per_variant: false,
     ...extra,
   };
 }
@@ -594,5 +598,84 @@ describe("errors", () => {
       "This category no longer exists. Reload the page.",
     );
     expect(catalogErrorMessage(new Error("network"))).toBe("Couldn't save. Try again.");
+  });
+});
+
+// --- SVC-481: priced per variant --------------------------------------------------
+
+describe("a service priced per variant", () => {
+  const priced = serviceDetail({ priced_per_variant: true, base_price: 2499 });
+
+  it("never sends base_price, whatever the form holds", () => {
+    const form = { ...serviceFormFrom(priced), base_price: "2799", name: "Deep cleaning" };
+    const check = validateServiceForm(form, { baseline: priced, categories: TREE });
+    if (!check.ok) throw new Error(JSON.stringify(check.errors));
+    expect(changedServiceFields(priced, check.values)).toEqual({ name: "Deep cleaning" });
+  });
+
+  it("still sends base_price on a single-variant service", () => {
+    const single = serviceDetail({ base_price: 499 });
+    const form = { ...serviceFormFrom(single), base_price: "549" };
+    const check = validateServiceForm(form, { baseline: single, categories: TREE });
+    if (!check.ok) throw new Error(JSON.stringify(check.errors));
+    expect(changedServiceFields(single, check.values)).toEqual({ base_price: 549 });
+  });
+
+  it("labels the header price 'from', in the service's own unit", () => {
+    expect(servicePriceLabel(priced)).toBe("from ₹2,499 / visit");
+    expect(servicePriceLabel({ ...priced, price_unit: "PER_SQFT", min_qty: 100 })).toBe(
+      "from ₹2,499 / sq ft · min 100",
+    );
+    expect(servicePriceLabel(serviceDetail())).toBe("₹499 / visit");
+  });
+
+  it("rebases the form when a variant write moves the stored service", () => {
+    const before = serviceDetail({ base_price: 499 });
+    const after = serviceDetail({ base_price: 399, priced_per_variant: true });
+    const edited = { ...serviceFormFrom(before), name: "Basin fitting" };
+    expect(rebaseServiceForm(edited, before, after)).toEqual({
+      ...serviceFormFrom(after),
+      name: "Basin fitting",
+    });
+    // An edit the admin made to the price itself stays theirs.
+    const typed = { ...serviceFormFrom(before), base_price: "450" };
+    expect(rebaseServiceForm(typed, before, after).base_price).toBe("450");
+  });
+});
+
+describe("variant refusals", () => {
+  const fields = ["label", "base_price", "commission_pct"] as const;
+
+  it("puts a taken label and a named 422 on their field", () => {
+    const taken = new ApiError(
+      409,
+      "This service already has a variant named 2 BHK",
+      "VARIANT_LABEL_TAKEN",
+      undefined,
+      { field: "label" },
+    );
+    expect(catalogErrorField(taken, fields)).toBe("label");
+    expect(catalogErrorMessage(taken)).toBe("This service already has a variant named 2 BHK");
+    const pct = new ApiError(
+      422,
+      "commission_pct must be at least 0 and below 100",
+      "CATALOG_INVALID",
+      undefined,
+      { field: "commission_pct" },
+    );
+    expect(catalogErrorField(pct, fields)).toBe("commission_pct");
+    expect(catalogErrorMessage(pct)).toBe("Commission % must be at least 0 and below 100");
+  });
+
+  it("explains the last active variant", () => {
+    const err = new ApiError(409, "backend text", "LAST_ACTIVE_VARIANT");
+    expect(catalogErrorMessage(err)).toBe(LAST_ACTIVE_VARIANT_MESSAGE);
+    expect(catalogErrorField(err, fields)).toBe(null);
+  });
+
+  it("names a vanished variant", () => {
+    expect(catalogErrorMessage(new ApiError(404, "x", "VARIANT_NOT_FOUND"))).toMatch(
+      /variant no longer exists/,
+    );
   });
 });

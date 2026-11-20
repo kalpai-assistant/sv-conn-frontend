@@ -8,6 +8,11 @@
  * Switching to another unit sends min_qty: null with it, as the backend needs.
  * Edit sends only what changed, so a seeded row that breaks today's create rules
  * (a base price of 0) saves fine as long as the price isn't touched.
+ *
+ * SVC-481: a service priced per variant (2+ variant rows) shows Base price
+ * read-only, "Priced per variant, from ₹X": it follows the cheapest active variant
+ * and the backend refuses it. When the page's service changes under the form (a
+ * variant write), untouched fields follow it and the admin's own edits stay.
  */
 import { useId, useRef, useState, type FormEvent } from "react";
 import { Field, FormError, Segmented } from "@/components/catalog/Field";
@@ -15,6 +20,7 @@ import { IconPicker } from "@/components/catalog/IconPicker";
 import { MarkdownField } from "@/components/catalog/MarkdownField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatRupees } from "@/lib/money";
 import {
   Select,
   SelectContent,
@@ -35,6 +41,7 @@ import {
   minQtyLabel,
   needsMinQty,
   patchService,
+  rebaseServiceForm,
   serviceCategoryGroups,
   serviceCreateBody,
   serviceFormFrom,
@@ -66,6 +73,15 @@ export function ServiceForm(props: Props) {
   const [serverError, setServerError] = useState<ServerError | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const inFlight = useRef(false);
+  const [seen, setSeen] = useState<ServiceDetail | null>(editing ? props.detail : null);
+  if (props.mode === "edit" && props.detail !== seen) {
+    // The page's service changed (a variant write, or this form's own save).
+    const next = props.detail;
+    setSeen(next);
+    if (baseline) setForm((current) => rebaseServiceForm(current, baseline, next));
+    setBaseline(next);
+  }
+  const pricedPerVariant = baseline?.priced_per_variant ?? false;
 
   const fieldId = (field: ServiceField) => `${idBase}-${field}`;
   const dirty =
@@ -232,16 +248,22 @@ export function ServiceForm(props: Props) {
           <Field
             {...field("base_price")}
             label="Base price (₹)"
-            hint="More than 0, at most ₹10,00,000."
+            hint={
+              pricedPerVariant && baseline
+                ? `Priced per variant, from ${formatRupees(baseline.base_price)}. Edit the variants' prices instead.`
+                : "More than 0, at most ₹10,00,000."
+            }
           >
             {(describedBy) => (
               <Input
                 id={fieldId("base_price")}
-                value={form.base_price}
+                value={pricedPerVariant && baseline ? String(baseline.base_price) : form.base_price}
+                readOnly={pricedPerVariant}
+                aria-readonly={pricedPerVariant || undefined}
                 inputMode="decimal"
                 autoComplete="off"
                 placeholder="e.g. 499"
-                className="tabular-nums"
+                className={`tabular-nums ${pricedPerVariant ? "bg-muted text-muted-foreground" : ""}`}
                 aria-invalid={errorFor("base_price") ? true : undefined}
                 aria-describedby={describedBy}
                 onChange={(event) => set("base_price", event.target.value)}
