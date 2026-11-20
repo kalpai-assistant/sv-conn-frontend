@@ -78,15 +78,26 @@ export interface CategoryDetail {
   active_service_count: number;
 }
 
-/** Read-only here: variants are edited elsewhere. */
+/**
+ * One variant, active or not. Edited by the variant editor (SVC-481) through
+ * /variants; the rules are in lib/catalog-variants.ts.
+ * platform_commission + provider_payout === base_price always.
+ */
 export interface ServiceVariantRow {
   id: string;
   label: string;
   subcategory: string | null;
   base_price: number;
+  /** Null: the service's duration applies. */
   duration_minutes: number | null;
   sort_order: number;
   is_active: boolean;
+  platform_commission: number;
+  provider_payout: number;
+  /** The commission's share of the price, rounded half up to 2 dp. */
+  commission_pct: number;
+  /** The customer's GST on the service. Read-only (SVC-481). */
+  gst_percent: number;
 }
 
 export interface ServiceDetail extends CatalogServiceRow {
@@ -94,6 +105,11 @@ export interface ServiceDetail extends CatalogServiceRow {
   created_at: string;
   updated_at: string;
   variants: ServiceVariantRow[];
+  /**
+   * 2+ variant rows, active or not (SVC-481). base_price then follows the
+   * cheapest active variant and can't be set directly.
+   */
+  priced_per_variant: boolean;
 }
 
 export interface CategoryCreateBody {
@@ -133,6 +149,38 @@ export interface ServicePatch {
   price_unit?: PriceUnit;
   min_qty?: number | null;
   icon_key?: string | null;
+}
+
+export interface VariantCreateBody {
+  label: string;
+  base_price: number;
+  commission_pct: number;
+  /** Left out: the service's duration applies. */
+  duration_minutes?: number;
+  /** Left out: last. */
+  sort_order?: number;
+}
+
+/** Any subset; null is refused, and so is an empty body. */
+export interface VariantPatch {
+  label?: string;
+  base_price?: number;
+  commission_pct?: number;
+  duration_minutes?: number;
+  sort_order?: number;
+}
+
+/**
+ * What a price change would do to the recommended range: SPs with an active
+ * price on the variant, and how many sit outside the range now / after, and
+ * move out / back in. A category with no range has the last four at 0.
+ */
+export interface VariantPriceImpact {
+  sp_prices: number;
+  outside_now: number;
+  outside_after: number;
+  moving_out: number;
+  moving_in: number;
 }
 
 // --- Paths and calls -----------------------------------------------------------
@@ -192,6 +240,50 @@ export function activateService(id: string): Promise<ServiceDetail> {
   return post<ServiceDetail>(`${servicePath(id)}/activate`);
 }
 
+export function variantPath(serviceId: string, variantId: string): string {
+  return `${servicePath(serviceId)}/variants/${encodeURIComponent(variantId)}`;
+}
+
+export function createVariant(serviceId: string, body: VariantCreateBody): Promise<ServiceDetail> {
+  return post<ServiceDetail>(`${servicePath(serviceId)}/variants`, body);
+}
+
+/**
+ * confirm: true only after the admin has seen the 14-day-notice warning that the
+ * first send's 409 COMMISSION_INCREASE_NEEDS_NOTICE brought back.
+ */
+export function patchVariant(
+  serviceId: string,
+  variantId: string,
+  patch: VariantPatch,
+  confirm = false,
+): Promise<ServiceDetail> {
+  return apiFetch<ServiceDetail>(variantPath(serviceId, variantId), {
+    method: "PATCH",
+    body: JSON.stringify(confirm ? { ...patch, confirm: true } : patch),
+  });
+}
+
+/** Idempotent. Off is refused for the service's last active variant. */
+export function setVariantActive(
+  serviceId: string,
+  variantId: string,
+  active: boolean,
+): Promise<ServiceDetail> {
+  return post<ServiceDetail>(
+    `${variantPath(serviceId, variantId)}/${active ? "activate" : "deactivate"}`,
+  );
+}
+
+export function variantPriceImpact(
+  serviceId: string,
+  variantId: string,
+  price: number,
+): Promise<VariantPriceImpact> {
+  const query = new URLSearchParams({ base_price: String(price) });
+  return apiFetch<VariantPriceImpact>(`${variantPath(serviceId, variantId)}/price-impact?${query}`);
+}
+
 // --- Roles -----------------------------------------------------------------------
 
 /** Admin and ops write; support reads (the backend 403s its writes). */
@@ -232,6 +324,16 @@ export function priceLabel(
   const per = UNIT_LABELS[row.price_unit]?.per ?? row.price_unit;
   const min = row.min_qty !== null && needsMinQty(row.price_unit) ? ` · min ${row.min_qty}` : "";
   return `${formatRupees(row.base_price)} / ${per}${min}`;
+}
+
+/**
+ * The page header's price: "from ₹2,499 / visit" when the service is priced per
+ * variant (its base_price is then the cheapest active variant's), else priceLabel.
+ */
+export function servicePriceLabel(
+  detail: Pick<ServiceDetail, "base_price" | "price_unit" | "min_qty" | "priced_per_variant">,
+): string {
+  return detail.priced_per_variant ? `from ${priceLabel(detail)}` : priceLabel(detail);
 }
 
 /** "45 min", "1 hr", "1 hr 30 min". */
@@ -380,11 +482,11 @@ export type Check<V, F extends string> =
 // The backend's bounds (admin_catalog_service.py).
 const CATEGORY_NAME = { min: 2, max: 100 };
 const SERVICE_NAME = { min: 3, max: 200 };
-const SORT_ORDER_MAX = 9999;
+export const SORT_ORDER_MAX = 9999;
 export const DESCRIPTION_MAX = 2000;
-const DURATION = { min: 15, max: 480 };
+export const DURATION = { min: 15, max: 480 };
 const MIN_QTY_MAX = 100_000;
-const PRICE_MAX = 1_000_000;
+export const PRICE_MAX = 1_000_000;
 
 function checkName(raw: string, bounds: { min: number; max: number }): string | null {
   const length = codePointLength(raw.trim());
@@ -624,15 +726,37 @@ export function serviceCreateBody(values: ServiceValues): ServiceCreateBody {
 }
 
 /**
+ * The form after the stored service changed under it (a variant write moved its
+ * base_price, or made it priced per variant): fields the admin hasn't touched take
+ * the new stored value, and their own edits stay. Otherwise an untouched field
+ * would read as an edit back to the old value and be sent.
+ */
+export function rebaseServiceForm(
+  form: ServiceForm,
+  before: ServiceDetail,
+  after: ServiceDetail,
+): ServiceForm {
+  const old = serviceFormFrom(before);
+  const next = serviceFormFrom(after);
+  const merged = { ...form };
+  for (const key of Object.keys(next) as (keyof ServiceForm)[]) {
+    if (form[key] === old[key]) (merged as Record<string, unknown>)[key] = next[key];
+  }
+  return merged;
+}
+
+/**
  * The PATCH: only what changed. A move off PER_SQFT / PER_HOUR sends
- * min_qty: null with it, which the backend needs in the same save.
+ * min_qty: null with it, which the backend needs in the same save. A service
+ * priced per variant never sends base_price: the backend refuses it (SVC-481).
  */
 export function changedServiceFields(baseline: ServiceDetail, values: ServiceValues): ServicePatch {
   const patch: ServicePatch = {};
   if (values.name !== baseline.name) patch.name = values.name;
   if (values.category_id !== baseline.category_id) patch.category_id = values.category_id;
   if (values.description !== (baseline.description ?? null)) patch.description = values.description;
-  if (values.base_price !== baseline.base_price) patch.base_price = values.base_price;
+  if (!baseline.priced_per_variant && values.base_price !== baseline.base_price)
+    patch.base_price = values.base_price;
   if (values.duration_minutes !== baseline.duration_minutes)
     patch.duration_minutes = values.duration_minutes;
   if (values.price_unit !== baseline.price_unit) patch.price_unit = values.price_unit;
@@ -650,6 +774,7 @@ const WORDS: [RegExp, string][] = [
   [/\bmin_qty\b/g, "minimum quantity"],
   [/\bprice_unit\b/g, "price unit"],
   [/\bsort_order\b/g, "sort order"],
+  [/\bcommission_pct\b/g, "commission %"],
   [/\bicon_key\b/g, "icon"],
   [/\bcategory_id\b/g, "category"],
   [/\bparent_id\b/g, "parent"],
@@ -691,6 +816,9 @@ export function notEmptyMessage(counts: { services: number; subcategories: numbe
   return `It still holds ${parts.join(" and ") || "active items"}. Deactivate or move them first.`;
 }
 
+export const LAST_ACTIVE_VARIANT_MESSAGE =
+  "This is the service's last active variant, so it can't be switched off. To stop bookings, deactivate the service instead.";
+
 /** What a failed write says. A 409's or 422's own message wins, so client and server can't drift. */
 export function catalogErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
@@ -698,6 +826,8 @@ export function catalogErrorMessage(err: unknown): string {
     if (err.code === "CATEGORY_NOT_FOUND")
       return "This category no longer exists. Reload the page.";
     if (err.code === "SERVICE_NOT_FOUND") return "This service no longer exists. Reload the page.";
+    if (err.code === "VARIANT_NOT_FOUND") return "This variant no longer exists. Reload the page.";
+    if (err.code === "LAST_ACTIVE_VARIANT") return LAST_ACTIVE_VARIANT_MESSAGE;
     const empty = notEmptyCounts(err);
     if (empty) return notEmptyMessage(empty);
     if (err.status === 409 && err.message) return err.message;
@@ -715,9 +845,11 @@ export function catalogErrorField<F extends string>(err: unknown, fields: readon
   const field =
     err.status === 409 && err.code === "CATALOG_NAME_TAKEN"
       ? "name"
-      : err.status === 422 && err.code === "CATALOG_INVALID"
-        ? err.details?.field
-        : null;
+      : err.status === 409 && err.code === "VARIANT_LABEL_TAKEN"
+        ? "label"
+        : err.status === 422 && err.code === "CATALOG_INVALID"
+          ? err.details?.field
+          : null;
   return typeof field === "string" && (fields as readonly string[]).includes(field)
     ? (field as F)
     : null;

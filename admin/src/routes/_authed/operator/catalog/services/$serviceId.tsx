@@ -1,7 +1,7 @@
 /**
- * One service (SVC-430): its details, the edit form and its variants (read-only:
- * variants are edited elsewhere). Admin and ops edit it, deactivate it and
- * activate it again. Support reads only.
+ * One service (SVC-430): its details, the edit form and its variants. Admin and
+ * ops edit it, deactivate it and activate it again, and edit its variants in a
+ * full-width section (SVC-481). Support reads only, variants included.
  *
  * Deactivating with bookings in flight warns first and needs a second click
  * (ticket): those bookings carry on, only new ones are refused.
@@ -12,6 +12,7 @@ import { ActivePill, IconFact } from "@/components/catalog/CatalogBadges";
 import { CatalogBackLink } from "@/components/catalog/CatalogBackLink";
 import { DeactivateServiceDialog } from "@/components/catalog/DeactivateDialogs";
 import { ServiceForm } from "@/components/catalog/ServiceForm";
+import { VariantEditor } from "@/components/catalog/VariantEditor";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
@@ -36,8 +37,8 @@ import {
   catalogErrorMessage,
   durationLabel,
   findCategory,
-  priceLabel,
   servicePath,
+  servicePriceLabel,
   unitLabel,
   variantsLabel,
   type CatalogTree as Tree,
@@ -132,7 +133,9 @@ function ServiceView({ serviceId }: { serviceId: string }) {
               <h1 className={`text-2xl font-semibold tracking-tight ${WRAP}`}>{service.name}</h1>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <ActivePill active={service.is_active} />
-                <span className="text-muted-foreground tabular-nums">{priceLabel(service)}</span>
+                <span className="text-muted-foreground tabular-nums">
+                  {servicePriceLabel(service)}
+                </span>
                 {category && (
                   <Link
                     to="/operator/catalog/categories/$categoryId"
@@ -211,9 +214,11 @@ function ServiceView({ serviceId }: { serviceId: string }) {
                   </div>
                 )}
               </PageSection>
-              <PageSection title="Variants">
-                <Variants variants={service.variants} />
-              </PageSection>
+              {!canEdit && (
+                <PageSection title="Variants">
+                  <Variants variants={service.variants} />
+                </PageSection>
+              )}
             </div>
             {canEdit && (
               <PageSection title="Edit">
@@ -229,6 +234,18 @@ function ServiceView({ serviceId }: { serviceId: string }) {
               </PageSection>
             )}
           </div>
+
+          {canEdit && (
+            <PageSection title="Variants">
+              <VariantEditor
+                service={service}
+                onChanged={(next) => {
+                  setNotice(null);
+                  detail.replace(next);
+                }}
+              />
+            </PageSection>
+          )}
 
           {canEdit && confirming && (
             <DeactivateServiceDialog
@@ -251,7 +268,7 @@ function ServiceView({ serviceId }: { serviceId: string }) {
   );
 }
 
-/** Read-only: variants are edited elsewhere. Stacked rows, so phone width needs no table. */
+/** Support's read-only list. Stacked rows, so phone width needs no table. */
 function Variants({ variants }: { variants: ServiceVariantRow[] }) {
   if (variants.length === 0) {
     return <p className="text-sm text-muted-foreground">No variants.</p>;

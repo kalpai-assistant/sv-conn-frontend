@@ -14,9 +14,14 @@ export function json(body: unknown, status = 200, headers: Record<string, string
   });
 }
 
-/** The backend's AppException shape. */
-export function appError(status: number, code: string, message = code): Response {
-  return json({ error: true, message, status_code: status, code }, status);
+/** The backend's AppException shape, with its details when it sends some. */
+export function appError(
+  status: number,
+  code: string,
+  message = code,
+  details?: Record<string, unknown>,
+): Response {
+  return json({ error: true, message, status_code: status, code, details }, status);
 }
 
 export function adminUser(role: AdminRole = "admin"): AdminUser {
