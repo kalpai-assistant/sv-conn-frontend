@@ -109,6 +109,59 @@ describe("TilePrice", () => {
     expect(client.getQueryCache().getAll()[0]?.queryKey).toEqual(["from-prices", 12.9716, 77.5946]);
   });
 
+  // SVC-485: `show` picks one half. Each state × each show value.
+  describe.each([
+    {
+      state: "price",
+      rows: [{ service_id: "svc-1", from_price: 1874.25, served: true }],
+      text: "from ₹1,874",
+      isPrice: true,
+    },
+    {
+      state: "offline",
+      rows: [{ service_id: "svc-1", from_price: null, served: true }],
+      text: "No pros online right now",
+      isPrice: false,
+    },
+    {
+      state: "coming soon",
+      rows: [{ service_id: "svc-1", from_price: null, served: false }],
+      text: "Coming soon",
+      isPrice: false,
+    },
+    {
+      state: "fallback",
+      rows: [{ service_id: "other", from_price: null, served: false }],
+      text: "from ₹2,499",
+      isPrice: true,
+    },
+  ])("show, in the $state state", ({ rows, text, isPrice }) => {
+    async function renderShow(show?: "price" | "status") {
+      apiFetch.mockResolvedValue(rows);
+      const client = new QueryClient();
+      const utils = render(wrap(<TilePrice service={SERVICE} show={show} />, client));
+      await waitFor(() => expect(client.getQueryCache().getAll()[0]?.state.status).toBe("success"));
+      return utils;
+    }
+
+    it("omitted: renders the label as before", async () => {
+      const { container } = await renderShow();
+      expect(label(container)).toBe(text);
+    });
+
+    it(`"price": ${isPrice ? "renders the label" : "renders nothing"}`, async () => {
+      const { container } = await renderShow("price");
+      if (isPrice) expect(label(container)).toBe(text);
+      else expect(container).toBeEmptyDOMElement();
+    });
+
+    it(`"status": ${isPrice ? "renders nothing" : "renders the label"}`, async () => {
+      const { container } = await renderShow("status");
+      if (isPrice) expect(container).toBeEmptyDOMElement();
+      else expect(label(container)).toBe(text);
+    });
+  });
+
   it("shows the fallback, not the previous point's state, while a new point loads", async () => {
     apiFetch.mockResolvedValueOnce([{ service_id: "svc-1", from_price: null, served: false }]);
     const client = new QueryClient();
