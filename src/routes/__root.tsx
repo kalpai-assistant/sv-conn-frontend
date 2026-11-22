@@ -55,6 +55,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initSentry } from "@/lib/sentry";
 import { useSentryNavigationBreadcrumbs } from "@/lib/useSentryNavigationBreadcrumbs";
+import { useSyncSystemColorScheme } from "@/lib/theme";
 
 // Web-build init. `initSentry` is idempotent + SSR-safe (window guard), so
 // this coexists cleanly with the mobile build's own init in main.mobile.tsx.
@@ -587,6 +588,13 @@ function RootComponent() {
   // (main.mobile.tsx) already has the same wrap; this brings the web path
   // to parity. Route-level errors (inside <Outlet/>) are still handled by
   // TanStack Router's `defaultErrorComponent` (RouterErrorFallback).
+  //
+  // SVC-489: activate `.dark` on <html> from `prefers-color-scheme`. The
+  // mobile build also runs an inline pre-hydration script in
+  // `index.mobile.html` so the class is set before the bundle loads — see
+  // `@/lib/theme` for the reasoning.
+  useSyncSystemColorScheme();
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>

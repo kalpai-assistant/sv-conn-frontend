@@ -13,6 +13,32 @@
     <meta name="theme-color" content="#1957D2" />
     <title>EazyServ</title>
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!--
+      SVC-489: pre-hydration `.dark` toggle.
+
+      The `src/styles.css` tokens flip on `prefers-color-scheme: dark`, but
+      Tailwind's `dark:` variant is keyed to the `.dark` class on <html>.
+      React sets the class in `useSyncSystemColorScheme` after mount, which
+      is fine on web but on the Capacitor cold boot there is a ~500ms gap
+      between the native splash fading and React committing — long enough
+      to paint one tick of light-mode UI under a dark-OS device.
+
+      Doing it inline, synchronous, before any module script loads means
+      the class is on <html> for the very first paint. `matchMedia` is
+      available in the WebView; defaulting to no-op if it is not keeps
+      this safe on exotic runtimes.
+    -->
+    <script>
+      (function () {
+        try {
+          if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (_) {
+          /* no-op: dark-OS detection is a progressive enhancement */
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       rel="stylesheet"
