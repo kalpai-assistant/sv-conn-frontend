@@ -21,6 +21,7 @@ import { ServiceAreaStep } from "@/components/provider/ServiceAreaStep";
 import { BusinessNameField } from "@/components/provider/BusinessNameField";
 import { LogoPicker } from "@/components/provider/LogoPicker";
 import { useAuth } from "@/lib/auth-context";
+import { Celebration } from "@/components/Celebration";
 import { CameraCapture } from "@/components/CameraCapture";
 import { LanguageChip } from "@/components/language/LanguageChip";
 import { captureLivePhoto, captureNativePhoto, isNativePlatform } from "@/lib/camera";
@@ -110,6 +111,19 @@ function ProviderOnboardingPage() {
   const [aadhaarFront, setAadhaarFront] = useState<Blob | null>(null);
   const [aadhaarBack, setAadhaarBack] = useState<Blob | null>(null);
   const [selfie, setSelfie] = useState<Blob | null>(null);
+
+  // SVC-490 — celebrate arriving at step 5 the first time only. A provider
+  // who closes the app mid-flow and reopens on step 5 should not retrigger
+  // the confetti; latch via a ref rather than a state flag so the effect
+  // never fires twice in strict-mode double-invocation either.
+  const [celebrating, setCelebrating] = useState(false);
+  const hasCelebrated = useRef(false);
+  useEffect(() => {
+    if (step === 5 && !hasCelebrated.current) {
+      hasCelebrated.current = true;
+      setCelebrating(true);
+    }
+  }, [step]);
 
   // Persist the resumable parts of the wizard on every change.
   useEffect(() => {
@@ -511,14 +525,32 @@ function ProviderOnboardingPage() {
                   description={t("onboarding.servicesPickerDescription")}
                 />
 
-                <Button className="w-full" onClick={finish}>
-                  {t("onboarding.dashboard")}
-                </Button>
+                {/* SVC-490: spring-scale motion on the dashboard CTA. The
+                    step-5 arrival is the one moment in the whole wizard
+                    where the provider's reward is "you're done" — a plain
+                    button here reads as "ok, now do the next thing" rather
+                    than "nice, you made it". `whileTap` gives the physical
+                    feedback of a successful press. */}
+                <motion.div
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 24 }}
+                >
+                  <Button className="w-full" onClick={finish}>
+                    {t("onboarding.dashboard")}
+                  </Button>
+                </motion.div>
               </div>
             )}
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Full-screen takeover on the one-way transition to step 5.
+          SVC-390's Celebration auto-dismisses after 1.5s and honours
+          reduced-motion (drops confetti, keeps the hold). Rendered outside
+          the AnimatePresence so a step-transition exit does not race the
+          overlay's own enter. */}
+      {celebrating && <Celebration onComplete={() => setCelebrating(false)} />}
     </div>
   );
 }

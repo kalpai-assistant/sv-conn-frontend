@@ -51,6 +51,12 @@ vi.mock("framer-motion", () => ({
 vi.mock("@/components/provider/ServicesPicker", () => ({ ServicesPicker: () => null }));
 vi.mock("@/components/provider/PayoutStep", () => ({ PayoutStep: () => null }));
 vi.mock("@/components/provider/ServiceAreaStep", () => ({ ServiceAreaStep: () => null }));
+// SVC-490: celebration overlay on step 5. Mocked to a stable marker so
+// tests can assert mount-on-step-5 without pulling the real auto-dismiss
+// timer + framer-motion `useReducedMotion` dep into jsdom.
+vi.mock("@/components/Celebration", () => ({
+  Celebration: () => <div data-testid="celebration-mock" />,
+}));
 
 import { Route } from "@/routes/provider/onboarding";
 
@@ -279,6 +285,33 @@ describe("onboarding — rejection banner (SVC-490)", () => {
     render(<Page />);
 
     expect(screen.queryByText("We need to look at these documents again")).not.toBeInTheDocument();
+  });
+});
+
+// SVC-490 — step 5 is the one moment of arrival in the whole wizard. The
+// Celebration overlay fires once on transition from step 4 → 5 (or on
+// a resumed draft already at step 5, which still counts as "just arrived"
+// per this render). It MUST NOT re-fire on every mount of step 5 or on
+// draft-persisted re-renders that keep step=5 — otherwise a provider
+// resuming the dashboard-choice screen sees confetti every launch.
+describe("onboarding step 5 — celebration overlay (SVC-490)", () => {
+  // Catches: "the overlay never fires at all, step 5 reads as a plain
+  // settings screen rather than the end of a wizard."
+  it("mounts the celebration overlay when the provider reaches step 5", () => {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ step: 5 }));
+    render(<Page />);
+
+    expect(screen.getByTestId("celebration-mock")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Go to dashboard" })).toBeInTheDocument();
+  });
+
+  // Catches: "overlay fires on every step too — confetti on name entry,
+  // confetti on KYC capture, broken feeling of occasion."
+  it("does not mount the celebration overlay on earlier steps", () => {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ step: 2 }));
+    render(<Page />);
+
+    expect(screen.queryByTestId("celebration-mock")).not.toBeInTheDocument();
   });
 });
 
