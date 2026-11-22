@@ -8,10 +8,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import {
-  getOnboardingEarningsPlaceholder,
-  useOnboardingEarnings,
-} from "./onboarding-earnings";
+import { getOnboardingEarningsPlaceholder, useOnboardingEarnings } from "./onboarding-earnings";
 
 describe("onboarding-earnings", () => {
   // Catches: "low becomes > high after a careless edit, hero renders
@@ -24,7 +21,7 @@ describe("onboarding-earnings", () => {
 
   // Catches: "placeholder label drops, hero accidentally reads as a specific
   // service claim — a promise we cannot keep until SVC-495."
-  it("placeholder range is tagged confidence=\"placeholder\"", () => {
+  it('placeholder range is tagged confidence="placeholder"', () => {
     expect(getOnboardingEarningsPlaceholder().confidence).toBe("placeholder");
   });
 

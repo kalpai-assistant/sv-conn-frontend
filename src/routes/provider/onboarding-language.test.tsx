@@ -88,6 +88,12 @@ function renderOnboarding() {
 beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
+  // SVC-490: default initial step is now 0 (welcome hero). These tests
+  // focus on the language prompt + step-1 flow, not the welcome screen,
+  // so seed a draft at step 1 — mirrors a provider who has moved past
+  // the hero once already. Tests that want fresh-install behaviour
+  // clear this seed explicitly.
+  window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ step: 1 }));
   resetStoredLanguageForTests();
   authState.user.preferred_language = null;
   authState.user.i18n_enabled = true;
