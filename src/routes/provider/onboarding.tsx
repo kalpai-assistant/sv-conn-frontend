@@ -26,6 +26,7 @@ import { CameraCapture } from "@/components/CameraCapture";
 import { LanguageChip } from "@/components/language/LanguageChip";
 import { captureLivePhoto, captureNativePhoto, isNativePlatform } from "@/lib/camera";
 import { formatRupees } from "@/i18n/format";
+import { hapticImpactLight, hapticSuccess } from "@/lib/haptics";
 import { useOnboardingEarnings } from "@/lib/onboarding-earnings";
 import {
   loadOnboardingDraft,
@@ -115,15 +116,28 @@ function ProviderOnboardingPage() {
   // SVC-490 — celebrate arriving at step 5 the first time only. A provider
   // who closes the app mid-flow and reopens on step 5 should not retrigger
   // the confetti; latch via a ref rather than a state flag so the effect
-  // never fires twice in strict-mode double-invocation either.
+  // never fires twice in strict-mode double-invocation either. Pairs with
+  // the stronger Success haptic (triple-buzz on iOS, native vibrate on
+  // Android) so the arrival registers through the pocket, not just visually.
   const [celebrating, setCelebrating] = useState(false);
   const hasCelebrated = useRef(false);
   useEffect(() => {
     if (step === 5 && !hasCelebrated.current) {
       hasCelebrated.current = true;
       setCelebrating(true);
+      hapticSuccess();
     }
   }, [step]);
+
+  // SVC-490 — advance-step wrapper. Fires a Light haptic on every
+  // forward transition (0→1 welcome CTA, 1→2 save, 2→3 submit, 3→4
+  // service area, 4→5 payout). Back navigation (step 2 → 1) uses
+  // `setStep` directly — a haptic on back would read as commitment
+  // where none was made.
+  const advanceToStep = (next: number) => {
+    hapticImpactLight();
+    setStep(next);
+  };
 
   // Persist the resumable parts of the wizard on every change.
   useEffect(() => {
@@ -170,7 +184,7 @@ function ProviderOnboardingPage() {
         setBusinessLogo(null);
       }
       if (languages.length) await updateLanguages.mutateAsync(languages);
-      setStep(2);
+      advanceToStep(2);
     } catch (err) {
       setError(errorText(err, t("onboarding.saveFailed"), lang));
     }
@@ -184,7 +198,7 @@ function ProviderOnboardingPage() {
     }
     try {
       await submitKyc.mutateAsync({ aadhaarFront, aadhaarBack, selfie });
-      setStep(3);
+      advanceToStep(3);
     } catch (err) {
       setError(errorText(err, t("onboarding.submitFailed"), lang));
     }
@@ -258,7 +272,12 @@ function ProviderOnboardingPage() {
             initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -16 }}
-            transition={{ duration: 0.2 }}
+            // SVC-490 — spring, not linear 200ms. Matches Wave-2's
+            // IncomingRequestCard (SVC-399) damping/stiffness so the wizard
+            // reads as the same product as the booking-accept moment. Spring
+            // overshoots very slightly on step-change, which reads as
+            // "physical" rather than "programmed".
+            transition={{ type: "spring", stiffness: 320, damping: 28 }}
           >
             {step === 0 && (
               // SVC-490 welcome hero. Deliberately a landing, not a form step:
@@ -319,7 +338,7 @@ function ProviderOnboardingPage() {
                   ))}
                 </ol>
 
-                <Button className="w-full" onClick={() => setStep(1)}>
+                <Button className="w-full" onClick={() => advanceToStep(1)}>
                   {t("onboarding.welcomeCta")}
                 </Button>
               </div>
@@ -497,14 +516,14 @@ function ProviderOnboardingPage() {
               // SVC-257: service-area capture between KYC and payout. Without
               // a centre set, the PostGIS dispatch treats the provider as
               // invisible and the go-online toggle refuses (SERVICE_AREA_MISSING).
-              <ServiceAreaStep onBack={() => setStep(2)} onDone={() => setStep(4)} />
+              <ServiceAreaStep onBack={() => setStep(2)} onDone={() => advanceToStep(4)} />
             )}
 
             {step === 4 && (
               <PayoutStep
                 alreadySet={!!profile?.payout_set}
                 onBack={() => setStep(3)}
-                onDone={() => setStep(5)}
+                onDone={() => advanceToStep(5)}
               />
             )}
 

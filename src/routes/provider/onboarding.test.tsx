@@ -57,6 +57,15 @@ vi.mock("@/components/provider/ServiceAreaStep", () => ({ ServiceAreaStep: () =>
 vi.mock("@/components/Celebration", () => ({
   Celebration: () => <div data-testid="celebration-mock" />,
 }));
+// SVC-490: haptics fire on forward step transitions + step-5 arrival. The
+// wrapper (SVC-398) is a no-op on web; mocking the module lets us assert
+// call sites without pulling the native plugin into jsdom.
+const hapticImpactLight = vi.fn();
+const hapticSuccess = vi.fn();
+vi.mock("@/lib/haptics", () => ({
+  hapticImpactLight: () => hapticImpactLight(),
+  hapticSuccess: () => hapticSuccess(),
+}));
 
 import { Route } from "@/routes/provider/onboarding";
 
@@ -285,6 +294,42 @@ describe("onboarding — rejection banner (SVC-490)", () => {
     render(<Page />);
 
     expect(screen.queryByText("We need to look at these documents again")).not.toBeInTheDocument();
+  });
+});
+
+// SVC-490 — haptic firing is the physical proof a step transition
+// landed. These tests mock `@/lib/haptics` so we can assert each path
+// without the native plugin; the wrapper itself is tested in SVC-398.
+describe("onboarding — haptics (SVC-490)", () => {
+  // Catches: "forward step haptic never fires — tapping Start setup on
+  // the welcome hero feels dead, losing the physical commitment cue."
+  it("fires a Light impact when the welcome CTA advances to step 1", async () => {
+    window.localStorage.removeItem(DRAFT_KEY);
+    const user = userEvent.setup();
+    render(<Page />);
+
+    await user.click(screen.getByRole("button", { name: "Start setup" }));
+
+    expect(hapticImpactLight).toHaveBeenCalledTimes(1);
+  });
+
+  // Catches: "Success haptic never fires on step 5 arrival — the
+  // celebration overlay plays visually but through-pocket the moment
+  // is silent."
+  it("fires a Success haptic when the provider lands on step 5", () => {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ step: 5 }));
+    render(<Page />);
+
+    expect(hapticSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  // Catches: "haptic fires on resume too — a provider reopening at
+  // step 1 feels a success buzz for doing nothing."
+  it("does not fire a Light haptic on initial mount at step 1 (resumed draft)", () => {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ step: 1 }));
+    render(<Page />);
+
+    expect(hapticImpactLight).not.toHaveBeenCalled();
   });
 });
 
