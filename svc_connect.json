@@ -2158,7 +2158,7 @@
           "Catalog"
         ],
         "summary": "Service From Prices",
-        "description": "The service tiles' \"from ₹X\" for a customer at (lat, lng) (SVC-415), one\nentry per ACTIVE service, in one request.\n\n- ``from_price``: the lowest price among the SPs the \"pick your SP\" sheet\n  could list right now (in-range prices first; the lowest out-of-range one\n  only when the service has no in-range price), or null when nobody is\n  listable now.\n- ``served``: some SP covers this point with an active price, online or\n  not. Null ``from_price`` + ``served`` = \"No pros online right now\";\n  not ``served`` = \"Coming soon\".\n\nA service_id missing from the list is an inactive service: show its\ncatalogue price. Cached per point (lat/lng to 4 decimals) for 10 minutes.\nNeeds a login, like the sheet.",
+        "description": "The service tiles' \"from ₹X\" for a customer at (lat, lng) (SVC-415), one\nentry per ACTIVE service, in one request.\n\n- ``from_price``: the lowest price among the SPs the \"pick your SP\" sheet\n  could list right now (in-range prices first; the lowest out-of-range one\n  only when the service has no in-range price), or null when nobody is\n  listable now.\n- ``served``: some SP covers this point with an active price, online or\n  not. Null ``from_price`` + ``served`` = \"No pros online right now\";\n  not ``served`` = \"Coming soon\".\n- ``variants`` (SVC-496): every active variant, in sort_order, with its own\n  ``from_price`` by the same rule (its lowest in-range price, else its\n  lowest), or null when nobody listable prices it: grey that option out.\n  ``outside_recommended_range`` is true when that value is the lowest\n  out-of-range price because no listable SP is in range for the option.\n  The header uses the service ``from_price``, not the lowest variant: an\n  in-range price wins over another variant's cheaper out-of-range one.\n\nA service_id missing from the list is an inactive service: show its\ncatalogue price. Cached per point (lat/lng to 4 decimals) for 10 minutes.\nNeeds a login, like the sheet.",
         "operationId": "service_from_prices_api_v1_services_from_prices_get",
         "security": [
           {
@@ -18959,13 +18959,21 @@
           "served": {
             "type": "boolean",
             "title": "Served"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/VariantFromPrice"
+            },
+            "type": "array",
+            "title": "Variants"
           }
         },
         "type": "object",
         "required": [
           "service_id",
           "from_price",
-          "served"
+          "served",
+          "variants"
         ],
         "title": "ServiceFromPrice",
         "description": "One service's tile price at the customer's point (SVC-415).\n\n``GET /services/from-prices`` returns one of these per ACTIVE service. A\nservice_id missing from the list is an inactive service: the client shows\nits catalogue price, as when the request fails.\n\nPlain float, never Decimal: a Decimal serialises as a JSON string. No field\nhas a default, so every one stays ``required`` in the OpenAPI schema."
@@ -20953,6 +20961,38 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VariantFromPrice": {
+        "properties": {
+          "variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Variant Id"
+          },
+          "from_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Price"
+          },
+          "outside_recommended_range": {
+            "type": "boolean",
+            "title": "Outside Recommended Range"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variant_id",
+          "from_price",
+          "outside_recommended_range"
+        ],
+        "title": "VariantFromPrice",
+        "description": "One active variant's \"from ₹X\" on the service sheet (SVC-496).\n\nPlain float, never Decimal; no default, so both stay ``required``."
       },
       "VerifyOTPRequest": {
         "properties": {
