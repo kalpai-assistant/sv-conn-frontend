@@ -235,3 +235,21 @@ describe("onboarding step 0 — welcome hero (SVC-490)", () => {
     ).toBeInTheDocument();
   });
 });
+
+// SVC-490 — the KYC trust block is the single piece of framing between
+// "Verify your identity" and three camera buttons asking for a government
+// ID. If it regresses, the pre-Phase-1 cold-ask drop-off returns.
+describe("onboarding step 2 — KYC trust block (SVC-490)", () => {
+  it("renders the lock-icon reassurance above the camera tiles", () => {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ step: 2 }));
+    render(<Page />);
+
+    // Both sentences present, under a heading that names the contract.
+    expect(screen.getByText("These documents are private")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Only our verification team will see them\. Customers never see your Aadhaar\./,
+      ),
+    ).toBeInTheDocument();
+  });
+});

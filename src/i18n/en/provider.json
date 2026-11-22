@@ -326,6 +326,8 @@
     "continue": "Continue",
     "kycTitle": "Verify your identity",
     "kycIntro": "Take a live photo of your Aadhaar (front and back) and a selfie. These must be captured with your camera — they can’t be uploaded.",
+    "kycTrustTitle": "These documents are private",
+    "kycTrustBody": "Only our verification team will see them. Customers never see your Aadhaar.",
     "aadhaarFront": "Aadhaar — front",
     "captureFront": "Capture Aadhaar front",
     "aadhaarBack": "Aadhaar — back",

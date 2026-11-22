@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Camera, CheckCircle2, Loader2, Rocket, Sparkles, X } from "lucide-react";
+import { Camera, CheckCircle2, Loader2, Lock, Rocket, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -380,6 +380,22 @@ function ProviderOnboardingPage() {
                     {t("onboarding.kycTitle")}
                   </h1>
                   <p className="mt-1 text-sm text-muted-foreground">{t("onboarding.kycIntro")}</p>
+                </div>
+
+                {/* SVC-490 — trust block. KYC was the drop-off point in the
+                    pre-Phase-1 flow: the provider went from naming their
+                    business to a cold "Capture Aadhaar front" with no
+                    framing. Saying plainly who sees the documents and why
+                    we need them, with a lock icon, turns the ask from an
+                    extraction into a contract. Deliberately short — one
+                    sentence per line — so it reads at a glance, not as
+                    legal boilerplate. */}
+                <div className="flex items-start gap-3 rounded-xl border border-border bg-secondary/40 p-3">
+                  <Lock className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
+                  <div className="min-w-0 space-y-1 text-sm">
+                    <p className="font-medium text-foreground">{t("onboarding.kycTrustTitle")}</p>
+                    <p className="text-muted-foreground">{t("onboarding.kycTrustBody")}</p>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
