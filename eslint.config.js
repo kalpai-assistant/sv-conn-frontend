@@ -73,6 +73,8 @@ export default tseslint.config(
             // adds indirection without meaningful HMR benefit for files that
             // change once a quarter.
             "useAuth",
+            // SVC-484: useAuth's non-throwing twin, same file, same reasoning.
+            "useOptionalAuth",
             "getRouter",
             // Cart hook is co-located with CartProvider (mirrors the
             // auth-context.tsx pattern). Same reasoning: the provider file

@@ -4,6 +4,7 @@ import type { Service } from "@/lib/mock-data";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { QuickAddButton } from "@/components/service/QuickAddButton";
 import { TilePrice } from "@/components/TilePrice";
+import { NotifyMeButton } from "@/components/NotifyMeButton";
 import { useTileComingSoonTap } from "@/hooks/useTileComingSoonTap";
 import { serviceHeroLayoutId } from "@/lib/shared-hero";
 import { ReviewSnippetLine } from "@/components/service/ReviewSnippetLine";
@@ -111,6 +112,10 @@ export function ServiceCard({ service }: { service: Service }) {
         className="-mt-1 block truncate pl-[4.75rem]"
         statusClassName="text-xs text-muted-foreground"
       />
+      {/* SVC-484: under the status, same indent, its own tap target. Its own
+          line, not the status row: "Notify me enabled — tap to cancel" next
+          to "No pros online right now" doesn't fit one row on a phone. */}
+      <NotifyMeButton service={service} className="-mt-1 ml-[4.75rem] self-start" />
       <ReviewSnippetLine snippet={service.reviewSnippet} />
     </div>
   );

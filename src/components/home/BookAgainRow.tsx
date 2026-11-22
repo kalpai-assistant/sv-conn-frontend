@@ -14,6 +14,7 @@ import { Repeat } from "lucide-react";
 import { useBookings } from "@/hooks/useApi";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { TilePrice } from "@/components/TilePrice";
+import { NotifyMeButton } from "@/components/NotifyMeButton";
 import { useTileComingSoonTap } from "@/hooks/useTileComingSoonTap";
 import type { Service } from "@/lib/mock-data";
 
@@ -54,18 +55,33 @@ export function BookAgainRow() {
   );
 }
 
-/** One card. Its own component so it can hold the SVC-419 tap hook. */
+/**
+ * One card. Its own component so it can hold the SVC-419 tap hook.
+ *
+ * A `div role="button"`, as in ServiceCard, not a `<button>`: SVC-484's
+ * Notify me is a button of its own inside the card, and a button can't hold
+ * one. Enter / Space open it like a click.
+ */
 function BookAgainCard({ service: s }: { service: Service }) {
   const { openService } = useServiceSheet();
   const trackComingSoonTap = useTileComingSoonTap(s);
+  const handleOpen = () => {
+    trackComingSoonTap();
+    openService(s.id);
+  };
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleOpen();
+    }
+  };
   return (
-    <button
-      type="button"
-      onClick={() => {
-        trackComingSoonTap();
-        openService(s.id);
-      }}
-      className="flex w-40 shrink-0 snap-start flex-col justify-between rounded-2xl border border-border bg-card p-3 text-left"
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleOpen}
+      onKeyDown={handleKeyDown}
+      className="flex w-40 shrink-0 cursor-pointer snap-start flex-col justify-between rounded-2xl border border-border bg-card p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div>
         <p className="line-clamp-2 text-sm font-semibold text-foreground">{s.name}</p>
@@ -73,14 +89,19 @@ function BookAgainCard({ service: s }: { service: Service }) {
       </div>
       {/* SVC-415: `s` is the catalogue service (mapBooking's
           catalogueSrv), so this is today's price, not the past booking's. */}
-      <p className="mt-3">
-        <TilePrice
-          service={s}
-          labelClassName="text-xs text-muted-foreground"
-          priceClassName="text-sm font-bold text-primary"
-          statusClassName="text-xs font-medium text-muted-foreground"
-        />
-      </p>
-    </button>
+      {/* One block, so justify-between keeps the price at the bottom. */}
+      <div className="mt-3 flex flex-col items-start gap-1.5">
+        <p>
+          <TilePrice
+            service={s}
+            labelClassName="text-xs text-muted-foreground"
+            priceClassName="text-sm font-bold text-primary"
+            statusClassName="text-xs font-medium text-muted-foreground"
+          />
+        </p>
+        {/* SVC-484: its own line; the enabled label can take two. */}
+        <NotifyMeButton service={s} />
+      </div>
+    </div>
   );
 }

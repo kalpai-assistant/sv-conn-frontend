@@ -437,6 +437,136 @@
         ]
       }
     },
+    "/api/v1/users/me/service-alerts": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "List Service Alerts",
+        "description": "The caller's open \"Notify me\" alerts, newest first. Notified,\ncancelled and expired ones aren't listed.",
+        "operationId": "list_service_alerts_api_v1_users_me_service_alerts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceAlertResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Service Alerts Api V1 Users Me Service Alerts Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/service-alerts/{service_id}": {
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Put Service Alert",
+        "description": "Ask to be told when this service is available at this point (\"Notify me\").\n\nThe server picks ``kind`` from the tile's state there now: ``coming_soon``\nwhen nobody serves it, ``no_pros_online`` when it's served but nobody is\nlistable. 409 ``SERVICE_ALREADY_AVAILABLE`` when the tile would already\nshow a price; 404 ``SERVICE_NOT_FOUND`` for an unknown or inactive service.\n\nOne open alert per service: calling it again (say from another address)\nmoves it to the new point and restarts the 45 days. It pushes once, between\n08:00 and 22:00 IST.",
+        "operationId": "put_service_alert_api_v1_users_me_service_alerts__service_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Service Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceAlertRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceAlertResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Cancel Service Alert",
+        "description": "Cancel the caller's open alert for this service. 204 even if there is\nnone (idempotent).",
+        "operationId": "cancel_service_alert_api_v1_users_me_service_alerts__service_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Service Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/addresses": {
       "get": {
         "tags": [
@@ -7712,6 +7842,320 @@
         }
       }
     },
+    "/api/v1/admin/catalog/services/{service_id}/variants": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Create Variant",
+        "description": "A new active variant: label, price and commission percent, optionally\nduration and sort order. GST is copied from the service's first variant.\n409 ``VARIANT_LABEL_TAKEN`` if the service has that label in any case. The\nservice's base_price then follows its cheapest active variant.",
+        "operationId": "create_variant_api_v1_admin_catalog_services__service_id__variants_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Service Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminVariantCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminServiceDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/catalog/services/{service_id}/variants/{variant_id}": {
+      "patch": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Update Variant",
+        "description": "Change label, price, commission percent, duration or sort order. A price\non its own keeps the commission percent. Raising the percent is a 409\n``COMMISSION_INCREASE_NEEDS_NOTICE`` unless ``confirm: true``. SP prices and\nexisting bookings are not touched. A save that changes nothing is a 200 with\nno audit row.",
+        "operationId": "update_variant_api_v1_admin_catalog_services__service_id__variants__variant_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Service Id"
+            }
+          },
+          {
+            "name": "variant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Variant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminVariantUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminServiceDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/catalog/services/{service_id}/variants/{variant_id}/deactivate": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Deactivate Variant",
+        "description": "Switch a variant off: it can't be booked and drops out of the SP lists.\n409 ``LAST_ACTIVE_VARIANT`` for the service's last active one. Already off:\n200, no audit row.",
+        "operationId": "deactivate_variant_api_v1_admin_catalog_services__service_id__variants__variant_id__deactivate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Service Id"
+            }
+          },
+          {
+            "name": "variant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Variant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminServiceDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/catalog/services/{service_id}/variants/{variant_id}/activate": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Activate Variant",
+        "description": "Switch a variant back on, with the SP prices it had. Already on: 200, no\naudit row.",
+        "operationId": "activate_variant_api_v1_admin_catalog_services__service_id__variants__variant_id__activate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Service Id"
+            }
+          },
+          {
+            "name": "variant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Variant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminServiceDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/catalog/services/{service_id}/variants/{variant_id}/price-impact": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Variant Price Impact",
+        "description": "For the confirm dialog: how many SPs price this variant, and how many sit\noutside the recommended range now and at ``base_price``. Read-only.",
+        "operationId": "variant_price_impact_api_v1_admin_catalog_services__service_id__variants__variant_id__price_impact_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Service Id"
+            }
+          },
+          {
+            "name": "variant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Variant Id"
+            }
+          },
+          {
+            "name": "base_price",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Base Price"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminVariantPriceImpact"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/disputes": {
       "get": {
         "tags": [
@@ -11786,6 +12230,10 @@
             },
             "type": "array",
             "title": "Variants"
+          },
+          "priced_per_variant": {
+            "type": "boolean",
+            "title": "Priced Per Variant"
           }
         },
         "type": "object",
@@ -11804,7 +12252,8 @@
           "description",
           "created_at",
           "updated_at",
-          "variants"
+          "variants",
+          "priced_per_variant"
         ],
         "title": "AdminServiceDetail",
         "description": "The tree row plus the description and every variant, active or not."
@@ -11953,6 +12402,22 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
+          },
+          "platform_commission": {
+            "type": "number",
+            "title": "Platform Commission"
+          },
+          "provider_payout": {
+            "type": "number",
+            "title": "Provider Payout"
+          },
+          "commission_pct": {
+            "type": "number",
+            "title": "Commission Pct"
+          },
+          "gst_percent": {
+            "type": "number",
+            "title": "Gst Percent"
           }
         },
         "type": "object",
@@ -11963,10 +12428,14 @@
           "base_price",
           "duration_minutes",
           "sort_order",
-          "is_active"
+          "is_active",
+          "platform_commission",
+          "provider_payout",
+          "commission_pct",
+          "gst_percent"
         ],
         "title": "AdminServiceVariantRow",
-        "description": "Read-only here: variants are edited elsewhere."
+        "description": "One variant, active or not, edited through ``/variants`` (SVC-481).\n\n``platform_commission + provider_payout == base_price`` always.\n``commission_pct`` is the commission's share of the price rounded half up to\n2 dp, the value the editor shows and a PATCH may send back unchanged.\n``gst_percent`` is the customer's GST and is read-only."
       },
       "AdminSessionResponse": {
         "properties": {
@@ -12119,6 +12588,181 @@
           "last_login_at"
         ],
         "title": "AdminUserResponse"
+      },
+      "AdminVariantCreate": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "base_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Base Price"
+          },
+          "commission_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Commission Pct"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "gst_percent": {
+            "title": "Gst Percent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "base_price",
+          "commission_pct"
+        ],
+        "title": "AdminVariantCreate",
+        "description": "A new variant. ``commission_pct`` is the platform's percent of the price;\nthe amounts are stored. ``duration_minutes`` left out means the service's\nduration applies; ``sort_order`` left out puts it last. ``gst_percent`` is\ncopied from the service's first variant: sending it is refused."
+      },
+      "AdminVariantPriceImpact": {
+        "properties": {
+          "sp_prices": {
+            "type": "integer",
+            "title": "Sp Prices"
+          },
+          "outside_now": {
+            "type": "integer",
+            "title": "Outside Now"
+          },
+          "outside_after": {
+            "type": "integer",
+            "title": "Outside After"
+          },
+          "moving_out": {
+            "type": "integer",
+            "title": "Moving Out"
+          },
+          "moving_in": {
+            "type": "integer",
+            "title": "Moving In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sp_prices",
+          "outside_now",
+          "outside_after",
+          "moving_out",
+          "moving_in"
+        ],
+        "title": "AdminVariantPriceImpact",
+        "description": "What a price change would do to the recommended range, for the confirm\ndialog. Counts SPs with an active price on the variant (KYC verified, active\naccount), in every area. ``outside_now`` / ``outside_after``: outside the\nrange at the current / proposed price. ``moving_out`` / ``moving_in``: in\nrange now and outside after, and the reverse. A category with no range\n(not sensitive) has all four at 0."
+      },
+      "AdminVariantUpdate": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "base_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Price"
+          },
+          "commission_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commission Pct"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "confirm": {
+            "type": "boolean",
+            "title": "Confirm",
+            "default": false
+          },
+          "gst_percent": {
+            "title": "Gst Percent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AdminVariantUpdate",
+        "description": "Any subset of the editable fields; ``null`` is refused. Raising\n``commission_pct`` above the current (rounded) percent needs\n``confirm: true``, after the 14 days' notice to pros."
       },
       "AreaStats": {
         "properties": {
@@ -17972,6 +18616,70 @@
           "phone"
         ],
         "title": "SendOTPRequest"
+      },
+      "ServiceAlertRequest": {
+        "properties": {
+          "lat": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lng"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lng"
+        ],
+        "title": "ServiceAlertRequest",
+        "description": "The point the tile was shown for: the same lat/lng the app sent to\n``GET /services/from-prices``."
+      },
+      "ServiceAlertResponse": {
+        "properties": {
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Id"
+          },
+          "service_name": {
+            "type": "string",
+            "title": "Service Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "coming_soon",
+              "no_pros_online"
+            ],
+            "title": "Kind"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service_id",
+          "service_name",
+          "kind",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "ServiceAlertResponse",
+        "description": "One open \"Notify me\" alert (SVC-484). ``kind`` is what the tile said\nwhen the customer tapped: ``coming_soon`` or ``no_pros_online``. After\n``expires_at`` (created + 45 days) it's gone without a push."
       },
       "ServiceDetailResponse": {
         "properties": {

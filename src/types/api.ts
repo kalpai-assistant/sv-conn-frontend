@@ -234,6 +234,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/service-alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Service Alerts
+         * @description The caller's open "Notify me" alerts, newest first. Notified,
+         *     cancelled and expired ones aren't listed.
+         */
+        get: operations["list_service_alerts_api_v1_users_me_service_alerts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/service-alerts/{service_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Service Alert
+         * @description Ask to be told when this service is available at this point ("Notify me").
+         *
+         *     The server picks ``kind`` from the tile's state there now: ``coming_soon``
+         *     when nobody serves it, ``no_pros_online`` when it's served but nobody is
+         *     listable. 409 ``SERVICE_ALREADY_AVAILABLE`` when the tile would already
+         *     show a price; 404 ``SERVICE_NOT_FOUND`` for an unknown or inactive service.
+         *
+         *     One open alert per service: calling it again (say from another address)
+         *     moves it to the new point and restarts the 45 days. It pushes once, between
+         *     08:00 and 22:00 IST.
+         */
+        put: operations["put_service_alert_api_v1_users_me_service_alerts__service_id__put"];
+        post?: never;
+        /**
+         * Cancel Service Alert
+         * @description Cancel the caller's open alert for this service. 204 even if there is
+         *     none (idempotent).
+         */
+        delete: operations["cancel_service_alert_api_v1_users_me_service_alerts__service_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/addresses": {
         parameters: {
             query?: never;
@@ -2950,6 +3005,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/catalog/services/{service_id}/variants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Variant
+         * @description A new active variant: label, price and commission percent, optionally
+         *     duration and sort order. GST is copied from the service's first variant.
+         *     409 ``VARIANT_LABEL_TAKEN`` if the service has that label in any case. The
+         *     service's base_price then follows its cheapest active variant.
+         */
+        post: operations["create_variant_api_v1_admin_catalog_services__service_id__variants_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/services/{service_id}/variants/{variant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Variant
+         * @description Change label, price, commission percent, duration or sort order. A price
+         *     on its own keeps the commission percent. Raising the percent is a 409
+         *     ``COMMISSION_INCREASE_NEEDS_NOTICE`` unless ``confirm: true``. SP prices and
+         *     existing bookings are not touched. A save that changes nothing is a 200 with
+         *     no audit row.
+         */
+        patch: operations["update_variant_api_v1_admin_catalog_services__service_id__variants__variant_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/services/{service_id}/variants/{variant_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivate Variant
+         * @description Switch a variant off: it can't be booked and drops out of the SP lists.
+         *     409 ``LAST_ACTIVE_VARIANT`` for the service's last active one. Already off:
+         *     200, no audit row.
+         */
+        post: operations["deactivate_variant_api_v1_admin_catalog_services__service_id__variants__variant_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/services/{service_id}/variants/{variant_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate Variant
+         * @description Switch a variant back on, with the SP prices it had. Already on: 200, no
+         *     audit row.
+         */
+        post: operations["activate_variant_api_v1_admin_catalog_services__service_id__variants__variant_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/services/{service_id}/variants/{variant_id}/price-impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Variant Price Impact
+         * @description For the confirm dialog: how many SPs price this variant, and how many sit
+         *     outside the recommended range now and at ``base_price``. Read-only.
+         */
+        get: operations["variant_price_impact_api_v1_admin_catalog_services__service_id__variants__variant_id__price_impact_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/disputes": {
         parameters: {
             query?: never;
@@ -4524,6 +4690,8 @@ export interface components {
             updated_at: string;
             /** Variants */
             variants: components["schemas"]["AdminServiceVariantRow"][];
+            /** Priced Per Variant */
+            priced_per_variant: boolean;
         };
         /**
          * AdminServiceUpdate
@@ -4551,7 +4719,12 @@ export interface components {
         };
         /**
          * AdminServiceVariantRow
-         * @description Read-only here: variants are edited elsewhere.
+         * @description One variant, active or not, edited through ``/variants`` (SVC-481).
+         *
+         *     ``platform_commission + provider_payout == base_price`` always.
+         *     ``commission_pct`` is the commission's share of the price rounded half up to
+         *     2 dp, the value the editor shows and a PATCH may send back unchanged.
+         *     ``gst_percent`` is the customer's GST and is read-only.
          */
         AdminServiceVariantRow: {
             /**
@@ -4571,6 +4744,14 @@ export interface components {
             sort_order: number;
             /** Is Active */
             is_active: boolean;
+            /** Platform Commission */
+            platform_commission: number;
+            /** Provider Payout */
+            provider_payout: number;
+            /** Commission Pct */
+            commission_pct: number;
+            /** Gst Percent */
+            gst_percent: number;
         };
         /** AdminSessionResponse */
         AdminSessionResponse: {
@@ -4639,6 +4820,73 @@ export interface components {
             role: components["schemas"]["AdminRole"];
             /** Last Login At */
             last_login_at: string | null;
+        };
+        /**
+         * AdminVariantCreate
+         * @description A new variant. ``commission_pct`` is the platform's percent of the price;
+         *     the amounts are stored. ``duration_minutes`` left out means the service's
+         *     duration applies; ``sort_order`` left out puts it last. ``gst_percent`` is
+         *     copied from the service's first variant: sending it is refused.
+         */
+        AdminVariantCreate: {
+            /** Label */
+            label: string;
+            /** Base Price */
+            base_price: number | string;
+            /** Commission Pct */
+            commission_pct: number | string;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Gst Percent */
+            gst_percent?: unknown;
+        };
+        /**
+         * AdminVariantPriceImpact
+         * @description What a price change would do to the recommended range, for the confirm
+         *     dialog. Counts SPs with an active price on the variant (KYC verified, active
+         *     account), in every area. ``outside_now`` / ``outside_after``: outside the
+         *     range at the current / proposed price. ``moving_out`` / ``moving_in``: in
+         *     range now and outside after, and the reverse. A category with no range
+         *     (not sensitive) has all four at 0.
+         */
+        AdminVariantPriceImpact: {
+            /** Sp Prices */
+            sp_prices: number;
+            /** Outside Now */
+            outside_now: number;
+            /** Outside After */
+            outside_after: number;
+            /** Moving Out */
+            moving_out: number;
+            /** Moving In */
+            moving_in: number;
+        };
+        /**
+         * AdminVariantUpdate
+         * @description Any subset of the editable fields; ``null`` is refused. Raising
+         *     ``commission_pct`` above the current (rounded) percent needs
+         *     ``confirm: true``, after the 14 days' notice to pros.
+         */
+        AdminVariantUpdate: {
+            /** Label */
+            label?: string | null;
+            /** Base Price */
+            base_price?: number | string | null;
+            /** Commission Pct */
+            commission_pct?: number | string | null;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /**
+             * Confirm
+             * @default false
+             */
+            confirm: boolean;
+            /** Gst Percent */
+            gst_percent?: unknown;
         };
         /** AreaStats */
         AreaStats: {
@@ -7100,6 +7348,47 @@ export interface components {
             phone: string;
         };
         /**
+         * ServiceAlertRequest
+         * @description The point the tile was shown for: the same lat/lng the app sent to
+         *     ``GET /services/from-prices``.
+         */
+        ServiceAlertRequest: {
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+        };
+        /**
+         * ServiceAlertResponse
+         * @description One open "Notify me" alert (SVC-484). ``kind`` is what the tile said
+         *     when the customer tapped: ``coming_soon`` or ``no_pros_online``. After
+         *     ``expires_at`` (created + 45 days) it's gone without a push.
+         */
+        ServiceAlertResponse: {
+            /**
+             * Service Id
+             * Format: uuid
+             */
+            service_id: string;
+            /** Service Name */
+            service_name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "coming_soon" | "no_pros_online";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /**
          * ServiceDetailResponse
          * @description ``GET /services/{id}`` response — the ServiceResponse shape plus the
          *     three related-services buckets from SVC-291.
@@ -8340,6 +8629,90 @@ export interface operations {
                 "application/json": components["schemas"]["PushCapabilityReport"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_service_alerts_api_v1_users_me_service_alerts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceAlertResponse"][];
+                };
+            };
+        };
+    };
+    put_service_alert_api_v1_users_me_service_alerts__service_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceAlertRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceAlertResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_service_alert_api_v1_users_me_service_alerts__service_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             204: {
@@ -12723,6 +13096,175 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminServiceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_variant_api_v1_admin_catalog_services__service_id__variants_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminVariantCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminServiceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_variant_api_v1_admin_catalog_services__service_id__variants__variant_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+                variant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminVariantUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminServiceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_variant_api_v1_admin_catalog_services__service_id__variants__variant_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+                variant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminServiceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_variant_api_v1_admin_catalog_services__service_id__variants__variant_id__activate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+                variant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminServiceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    variant_price_impact_api_v1_admin_catalog_services__service_id__variants__variant_id__price_impact_get: {
+        parameters: {
+            query: {
+                base_price: string;
+            };
+            header?: never;
+            path: {
+                service_id: string;
+                variant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminVariantPriceImpact"];
                 };
             };
             /** @description Validation Error */

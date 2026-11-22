@@ -189,3 +189,50 @@ describe("the Pro's foreground toasts in their language (SVC-395)", () => {
     expect(toast).toHaveBeenCalledExactlyOnceWith(title, { description: body });
   });
 });
+
+describe("a service came available (SVC-484)", () => {
+  const SID = "5e1c0000-0000-0000-0000-000000000000";
+  const PUSH = {
+    type: "service_alert",
+    event: "service_available",
+    service_id: SID,
+    service_name: "Deep cleaning",
+    count: "1",
+  };
+
+  it("in the foreground: refreshes the tiles and alerts, stays put, no toast", async () => {
+    const invalidate = await arrive("service_available", "consumer", "en", PUSH);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["from-prices"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["service-alerts"] });
+    expect(navigate).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it("on a tap: refreshes, then opens the service's sheet", async () => {
+    auth.user = { role: "consumer" };
+    const client = new QueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    renderHook(() => useNotificationRouter(), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client }, children),
+    });
+    await waitFor(() => expect(listeners.pushNotificationActionPerformed).toBeDefined());
+    listeners.pushNotificationActionPerformed({ notification: { data: PUSH } });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["from-prices"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["service-alerts"] });
+    expect(navigate).toHaveBeenCalledExactlyOnceWith({ to: `/service/${SID}` });
+  });
+
+  it("on a tap of a combined push: opens Home", async () => {
+    auth.user = { role: "consumer" };
+    renderHook(() => useNotificationRouter(), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client: new QueryClient() }, children),
+    });
+    await waitFor(() => expect(listeners.pushNotificationActionPerformed).toBeDefined());
+    listeners.pushNotificationActionPerformed({
+      notification: { data: { ...PUSH, count: "3" } },
+    });
+    expect(navigate).toHaveBeenCalledExactlyOnceWith({ to: "/" });
+  });
+});

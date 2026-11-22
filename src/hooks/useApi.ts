@@ -710,8 +710,12 @@ export const useServiceProviders = (
 
 export type API_ServiceFromPrice = Schema<"ServiceFromPrice">;
 
-/** Round to 4 decimals (~11 m), the backend's own cache granularity. */
-const round4 = (n: number) => Math.round(n * 1e4) / 1e4;
+/**
+ * Round to 4 decimals (~11 m), the backend's own cache granularity. The one
+ * rounding rule for a tile point: the from-prices key and SVC-484's alert PUT
+ * both use it, so an alert is saved at exactly the point the tile priced.
+ */
+export const round4 = (n: number) => Math.round(n * 1e4) / 1e4;
 
 /**
  * The service tiles' "from ₹X" at a point (SVC-415): one row per ACTIVE

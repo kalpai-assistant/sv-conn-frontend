@@ -20,6 +20,10 @@ import type { Service } from "@/lib/mock-data";
 // SVC-415: the card's price label reads these; no QueryClient in this test.
 // SVC-419's tile-tap event has its own suite (useTileComingSoonTap.test.tsx).
 vi.mock("@/hooks/useTileComingSoonTap", () => ({ useTileComingSoonTap: () => () => {} }));
+// SVC-484's Notify me has its own suite (NotifyMeButton.test.tsx). Its
+// imports (push, install sheet, i18n) cost about a second here, against this
+// file's 5 s budget.
+vi.mock("@/components/NotifyMeButton", () => ({ NotifyMeButton: () => null }));
 vi.mock("@/hooks/useTilePoint", () => ({ useTilePoint: () => null }));
 vi.mock("@/hooks/useApi", async (orig) => ({
   ...(await orig<typeof import("@/hooks/useApi")>()),

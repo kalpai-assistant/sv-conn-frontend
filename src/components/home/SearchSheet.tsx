@@ -22,6 +22,7 @@ import { SearchResultSkeleton } from "@/components/skeletons/ListRowSkeletons";
 import { useServices } from "@/hooks/useApi";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { TilePrice } from "@/components/TilePrice";
+import { NotifyMeButton } from "@/components/NotifyMeButton";
 import { useTileComingSoonTap } from "@/hooks/useTileComingSoonTap";
 import { toPlainText } from "@/lib/markdown-text";
 
@@ -273,18 +274,33 @@ function ResultsList({
   );
 }
 
-/** One result. Its own component so it can hold the SVC-419 tap hook. */
+/**
+ * One result. Its own component so it can hold the SVC-419 tap hook.
+ *
+ * A `div role="button"`, as in ServiceCard, not a `<button>`: SVC-484's
+ * Notify me is a button of its own inside the row, and a button can't hold
+ * one. Enter / Space open it like a click.
+ */
 function ResultRow({ service: s, onTap }: { service: SearchResult; onTap: () => void }) {
   const trackComingSoonTap = useTileComingSoonTap(s);
+  const handleOpen = () => {
+    trackComingSoonTap();
+    onTap();
+  };
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleOpen();
+    }
+  };
   return (
     <li>
-      <button
-        type="button"
-        onClick={() => {
-          trackComingSoonTap();
-          onTap();
-        }}
-        className="flex w-full items-start gap-3 py-3 text-left"
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={handleOpen}
+        onKeyDown={handleKeyDown}
+        className="flex w-full cursor-pointer items-start gap-3 rounded-md py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent">
           <Search className="h-4 w-4 text-primary" />
@@ -292,6 +308,8 @@ function ResultRow({ service: s, onTap }: { service: SearchResult; onTap: () => 
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-foreground">{s.name}</p>
           <p className="truncate text-xs text-muted-foreground">{toPlainText(s.description)}</p>
+          {/* SVC-484: under the name, not in the narrow status column. */}
+          <NotifyMeButton service={s} className="mt-1.5" />
         </div>
         {/* SVC-415: max-w so a wrapped status can't squeeze the name. */}
         <TilePrice
@@ -301,7 +319,7 @@ function ResultRow({ service: s, onTap }: { service: SearchResult; onTap: () => 
           priceClassName="text-sm font-semibold text-primary"
           statusClassName="text-xs font-medium text-muted-foreground"
         />
-      </button>
+      </div>
     </li>
   );
 }

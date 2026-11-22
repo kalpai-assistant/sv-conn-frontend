@@ -4,30 +4,27 @@
  * "Coming soon".
  *
  * Reads the same state TilePrice paints (the same from-prices query at the
- * same point, through `tilePriceState`), so the event can't disagree with
+ * same point, through `useTileState`), so the event can't disagree with
  * the label the customer tapped. A priced tile, or one with no data (the
  * catalogue-price fallback), sends nothing.
+ *
+ * SVC-484's Notify me button sends nothing (Jira 14952 #14): it stops
+ * propagation, so its tap never reaches the card's handler. The alert row is
+ * the demand signal there.
  *
  * Each tile place calls the returned function from its open handler, and
  * QuickAddButton from its zero-state ADD. ADD stops propagation, so a tap on
  * it never also reaches the card's handler: one event per tap.
  */
 import { useCallback } from "react";
-import { useFromPrices } from "@/hooks/useApi";
 import { useSelectedAddress } from "@/hooks/useSelectedAddress";
-import { useTilePoint } from "@/hooks/useTilePoint";
-import { tilePriceState } from "@/components/TilePrice";
+import { useTileState } from "@/hooks/useTileState";
 import { pincodeOrNull, track } from "@/lib/analytics";
 import type { Service } from "@/lib/mock-data";
 
 export function useTileComingSoonTap(service: Pick<Service, "id" | "price">): () => void {
-  const point = useTilePoint();
-  const { data } = useFromPrices(point);
+  const { state } = useTileState(service);
   const { selected } = useSelectedAddress();
-  const state = tilePriceState(
-    data?.find((r) => r.service_id === service.id),
-    service.price,
-  );
   // The tiles price from the selected address when it has coordinates, else
   // from the device's launch fix: then there is no pincode to send.
   const fromSelected = !!selected && selected.lat != null && selected.lng != null;

@@ -15,6 +15,7 @@
  * marketing site shipped. They were simply nowhere a signed-in provider would
  * ever look. This puts them where the problem is felt.
  */
+import { useEffect } from "react";
 import { Bell, Share, SquarePlus, TriangleAlert } from "lucide-react";
 import {
   Sheet,
@@ -24,6 +25,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { type InstallState, installCostsSession } from "@/lib/install";
+import { pushBackInterceptor } from "@/lib/back-interceptor";
 
 interface InstallSheetProps {
   open: boolean;
@@ -46,6 +48,16 @@ export function InstallSheet({
     audience === "provider"
       ? "Job requests are sent as notifications. Without this you'll only see them while the app is open."
       : "Get booking updates without keeping the app open.";
+
+  // Android back closes the sheet instead of leaving the route under it
+  // (SVC-484; the sheet had no back handling, on Profile too). Only while open.
+  useEffect(() => {
+    if (!open) return;
+    return pushBackInterceptor(() => {
+      onOpenChange(false);
+      return true;
+    });
+  }, [open, onOpenChange]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

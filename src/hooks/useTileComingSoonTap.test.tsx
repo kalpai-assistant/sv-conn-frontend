@@ -95,14 +95,16 @@ const PLACES: Array<[string, () => Promise<HTMLElement>]> = [
     async () => {
       render(<SearchSheet onClose={vi.fn()} />);
       await userEvent.type(screen.getByPlaceholderText("Search for services..."), "basin");
-      return (await screen.findByText("Basin installation")).closest("button") as HTMLElement;
+      return (await screen.findByText("Basin installation")).closest(
+        "[role=button]",
+      ) as HTMLElement;
     },
   ],
   [
     "BookAgainRow",
     async () => {
       render(<BookAgainRow />);
-      return screen.getByText("Basin installation").closest("button") as HTMLElement;
+      return screen.getByText("Basin installation").closest("[role=button]") as HTMLElement;
     },
   ],
 ];

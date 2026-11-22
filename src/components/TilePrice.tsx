@@ -17,26 +17,19 @@
  * `service.price` stays the catalogue price everywhere else (cart, coupons);
  * this only changes what the label says.
  */
-import { useFromPrices, type API_ServiceFromPrice } from "@/hooks/useApi";
-import { useTilePoint } from "@/hooks/useTilePoint";
+import { useTileState } from "@/hooks/useTileState";
 import { formatRupees } from "@/lib/currency";
 import type { Service } from "@/lib/mock-data";
+import { TILE_COMING_SOON_TEXT, TILE_OFFLINE_TEXT } from "@/lib/tile-price-state";
 
-export type TilePriceState =
-  { kind: "price"; amount: number } | { kind: "offline" } | { kind: "coming-soon" };
-
-/** The label for one service, from its from-prices row (undefined = no data). */
-export function tilePriceState(
-  row: API_ServiceFromPrice | undefined,
-  cataloguePrice: number,
-): TilePriceState {
-  if (!row) return { kind: "price", amount: Math.floor(cataloguePrice) };
-  if (row.from_price != null) return { kind: "price", amount: Math.floor(row.from_price) };
-  return row.served ? { kind: "offline" } : { kind: "coming-soon" };
-}
-
-export const TILE_OFFLINE_TEXT = "No pros online right now";
-export const TILE_COMING_SOON_TEXT = "Coming soon";
+// The state itself lives in lib/tile-price-state.ts (no import cycle with the
+// hooks that read it); re-exported so every caller keeps importing it here.
+export {
+  tilePriceState,
+  TILE_COMING_SOON_TEXT,
+  TILE_OFFLINE_TEXT,
+  type TilePriceState,
+} from "@/lib/tile-price-state";
 
 interface TilePriceProps {
   service: Pick<Service, "id" | "price">;
@@ -65,10 +58,7 @@ export function TilePrice({
   statusClassName,
   show,
 }: TilePriceProps) {
-  const point = useTilePoint();
-  const { data } = useFromPrices(point);
-  const row = data?.find((r) => r.service_id === service.id);
-  const state = tilePriceState(row, service.price);
+  const { state } = useTileState(service);
 
   if (show === "price" && state.kind !== "price") return null;
   if (show === "status" && state.kind === "price") return null;

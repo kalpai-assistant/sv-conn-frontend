@@ -269,3 +269,12 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
+
+/**
+ * The auth context, or null outside an AuthProvider. For a control that only
+ * a signed-in user ever sees and that renders inside widely reused tiles
+ * (SVC-484's Notify me): outside the provider it simply isn't shown.
+ */
+export function useOptionalAuth(): AuthContextType | null {
+  return useContext(AuthContext);
+}
