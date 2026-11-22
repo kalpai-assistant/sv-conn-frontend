@@ -27,10 +27,10 @@ import {
   enablePushNotifications,
   getPushPermission,
   type PushPermission,
+  type PushRegistrationResult,
 } from "@/lib/fcm";
 import { detectPlatform } from "@/lib/platform";
-import { useInstallState } from "@/lib/install";
-import { InstallSheet } from "@/components/InstallSheet";
+import { usePushGate } from "@/hooks/usePushGate";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,20 +51,28 @@ export function NotificationsRow() {
   // token actually reached the backend — that reassurance is exactly what AC4
   // is trying to prevent.
   const [hasFailed, setHasFailed] = useState(false);
-  // SVC-255 item 3: `unsupported` on iOS has a real remedy, and a toast was not
-  // it. A toast is dismissed in three seconds and cannot show a numbered
-  // sequence — the provider needed the actual Share-menu steps in front of
-  // them, plus the warning that installing costs them their session.
-  const [showInstall, setShowInstall] = useState(false);
   // SVC-277: the row had no Off at all — tapping while On silently re-ran
   // registration and looked like nothing happened. `isOff` is our own state
   // rather than a permission value because the OS permission stays granted;
   // what changes is whether the backend has a token to send to.
   const [isOff, setIsOff] = useState(false);
   const [confirmOff, setConfirmOff] = useState(false);
-  const { state: installState, promptInstall } = useInstallState();
   // SVC-375: translated on /provider/profile; English on /profile.
   const { t } = useT();
+  // SVC-255 item 3: `unsupported` on iOS has a real remedy, and a toast was not
+  // it. A toast is dismissed in three seconds and cannot show a numbered
+  // sequence — the provider needed the actual Share-menu steps in front of
+  // them, plus the warning that installing costs them their session. The
+  // denied / unsupported handling is shared with SVC-484's Notify me.
+  const onEnabledAfterInstall = useCallback(
+    (result: PushRegistrationResult) => {
+      setPermission(result.status);
+      setHasFailed(!!result.error);
+      if (result.status === "granted" && !result.error) toast.success(t("notifications.nowOn"));
+    },
+    [t],
+  );
+  const { explainUnavailable, installSheet } = usePushGate({ onEnabledAfterInstall });
 
   // Why push is unavailable, when it is. `unsupported` is one value from
   // `getPushPermission()` but it covers two very different situations, and only
@@ -100,28 +108,8 @@ export function NotificationsRow() {
   const handleClick = useCallback(async () => {
     if (isBusy) return;
 
-    // Once denied, the prompt is gone — only the OS/browser settings can undo
-    // it. Re-calling requestPermission() here would resolve "denied" instantly
-    // and look like a no-op button, so say what actually needs to happen.
-    if (permission === "denied") {
-      toast.error(t("notifications.blocked"), { description: t("notifications.blockedDetail") });
-      return;
-    }
-    // No API can trigger Add to Home Screen — Apple only offers it through the
-    // Share menu — so the most this button can do is say what to do. Silence
-    // was the previous behaviour and is what SVC-255 was raised about.
-    if (permission === "unsupported") {
-      // A browser that genuinely cannot do this gets a straight answer; the
-      // rest get the walkthrough, because for them there is something to do.
-      if (installState === "unavailable" || installState === "installed") {
-        toast.error(t("notifications.browserCant"), {
-          description: t("notifications.browserCantDetail"),
-        });
-        return;
-      }
-      setShowInstall(true);
-      return;
-    }
+    // Blocked in settings, or unsupported: say why, or show the install sheet.
+    if (permission !== null && explainUnavailable(permission)) return;
 
     // Already on → offer to turn it off. Asked rather than done, because for a
     // provider this stops job requests reaching them.
@@ -151,7 +139,7 @@ export function NotificationsRow() {
     } finally {
       setIsBusy(false);
     }
-  }, [isBusy, permission, isOff, hasFailed, installState, t]);
+  }, [isBusy, permission, isOff, hasFailed, explainUnavailable, t]);
 
   const turnOff = useCallback(async () => {
     setConfirmOff(false);
@@ -168,20 +156,6 @@ export function NotificationsRow() {
       setIsBusy(false);
     }
   }, [t]);
-
-  const handleInstall = useCallback(async () => {
-    const accepted = await promptInstall();
-    if (accepted) {
-      setShowInstall(false);
-      // Android installs in place, so the permission prompt can follow straight
-      // away. iOS never reaches here — there the app relaunches from the Home
-      // Screen and the provider enables it there.
-      const result = await enablePushNotifications();
-      setPermission(result.status);
-      setHasFailed(!!result.error);
-      if (result.status === "granted" && !result.error) toast.success(t("notifications.nowOn"));
-    }
-  }, [promptInstall, t]);
 
   // Still reading the permission — render nothing rather than flashing a
   // wrong state for a frame.
@@ -241,12 +215,7 @@ export function NotificationsRow() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <InstallSheet
-        open={showInstall}
-        onOpenChange={setShowInstall}
-        state={installState}
-        onInstall={handleInstall}
-      />
+      {installSheet}
       <button
         onClick={handleClick}
         disabled={isBusy}

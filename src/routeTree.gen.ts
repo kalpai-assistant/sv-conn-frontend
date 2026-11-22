@@ -20,6 +20,7 @@ import { Route as InviteRouteImport } from './routes/invite'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RefundRouteImport } from './routes/refund'
+import { Route as ServiceAlertsRouteImport } from './routes/service-alerts'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
@@ -102,6 +103,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const RefundRoute = RefundRouteImport.update({
   id: '/refund',
   path: '/refund',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServiceAlertsRoute = ServiceAlertsRouteImport.update({
+  id: '/service-alerts',
+  path: '/service-alerts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SupportRoute = SupportRouteImport.update({
@@ -259,6 +265,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
+  '/service-alerts': typeof ServiceAlertsRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/admin/bookings': typeof AdminBookingsRoute
@@ -300,6 +307,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
+  '/service-alerts': typeof ServiceAlertsRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/admin/bookings': typeof AdminBookingsRoute
@@ -342,6 +350,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/refund': typeof RefundRoute
+  '/service-alerts': typeof ServiceAlertsRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/admin/bookings': typeof AdminBookingsRoute
@@ -385,6 +394,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/refund'
+    | '/service-alerts'
     | '/support'
     | '/terms'
     | '/admin/bookings'
@@ -426,6 +436,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/refund'
+    | '/service-alerts'
     | '/support'
     | '/terms'
     | '/admin/bookings'
@@ -467,6 +478,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/refund'
+    | '/service-alerts'
     | '/support'
     | '/terms'
     | '/admin/bookings'
@@ -509,6 +521,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   RefundRoute: typeof RefundRoute
+  ServiceAlertsRoute: typeof ServiceAlertsRoute
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   AdminBookingsRoute: typeof AdminBookingsRoute
@@ -616,6 +629,13 @@ declare module '@tanstack/react-router' {
       path: '/refund'
       fullPath: '/refund'
       preLoaderRoute: typeof RefundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/service-alerts': {
+      id: '/service-alerts'
+      path: '/service-alerts'
+      fullPath: '/service-alerts'
+      preLoaderRoute: typeof ServiceAlertsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/support': {
@@ -829,6 +849,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   RefundRoute: RefundRoute,
+  ServiceAlertsRoute: ServiceAlertsRoute,
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   AdminBookingsRoute: AdminBookingsRoute,

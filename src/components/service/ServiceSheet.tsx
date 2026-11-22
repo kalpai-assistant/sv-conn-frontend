@@ -56,6 +56,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { ServiceCard } from "@/components/ServiceCard";
 import { ServiceCardCompact } from "@/components/home/ServiceCardCompact";
 import { TilePrice } from "@/components/TilePrice";
+import { NotifyMeButton } from "@/components/NotifyMeButton";
 import { ServiceDescription } from "@/components/service/ServiceDescription";
 
 interface ServiceSheetProps {
@@ -270,6 +271,11 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
                       priceClassName="text-xl font-bold text-primary"
                       statusClassName="text-sm font-medium text-muted-foreground"
                     />
+                  </div>
+                  {/* SVC-484: under the status, right-aligned with it. Empty (and
+                      hidden) on a priced service. */}
+                  <div className="mt-2 flex justify-end empty:hidden">
+                    <NotifyMeButton service={service} />
                   </div>
                 </div>
               </div>

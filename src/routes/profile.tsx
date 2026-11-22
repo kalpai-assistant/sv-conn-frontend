@@ -3,6 +3,7 @@ import { BackButton } from "@/components/BackButton";
 import { useAuth } from "@/lib/auth-context";
 import {
   AlertCircle,
+  BellRing,
   Briefcase,
   MapPin,
   Users,
@@ -38,6 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { NotificationsRow } from "@/components/NotificationsRow";
+import { useServiceAlerts } from "@/hooks/useServiceAlerts";
 import { LanguageRow } from "@/components/language/LanguageRow";
 import { displayVersion } from "@/lib/version";
 
@@ -64,6 +66,8 @@ function capitalise(word: string): string {
 
 function ProfilePage() {
   const { user, login, updateUser } = useAuth();
+  // SVC-484: the count on the Service alerts row.
+  const { data: serviceAlerts } = useServiceAlerts(!!user);
   const {
     data: savedAddresses,
     isLoading: isAddressesLoading,
@@ -343,6 +347,25 @@ function ProfilePage() {
                 iOS Safari won't prompt without one. Renders nothing where
                 push isn't supported. */}
             <NotificationsRow />
+            {/* SVC-484: the open "Notify me" alerts, a screen of their own like
+                Saved Addresses. Under Notifications: they arrive as pushes. */}
+            <Link
+              to="/service-alerts"
+              className="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-secondary"
+            >
+              <BellRing className="h-5 w-5 text-muted-foreground" />
+              <span className="flex-1 text-left text-sm font-medium text-foreground">
+                Service alerts
+              </span>
+              <span className="text-xs font-medium text-muted-foreground">
+                {serviceAlerts && serviceAlerts.length > 0
+                  ? `${serviceAlerts.length} active`
+                  : serviceAlerts
+                    ? "None"
+                    : ""}
+              </span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Link>
             {/* SVC-277: these were <button>s with no handler and no destination —
                 a chevron promising a screen that did not exist. Payment History
                 is deliberately absent rather than left dead: there is no such

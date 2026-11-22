@@ -22,7 +22,9 @@ vi.mock("@/lib/auth-context", () => ({ useAuth: () => auth }));
 
 import {
   PUSH_BOOKING_PARAM,
+  PUSH_COUNT_PARAM,
   PUSH_EVENT_PARAM,
+  PUSH_SERVICE_PARAM,
   readPushClickMessage,
   readPushLink,
   routeForPayload,
@@ -59,6 +61,39 @@ describe("kyc_rejected (SVC-444), which has no booking", () => {
   it.each([...LIFECYCLE, ...BOOKING_EVENTS])("%s still needs a booking", (event) => {
     expect(routeForPayload({ event }, "consumer")).toBeNull();
     expect(routeForPayload({ event }, "provider")).toBeNull();
+  });
+});
+
+describe("service_available (SVC-484), which has no booking", () => {
+  const SERVICE_ID = "5e1c0000-0000-0000-0000-000000000000";
+  const available = (data: { service_id?: string; count?: string }, role: ViewerRole) =>
+    routeForPayload({ event: "service_available", ...data }, role);
+
+  it("opens that service's sheet for one alert", () => {
+    expect(available({ service_id: SERVICE_ID, count: "1" }, "consumer")).toBe(
+      `/service/${SERVICE_ID}`,
+    );
+  });
+
+  it("treats a missing count as one", () => {
+    expect(available({ service_id: SERVICE_ID }, "consumer")).toBe(`/service/${SERVICE_ID}`);
+  });
+
+  it("opens Home when several came due in one push", () => {
+    // service_id is then only the first of them.
+    expect(available({ service_id: SERVICE_ID, count: "3" }, "consumer")).toBe("/");
+  });
+
+  it("opens Home without a service id", () => {
+    expect(available({ count: "1" }, "consumer")).toBe("/");
+  });
+
+  it("is routed before the booking guard (it never has a booking_id)", () => {
+    expect(available({ service_id: SERVICE_ID }, "consumer")).not.toBeNull();
+  });
+
+  it.each(["provider", "admin", null] as const)("goes nowhere for %s", (role) => {
+    expect(available({ service_id: SERVICE_ID, count: "1" }, role)).toBeNull();
   });
 });
 
@@ -175,6 +210,23 @@ describe("every target is a real route", () => {
       expect(exists, `${target} is not a route`).toBe(true);
     }
   });
+
+  it("includes service_available's targets (SVC-484)", async () => {
+    const source = (await import("@/routeTree.gen?raw")).default as unknown as string;
+    const fullPaths = new Set([...source.matchAll(/fullPath: '([^']+)'/g)].map((m) => m[1]));
+    const SID = "5e1c0000-0000-0000-0000-000000000000";
+    const one = routeForPayload({ event: "service_available", service_id: SID }, "consumer");
+    const many = routeForPayload(
+      { event: "service_available", service_id: SID, count: "2" },
+      "consumer",
+    );
+    expect(one).toBe(`/service/${SID}`);
+    expect(many).toBe("/");
+    expect(fullPaths.has("/service/$serviceId")).toBe(true);
+    expect(fullPaths.has("/")).toBe(true);
+    // The Profile list the alerts live on.
+    expect(fullPaths.has("/service-alerts")).toBe(true);
+  });
 });
 
 // The router refreshes the Pro's jobs when an "assigned" push arrives, so it
@@ -204,6 +256,39 @@ describe("web push (PWA)", () => {
       booking_id: ID,
     });
     expect(readPushLink("?foo=1")).toBeNull();
+  });
+
+  it("reads a service_available push's service and count (SVC-484)", () => {
+    const SID = "5e1c0000-0000-0000-0000-000000000000";
+    expect(
+      readPushLink(
+        `?${PUSH_EVENT_PARAM}=service_available&${PUSH_SERVICE_PARAM}=${SID}&${PUSH_COUNT_PARAM}=1`,
+      ),
+    ).toStrictEqual({
+      event: "service_available",
+      booking_id: undefined,
+      service_id: SID,
+      count: "1",
+    });
+  });
+
+  it("opens the service's sheet from a service_available link, after a refresh", () => {
+    const SID = "5e1c0000-0000-0000-0000-000000000000";
+    window.history.replaceState(
+      null,
+      "",
+      `/?${PUSH_EVENT_PARAM}=service_available&${PUSH_SERVICE_PARAM}=${SID}&${PUSH_COUNT_PARAM}=1`,
+    );
+    auth.user = { role: "consumer" };
+    const client = new QueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    renderHook(() => useNotificationRouter(), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client }, children),
+    });
+    expect(navigate).toHaveBeenCalledExactlyOnceWith({ to: `/service/${SID}`, replace: true });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["from-prices"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["service-alerts"] });
   });
 
   it("sends a provider to their job, not to /tracking", () => {
@@ -247,6 +332,8 @@ describe("web push (PWA)", () => {
     const sw = readFileSync("public/firebase-messaging-sw.js", "utf-8");
     expect(sw).toContain(`params.set("${PUSH_EVENT_PARAM}"`);
     expect(sw).toContain(`params.set("${PUSH_BOOKING_PARAM}"`);
+    expect(sw).toContain(`params.set("${PUSH_SERVICE_PARAM}", data.service_id)`);
+    expect(sw).toContain(`params.set("${PUSH_COUNT_PARAM}", data.count)`);
     // The role-blind route it used to build for everyone (its comments may
     // still name it, so match the template literal, not the words).
     expect(sw).not.toContain("`/tracking/");

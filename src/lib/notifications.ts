@@ -46,11 +46,16 @@ export type NotificationEvent =
   // SVC-348: to a team Pro whose job went away, so they don't travel to it.
   | "job_cancelled" // the booking was cancelled (by the customer or an admin)
   | "unassigned" // the SP re-picked, released or gave the job back
-  | "kyc_rejected"; // to an SP or a team Pro: an admin rejected their documents (SVC-444)
+  | "kyc_rejected" // to an SP or a team Pro: an admin rejected their documents (SVC-444)
+  | "service_available"; // to a consumer: a service they asked to be told about is available (SVC-484)
 
 export interface NotificationPayload {
   event: NotificationEvent | string;
   booking_id?: string;
+  // SVC-484 service_available: the customer's FIRST due alert, and how many
+  // came due in this push. FCM data values are strings, so count is "1", "3".
+  service_id?: string;
+  count?: string;
   // Future fields land here; unknown keys are ignored.
 }
 
@@ -89,6 +94,16 @@ export function routeForPayload(data: NotificationPayload, role: ViewerRole): st
   if (event === "kyc_rejected") {
     if (role === "provider") return "/provider";
     return role === "consumer" ? "/pro" : null;
+  }
+
+  // About a service, not a booking (SVC-484). One alert → that service's
+  // sheet (the /service/$serviceId stub opens it over Home). Several in one
+  // push ("3 services you asked about…") → Home, where the tiles now show
+  // them. Only a customer asks for alerts.
+  if (event === "service_available") {
+    if (role !== "consumer") return null;
+    const single = data.count === undefined || data.count === "1";
+    return single && data.service_id ? `/service/${data.service_id}` : "/";
   }
 
   if (!bookingId) return null;
@@ -175,6 +190,23 @@ function refreshAfterKycRejected(queryClient: QueryClient): void {
 }
 
 /**
+ * A service came available (SVC-484): the tile labels and the alert list are
+ * stale. The backend has already cleared its own from-prices cache for the
+ * alert's point; without this the app's 5-minute cache would still say
+ * "Coming soon". Every point, since the push doesn't carry one.
+ */
+function refreshAfterServiceAvailable(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: ["from-prices"] });
+  void queryClient.invalidateQueries({ queryKey: ["service-alerts"] });
+}
+
+/** The per-event refresh a push tap does before routing. */
+function refreshForPushTap(data: NotificationPayload, queryClient: QueryClient): void {
+  if (data.event === "kyc_rejected") refreshAfterKycRejected(queryClient);
+  if (data.event === "service_available") refreshAfterServiceAvailable(queryClient);
+}
+
+/**
  * Whether a foreground-arrival notification should auto-navigate.
  *
  * `new_request` for a provider is time-critical (2-minute accept window) —
@@ -193,13 +225,20 @@ function shouldAutoRouteForeground(data: NotificationPayload, role: ViewerRole):
  */
 export const PUSH_EVENT_PARAM = "push_event";
 export const PUSH_BOOKING_PARAM = "push_booking_id";
+export const PUSH_SERVICE_PARAM = "push_service_id";
+export const PUSH_COUNT_PARAM = "push_count";
 
 /** The push payload carried in a URL's query string, or null if none. */
 export function readPushLink(search: string): NotificationPayload | null {
   const params = new URLSearchParams(search);
   const event = params.get(PUSH_EVENT_PARAM);
   if (!event) return null;
-  return { event, booking_id: params.get(PUSH_BOOKING_PARAM) ?? undefined };
+  return {
+    event,
+    booking_id: params.get(PUSH_BOOKING_PARAM) ?? undefined,
+    service_id: params.get(PUSH_SERVICE_PARAM) ?? undefined,
+    count: params.get(PUSH_COUNT_PARAM) ?? undefined,
+  };
 }
 
 /**
@@ -252,7 +291,7 @@ export function useNotificationRouter(): void {
   useEffect(() => {
     if (!pushLink || handledPushLink.current === pushLink || role === null) return;
     handledPushLink.current = pushLink;
-    if (pushLink.payload.event === "kyc_rejected") refreshAfterKycRejected(queryClient);
+    refreshForPushTap(pushLink.payload, queryClient);
     const target = routeForPayload(pushLink.payload, role);
     if (target) navigate({ to: target, replace: pushLink.replace });
   }, [pushLink, role, navigate, queryClient]);
@@ -288,7 +327,7 @@ export function useNotificationRouter(): void {
         "pushNotificationActionPerformed",
         (action) => {
           const data = action.notification.data as NotificationPayload;
-          if (data.event === "kyc_rejected") refreshAfterKycRejected(queryClient);
+          refreshForPushTap(data, queryClient);
           const target = routeForPayload(data, role);
           if (target) navigate({ to: target });
         },
@@ -339,6 +378,13 @@ export function useNotificationRouter(): void {
               description: t("pushToast.kycRejectedBody"),
               action: { label: t("pushToast.open"), onClick: () => navigate({ to: target }) },
             });
+            return;
+          }
+          // A service came available with the app open (SVC-484): Android shows
+          // nothing in the foreground, so refresh the tiles and the alert list
+          // in place. No navigation, and no toast: the tile itself now says it.
+          if (data.event === "service_available") {
+            refreshAfterServiceAvailable(queryClient);
             return;
           }
           if (!shouldAutoRouteForeground(data, role)) return;

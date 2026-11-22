@@ -93,7 +93,11 @@ vi.mock("@/hooks/useSelectedAddress", () => ({
     setSelectedId: vi.fn(),
   }),
 }));
-vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { id: "u1" } }) }));
+vi.mock("@/lib/auth-context", () => ({
+  useAuth: () => ({ user: { id: "u1" } }),
+  // SVC-484's Notify me: hidden here, this suite is about the pro sheet.
+  useOptionalAuth: () => null,
+}));
 vi.mock("@/components/SavedAddressesSheet", () => ({ SavedAddressesSheet: () => null }));
 vi.mock("@tanstack/react-router", () => ({ useNavigate: () => vi.fn() }));
 vi.mock("@/hooks/useLockBodyScroll", () => ({ useLockBodyScroll: vi.fn() }));

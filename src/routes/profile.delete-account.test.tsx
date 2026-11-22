@@ -24,6 +24,7 @@ vi.mock("@/components/DeleteAccountButton", () => ({
 vi.mock("@/components/LogoutButton", () => ({ LogoutButton: () => <button>Logout</button> }));
 vi.mock("@/components/BackButton", () => ({ BackButton: () => null }));
 vi.mock("@/components/NotificationsRow", () => ({ NotificationsRow: () => null }));
+vi.mock("@/hooks/useServiceAlerts", () => ({ useServiceAlerts: () => ({ data: [] }) }));
 vi.mock("@/components/AddAddressSheet", () => ({ AddAddressSheet: () => null }));
 vi.mock("@/components/provider/BusinessSection", () => ({ BusinessSection: () => null }));
 vi.mock("@/components/provider/ServicesPicker", () => ({ ServicesPicker: () => null }));

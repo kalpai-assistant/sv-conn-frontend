@@ -31,6 +31,7 @@ import type { Service } from "@/lib/mock-data";
 import { useServiceSheet } from "@/lib/service-sheet-context";
 import { QuickAddButton } from "@/components/service/QuickAddButton";
 import { TilePrice } from "@/components/TilePrice";
+import { NotifyMeButton } from "@/components/NotifyMeButton";
 import { useTileComingSoonTap } from "@/hooks/useTileComingSoonTap";
 import { serviceHeroLayoutId } from "@/lib/shared-hero";
 import { ReviewSnippetLine } from "@/components/service/ReviewSnippetLine";
@@ -129,6 +130,9 @@ export function ServiceCardCompact({
         <p className="text-xs text-muted-foreground">
           <TilePrice service={service} priceClassName="text-sm font-bold text-primary" />
         </p>
+        {/* SVC-484: its own line, so the status line above never wraps for it.
+            The enabled label can take two lines on this narrow card. */}
+        <NotifyMeButton service={service} className="self-start" />
       </div>
     </div>
   );
