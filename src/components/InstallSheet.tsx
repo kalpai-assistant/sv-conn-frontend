@@ -95,7 +95,7 @@ export function InstallSheet({
               we told them it would start working. Naming it first turns a
               failure into an expected step. */}
           {installCostsSession(state) && (
-            <div className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+            <div className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
               <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
                 You'll sign in once more after installing — the Home Screen app keeps its own

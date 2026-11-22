@@ -87,10 +87,13 @@ export function AssignedPro({ booking }: { booking: Booking }) {
       {unassigned ? (
         <div
           role="status"
-          className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm"
+          className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-800 dark:bg-amber-950/40"
         >
           <p className="flex items-center gap-2 font-medium text-foreground">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+            <AlertTriangle
+              className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
+              aria-hidden
+            />
             {t("assigned.nobodyTitle")}
           </p>
           <p className="mt-1 text-muted-foreground">{t("assigned.nobodyDetail")}</p>

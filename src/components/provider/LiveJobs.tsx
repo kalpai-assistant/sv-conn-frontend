@@ -169,7 +169,7 @@ export function LiveJobs({
                   <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                     <span
                       className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                        statusStyle[job.status] ?? "bg-gray-100 text-gray-700"
+                        statusStyle[job.status] ?? "bg-muted text-muted-foreground"
                       }`}
                     >
                       {statusText(job.status, tc)}

@@ -59,7 +59,7 @@ function PayoutRow({ entry, divided }: { entry: API_ProviderPayoutEntry; divided
         {/* Reserved whether or not there was a deduction, so the list does not
             go ragged and draw the eye to the deducted ones — the same rule the
             tip column follows on the Earnings tab. */}
-        <p className="mt-0.5 text-xs tabular-nums text-amber-600">
+        <p className="mt-0.5 text-xs tabular-nums text-amber-600 dark:text-amber-400">
           {entry.cash_commission_deducted > 0
             ? t("payouts.cashCommission", {
                 amount: formatRupees(entry.cash_commission_deducted, lang),

@@ -154,16 +154,20 @@ export function ServicesPicker({ locked = false, title, description }: ServicesP
       </div>
 
       {locked && (
-        <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
-          <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-          <p className="text-sm font-medium text-amber-900">{t("services.locked")}</p>
+        <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+          <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+            {t("services.locked")}
+          </p>
         </div>
       )}
 
       {kycBlocked && !locked && (
-        <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-          <p className="text-sm font-medium text-amber-900">{t("services.kycBlocked")}</p>
+        <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+            {t("services.kycBlocked")}
+          </p>
         </div>
       )}
 
