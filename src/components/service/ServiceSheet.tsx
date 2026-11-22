@@ -39,6 +39,8 @@ import { Badge } from "@/components/ui/badge";
 import { ServiceSheetSkeleton } from "@/components/skeletons/ServiceSheetSkeleton";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { useDragDismiss } from "@/hooks/useDragDismiss";
+import { useTileState } from "@/hooks/useTileState";
+import { defaultVariantId } from "@/lib/tile-price-state";
 import { pushBackInterceptor } from "@/lib/back-interceptor";
 import { useCategories, useServices, useServiceDetail } from "@/hooks/useApi";
 import type { UI_RelatedServiceEntry } from "@/hooks/useApi";
@@ -106,9 +108,14 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
   );
 
   const variants = service?.variants ?? [];
-  // Match the backend fallback — a user who never touches the picker gets
-  // exactly what they were getting before, at the price the sheet shows them.
-  const selectedVariant = variants.find((v) => v.id === selectedVariantId) ?? variants[0];
+  // SVC-496: the header's own from-prices row (same point, same query as
+  // TilePrice), so the option rows and the header come from one response.
+  const { row: fromPrices } = useTileState(service ?? { id: serviceId, price: 0 });
+  // The pick while it's still selectable, else the first option a pro prices,
+  // else the first option. Recomputed each render, so a greyed first option
+  // stops being the default as soon as from-prices arrives.
+  const defaultId = defaultVariantId(variants, selectedVariantId, fromPrices);
+  const selectedVariant = variants.find((v) => v.id === defaultId) ?? variants[0];
 
   // Cart holds at most one line per service (uix_booking_item_service). Three
   // CTA states: not added, added with THIS variant, added with a different one.
@@ -118,9 +125,9 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
 
   // SVC-416: no price on the CTA. The customer pays the price of the SP they
   // pick, not the variant's platform price, so a ₹ here would be wrong the
-  // moment they pick (the bait-and-switch SVC-415 warns about). The variant
-  // rows above keep the platform price: it's the reference the recommended
-  // range is built on.
+  // moment they pick (the bait-and-switch SVC-415 warns about). The option
+  // rows above show each option's own "from ₹X" from the pros (SVC-496), and
+  // fall back to the platform price only when from-prices has no row.
   //
   // The SVC-398 haptic moved into the pro sheet, where the line lands.
   const handleChoosePro = () => {
@@ -285,6 +292,7 @@ export function ServiceSheet({ serviceId, onClose }: ServiceSheetProps) {
                   variants={variants}
                   selectedId={selectedVariant?.id}
                   onSelect={setSelectedVariantId}
+                  fromPrices={fromPrices}
                 />
               )}
 

@@ -39,18 +39,24 @@ beforeEach(() => {
 
 describe("tilePriceState", () => {
   it("floors a from_price to whole rupees", () => {
-    expect(tilePriceState({ service_id: "s", from_price: 1874.25, served: true }, 2499)).toEqual({
+    expect(
+      tilePriceState({ service_id: "s", from_price: 1874.25, served: true, variants: [] }, 2499),
+    ).toEqual({
       kind: "price",
       amount: 1874,
     });
   });
   it("is offline for null + served", () => {
-    expect(tilePriceState({ service_id: "s", from_price: null, served: true }, 1)).toEqual({
+    expect(
+      tilePriceState({ service_id: "s", from_price: null, served: true, variants: [] }, 1),
+    ).toEqual({
       kind: "offline",
     });
   });
   it("is coming-soon when not served", () => {
-    expect(tilePriceState({ service_id: "s", from_price: null, served: false }, 1)).toEqual({
+    expect(
+      tilePriceState({ service_id: "s", from_price: null, served: false, variants: [] }, 1),
+    ).toEqual({
       kind: "coming-soon",
     });
   });

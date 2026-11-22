@@ -16,17 +16,31 @@
  * Services whose variants carry a `subcategory` (RO Purifier: "Basic" /
  * "Installation" / "Filter") are grouped under headings. A service whose
  * variants are all ungrouped renders one flat list with no heading.
+ *
+ * SVC-496: each row shows its own "from ₹X" from the service's from-prices
+ * row (the one the header reads), labelled when that price is the option's
+ * out-of-range fallback. An option no listable pro prices is greyed and
+ * can't be picked. With no from-prices row the rows show catalogue prices,
+ * like the header. See variantPriceState.
  */
+import type { API_ServiceFromPrice } from "@/hooks/useApi";
 import type { ServiceVariant } from "@/lib/mock-data";
 import { formatRupees } from "@/lib/currency";
+import {
+  VARIANT_NO_PROS_TEXT,
+  VARIANT_OUT_OF_RANGE_TEXT,
+  variantPriceState,
+} from "@/lib/tile-price-state";
 
 interface VariantPickerProps {
   variants: ServiceVariant[];
   selectedId: string | undefined;
   onSelect: (variantId: string) => void;
+  /** The service's from-prices row; undefined = no data (catalogue prices). */
+  fromPrices?: API_ServiceFromPrice;
 }
 
-export function VariantPicker({ variants, selectedId, onSelect }: VariantPickerProps) {
+export function VariantPicker({ variants, selectedId, onSelect, fromPrices }: VariantPickerProps) {
   // Preserve catalogue order (already sorted by sort_order in mapService)
   // while collecting subcategories in first-seen order, so headings appear in
   // the sequence the catalogue intends.
@@ -58,12 +72,20 @@ export function VariantPicker({ variants, selectedId, onSelect }: VariantPickerP
 
             <div className="flex flex-col gap-2">
               {group.items.map((variant) => {
-                const selected = selectedId === variant.id;
+                const priceState = variantPriceState(fromPrices, variant.id, variant.price);
+                const disabled = priceState.kind === "no-pros";
+                const selected = !disabled && selectedId === variant.id;
                 return (
                   <label
                     key={variant.id}
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors ${
-                      selected ? "border-primary bg-accent" : "border-border bg-card"
+                    data-testid="variant-row"
+                    aria-disabled={disabled || undefined}
+                    className={`flex items-center gap-3 rounded-xl border p-4 transition-colors ${
+                      disabled
+                        ? "cursor-default border-border bg-card opacity-50"
+                        : selected
+                          ? "cursor-pointer border-primary bg-accent"
+                          : "cursor-pointer border-border bg-card"
                     }`}
                   >
                     <input
@@ -71,7 +93,8 @@ export function VariantPicker({ variants, selectedId, onSelect }: VariantPickerP
                       name="service-variant"
                       value={variant.id}
                       checked={selected}
-                      onChange={() => onSelect(variant.id)}
+                      disabled={disabled}
+                      onChange={disabled ? undefined : () => onSelect(variant.id)}
                       className="sr-only"
                     />
 
@@ -91,7 +114,11 @@ export function VariantPicker({ variants, selectedId, onSelect }: VariantPickerP
                     </span>
 
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-foreground">
+                      <span
+                        className={`block truncate text-sm font-medium ${
+                          disabled ? "text-muted-foreground" : "text-foreground"
+                        }`}
+                      >
                         {variant.label}
                       </span>
                       {variant.duration && (
@@ -99,11 +126,27 @@ export function VariantPicker({ variants, selectedId, onSelect }: VariantPickerP
                           {variant.duration}
                         </span>
                       )}
+                      {priceState.kind === "price" && priceState.outsideRange && (
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          {VARIANT_OUT_OF_RANGE_TEXT}
+                        </span>
+                      )}
                     </span>
 
-                    <span className="shrink-0 text-sm font-semibold text-foreground">
-                      {formatRupees(variant.price)}
-                    </span>
+                    {priceState.kind === "no-pros" ? (
+                      <span className="shrink-0 text-sm font-medium text-muted-foreground">
+                        {VARIANT_NO_PROS_TEXT}
+                      </span>
+                    ) : priceState.kind === "price" ? (
+                      <span className="shrink-0 text-right text-sm font-semibold text-foreground">
+                        <span className="text-xs font-medium text-muted-foreground">from </span>
+                        {formatRupees(priceState.amount)}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-sm font-semibold text-foreground">
+                        {formatRupees(priceState.amount)}
+                      </span>
+                    )}
                   </label>
                 );
               })}

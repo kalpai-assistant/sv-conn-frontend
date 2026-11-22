@@ -61,7 +61,12 @@ vi.mock("@/components/SavedAddressesSheet", () => ({
   ),
 }));
 
-import { ProSelectionSheet, DEVICE_LOCATE_TIMEOUT_MS } from "./ProSelectionSheet";
+import {
+  ProSelectionSheet,
+  DEVICE_LOCATE_TIMEOUT_MS,
+  OUT_OF_RANGE_HEADING,
+  OUT_OF_RANGE_WARNING,
+} from "./ProSelectionSheet";
 
 const SERVICE: Service = {
   id: "svc-1",
@@ -142,10 +147,8 @@ describe("the two lists", () => {
         .getAllByTestId("pro-row")
         .map((r) => r.textContent),
     ).toEqual([expect.stringContaining("Alpha"), expect.stringContaining("Bravo")]);
-    expect(
-      screen.getByRole("heading", { name: "Outside the recommended price" }),
-    ).toBeInTheDocument();
-    const outside = screen.getByRole("list", { name: "Outside the recommended price" });
+    expect(screen.getByRole("heading", { name: OUT_OF_RANGE_HEADING })).toBeInTheDocument();
+    const outside = screen.getByRole("list", { name: OUT_OF_RANGE_HEADING });
     expect(within(outside).getByText("Charlie")).toBeInTheDocument();
   });
 
@@ -154,9 +157,7 @@ describe("the two lists", () => {
     renderSheet();
 
     expect(screen.queryByRole("list", { name: "Pros" })).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Outside the recommended price" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: OUT_OF_RANGE_HEADING })).toBeInTheDocument();
     expect(rows()).toHaveLength(1);
   });
 
@@ -164,7 +165,7 @@ describe("the two lists", () => {
     loaded([sp({ sp_id: "a" }), sp({ sp_id: "b" })]);
     renderSheet();
 
-    expect(screen.queryByText("Outside the recommended price")).not.toBeInTheDocument();
+    expect(screen.queryByText(OUT_OF_RANGE_HEADING)).not.toBeInTheDocument();
   });
 });
 
@@ -275,9 +276,7 @@ describe("an out-of-range SP", () => {
 
     await userEvent.click(rows()[0]);
 
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "This pro's price is outside our recommended range",
-    );
+    expect(screen.getByRole("alert")).toHaveTextContent(OUT_OF_RANGE_WARNING);
     expect(addQuoted).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
