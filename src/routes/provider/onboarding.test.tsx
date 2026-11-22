@@ -65,6 +65,12 @@ function logoFile() {
 beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
+  // SVC-490: default initial step is now 0 (welcome hero). These step-1
+  // tests focus on business-field behaviour, not the welcome screen, so
+  // seed a draft at step 1 — mirrors the real resume path for any
+  // provider who has moved past the hero once already. The step-0 tests
+  // further down clear this seed explicitly.
+  window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ step: 1 }));
   profile = { kyc_status: "pending", business_name: null, business_image_url: null };
   for (const fn of [
     updateName,
@@ -178,5 +184,54 @@ describe("onboarding step 1 — business", () => {
     render(<Page />);
 
     expect(screen.getByLabelText("Business name")).toHaveValue("New Name");
+  });
+});
+
+// SVC-490 — the welcome hero is the first thing a fresh provider sees. These
+// tests lock the failure modes that would make it stop being the first thing
+// (regressing to step 1 directly) or stop advancing to the form (regressing
+// the CTA).
+describe("onboarding step 0 — welcome hero (SVC-490)", () => {
+  // Catches: "the welcome hero disappears from a fresh install, step 1
+  // becomes the first screen again, we lose the 'what you'll earn' framing."
+  it("renders the welcome hero on a fresh install (no draft)", () => {
+    window.localStorage.removeItem(DRAFT_KEY);
+    render(<Page />);
+
+    expect(
+      screen.getByRole("heading", { name: "You're about to earn like a pro" }),
+    ).toBeInTheDocument();
+    // The business-name field (step 1) should NOT be mounted yet.
+    expect(screen.queryByLabelText("Business name")).not.toBeInTheDocument();
+    // The numbered stepper label should be hidden on step 0 (welcome is
+    // not a step) — if it appeared it'd read "Step 0 of 5".
+    expect(screen.queryByText(/^Step \d+ of \d+$/)).not.toBeInTheDocument();
+  });
+
+  // Catches: "the hero's 'Start setup' CTA stops advancing to step 1, or
+  // worse advances silently to step 2+, skipping the business form."
+  it("the CTA advances to step 1 and the business form becomes available", async () => {
+    window.localStorage.removeItem(DRAFT_KEY);
+    const user = userEvent.setup();
+    render(<Page />);
+
+    await user.click(screen.getByRole("button", { name: "Start setup" }));
+
+    expect(screen.getByLabelText("Business name")).toBeInTheDocument();
+  });
+
+  // Catches: "the earnings copy stops reading as a placeholder and starts
+  // claiming a specific service figure — breaks the honesty contract with
+  // Tushar's pricing work (SVC-495) that hasn't landed yet."
+  it("earnings copy uses the placeholder range, with the rupee-formatted bounds", () => {
+    window.localStorage.removeItem(DRAFT_KEY);
+    render(<Page />);
+
+    // Placeholder range is ₹8,000–₹25,000/month; formatRupees adds the
+    // Indian grouping. The exact literal keeps us honest if the range
+    // ever silently shifts.
+    expect(
+      screen.getByText(/Typical providers earn ₹8,000.*₹25,000 per month\./),
+    ).toBeInTheDocument();
   });
 });

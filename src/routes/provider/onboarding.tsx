@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Camera, Loader2, X } from "lucide-react";
+import { Camera, CheckCircle2, Loader2, Rocket, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,8 @@ import { useAuth } from "@/lib/auth-context";
 import { CameraCapture } from "@/components/CameraCapture";
 import { LanguageChip } from "@/components/language/LanguageChip";
 import { captureLivePhoto, captureNativePhoto, isNativePlatform } from "@/lib/camera";
+import { formatRupees } from "@/i18n/format";
+import { useOnboardingEarnings } from "@/lib/onboarding-earnings";
 import {
   loadOnboardingDraft,
   saveOnboardingDraft,
@@ -36,7 +38,11 @@ export const Route = createFileRoute("/provider/onboarding")({
   component: ProviderOnboardingPage,
 });
 
-const TOTAL_STEPS = 5;
+// Numbered-step screens the provider walks through (1..5). Step 0 is the
+// SVC-490 welcome hero — unnumbered, hidden from the progress label — so a
+// returning provider seeing the stepper reads "Step 2 of 5" and not an
+// off-by-one caused by the welcome.
+const NUMBERED_STEPS = 5;
 
 function ProviderOnboardingPage() {
   const navigate = useNavigate();
@@ -46,6 +52,7 @@ function ProviderOnboardingPage() {
   // one in the first-run prompt re-renders this wizard in place — same step,
   // same typed fields — rather than remounting it.
   const { t, lang } = useT("provider");
+  const earnings = useOnboardingEarnings();
 
   const updateName = useUpdateName();
   const uploadPhoto = useUploadPhoto();
@@ -55,8 +62,14 @@ function ProviderOnboardingPage() {
   const submitKyc = useSubmitKyc();
 
   // Resume from a saved draft (step + text fields); images are re-captured.
+  // Fresh installs (draft.step undefined) land on step 0 — the SVC-490
+  // welcome hero. A returning provider whose draft persisted mid-flow
+  // resumes where they left off; a rejection-resubmit path has no draft
+  // (it was cleared on prior finish) and so also lands on step 0, which is
+  // the right shape — they see the rejection banner (added below) above
+  // the welcome and tap "Start setup" when ready.
   const draft = useMemo(() => loadOnboardingDraft(), []);
-  const [step, setStep] = useState(draft.step ?? 1);
+  const [step, setStep] = useState(draft.step ?? 0);
   const [error, setError] = useState<string | null>(null);
 
   // Step 1 state
@@ -163,13 +176,21 @@ function ProviderOnboardingPage() {
     <div className="mx-auto flex min-h-screen max-w-md flex-col p-6">
       <header>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium text-muted-foreground">
-            {t("onboarding.stepOf", { step, total: TOTAL_STEPS })}
-          </p>
+          {/* The stepper only labels numbered screens (1..5). The SVC-490
+              welcome hero at step 0 is a landing, not a step — labelling it
+              "Step 0 of 5" would read as broken. A spacer keeps the language
+              chip right-aligned when the label is hidden. */}
+          {step >= 1 ? (
+            <p className="text-xs font-medium text-muted-foreground">
+              {t("onboarding.stepOf", { step, total: NUMBERED_STEPS })}
+            </p>
+          ) : (
+            <span />
+          )}
           {/* SVC-395: no Profile to reach mid-wizard, so the switch is here. */}
           <LanguageChip />
         </div>
-        <Progress value={(step / TOTAL_STEPS) * 100} className="mt-2" />
+        {step >= 1 && <Progress value={(step / NUMBERED_STEPS) * 100} className="mt-2" />}
       </header>
 
       {error && (
@@ -185,6 +206,71 @@ function ProviderOnboardingPage() {
             exit={{ opacity: 0, x: -16 }}
             transition={{ duration: 0.2 }}
           >
+            {step === 0 && (
+              // SVC-490 welcome hero. Deliberately a landing, not a form step:
+              // the first screen a new provider sees needs to answer "what am
+              // I about to earn?" and "what do you need from me?" in one
+              // glance. The number is a city-generic placeholder
+              // (`confidence: "placeholder"` on the hook) until SVC-495 wires
+              // per-service per-city ranges from Tushar's pricing corpus —
+              // prefixed "Typical" rather than a specific service name so the
+              // copy reads as an estimate, not a promise.
+              <div className="space-y-6 py-4">
+                <div
+                  className="flex items-center justify-center rounded-3xl bg-linear-to-br from-primary/15 to-primary/5 py-10 dark:from-primary/20 dark:to-primary/10"
+                  data-asset="pending-svc-401"
+                  aria-hidden
+                >
+                  <Sparkles className="h-16 w-16 text-primary" strokeWidth={1.5} />
+                </div>
+
+                <div className="space-y-2 text-center">
+                  <h1 className="text-xl font-semibold text-foreground">
+                    {t("onboarding.welcomeTitle")}
+                  </h1>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {t("onboarding.welcomeEarnings", {
+                      low: formatRupees(earnings.low, lang),
+                      high: formatRupees(earnings.high, lang),
+                    })}
+                  </p>
+                </div>
+
+                <ol className="space-y-3">
+                  {(
+                    [
+                      {
+                        icon: (
+                          <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+                        ),
+                        label: t("onboarding.welcomeStepKyc"),
+                      },
+                      {
+                        icon: <Rocket className="h-5 w-5 shrink-0 text-primary" aria-hidden />,
+                        label: t("onboarding.welcomeStepServices"),
+                      },
+                      {
+                        icon: <Sparkles className="h-5 w-5 shrink-0 text-primary" aria-hidden />,
+                        label: t("onboarding.welcomeStepFirstJob"),
+                      },
+                    ] as const
+                  ).map((row, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-3 rounded-xl border border-border bg-card p-3 text-sm text-foreground"
+                    >
+                      {row.icon}
+                      <span>{row.label}</span>
+                    </li>
+                  ))}
+                </ol>
+
+                <Button className="w-full" onClick={() => setStep(1)}>
+                  {t("onboarding.welcomeCta")}
+                </Button>
+              </div>
+            )}
+
             {step === 1 && (
               <div className="space-y-5">
                 <div>

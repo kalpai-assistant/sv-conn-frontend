@@ -299,6 +299,12 @@
   },
   "onboarding": {
     "stepOf": "चरण {{step}} / {{total}}",
+    "welcomeTitle": "आप एक पेशेवर की तरह कमाने वाले हैं",
+    "welcomeEarnings": "सामान्य प्रोवाइडर हर महीने {{low}}–{{high}} कमाते हैं।",
+    "welcomeStepKyc": "अपनी पहचान सत्यापित करें (आमतौर पर 24 घंटे में)",
+    "welcomeStepServices": "जो सर्विस देंगे, वे चुनें",
+    "welcomeStepFirstJob": "जॉब रिक्वेस्ट मिलना शुरू करें",
+    "welcomeCta": "सेटअप शुरू करें",
     "nameRequired": "कृपया अपना नाम डालें।",
     "businessRequired": "कृपया अपने बिज़नेस का नाम डालें।",
     "saveFailed": "आपकी जानकारी सेव नहीं हो सकी। फिर से कोशिश करें।",

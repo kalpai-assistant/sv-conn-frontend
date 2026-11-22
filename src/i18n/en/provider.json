@@ -299,6 +299,12 @@
   },
   "onboarding": {
     "stepOf": "Step {{step}} of {{total}}",
+    "welcomeTitle": "You're about to earn like a pro",
+    "welcomeEarnings": "Typical providers earn {{low}}–{{high}} per month.",
+    "welcomeStepKyc": "Verify your identity (usually under 24h)",
+    "welcomeStepServices": "Pick the services you'll offer",
+    "welcomeStepFirstJob": "Start getting job requests",
+    "welcomeCta": "Start setup",
     "nameRequired": "Please enter your name.",
     "businessRequired": "Please enter your business name.",
     "saveFailed": "Couldn’t save your details. Try again.",
