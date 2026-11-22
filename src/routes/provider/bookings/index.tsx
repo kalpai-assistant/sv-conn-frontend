@@ -154,7 +154,7 @@ function ProviderBookingsPage() {
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                    statusStyle[job.status] ?? "bg-gray-100 text-gray-700"
+                    statusStyle[job.status] ?? "bg-muted text-muted-foreground"
                   }`}
                 >
                   {statusText(job.status, tc)}

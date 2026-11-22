@@ -16,6 +16,9 @@ export default tseslint.config(
       // left behind bundle output that then failed prettier/no-explicit-any
       // rules on the next `npm run lint`.
       "dist-marketing",
+      // Storybook static build (SVC-489). Same reasoning as dist-marketing:
+      // gitignored but linting the minified bundle hangs.
+      "storybook-static",
       ".output",
       ".vinxi",
       // Native project trees — ESLint walking these is what makes local

@@ -219,7 +219,7 @@ export function NotificationsRow() {
   // "Off" stays neutral for the same reason "Enable" does — the user chose it,
   // nothing failed, and red would report a problem that does not exist.
   const statusColor = isOn
-    ? "text-emerald-600"
+    ? "text-emerald-600 dark:text-emerald-400"
     : isBad
       ? "text-destructive"
       : "text-muted-foreground";

@@ -181,9 +181,12 @@ function MyTeamPage() {
       {nobodyAvailable && (
         <div
           role="status"
-          className="mt-4 flex gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-foreground"
+          className="mt-4 flex gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-foreground dark:border-amber-800 dark:bg-amber-950/40"
         >
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+          <AlertTriangle
+            className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
+            aria-hidden
+          />
           <span>{t("team.nobodyAvailable")}</span>
         </div>
       )}

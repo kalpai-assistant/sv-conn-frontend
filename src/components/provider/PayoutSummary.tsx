@@ -122,7 +122,7 @@ export function PayoutSummary() {
               <p className="text-sm font-semibold text-foreground">
                 {t("payoutSummary.comingToYou")}
               </p>
-              <p className="text-xl font-bold tabular-nums text-emerald-600">
+              <p className="text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
                 {formatRupees(data.pending_amount, lang)}
               </p>
             </div>
@@ -141,7 +141,7 @@ export function PayoutSummary() {
                 </div>
                 <div className="flex items-baseline justify-between text-xs">
                   <span className="text-muted-foreground">{t("payoutSummary.heldBack")}</span>
-                  <span className="tabular-nums text-amber-600">
+                  <span className="tabular-nums text-amber-600 dark:text-amber-400">
                     &minus; {formatRupees(data.gross_amount - data.pending_amount, lang)}
                   </span>
                 </div>

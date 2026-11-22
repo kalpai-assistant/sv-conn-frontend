@@ -235,9 +235,9 @@ function ProviderHomePage() {
       {canFixPush && (
         <button
           onClick={() => setShowInstall(true)}
-          className="mt-6 flex w-full items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-left transition-colors hover:bg-amber-100 dark:bg-amber-950/40"
+          className="mt-6 flex w-full items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-left transition-colors hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:hover:bg-amber-900/40"
         >
-          <BellOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <BellOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
           <div className="text-sm">
             <p className="font-medium text-amber-900 dark:text-amber-100">{t("home.pushTitle")}</p>
             <p className="text-amber-800 dark:text-amber-200">
@@ -281,19 +281,33 @@ function ProviderHomePage() {
         <div className="mt-6">
           <div
             className={`flex items-start gap-3 rounded-lg border p-3 ${
-              eligible ? "border-emerald-300 bg-emerald-50" : "border-amber-300 bg-amber-50"
+              eligible
+                ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40"
+                : "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40"
             }`}
           >
             {eligible ? (
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
             ) : (
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
             )}
             <div className="text-sm">
-              <p className={`font-medium ${eligible ? "text-emerald-900" : "text-amber-900"}`}>
+              <p
+                className={`font-medium ${
+                  eligible
+                    ? "text-emerald-900 dark:text-emerald-100"
+                    : "text-amber-900 dark:text-amber-100"
+                }`}
+              >
                 {eligible ? t("home.eligibleTitle") : t("home.ineligibleTitle")}
               </p>
-              <p className={eligible ? "text-emerald-800" : "text-amber-800"}>
+              <p
+                className={
+                  eligible
+                    ? "text-emerald-800 dark:text-emerald-200"
+                    : "text-amber-800 dark:text-amber-200"
+                }
+              >
                 {eligible ? t("home.eligibleDetail") : t("home.ineligibleDetail")}
               </p>
             </div>
@@ -341,9 +355,12 @@ function StatusIcon({
   status: KycStatus | undefined;
   id: Readiness["id"];
 }) {
-  if (done) return <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />;
+  if (done)
+    return (
+      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+    );
   if (id === "kyc" && status === "submitted") {
-    return <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />;
+    return <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />;
   }
   if (id === "kyc" && status === "rejected") {
     return <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />;

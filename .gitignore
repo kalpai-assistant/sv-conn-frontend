@@ -29,6 +29,9 @@ dist-mobile
 .tanstack/**
 .nitro
 
+# Storybook (SVC-489) — static build output; local-only per budget §6
+storybook-static
+
 # Environment variables
 .env
 .env.local

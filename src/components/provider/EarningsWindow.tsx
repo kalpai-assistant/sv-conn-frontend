@@ -216,7 +216,7 @@ function EarningRow({
           {formatRupees(job.payout_amount, lang)}
         </p>
         {/* Reserved either way — see the note above. */}
-        <p className="mt-0.5 text-xs tabular-nums text-emerald-600">
+        <p className="mt-0.5 text-xs tabular-nums text-emerald-600 dark:text-emerald-400">
           {tip > 0 ? t("earnings.tipIncluded", { amount: formatRupees(tip, lang) }) : " "}
         </p>
       </div>

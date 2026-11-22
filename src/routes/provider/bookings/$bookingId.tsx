@@ -133,7 +133,7 @@ function EarningsBreakdown({ booking }: { booking: Booking }) {
   return (
     <div>
       <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-        <CheckCircle2 className="h-5 w-5 text-green-600" />
+        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
         {t("jobDetail.completed")}
       </div>
 
