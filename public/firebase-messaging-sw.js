@@ -28,7 +28,8 @@ importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-com
 // payload over in the URL, and the app resolves it with the same
 // `routeForPayload` the native tap uses (`useNotificationRouter`,
 // src/lib/notifications.ts). The parameter names are that file's
-// PUSH_EVENT_PARAM / PUSH_BOOKING_PARAM / PUSH_SERVICE_PARAM / PUSH_COUNT_PARAM;
+// PUSH_EVENT_PARAM / PUSH_BOOKING_PARAM / PUSH_SERVICE_PARAM / PUSH_COUNT_PARAM /
+// PUSH_VARIANT_PARAM;
 // notifications.test.ts checks they match.
 //
 // Registered BEFORE `firebase.messaging()` on purpose (SVC-363). That call adds
@@ -50,6 +51,8 @@ self.addEventListener("notificationclick", (event) => {
   // SVC-484 service_available: which service, and how many came due.
   if (data.service_id) params.set("push_service_id", data.service_id);
   if (data.count) params.set("push_count", data.count);
+  // SVC-487 variant_added: the new option, so its row is the one shown.
+  if (data.variant_id) params.set("push_variant_id", data.variant_id);
   const query = params.toString();
   const targetUrl = query ? `/?${query}` : "/";
 

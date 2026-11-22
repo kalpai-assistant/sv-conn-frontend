@@ -96,7 +96,12 @@ export function VariantPriceRow({ variant }: { variant: API_SpVariantPricing }) 
   }
 
   return (
-    <li className="p-4" data-testid={`variant-${variant.variant_id}`}>
+    <li
+      className="p-4"
+      data-testid={`variant-${variant.variant_id}`}
+      // ServicesPicker scrolls to it from a "variant_added" push (SVC-487).
+      data-variant-id={variant.variant_id}
+    >
       <div className="flex items-start justify-between gap-3">
         <p className="min-w-0 text-sm font-medium text-foreground">{variant.label}</p>
         <Switch

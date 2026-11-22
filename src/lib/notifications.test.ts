@@ -25,6 +25,7 @@ import {
   PUSH_COUNT_PARAM,
   PUSH_EVENT_PARAM,
   PUSH_SERVICE_PARAM,
+  PUSH_VARIANT_PARAM,
   readPushClickMessage,
   readPushLink,
   routeForPayload,
@@ -94,6 +95,34 @@ describe("service_available (SVC-484), which has no booking", () => {
 
   it.each(["provider", "admin", null] as const)("goes nowhere for %s", (role) => {
     expect(available({ service_id: SERVICE_ID, count: "1" }, role)).toBeNull();
+  });
+});
+
+describe("variant_added (SVC-487), which has no booking", () => {
+  const SERVICE_ID = "5e1c0000-0000-0000-0000-000000000000";
+  const VARIANT_ID = "7a110000-0000-0000-0000-000000000000";
+  const added = (data: { service_id?: string; variant_id?: string }, role: ViewerRole) =>
+    routeForPayload({ event: "variant_added", ...data }, role);
+
+  it("opens the SP's Prices panel for that service, on the new option", () => {
+    expect(added({ service_id: SERVICE_ID, variant_id: VARIANT_ID }, "provider")).toBe(
+      `/provider/profile?pricing=${SERVICE_ID}&variant=${VARIANT_ID}`,
+    );
+  });
+
+  it("opens the panel alone without a variant id", () => {
+    expect(added({ service_id: SERVICE_ID }, "provider")).toBe(
+      `/provider/profile?pricing=${SERVICE_ID}`,
+    );
+  });
+
+  it("goes nowhere without a service id", () => {
+    expect(added({}, "provider")).toBeNull();
+  });
+
+  // A team Pro's account is consumer-role, and Pros don't set prices.
+  it.each(["consumer", "admin", null] as const)("goes nowhere for %s", (role) => {
+    expect(added({ service_id: SERVICE_ID }, role)).toBeNull();
   });
 });
 
@@ -227,6 +256,14 @@ describe("every target is a real route", () => {
     // The Profile list the alerts live on.
     expect(fullPaths.has("/service-alerts")).toBe(true);
   });
+
+  it("includes variant_added's target (SVC-487)", async () => {
+    const source = (await import("@/routeTree.gen?raw")).default as unknown as string;
+    const fullPaths = new Set([...source.matchAll(/fullPath: '([^']+)'/g)].map((m) => m[1]));
+    const target = routeForPayload({ event: "variant_added", service_id: "s" }, "provider");
+    expect(target?.split("?")[0]).toBe("/provider/profile");
+    expect(fullPaths.has("/provider/profile")).toBe(true);
+  });
 });
 
 // The router refreshes the Pro's jobs when an "assigned" push arrives, so it
@@ -269,6 +306,7 @@ describe("web push (PWA)", () => {
       booking_id: undefined,
       service_id: SID,
       count: "1",
+      variant_id: undefined,
     });
   });
 
@@ -289,6 +327,33 @@ describe("web push (PWA)", () => {
     expect(navigate).toHaveBeenCalledExactlyOnceWith({ to: `/service/${SID}`, replace: true });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["from-prices"] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["service-alerts"] });
+  });
+
+  it("reads a variant_added push's service and option, and opens its row after a refresh (SVC-487)", () => {
+    const SID = "5e1c0000-0000-0000-0000-000000000000";
+    const VID = "7a110000-0000-0000-0000-000000000000";
+    const search = `?${PUSH_EVENT_PARAM}=variant_added&${PUSH_SERVICE_PARAM}=${SID}&${PUSH_VARIANT_PARAM}=${VID}`;
+    expect(readPushLink(search)).toStrictEqual({
+      event: "variant_added",
+      booking_id: undefined,
+      service_id: SID,
+      count: undefined,
+      variant_id: VID,
+    });
+
+    window.history.replaceState(null, "", `/${search}`);
+    auth.user = { role: "provider" };
+    const client = new QueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    renderHook(() => useNotificationRouter(), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client }, children),
+    });
+    expect(navigate).toHaveBeenCalledExactlyOnceWith({
+      to: `/provider/profile?pricing=${SID}&variant=${VID}`,
+      replace: true,
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["providerPricing"] });
   });
 
   it("sends a provider to their job, not to /tracking", () => {
@@ -334,6 +399,7 @@ describe("web push (PWA)", () => {
     expect(sw).toContain(`params.set("${PUSH_BOOKING_PARAM}"`);
     expect(sw).toContain(`params.set("${PUSH_SERVICE_PARAM}", data.service_id)`);
     expect(sw).toContain(`params.set("${PUSH_COUNT_PARAM}", data.count)`);
+    expect(sw).toContain(`params.set("${PUSH_VARIANT_PARAM}", data.variant_id)`);
     // The role-blind route it used to build for everyone (its comments may
     // still name it, so match the template literal, not the words).
     expect(sw).not.toContain("`/tracking/");

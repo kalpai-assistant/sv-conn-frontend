@@ -236,3 +236,75 @@ describe("a service came available (SVC-484)", () => {
     expect(navigate).toHaveBeenCalledExactlyOnceWith({ to: "/" });
   });
 });
+
+describe("a new option to price (SVC-487)", () => {
+  const SID = "5e1c0000-0000-0000-0000-000000000000";
+  // The backend's payload: no service name or label in it.
+  const PUSH = { type: "pricing", event: "variant_added", service_id: SID, variant_id: "v1" };
+  const TARGET = `/provider/profile?pricing=${SID}&variant=v1`;
+
+  it("in the foreground: refreshes the SP's prices and offers the panel, no navigation", async () => {
+    const invalidate = await arrive("variant_added", "provider", "en", PUSH);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["providerPricing"] });
+    expect(toast).toHaveBeenCalledExactlyOnceWith("New option to price", {
+      description: "Set your price so customers can book it.",
+      action: expect.objectContaining({ label: "Open" }),
+    });
+    expect(navigate).not.toHaveBeenCalled();
+
+    toast.mock.calls[0][1].action.onClick();
+    expect(navigate).toHaveBeenCalledWith({ to: TARGET });
+  });
+
+  // The title word for word the push's (backend PROVIDER_PUSH_TRANSLATIONS),
+  // the line its body's last sentence.
+  it.each([
+    ["hi", "नए विकल्प का दाम तय करें", "अपना दाम तय करें ताकि ग्राहक इसे बुक कर सकें।", "खोलें"],
+    ["mr", "नव्या पर्यायाचा दर ठरवा", "ग्राहकांना बुक करता यावे म्हणून तुमचा दर ठरवा.", "उघडा"],
+  ] as const)("%s: the toast is translated", async (lang, title, description, open) => {
+    await arrive("variant_added", "provider", lang, PUSH);
+    expect(toast).toHaveBeenCalledExactlyOnceWith(title, {
+      description,
+      action: expect.objectContaining({ label: open }),
+    });
+  });
+
+  it.each(["consumer", "admin"])("does nothing for a %s", async (role) => {
+    const invalidate = await arrive("variant_added", role, "en", PUSH);
+    expect(invalidate).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("does nothing without a service id", async () => {
+    const { service_id: _, ...noService } = PUSH;
+    const invalidate = await arrive("variant_added", "provider", "en", noService);
+    expect(invalidate).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it("on a tap: refreshes, then opens the service's Prices panel", async () => {
+    auth.user = { role: "provider" };
+    const client = new QueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    renderHook(() => useNotificationRouter(), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client }, children),
+    });
+    await waitFor(() => expect(listeners.pushNotificationActionPerformed).toBeDefined());
+    listeners.pushNotificationActionPerformed({ notification: { data: PUSH } });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["providerPricing"] });
+    expect(navigate).toHaveBeenCalledExactlyOnceWith({ to: TARGET });
+  });
+
+  it("on a tap as a consumer: goes nowhere", async () => {
+    auth.user = { role: "consumer" };
+    renderHook(() => useNotificationRouter(), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client: new QueryClient() }, children),
+    });
+    await waitFor(() => expect(listeners.pushNotificationActionPerformed).toBeDefined());
+    listeners.pushNotificationActionPerformed({ notification: { data: PUSH } });
+    expect(navigate).not.toHaveBeenCalled();
+  });
+});

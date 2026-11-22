@@ -14,6 +14,7 @@ vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (opts: unknown) => opts,
   Link: ({ children }: React.PropsWithChildren) => <a>{children}</a>,
   useNavigate: () => vi.fn(),
+  useSearch: () => ({}),
 }));
 vi.mock("@/components/DeleteAccountButton", () => ({
   DeleteAccountButton: (props: Record<string, unknown>) => {
