@@ -25,6 +25,7 @@ import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import type { PluginListenerHandle } from "@capacitor/core";
+import { PROVIDER_PRICING_KEY } from "@/hooks/useApi";
 import { PRO_ME_QUERY_KEY } from "@/hooks/usePro";
 import { useAuth } from "@/lib/auth-context";
 import i18n from "@/i18n";
@@ -47,15 +48,19 @@ export type NotificationEvent =
   | "job_cancelled" // the booking was cancelled (by the customer or an admin)
   | "unassigned" // the SP re-picked, released or gave the job back
   | "kyc_rejected" // to an SP or a team Pro: an admin rejected their documents (SVC-444)
-  | "service_available"; // to a consumer: a service they asked to be told about is available (SVC-484)
+  | "service_available" // to a consumer: a service they asked to be told about is available (SVC-484)
+  | "variant_added"; // to an SP: ops added an option to a service they offer, set its price (SVC-487)
 
 export interface NotificationPayload {
   event: NotificationEvent | string;
   booking_id?: string;
   // SVC-484 service_available: the customer's FIRST due alert, and how many
   // came due in this push. FCM data values are strings, so count is "1", "3".
+  // SVC-487 variant_added: the service the new option belongs to.
   service_id?: string;
   count?: string;
+  // SVC-487 variant_added: the new option itself, whose row is scrolled to.
+  variant_id?: string;
   // Future fields land here; unknown keys are ignored.
 }
 
@@ -104,6 +109,18 @@ export function routeForPayload(data: NotificationPayload, role: ViewerRole): st
     if (role !== "consumer") return null;
     const single = data.count === undefined || data.count === "1";
     return single && data.service_id ? `/service/${data.service_id}` : "/";
+  }
+
+  // A new option on a service the SP offers, with no price from them yet
+  // (SVC-487). Their profile opens that service's Prices panel from the
+  // `pricing` search param, on the new option's row from `variant`. Prices are
+  // per SP, so never a team Pro (whose account is consumer-role); without a
+  // service there is nothing to open.
+  if (event === "variant_added") {
+    if (role !== "provider" || !data.service_id) return null;
+    const params = new URLSearchParams({ pricing: data.service_id });
+    if (data.variant_id) params.set("variant", data.variant_id);
+    return `/provider/profile?${params.toString()}`;
   }
 
   if (!bookingId) return null;
@@ -200,10 +217,19 @@ function refreshAfterServiceAvailable(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ["service-alerts"] });
 }
 
+/**
+ * A new option was added to a service the SP offers (SVC-487). Their pricing
+ * list is otherwise cached, so the Prices panel the tap opens would lack it.
+ */
+function refreshAfterVariantAdded(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: PROVIDER_PRICING_KEY });
+}
+
 /** The per-event refresh a push tap does before routing. */
 function refreshForPushTap(data: NotificationPayload, queryClient: QueryClient): void {
   if (data.event === "kyc_rejected") refreshAfterKycRejected(queryClient);
   if (data.event === "service_available") refreshAfterServiceAvailable(queryClient);
+  if (data.event === "variant_added") refreshAfterVariantAdded(queryClient);
 }
 
 /**
@@ -227,6 +253,7 @@ export const PUSH_EVENT_PARAM = "push_event";
 export const PUSH_BOOKING_PARAM = "push_booking_id";
 export const PUSH_SERVICE_PARAM = "push_service_id";
 export const PUSH_COUNT_PARAM = "push_count";
+export const PUSH_VARIANT_PARAM = "push_variant_id";
 
 /** The push payload carried in a URL's query string, or null if none. */
 export function readPushLink(search: string): NotificationPayload | null {
@@ -238,6 +265,7 @@ export function readPushLink(search: string): NotificationPayload | null {
     booking_id: params.get(PUSH_BOOKING_PARAM) ?? undefined,
     service_id: params.get(PUSH_SERVICE_PARAM) ?? undefined,
     count: params.get(PUSH_COUNT_PARAM) ?? undefined,
+    variant_id: params.get(PUSH_VARIANT_PARAM) ?? undefined,
   };
 }
 
@@ -385,6 +413,20 @@ export function useNotificationRouter(): void {
           // in place. No navigation, and no toast: the tile itself now says it.
           if (data.event === "service_available") {
             refreshAfterServiceAvailable(queryClient);
+            return;
+          }
+          // A new option to price with the app open (SVC-487). Offered, like
+          // "kyc_rejected". The push's own title, but not its body: the data
+          // carries no service name or label, so the toast keeps only the
+          // generic last line.
+          if (data.event === "variant_added") {
+            const target = routeForPayload(data, role);
+            if (!target) return;
+            refreshAfterVariantAdded(queryClient);
+            toast(t("pushToast.variantAddedTitle"), {
+              description: t("pushToast.variantAddedBody"),
+              action: { label: t("pushToast.open"), onClick: () => navigate({ to: target }) },
+            });
             return;
           }
           if (!shouldAutoRouteForeground(data, role)) return;

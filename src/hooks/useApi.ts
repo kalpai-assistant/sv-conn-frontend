@@ -1625,8 +1625,9 @@ export const useAdminReassignPro = () => {
 };
 
 // The SP's own prices (SVC-412, below). Declared here because a change of
-// subscription invalidates it.
-const PROVIDER_PRICING_KEY = ["providerPricing"] as const;
+// subscription invalidates it, and so does a "variant_added" push
+// (SVC-487, notifications.ts).
+export const PROVIDER_PRICING_KEY = ["providerPricing"] as const;
 // The SP's "Market near you" per variant (SVC-413, below); a price save or a
 // subscription change resets it.
 const MARKET_INSIGHTS_KEY = ["marketInsights"] as const;

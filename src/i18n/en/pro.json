@@ -107,6 +107,8 @@
     "unassignedTitle": "Job removed",
     "unassignedBody": "This job is no longer assigned to you. Please don't travel to it.",
     "kycRejectedTitle": "Your documents were rejected",
-    "kycRejectedBody": "See why and submit them again."
+    "kycRejectedBody": "See why and submit them again.",
+    "variantAddedTitle": "New option to price",
+    "variantAddedBody": "Set your price so customers can book it."
   }
 }

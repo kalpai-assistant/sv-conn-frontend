@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatRupees } from "@/i18n/format";
 import { errorText } from "@/i18n/errors";
 import { useT } from "@/i18n/LanguageProvider";
@@ -37,6 +37,16 @@ interface ServicesPickerProps {
   locked?: boolean;
   title?: string;
   description?: string;
+  // SVC-487: a service whose Prices panel to open and scroll to once the lists
+  // load (a "variant_added" push tap, via /provider/profile?pricing=). Only
+  // for a service the SP offers, and never while locked. `onPricingHandled`
+  // runs once it has been dealt with either way, so the caller can drop the
+  // param. Onboarding passes neither.
+  openPricingFor?: string;
+  // The new option's row to scroll to in that panel. The card is the fallback
+  // when the row isn't there (switched off since, or unknown).
+  openPricingVariant?: string;
+  onPricingHandled?: () => void;
 }
 
 /**
@@ -67,7 +77,14 @@ interface ServicesPickerProps {
  * Icons come from `lib/category-icons`, the same derivation the consumer grid
  * uses — the backend supplies no imagery for either side.
  */
-export function ServicesPicker({ locked = false, title, description }: ServicesPickerProps) {
+export function ServicesPicker({
+  locked = false,
+  title,
+  description,
+  openPricingFor,
+  openPricingVariant,
+  onPricingHandled,
+}: ServicesPickerProps) {
   const { t, lang } = useT("provider");
   const {
     data: services,
@@ -189,6 +206,59 @@ export function ServicesPicker({ locked = false, title, description }: ServicesP
   const loading = servicesLoading || subsLoading || catsLoading;
   const hasError = servicesError || subsError || catsError;
   const showingList = Boolean(trimmedQuery) || Boolean(openCategoryId);
+
+  // SVC-487 deep-open. Decided once per requested service, after the catalogue
+  // and the subscriptions have loaded (`subscribedIds` reads [] until then, so
+  // an earlier check would call every service unsubscribed). The ref resets
+  // when the caller clears the request, so a second push for the same service
+  // opens it again.
+  const handledPricingFor = useRef<string | null>(null);
+  const [scrollTarget, setScrollTarget] = useState<{
+    serviceId: string;
+    variantId?: string;
+  } | null>(null);
+  const serviceRows = useRef(new Map<string, HTMLLIElement>());
+  useEffect(() => {
+    if (!openPricingFor) {
+      handledPricingFor.current = null;
+      return;
+    }
+    if (handledPricingFor.current === openPricingFor || loading) return;
+    handledPricingFor.current = openPricingFor;
+    const service = hasError ? undefined : services?.find((s) => s.id === openPricingFor);
+    if (service && subscribed.has(service.id) && !locked) {
+      setQuery("");
+      setOpenCategoryId(service.categoryId);
+      setOpen(service.id, true);
+      setScrollTarget({ serviceId: service.id, variantId: openPricingVariant });
+    }
+    onPricingHandled?.();
+    // setOpen and onPricingHandled are new each render; the ref makes this
+    // one-shot, so they can't re-run it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPricingFor, loading, hasError, services, subscribed, locked]);
+
+  // Scrolled once the prices have settled, so it lands on the rows rather
+  // than a skeleton that then grows (or on the error row with its Retry).
+  // The new option's row is centred, never under the bottom nav; without it,
+  // the card goes to the top.
+  const pricingSettled = !pricing.isPending && !pricing.isFetching;
+  useEffect(() => {
+    if (!scrollTarget || !pricingSettled) return;
+    // A frame later, so the panel has opened. Cleared inside the frame: clearing
+    // it here would re-run this effect, whose cleanup cancels the frame.
+    const frame = requestAnimationFrame(() => {
+      const card = serviceRows.current.get(scrollTarget.serviceId);
+      // Matched by value, not a selector: the id comes from a URL.
+      const row = [...(card?.querySelectorAll<HTMLElement>("[data-variant-id]") ?? [])].find(
+        (el) => el.dataset.variantId === scrollTarget.variantId,
+      );
+      if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
+      else card?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setScrollTarget(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [scrollTarget, pricingSettled]);
 
   return (
     <section className="mt-6">
@@ -336,7 +406,13 @@ export function ServicesPicker({ locked = false, title, description }: ServicesP
                   const isPending = pendingId === service.id;
                   const subtitle = cardSubtitle(service.id, service.price, isOn);
                   return (
-                    <li key={service.id}>
+                    <li
+                      key={service.id}
+                      ref={(el) => {
+                        if (el) serviceRows.current.set(service.id, el);
+                        else serviceRows.current.delete(service.id);
+                      }}
+                    >
                       <button
                         type="button"
                         disabled={locked || isPending}

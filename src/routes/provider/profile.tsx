@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { z } from "zod";
 import { ChevronRight, MapPin, Users, WalletCards } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
@@ -13,7 +14,17 @@ import { useProviderProfile } from "@/hooks/useApi";
 import { useTeam } from "@/hooks/useTeam";
 import { displayVersion } from "@/lib/version";
 
+// SVC-487: a "variant_added" push tap lands here with the service to price
+// and its new option, and the services list below opens that service's Prices
+// panel on the option's row. Both cleared once handled, so Back or a reload
+// doesn't open it again.
+const searchSchema = z.object({
+  pricing: z.string().optional(),
+  variant: z.string().optional(),
+});
+
 export const Route = createFileRoute("/provider/profile")({
+  validateSearch: searchSchema,
   component: ProviderProfilePage,
 });
 
@@ -23,6 +34,8 @@ function ProviderProfilePage() {
   const { data: team } = useTeam();
   const teamSize = team?.filter((member) => !member.is_self).length ?? 0;
   const { t } = useT("provider");
+  const { pricing, variant } = useSearch({ from: "/provider/profile" });
+  const navigate = useNavigate();
   // Brand + version, the same in every language — built here rather than as
   // JSX text so the no-literal-string rule has nothing to translate (SVC-376).
   const versionLabel = `EazyServ · v${displayVersion()}`;
@@ -133,7 +146,13 @@ function ProviderProfilePage() {
         </div>
       )}
 
-      <ServicesPicker />
+      <ServicesPicker
+        openPricingFor={pricing}
+        openPricingVariant={variant}
+        onPricingHandled={() =>
+          void navigate({ to: "/provider/profile", search: {}, replace: true })
+        }
+      />
 
       {/* Sign out (SVC-269). Providers had no way to do this at all: the button
           was consumer-only and `__root.tsx` bounces them off that route.
