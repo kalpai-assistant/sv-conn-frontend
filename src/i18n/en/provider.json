@@ -305,6 +305,8 @@
     "welcomeStepServices": "Pick the services you'll offer",
     "welcomeStepFirstJob": "Start getting job requests",
     "welcomeCta": "Start setup",
+    "rejectionBannerTitle": "We need to look at these documents again",
+    "rejectionBannerReason": "Reason: {{reason}}.",
     "nameRequired": "Please enter your name.",
     "businessRequired": "Please enter your business name.",
     "saveFailed": "Couldn’t save your details. Try again.",

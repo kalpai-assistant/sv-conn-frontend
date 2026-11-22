@@ -1,7 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Camera, CheckCircle2, Loader2, Lock, Rocket, Sparkles, X } from "lucide-react";
+import {
+  AlertCircle,
+  Camera,
+  CheckCircle2,
+  Loader2,
+  Lock,
+  Rocket,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -195,6 +204,37 @@ function ProviderOnboardingPage() {
 
       {error && (
         <p className="mt-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
+      )}
+
+      {/* SVC-490 — rejection-aware banner. When a provider lands here after
+          a rejection, the "Resubmit documents" fix link on Home is the only
+          place they see the reviewer's reason — and then it's gone the
+          moment they tap in. Surfacing it on the onboarding header too
+          means the reason stays on screen the whole time they're walking
+          back through the flow. Shown on every step (0..5) because a
+          provider may want to re-read it mid-recapture. */}
+      {profile?.kyc_status === "rejected" && (
+        <div
+          role="status"
+          className="mt-4 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm"
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" aria-hidden />
+          <div className="min-w-0 space-y-1">
+            <p className="font-medium text-destructive">{t("onboarding.rejectionBannerTitle")}</p>
+            {(() => {
+              // Mirror `kycRow` on provider Home (SVC-444): trim the
+              // reviewer's text, drop a trailing period so our template
+              // adds one if needed. Reason is null for a rejection that
+              // predates SVC-444 — hide the line rather than print "Reason: ".
+              const raw = profile.kyc_rejection_reason?.trim().replace(/\.$/, "");
+              return raw ? (
+                <p className="text-foreground wrap-anywhere">
+                  {t("onboarding.rejectionBannerReason", { reason: raw })}
+                </p>
+              ) : null;
+            })()}
+          </div>
+        </div>
       )}
 
       <div className="mt-6 flex-1">

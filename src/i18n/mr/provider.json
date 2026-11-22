@@ -305,6 +305,8 @@
     "welcomeStepServices": "तुम्ही देणार असलेल्या सर्व्हिस निवडा",
     "welcomeStepFirstJob": "जॉब रिक्वेस्ट मिळायला सुरुवात",
     "welcomeCta": "सेटअप सुरू करा",
+    "rejectionBannerTitle": "आम्हाला ही कागदपत्रे पुन्हा पाहायची आहेत",
+    "rejectionBannerReason": "कारण: {{reason}}.",
     "nameRequired": "कृपया तुमचे नाव टाका.",
     "businessRequired": "कृपया तुमच्या बिझनेसचे नाव टाका.",
     "saveFailed": "तुमची माहिती सेव्ह होऊ शकली नाही. पुन्हा प्रयत्न करा.",

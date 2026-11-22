@@ -236,6 +236,52 @@ describe("onboarding step 0 — welcome hero (SVC-490)", () => {
   });
 });
 
+// SVC-490 — the rejection banner is the only persistent surface showing
+// the reviewer's reason during a resubmit. Home's checklist loses it the
+// moment the provider taps "Resubmit documents"; without this banner they
+// walk back through onboarding blind.
+describe("onboarding — rejection banner (SVC-490)", () => {
+  it("shows the banner with the reviewer's reason on a rejected profile", () => {
+    profile = {
+      kyc_status: "rejected",
+      business_name: null,
+      business_image_url: null,
+      kyc_rejection_reason: "Aadhaar back photo was blurry",
+    };
+    render(<Page />);
+
+    expect(screen.getByText("We need to look at these documents again")).toBeInTheDocument();
+    expect(screen.getByText(/Reason: Aadhaar back photo was blurry\./)).toBeInTheDocument();
+  });
+
+  // Catches: regressed null-check; printing "Reason: " alone reads as
+  // a broken template, not a legacy row that predates the reason field.
+  it("hides the Reason line when `kyc_rejection_reason` is null (legacy)", () => {
+    profile = {
+      kyc_status: "rejected",
+      business_name: null,
+      business_image_url: null,
+      kyc_rejection_reason: null,
+    };
+    render(<Page />);
+
+    // Title still renders; no bare "Reason: " artifact.
+    expect(screen.getByText("We need to look at these documents again")).toBeInTheDocument();
+    expect(screen.queryByText(/Reason:/)).not.toBeInTheDocument();
+  });
+
+  it("does not show the banner for a non-rejected profile", () => {
+    profile = {
+      kyc_status: "pending",
+      business_name: null,
+      business_image_url: null,
+    };
+    render(<Page />);
+
+    expect(screen.queryByText("We need to look at these documents again")).not.toBeInTheDocument();
+  });
+});
+
 // SVC-490 — the KYC trust block is the single piece of framing between
 // "Verify your identity" and three camera buttons asking for a government
 // ID. If it regresses, the pre-Phase-1 cold-ask drop-off returns.
