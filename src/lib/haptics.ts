@@ -40,6 +40,20 @@ export function hapticImpactLight(): void {
 }
 
 /**
+ * Fire the medium-weight "commitment made" tap.
+ *
+ * Added for SVC-491: the provider online-toggle is the single most
+ * important commitment of a session — reserved for that one gesture and
+ * any future gesture that carries the same weight. Lighter than
+ * `hapticSuccess`'s triple-buzz (that's the arrival signal, not the
+ * commitment signal).
+ */
+export function hapticImpactMedium(): void {
+  if (!Capacitor.isNativePlatform()) return;
+  void Haptics.impact({ style: ImpactStyle.Medium }).catch(() => undefined);
+}
+
+/**
  * Fire the stronger triple-buzz pattern iOS reserves for "operation
  * succeeded".
  *

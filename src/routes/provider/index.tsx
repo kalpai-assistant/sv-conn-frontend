@@ -10,12 +10,12 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
 import { InstallSheet } from "@/components/InstallSheet";
 import { ApiError } from "@/lib/api";
 import { enablePushNotifications, getPushPermission, type PushPermission } from "@/lib/fcm";
 import { useInstallState } from "@/lib/install";
 import { ProviderHomeHero } from "@/components/provider/ProviderHomeHero";
+import { OnlineToggleCta } from "@/components/provider/OnlineToggleCta";
 import { LiveJobs } from "@/components/provider/LiveJobs";
 import { EarningsRow } from "@/components/provider/EarningsRow";
 import { useBookings } from "@/hooks/useApi";
@@ -207,26 +207,27 @@ function ProviderHomePage() {
           path into Provider Profile. */}
       <ProviderHomeHero name={user?.name} photoUrl={profile?.profile_photo_url} />
 
-      {/* The toggle. Disabled below "verified" because the broadcast filters on KYC
-          too — an enabled switch would promise something the backend won't honour. */}
-      <div className="mt-6 rounded-lg border border-border p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="font-medium text-foreground">
-              {isOnline ? t("home.online") : t("home.offline")}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {isVerified ? t("home.verifiedHint") : t("home.unverifiedHint")}
-            </p>
-          </div>
-          <Switch
-            checked={isOnline}
-            onCheckedChange={handleToggle}
-            disabled={!isVerified || setOnlineStatus.isPending}
-            aria-label={t("home.toggleLabel")}
-          />
-        </div>
-      </div>
+      {/* SVC-491 — online-toggle rework. Pre-Phase-2 this was a shadcn
+          Switch inside a bordered card: functionally correct but it read
+          as a settings row, not the single most important commitment of
+          a provider's session. Replaced with a full-width CTA whose
+          outer glow pulses while offline (ambient pulse, framer-motion
+          `animate` on opacity, honours reduced-motion) and collapses to
+          a quiet drop-shadow while online. The commitment itself fires a
+          Medium haptic (`hapticImpactMedium`, SVC-398 wrapper extended
+          in this phase) — a heavier beat than SVC-490's Light taps
+          because this gesture materially changes whether jobs are
+          dispatched.
+
+          Disabled below "verified" for the same reason it was before:
+          the backend's broadcast filters on KYC, and a pressable CTA
+          here would promise something the server won't honour. */}
+      <OnlineToggleCta
+        isOnline={isOnline}
+        isVerified={isVerified}
+        pending={setOnlineStatus.isPending}
+        onToggle={handleToggle}
+      />
 
       {canFixPush && (
         <button
