@@ -1,4 +1,14 @@
 {
+  "hero": {
+    "sectionLabel": "आपकी कमाई",
+    "greeting": "वापसी पर स्वागत है",
+    "fallbackName": "प्रोवाइडर",
+    "lifetimeLabel": "अब तक कमाई",
+    "jobsLabel": "पूरे किए काम",
+    "statError": "—",
+    "streakWithJobs": "{{count}} काम पूरे हुए — बढ़िया चल रहा है।",
+    "firstJobComing": "आपका पहला काम आने वाला है।"
+  },
   "home": {
     "title": "प्रोवाइडर होम",
     "loading": "लोड हो रहा है…",

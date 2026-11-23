@@ -15,7 +15,7 @@ import { InstallSheet } from "@/components/InstallSheet";
 import { ApiError } from "@/lib/api";
 import { enablePushNotifications, getPushPermission, type PushPermission } from "@/lib/fcm";
 import { useInstallState } from "@/lib/install";
-import { ProviderHeader } from "@/components/provider/ProviderHeader";
+import { ProviderHomeHero } from "@/components/provider/ProviderHomeHero";
 import { LiveJobs } from "@/components/provider/LiveJobs";
 import { EarningsRow } from "@/components/provider/EarningsRow";
 import { useBookings } from "@/hooks/useApi";
@@ -190,12 +190,12 @@ function ProviderHomePage() {
   if (isLoading) {
     return (
       <div className="min-h-screen p-6 pb-24">
-        {/* Header renders here too, so the avatar does not pop in once the
-            profile lands — and Profile stays reachable while it loads, since
-            this is now its only entry point. The photo is simply absent
-            until then; the initials come from the user, which is already
-            restored by this point. */}
-        <ProviderHeader title={t("home.title")} name={user?.name} />
+        {/* SVC-491: the hero renders here too so the greeting + avatar do
+            not pop in once the profile lands. The photo is absent until
+            then; the initials come from the user, already restored by
+            this point. Profile stays reachable via the avatar — it is
+            still the only entry point since SVC-273. */}
+        <ProviderHomeHero name={user?.name} />
         <p className="mt-4 text-sm text-muted-foreground">{t("home.loading")}</p>
       </div>
     );
@@ -203,13 +203,9 @@ function ProviderHomePage() {
 
   return (
     <div className="min-h-screen p-6 pb-24">
-      {/* SVC-273: the avatar here is the only way into Provider Profile now
-          that it has left the tab bar. */}
-      <ProviderHeader
-        title={t("home.title")}
-        name={user?.name}
-        photoUrl={profile?.profile_photo_url}
-      />
+      {/* SVC-491 hero. SVC-273's rule still holds: the avatar is the only
+          path into Provider Profile. */}
+      <ProviderHomeHero name={user?.name} photoUrl={profile?.profile_photo_url} />
 
       {/* The toggle. Disabled below "verified" because the broadcast filters on KYC
           too — an enabled switch would promise something the backend won't honour. */}

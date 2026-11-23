@@ -1,4 +1,14 @@
 {
+  "hero": {
+    "sectionLabel": "तुमची कमाई",
+    "greeting": "पुन्हा स्वागत आहे",
+    "fallbackName": "प्रोव्हायडर",
+    "lifetimeLabel": "आतापर्यंत कमावले",
+    "jobsLabel": "पूर्ण केलेली कामे",
+    "statError": "—",
+    "streakWithJobs": "{{count}} कामे पूर्ण — मस्त चाललंय.",
+    "firstJobComing": "तुमचं पहिलं काम येतंय."
+  },
   "home": {
     "title": "प्रोव्हायडर होम",
     "loading": "लोड होत आहे…",
