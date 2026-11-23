@@ -4,8 +4,10 @@
  * state and applies the backend's refusals (CATEGORY_NOT_EMPTY,
  * SERVICE_HAS_ACTIVE_BOOKINGS without confirm, CATALOG_NAME_TAKEN, min_qty for
  * PER_SQFT / PER_HOUR; SVC-481's LAST_ACTIVE_VARIANT, VARIANT_LABEL_TAKEN,
- * COMMISSION_INCREASE_NEEDS_NOTICE without confirm, base_price on a service priced
- * per variant), so a reload shows what a write really persisted. The
+ * COMMISSION_INCREASE_NEEDS_NOTICE on any PATCH that raises the percent, base_price
+ * on a service priced per variant; SVC-486's scheduled commission changes with
+ * their 14-day rule, COMMISSION_CHANGE_SCHEDULED and _NOT_SCHEDULED), so a reload
+ * shows what a write really persisted. The
  * write-heavy flows run in both colour schemes, because night mode only swaps
  * tokens and fixed colours can clash.
  */
@@ -39,6 +41,12 @@ interface Variant {
   provider_payout: number;
   commission_pct: number;
   gst_percent: number;
+  pending_commission_change: {
+    id: string;
+    new_pct: number;
+    effective_from: string;
+    created_at: string;
+  } | null;
 }
 
 interface Service {
@@ -57,6 +65,10 @@ interface Service {
 }
 
 const CREATED = "2026-11-01T04:30:00Z";
+// SVC-486: the scheduling tests fix the browser's clock at 11:30 IST on this day.
+const NOW = "2026-11-23T06:00:00Z";
+const TODAY_IST = "2026-11-23";
+const EARLIEST_INCREASE = "2026-12-07";
 
 function cat(id: string, name: string, extra: Partial<Category> = {}): Category {
   return {
@@ -112,6 +124,7 @@ const variant = (id: string, label: string, price: number, is_active = true): Va
   ...split(price, 30),
   commission_pct: 30,
   gst_percent: 18,
+  pending_commission_change: null,
 });
 
 function refusal(status: number, code: string, message: string, details: Json | null = null) {
@@ -296,6 +309,78 @@ async function mockBackend(page: Page, role: Role) {
       return route.fulfill({ json: categoryDetail(found) });
     }
 
+    // SVC-486: schedule and cancel, with the backend's checks in its order.
+    const changeMatch = path.match(
+      /^\/catalog\/services\/([^/]+)\/variants\/([^/]+)\/commission-changes(?:\/([^/]+)\/cancel)?$/,
+    );
+    if (changeMatch && method === "POST") {
+      const found = services.find((s) => s.id === decodeURIComponent(changeMatch[1]));
+      const v = found?.variants.find((x) => x.id === decodeURIComponent(changeMatch[2]));
+      if (!found || !v) return route.fulfill(refusal(404, "VARIANT_NOT_FOUND", "Not found"));
+      const pending = v.pending_commission_change;
+      const record = (extra: Json) => ({
+        id: pending?.id ?? `cc-${writes.length}`,
+        service_variant_id: v.id,
+        old_pct: v.commission_pct,
+        created_at: NOW,
+        applied_at: null,
+        cancelled_at: null,
+        ...extra,
+      });
+      if (changeMatch[3]) {
+        if (!pending || pending.id !== decodeURIComponent(changeMatch[3])) {
+          return route.fulfill(
+            refusal(
+              409,
+              "COMMISSION_CHANGE_NOT_SCHEDULED",
+              "This commission change is applied and can't be cancelled",
+              { status: "applied" },
+            ),
+          );
+        }
+        v.pending_commission_change = null;
+        return route.fulfill({
+          json: record({ ...pending, status: "cancelled", cancelled_at: NOW }),
+        });
+      }
+      const newPct = body!.new_pct as number;
+      const from = String(body!.effective_from);
+      const invalid = (field: string, message: string) =>
+        route.fulfill(refusal(422, "CATALOG_INVALID", message, { field }));
+      if (from < TODAY_IST) return invalid("effective_from", "effective_from can't be in the past");
+      if (pending) {
+        return route.fulfill(
+          refusal(
+            409,
+            "COMMISSION_CHANGE_SCHEDULED",
+            "This option already has a commission change scheduled; cancel it first",
+          ),
+        );
+      }
+      if (newPct === v.commission_pct) {
+        return invalid("new_pct", "new_pct is already this option's commission");
+      }
+      if (newPct > v.commission_pct && from < EARLIEST_INCREASE) {
+        return invalid(
+          "effective_from",
+          `An increase needs 14 days' notice: effective_from must be ${EARLIEST_INCREASE} or later`,
+        );
+      }
+      if (from === TODAY_IST && newPct < v.commission_pct) {
+        const applied = record({ new_pct: newPct, effective_from: from, status: "applied" });
+        Object.assign(v, split(v.base_price, newPct), { commission_pct: newPct });
+        return route.fulfill({ status: 201, json: { ...applied, applied_at: NOW } });
+      }
+      const scheduled = record({ new_pct: newPct, effective_from: from, status: "scheduled" });
+      v.pending_commission_change = {
+        id: String(scheduled.id),
+        new_pct: newPct,
+        effective_from: from,
+        created_at: NOW,
+      };
+      return route.fulfill({ status: 201, json: scheduled });
+    }
+
     const variantsMatch = path.match(
       /^\/catalog\/services\/([^/]+)\/variants(?:\/([^/]+)(?:\/(activate|deactivate|price-impact))?)?$/,
     );
@@ -355,17 +440,23 @@ async function mockBackend(page: Page, role: Role) {
         return route.fulfill({ json: serviceDetail(found) });
       }
       if (method === "PATCH") {
-        const { confirm, ...patch } = body as Json;
+        const patch = { ...(body as Json) };
+        delete patch.confirm; // ignored since SVC-486
         if (typeof patch.label === "string" && labelTaken(patch.label, v.id)) {
           return taken(patch.label);
         }
         const pct = patch.commission_pct as number | undefined;
-        if (pct !== undefined && pct > v.commission_pct && confirm !== true) {
+        if (pct !== undefined && pct !== v.commission_pct && v.pending_commission_change) {
+          return route.fulfill(
+            refusal(409, "COMMISSION_CHANGE_SCHEDULED", "Cancel the scheduled change first"),
+          );
+        }
+        if (pct !== undefined && pct > v.commission_pct) {
           return route.fulfill(
             refusal(
               409,
               "COMMISSION_INCREASE_NEEDS_NOTICE",
-              "Give pros at least 14 days' notice before saving",
+              "Schedule a commission increase at least 14 days ahead",
               { old_pct: v.commission_pct, new_pct: pct, notice_days: 14 },
             ),
           );
@@ -790,31 +881,75 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(page.getByRole("table", { name: "Variants" })).toContainText("₹749");
     });
 
-    test("a commission increase needs the 14 days' notice, then confirms", async ({ page }) => {
+    test("a commission increase is scheduled 14 days out, shows pending, and cancels", async ({
+      page,
+    }) => {
+      await page.clock.setFixedTime(new Date(NOW));
       const { writes } = await mockBackend(page, "admin");
       await page.goto("/operator/catalog/services/s-basin");
       await page.getByRole("button", { name: "Edit Wall-mounted" }).click();
       const dialog = page.getByRole("dialog");
       await expect(dialog.getByLabel("Commission (%)")).toHaveValue("30");
       await dialog.getByLabel("Commission (%)").fill("35");
+      const date = dialog.getByLabel("Effective from");
+      await expect(date).toHaveValue(EARLIEST_INCREASE);
+      await expect(date).toHaveAttribute("min", EARLIEST_INCREASE);
       await dialog.getByRole("button", { name: "Save", exact: true }).click();
-      await expect(dialog).toContainText("Give pros at least 14 days' notice before saving.");
-      await expect(dialog).toContainText("Wall-mounted: 30% → 35%");
-      await dialog.getByRole("button", { name: "Confirm increase" }).click();
       await expect(dialog).toHaveCount(0);
       expect(writes).toEqual([
         {
-          method: "PATCH",
-          path: "/catalog/services/s-basin/variants/v1",
-          body: { commission_pct: 35 },
-        },
-        {
-          method: "PATCH",
-          path: "/catalog/services/s-basin/variants/v1",
-          body: { commission_pct: 35, confirm: true },
+          method: "POST",
+          path: "/catalog/services/s-basin/variants/v1/commission-changes",
+          body: { new_pct: 35, effective_from: EARLIEST_INCREASE },
         },
       ]);
-      await expect(page.getByRole("table", { name: "Variants" })).toContainText("35%");
+      await expect(
+        page.getByText("Wall-mounted's commission changes to 35% from 7 Dec 2026."),
+      ).toBeVisible();
+      const table = page.getByRole("table", { name: "Variants" });
+      await expect(table).toContainText("→ 35% from 7 Dec 2026");
+
+      // While it's pending, only the percent is locked.
+      await page.getByRole("button", { name: "Edit Wall-mounted" }).click();
+      await expect(dialog.getByLabel("Commission (%)")).toBeDisabled();
+      await expect(dialog.getByLabel("Price (₹)")).toBeEnabled();
+      await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+
+      await table
+        .getByRole("button", { name: "Cancel the commission change on Wall-mounted" })
+        .click();
+      const confirm = page.getByRole("alertdialog");
+      await expect(confirm).toContainText("30% → 35% from 7 Dec 2026 won't happen");
+      await confirm.getByRole("button", { name: "Cancel the change" }).click();
+      await expect(confirm).toHaveCount(0);
+      await expect(
+        page.getByText("The commission change on Wall-mounted is cancelled."),
+      ).toBeVisible();
+      await expect(table).not.toContainText("→ 35%");
+
+      await page.reload();
+      await expect(page.getByRole("table", { name: "Variants" })).not.toContainText("→ 35%");
+    });
+
+    test("a commission decrease dated today applies at once", async ({ page }) => {
+      await page.clock.setFixedTime(new Date(NOW));
+      const { writes } = await mockBackend(page, "admin");
+      await page.goto("/operator/catalog/services/s-basin");
+      await page.getByRole("button", { name: "Edit Wall-mounted" }).click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByLabel("Commission (%)").fill("25");
+      await expect(dialog.getByLabel("Effective from")).toHaveValue(TODAY_IST);
+      await dialog.getByRole("button", { name: "Save", exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      expect(writes).toEqual([
+        {
+          method: "POST",
+          path: "/catalog/services/s-basin/variants/v1/commission-changes",
+          body: { new_pct: 25, effective_from: TODAY_IST },
+        },
+      ]);
+      await expect(page.getByText("Wall-mounted's commission is now 25%.")).toBeVisible();
+      await expect(page.getByRole("table", { name: "Variants" })).toContainText("25%");
     });
 
     test("the last active variant can't be switched off; a single variant's price still edits", async ({

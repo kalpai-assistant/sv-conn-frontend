@@ -18,6 +18,7 @@ import { useInstallState } from "@/lib/install";
 import { ProviderHeader } from "@/components/provider/ProviderHeader";
 import { LiveJobs } from "@/components/provider/LiveJobs";
 import { EarningsRow } from "@/components/provider/EarningsRow";
+import { EmailNudge } from "@/components/provider/EmailNudge";
 import { useBookings } from "@/hooks/useApi";
 import { isActive } from "@/lib/job-status";
 import { useAuth } from "@/lib/auth-context";
@@ -270,6 +271,10 @@ function ProviderHomePage() {
           because a provider who is set up has no reason to read three green
           ticks again. One figure only — see EarningsRow. */}
       <EarningsRow />
+
+      {/* SVC-486: commission notices go by email to SPs who have one. A soft
+          ask, so under the work and the money; it never blocks anything. */}
+      <EmailNudge />
 
       {/* Why the provider is or isn't getting work.
 

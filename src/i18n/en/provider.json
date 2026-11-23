@@ -344,7 +344,9 @@
     "team": "My Team",
     "teamCount_one": "{{count}} member besides you",
     "teamCount_other": "{{count}} members besides you",
-    "teamNone": "Invite people who work with you"
+    "teamNone": "Invite people who work with you",
+    "email": "Email",
+    "emailNone": "Not added"
   },
   "location": {
     "back": "Back",
@@ -442,7 +444,8 @@
         "footnote": "Other service providers’ prices update every hour.",
         "legendYou": "You",
         "legendMedian": "Median"
-      }
+      },
+      "upcomingCommission": "Commission changes to {{pct}}% from {{date}}"
     },
     "noMatch": "No services match “{{query}}”.",
     "noActive": "No active services in this category."
@@ -546,5 +549,23 @@
   },
   "inviteShare": {
     "message": "You're invited to join my team on Eazyserv. Your invite code is {{code}} (valid for 7 days)."
+  },
+  "emailNudge": {
+    "title": "Add your email",
+    "body": "Add your email to get pricing notices by email",
+    "add": "Add",
+    "notNow": "Not now"
+  },
+  "emailForm": {
+    "title": "Your email",
+    "description": "Pricing notices, such as a change in commission, also come here.",
+    "label": "Email",
+    "placeholder": "name@example.com",
+    "clearHint": "Leave it empty to remove your email.",
+    "save": "Save",
+    "saved": "Email saved",
+    "removed": "Email removed",
+    "invalid": "Enter a valid email address",
+    "failed": "Couldn't save your email. Try again."
   }
 }

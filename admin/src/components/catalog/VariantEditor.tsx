@@ -10,12 +10,26 @@
  * Switching is immediate. The last active variant can't be switched off (409
  * LAST_ACTIVE_VARIANT): the admin switches off the service instead.
  *
+ * A scheduled commission change (SVC-486) shows under the row's commission, e.g.
+ * "→ 25% from 6 Dec 2026", with Cancel. Cancel confirms first. On success, or
+ * when the change has already applied or been cancelled (409
+ * COMMISSION_CHANGE_NOT_SCHEDULED), the service is fetched again.
+ *
  * Cards below the container's @3xl, a table from it.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { FormError } from "@/components/catalog/Field";
 import { VariantDialog } from "@/components/catalog/VariantDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -24,14 +38,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ApiError } from "@/lib/api";
 import {
+  cancelCommissionChange,
   catalogErrorMessage,
   durationLabel,
+  getServiceDetail,
   setVariantActive,
+  type PendingCommissionChange,
   type ServiceDetail,
   type ServiceVariantRow,
 } from "@/lib/catalog";
-import { pctLabel } from "@/lib/catalog-variants";
+import { pctLabel, pendingLabel } from "@/lib/catalog-variants";
 import { formatRupees } from "@/lib/money";
 
 const WRAP = "[overflow-wrap:anywhere]";
@@ -49,6 +67,7 @@ export function VariantEditor({
   const [editing, setEditing] = useState<Editing>(null);
   const [switching, setSwitching] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [cancelling, setCancelling] = useState<ServiceVariantRow | null>(null);
   const sorted = [...service.variants].sort((a, b) => a.sort_order - b.sort_order);
   // A new variant copies the first one's (by sort order) GST, as the backend does.
   const newGst = sorted[0]?.gst_percent ?? null;
@@ -75,6 +94,29 @@ export function VariantEditor({
 
   const duration = (variant: ServiceVariantRow) =>
     variant.duration_minutes ? durationLabel(variant.duration_minutes) : null;
+
+  const pendingFor = (variant: ServiceVariantRow) => {
+    const change = variant.pending_commission_change;
+    if (!change) return null;
+    return (
+      <span className="mt-1 flex flex-wrap items-center gap-2 text-xs @3xl:justify-end">
+        <span className="font-medium text-primary tabular-nums">{pendingLabel(change)}</span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          aria-label={`Cancel the commission change on ${variant.label}`}
+          onClick={() => {
+            setNotice(null);
+            setCancelling(variant);
+          }}
+        >
+          Cancel
+        </Button>
+      </span>
+    );
+  };
 
   const switchFor = (variant: ServiceVariantRow) => (
     <ActiveSwitch
@@ -148,6 +190,7 @@ export function VariantEditor({
                     {formatRupees(variant.platform_commission)} /{" "}
                     {formatRupees(variant.provider_payout)} payout
                   </p>
+                  {pendingFor(variant)}
                   <p className="text-xs text-muted-foreground tabular-nums">
                     {[
                       duration(variant) ?? "Service's duration",
@@ -197,6 +240,7 @@ export function VariantEditor({
                           {formatRupees(variant.platform_commission)} · payout{" "}
                           {formatRupees(variant.provider_payout)}
                         </span>
+                        {pendingFor(variant)}
                       </TableCell>
                       <TableCell className={dim}>{duration(variant) ?? "—"}</TableCell>
                       <TableCell className={`text-right tabular-nums ${dim}`}>
@@ -224,12 +268,115 @@ export function VariantEditor({
           onClose={() => setEditing(null)}
           onSaved={(detail, message) => {
             setEditing(null);
-            onChanged(detail);
+            if (detail) onChanged(detail);
             setNotice({ kind: "success", text: message });
+          }}
+          onRefreshed={(detail) => {
+            onChanged(detail);
+            const row = detail.variants.find((v) => v.id === editing.variant?.id);
+            if (row) setEditing({ variant: row });
+          }}
+        />
+      )}
+
+      {cancelling?.pending_commission_change && (
+        <CancelChangeDialog
+          serviceId={service.id}
+          variant={cancelling}
+          change={cancelling.pending_commission_change}
+          onClose={() => setCancelling(null)}
+          onDone={(detail, next) => {
+            setCancelling(null);
+            if (detail) onChanged(detail);
+            setNotice(next);
           }}
         />
       )}
     </div>
+  );
+}
+
+/**
+ * "Cancel the commission change?" (SVC-486). Built on Dialog like the catalog's
+ * other confirms, with role="alertdialog". The backend tells the pros who were
+ * notified that it's cancelled.
+ */
+function CancelChangeDialog({
+  serviceId,
+  variant,
+  change,
+  onClose,
+  onDone,
+}: {
+  serviceId: string;
+  variant: ServiceVariantRow;
+  change: PendingCommissionChange;
+  onClose: () => void;
+  /** Null detail: the service couldn't be fetched again. */
+  onDone: (detail: ServiceDetail | null, notice: Notice) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef(false);
+
+  async function refetched(): Promise<ServiceDetail | null> {
+    try {
+      return await getServiceDetail(serviceId);
+    } catch {
+      return null;
+    }
+  }
+
+  async function cancel() {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      await cancelCommissionChange(serviceId, variant.id, change.id);
+      const detail = await refetched();
+      const reload = detail ? "" : " Reload the page to see it.";
+      onDone(detail, {
+        kind: "success",
+        text: `The commission change on ${variant.label} is cancelled. It stays at ${pctLabel(variant.commission_pct)}.${reload}`,
+      });
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "COMMISSION_CHANGE_NOT_SCHEDULED") {
+        // It applied or was cancelled meanwhile: show the row as it is now.
+        const detail = await refetched();
+        onDone(detail, { kind: "error", text: catalogErrorMessage(err) });
+      } else {
+        setError(catalogErrorMessage(err));
+      }
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && !inFlight.current && onClose()}>
+      <DialogContent role="alertdialog" className="grid-cols-[minmax(0,1fr)]">
+        <DialogHeader>
+          <DialogTitle className="[overflow-wrap:anywhere]">
+            Cancel the commission change on {variant.label}?
+          </DialogTitle>
+          <DialogDescription className="tabular-nums">
+            {pctLabel(variant.commission_pct)} {pendingLabel(change)} won't happen. Pros who were
+            told get a notice that it's cancelled.
+          </DialogDescription>
+        </DialogHeader>
+        {error && <FormError message={error} />}
+        <DialogFooter className="gap-2">
+          <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
+            Keep it
+          </Button>
+          <Button type="button" variant="destructive" disabled={busy} onClick={cancel}>
+            {busy ? "Cancelling…" : "Cancel the change"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

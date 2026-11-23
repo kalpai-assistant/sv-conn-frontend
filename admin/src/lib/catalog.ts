@@ -98,6 +98,44 @@ export interface ServiceVariantRow {
   commission_pct: number;
   /** The customer's GST on the service. Read-only (SVC-481). */
   gst_percent: number;
+  /** SVC-486: the change scheduled on this variant, null when none. At most one. */
+  pending_commission_change: PendingCommissionChange | null;
+}
+
+/**
+ * A commission change scheduled and not yet applied (SVC-486). It takes effect
+ * at 00:00 IST on effective_from ("YYYY-MM-DD").
+ */
+export interface PendingCommissionChange {
+  id: string;
+  new_pct: number;
+  effective_from: string;
+  created_at: string;
+}
+
+/**
+ * Schedule a change of a variant's commission % (SVC-486). An increase needs
+ * effective_from at least 14 days after today (IST); a decrease can be dated
+ * today, and then applies at once.
+ */
+export interface CommissionChangeCreate {
+  new_pct: number;
+  effective_from: string;
+}
+
+export type CommissionChangeStatus = "scheduled" | "applied" | "cancelled";
+
+/** One commission change. old_pct is the percent when it was scheduled. */
+export interface CommissionChange {
+  id: string;
+  service_variant_id: string;
+  old_pct: number;
+  new_pct: number;
+  effective_from: string;
+  status: CommissionChangeStatus | string;
+  created_at: string;
+  applied_at: string | null;
+  cancelled_at: string | null;
 }
 
 export interface ServiceDetail extends CatalogServiceRow {
@@ -248,20 +286,48 @@ export function createVariant(serviceId: string, body: VariantCreateBody): Promi
   return post<ServiceDetail>(`${servicePath(serviceId)}/variants`, body);
 }
 
+/** The service with every variant: what the editor shows. */
+export function getServiceDetail(id: string): Promise<ServiceDetail> {
+  return apiFetch<ServiceDetail>(servicePath(id));
+}
+
 /**
- * confirm: true only after the admin has seen the 14-day-notice warning that the
- * first send's 409 COMMISSION_INCREASE_NEEDS_NOTICE brought back.
+ * The editor never sends commission_pct here for an existing variant (SVC-486):
+ * the backend refuses an increase (409 COMMISSION_INCREASE_NEEDS_NOTICE), so
+ * every change of percent goes through scheduleCommissionChange.
  */
 export function patchVariant(
   serviceId: string,
   variantId: string,
   patch: VariantPatch,
-  confirm = false,
 ): Promise<ServiceDetail> {
   return apiFetch<ServiceDetail>(variantPath(serviceId, variantId), {
     method: "PATCH",
-    body: JSON.stringify(confirm ? { ...patch, confirm: true } : patch),
+    body: JSON.stringify(patch),
   });
+}
+
+/**
+ * 201 with the change. 422 CATALOG_INVALID names new_pct or effective_from;
+ * 409 COMMISSION_CHANGE_SCHEDULED while another one is pending.
+ */
+export function scheduleCommissionChange(
+  serviceId: string,
+  variantId: string,
+  body: CommissionChangeCreate,
+): Promise<CommissionChange> {
+  return post<CommissionChange>(`${variantPath(serviceId, variantId)}/commission-changes`, body);
+}
+
+/** 409 COMMISSION_CHANGE_NOT_SCHEDULED once it has applied or been cancelled. */
+export function cancelCommissionChange(
+  serviceId: string,
+  variantId: string,
+  changeId: string,
+): Promise<CommissionChange> {
+  return post<CommissionChange>(
+    `${variantPath(serviceId, variantId)}/commission-changes/${encodeURIComponent(changeId)}/cancel`,
+  );
 }
 
 /** Idempotent. Off is refused for the service's last active variant. */
@@ -775,6 +841,8 @@ const WORDS: [RegExp, string][] = [
   [/\bprice_unit\b/g, "price unit"],
   [/\bsort_order\b/g, "sort order"],
   [/\bcommission_pct\b/g, "commission %"],
+  [/\bnew_pct\b/g, "the new commission %"],
+  [/\beffective_from\b/g, "the effective date"],
   [/\bicon_key\b/g, "icon"],
   [/\bcategory_id\b/g, "category"],
   [/\bparent_id\b/g, "parent"],
@@ -828,6 +896,8 @@ export function catalogErrorMessage(err: unknown): string {
     if (err.code === "SERVICE_NOT_FOUND") return "This service no longer exists. Reload the page.";
     if (err.code === "VARIANT_NOT_FOUND") return "This variant no longer exists. Reload the page.";
     if (err.code === "LAST_ACTIVE_VARIANT") return LAST_ACTIVE_VARIANT_MESSAGE;
+    if (err.code === "COMMISSION_CHANGE_NOT_FOUND")
+      return "This commission change no longer exists. Reload the page.";
     const empty = notEmptyCounts(err);
     if (empty) return notEmptyMessage(empty);
     if (err.status === 409 && err.message) return err.message;

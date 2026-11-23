@@ -75,6 +75,7 @@ const PRICING: API_SpPricingResponse = {
           take_home: null,
           commission_pct: 30,
           gst_pct: 18,
+          upcoming_commission: null,
         },
       ],
     },

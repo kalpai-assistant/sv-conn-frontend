@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { z } from "zod";
-import { ChevronRight, MapPin, Users, WalletCards } from "lucide-react";
+import { useState } from "react";
+import { ChevronRight, Mail, MapPin, Users, WalletCards } from "lucide-react";
+import { EmailSheet } from "@/components/provider/EmailSheet";
 import { BackButton } from "@/components/BackButton";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { LogoutButton } from "@/components/LogoutButton";
@@ -36,6 +38,7 @@ function ProviderProfilePage() {
   const { t } = useT("provider");
   const { pricing, variant } = useSearch({ from: "/provider/profile" });
   const navigate = useNavigate();
+  const [emailOpen, setEmailOpen] = useState(false);
   // Brand + version, the same in every language — built here rather than as
   // JSX text so the no-literal-string rule has nothing to translate (SVC-376).
   const versionLabel = `EazyServ · v${displayVersion()}`;
@@ -122,6 +125,26 @@ function ProviderProfilePage() {
         </div>
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
       </Link>
+
+      {/* Email (SVC-486): where commission-change notices go, besides push.
+          Change or clear it here; the home nudge only adds one. */}
+      <button
+        type="button"
+        onClick={() => setEmailOpen(true)}
+        className="mt-3 flex w-full items-center justify-between gap-3 rounded-lg border border-border p-4 text-left transition-colors hover:bg-secondary/50"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <Mail className="h-5 w-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">{t("profile.email")}</p>
+            <p className="truncate text-sm text-muted-foreground">
+              {user?.email || t("profile.emailNone")}
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </button>
+      <EmailSheet open={emailOpen} onOpenChange={setEmailOpen} />
 
       {/* The only way back from a declined notification prompt.
           

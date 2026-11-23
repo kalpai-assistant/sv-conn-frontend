@@ -308,3 +308,80 @@ describe("a new option to price (SVC-487)", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 });
+
+describe("commission_change (SVC-486)", () => {
+  const SID = "5e1c0000-0000-0000-0000-000000000000";
+  // The backend's payload: no service name or percent in it, and the same
+  // event for a scheduled, an applied and a cancelled change.
+  const PUSH = {
+    type: "pricing",
+    event: "commission_change",
+    service_id: SID,
+    variant_id: "v1",
+    change_id: "cc1",
+  };
+  const TARGET = `/provider/profile?pricing=${SID}&variant=v1`;
+
+  it("in the foreground: refreshes the SP's prices and offers the panel, no navigation", async () => {
+    const invalidate = await arrive("commission_change", "provider", "en", PUSH);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["providerPricing"] });
+    expect(toast).toHaveBeenCalledExactlyOnceWith("Commission update", {
+      description:
+        "The commission on one of your options has an update. Open your prices to see it.",
+      action: expect.objectContaining({ label: "Open" }),
+    });
+    expect(navigate).not.toHaveBeenCalled();
+
+    toast.mock.calls[0][1].action.onClick();
+    expect(navigate).toHaveBeenCalledWith({ to: TARGET });
+  });
+
+  it.each([
+    [
+      "hi",
+      "कमीशन में बदलाव",
+      "आपके एक विकल्प के कमीशन में बदलाव हुआ है। देखने के लिए अपने दाम खोलें।",
+      "खोलें",
+    ],
+    [
+      "mr",
+      "कमिशनमध्ये बदल",
+      "तुमच्या एका पर्यायाच्या कमिशनमध्ये बदल झाला आहे. पाहण्यासाठी तुमचे दर उघडा.",
+      "उघडा",
+    ],
+  ] as const)("%s: the toast is translated", async (lang, title, description, open) => {
+    await arrive("commission_change", "provider", lang, PUSH);
+    expect(toast).toHaveBeenCalledExactlyOnceWith(title, {
+      description,
+      action: expect.objectContaining({ label: open }),
+    });
+  });
+
+  it.each(["consumer", "admin"])("does nothing for a %s", async (role) => {
+    const invalidate = await arrive("commission_change", role, "en", PUSH);
+    expect(invalidate).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("does nothing without a service id", async () => {
+    const { service_id: _, ...noService } = PUSH;
+    const invalidate = await arrive("commission_change", "provider", "en", noService);
+    expect(invalidate).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it("on a tap: refreshes, then opens the service's Prices panel on the option", async () => {
+    auth.user = { role: "provider" };
+    const client = new QueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    renderHook(() => useNotificationRouter(), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client }, children),
+    });
+    await waitFor(() => expect(listeners.pushNotificationActionPerformed).toBeDefined());
+    listeners.pushNotificationActionPerformed({ notification: { data: PUSH } });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["providerPricing"] });
+    expect(navigate).toHaveBeenCalledExactlyOnceWith({ to: TARGET });
+  });
+});

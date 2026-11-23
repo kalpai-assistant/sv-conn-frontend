@@ -3051,12 +3051,62 @@ export interface paths {
         /**
          * Update Variant
          * @description Change label, price, commission percent, duration or sort order. A price
-         *     on its own keeps the commission percent. Raising the percent is a 409
-         *     ``COMMISSION_INCREASE_NEEDS_NOTICE`` unless ``confirm: true``. SP prices and
-         *     existing bookings are not touched. A save that changes nothing is a 200 with
-         *     no audit row.
+         *     on its own keeps the commission percent. Raising the percent is always a 409
+         *     ``COMMISSION_INCREASE_NEEDS_NOTICE``: schedule it with ``POST
+         *     .../commission-changes`` (SVC-486; ``confirm`` is ignored). A lower percent
+         *     applies at once and the SPs pricing the option get a notice. Any change of
+         *     percent while a change is scheduled is a 409 ``COMMISSION_CHANGE_SCHEDULED``.
+         *     SP prices and existing bookings are not touched. A save that changes nothing
+         *     is a 200 with no audit row.
          */
         patch: operations["update_variant_api_v1_admin_catalog_services__service_id__variants__variant_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/services/{service_id}/variants/{variant_id}/commission-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Schedule Commission Change
+         * @description Schedule a new commission percent from ``effective_from`` (00:00 IST)
+         *     (SVC-486). An increase needs that date at least 14 days after today (IST),
+         *     else 422 ``CATALOG_INVALID`` on ``effective_from``. A decrease dated today
+         *     applies at once. 409 ``COMMISSION_CHANGE_SCHEDULED`` while another one is
+         *     scheduled. Every SP with an active price on the option gets a push, an
+         *     email (when they have one) and an SMS. Each one is recorded.
+         */
+        post: operations["schedule_commission_change_api_v1_admin_catalog_services__service_id__variants__variant_id__commission_changes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/services/{service_id}/variants/{variant_id}/commission-changes/{change_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Commission Change
+         * @description Cancel a scheduled commission change (SVC-486). 409
+         *     ``COMMISSION_CHANGE_NOT_SCHEDULED`` once it has applied or been cancelled.
+         *     The SPs who were told get a cancellation push and email.
+         */
+        post: operations["cancel_commission_change_api_v1_admin_catalog_services__service_id__variants__variant_id__commission_changes__change_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/admin/catalog/services/{service_id}/variants/{variant_id}/deactivate": {
@@ -3901,6 +3951,60 @@ export interface components {
             icon_key?: string | null;
         };
         /**
+         * AdminCommissionChange
+         * @description One commission change. ``status`` is ``scheduled``, ``applied`` or
+         *     ``cancelled``. ``old_pct`` is the percent when it was scheduled. Once it is
+         *     applied, the amounts it set are what the variant row shows.
+         */
+        AdminCommissionChange: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Service Variant Id
+             * Format: uuid
+             */
+            service_variant_id: string;
+            /** Old Pct */
+            old_pct: number;
+            /** New Pct */
+            new_pct: number;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Status */
+            status: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Applied At */
+            applied_at: string | null;
+            /** Cancelled At */
+            cancelled_at: string | null;
+        };
+        /**
+         * AdminCommissionChangeCreate
+         * @description Schedule a change of a variant's commission percent (SVC-486). It takes
+         *     effect at 00:00 IST on ``effective_from``. An increase needs that date at
+         *     least 14 days after today (IST). A decrease can be dated today, and then it
+         *     applies at once.
+         */
+        AdminCommissionChangeCreate: {
+            /** New Pct */
+            new_pct: number | string;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+        };
+        /**
          * AdminCouponCreate
          * @description A new global coupon. ``code`` is trimmed and uppercased, then must match
          *     ``^[A-Z0-9]{3,20}$``. ``valid_from`` defaults to now. A datetime with no
@@ -4378,6 +4482,30 @@ export interface components {
             challenge_token: string;
         };
         /**
+         * AdminPendingCommissionChange
+         * @description A commission change scheduled on a variant and not yet applied (SVC-486).
+         *     It takes effect at 00:00 IST on ``effective_from``.
+         */
+        AdminPendingCommissionChange: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** New Pct */
+            new_pct: number;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
          * AdminProDetail
          * @description ``GET /admin/pros/{id}``: the Pro, their owner, and (SVC-427) their
          *     rating and completed jobs, by the SVC-396 trust-card rules: reviews and
@@ -4759,6 +4887,7 @@ export interface components {
             commission_pct: number;
             /** Gst Percent */
             gst_percent: number;
+            pending_commission_change: components["schemas"]["AdminPendingCommissionChange"] | null;
         };
         /** AdminSessionResponse */
         AdminSessionResponse: {
@@ -4872,9 +5001,15 @@ export interface components {
         };
         /**
          * AdminVariantUpdate
-         * @description Any subset of the editable fields; ``null`` is refused. Raising
-         *     ``commission_pct`` above the current (rounded) percent needs
-         *     ``confirm: true``, after the 14 days' notice to pros.
+         * @description Any subset of the editable fields; ``null`` is refused.
+         *
+         *     SVC-486: raising ``commission_pct`` above the current (rounded) percent is
+         *     always a 409 ``COMMISSION_INCREASE_NEEDS_NOTICE``. An increase is scheduled
+         *     instead (``POST .../commission-changes``). A lower percent still applies at
+         *     once, and is recorded and notified like a scheduled change. Any change of
+         *     percent while a change is scheduled is a 409 ``COMMISSION_CHANGE_SCHEDULED``.
+         *     ``confirm`` is deprecated and ignored. It is still accepted so an older
+         *     console that sends it doesn't get a 422.
          */
         AdminVariantUpdate: {
             /** Label */
@@ -7829,6 +7964,7 @@ export interface components {
             commission_pct: number;
             /** Gst Pct */
             gst_pct: number;
+            upcoming_commission: components["schemas"]["UpcomingCommission"] | null;
         };
         /** SpVariantPricingUpdateResponse */
         SpVariantPricingUpdateResponse: {
@@ -7855,6 +7991,7 @@ export interface components {
             commission_pct: number;
             /** Gst Pct */
             gst_pct: number;
+            upcoming_commission: components["schemas"]["UpcomingCommission"] | null;
             /**
              * Service Id
              * Format: uuid
@@ -8149,6 +8286,21 @@ export interface components {
             is_new_user: boolean;
         };
         /**
+         * UpcomingCommission
+         * @description A commission change scheduled on the variant (SVC-486). From 00:00 IST
+         *     on ``effective_from``, the platform takes ``new_pct`` percent of this
+         *     option's price, and ``take_home`` changes with it.
+         */
+        UpcomingCommission: {
+            /** New Pct */
+            new_pct: number;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+        };
+        /**
          * UpdateAddressRequest
          * @description Edit a saved address (SVC-277). Every field optional — this is a PATCH.
          *
@@ -8215,7 +8367,13 @@ export interface components {
              */
             language: "en" | "hi" | "mr";
         };
-        /** UpdateProfileRequest */
+        /**
+         * UpdateProfileRequest
+         * @description ``email`` (SVC-486): left out or null leaves it as it is. An empty string
+         *     clears it (saved as NULL). Otherwise it is trimmed, checked for a simple
+         *     ``name@domain.tld`` shape (a bad one is a 422), and saved lower-cased.
+         *     Commission-change notices go to it.
+         */
         UpdateProfileRequest: {
             /** Name */
             name?: string | null;
@@ -13193,6 +13351,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminServiceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_commission_change_api_v1_admin_catalog_services__service_id__variants__variant_id__commission_changes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+                variant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCommissionChangeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCommissionChange"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_commission_change_api_v1_admin_catalog_services__service_id__variants__variant_id__commission_changes__change_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service_id: string;
+                variant_id: string;
+                change_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCommissionChange"];
                 };
             };
             /** @description Validation Error */

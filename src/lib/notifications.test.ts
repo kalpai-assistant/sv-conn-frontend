@@ -126,6 +126,28 @@ describe("variant_added (SVC-487), which has no booking", () => {
   });
 });
 
+describe("commission_change (SVC-486), which has no booking", () => {
+  const SERVICE_ID = "5e1c0000-0000-0000-0000-000000000000";
+  const VARIANT_ID = "7a110000-0000-0000-0000-000000000000";
+  const changed = (data: { service_id?: string; variant_id?: string }, role: ViewerRole) =>
+    routeForPayload({ event: "commission_change", change_id: "cc1", ...data }, role);
+
+  it("opens the SP's Prices panel for that service, on the option", () => {
+    expect(changed({ service_id: SERVICE_ID, variant_id: VARIANT_ID }, "provider")).toBe(
+      `/provider/profile?pricing=${SERVICE_ID}&variant=${VARIANT_ID}`,
+    );
+  });
+
+  it("goes nowhere without a service id", () => {
+    expect(changed({ variant_id: VARIANT_ID }, "provider")).toBeNull();
+  });
+
+  // A team Pro's account is consumer-role, and Pros don't set prices.
+  it.each(["consumer", "admin", null] as const)("goes nowhere for %s", (role) => {
+    expect(changed({ service_id: SERVICE_ID, variant_id: VARIANT_ID }, role)).toBeNull();
+  });
+});
+
 describe("lifecycle events", () => {
   it.each(LIFECYCLE)("%s opens the provider's job screen", (event) => {
     expect(route(event, "provider")).toBe(`/provider/bookings/${ID}`);
