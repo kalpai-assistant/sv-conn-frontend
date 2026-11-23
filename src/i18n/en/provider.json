@@ -27,6 +27,7 @@
     "eligibleTitle": "You're set up to receive jobs",
     "ineligibleTitle": "You won't receive job requests yet",
     "eligibleDetail": "New requests matching your services will appear here.",
+    "accountHealthOk": "Account health ✓",
     "ineligibleDetail": "All three of these are needed before we can send you a job."
   },
   "checklist": {

@@ -4,6 +4,7 @@ import {
   AlertCircle,
   BellOff,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Circle,
   Clock,
@@ -273,69 +274,140 @@ function ProviderHomePage() {
           Hidden only when they are eligible *and* busy. An ineligible provider
           keeps it whatever their job count: it is the one thing on screen
           explaining why no more work is coming, and that matters most to
-          someone who somehow holds a job while unverified. */}
-      {!(eligible && liveJobs.length > 0) && (
-        <div className="mt-6">
-          <div
-            className={`flex items-start gap-3 rounded-lg border p-3 ${
-              eligible
-                ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40"
-                : "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40"
-            }`}
-          >
-            {eligible ? (
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            ) : (
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
-            )}
-            <div className="text-sm">
-              <p
-                className={`font-medium ${
-                  eligible
-                    ? "text-emerald-900 dark:text-emerald-100"
-                    : "text-amber-900 dark:text-amber-100"
-                }`}
-              >
-                {eligible ? t("home.eligibleTitle") : t("home.ineligibleTitle")}
-              </p>
-              <p
-                className={
-                  eligible
-                    ? "text-emerald-800 dark:text-emerald-200"
-                    : "text-amber-800 dark:text-amber-200"
-                }
-              >
-                {eligible ? t("home.eligibleDetail") : t("home.ineligibleDetail")}
-              </p>
-            </div>
-          </div>
+          someone who somehow holds a job while unverified.
 
-          <ul className="mt-3 space-y-3">
-            {checklist.map((item) => (
-              <li key={item.id} className="flex items-start gap-3">
-                <StatusIcon done={item.done} status={profile?.kyc_status} id={item.id} />
-                <div className="min-w-0 text-sm">
-                  <p className="font-medium text-foreground">{item.label}</p>
-                  <p className="text-muted-foreground">{item.detail}</p>
-                  {/* Typed by a reviewer, up to 500 characters: an unbroken string
+          SVC-491: when the provider is eligible and idle (the dominant idle
+          state on Home), collapse the three-row readiness list to a single
+          "Account health ✓" row with a chevron — see
+          {@link AccountHealthCollapsible}. Three green ticks every visit
+          does not earn its screen share, and an idle-eligible provider
+          staring at it reads it as "you did everything right but no
+          customers". The row stays expandable for the rare case where a
+          provider wants to re-verify what's set up. Ineligible path keeps
+          the full list, unchanged. */}
+      {!(eligible && liveJobs.length > 0) && eligible ? (
+        <AccountHealthCollapsible checklist={checklist} kycStatus={profile?.kyc_status} />
+      ) : (
+        !(eligible && liveJobs.length > 0) && (
+          <div className="mt-6">
+            <div
+              className={`flex items-start gap-3 rounded-lg border p-3 ${
+                eligible
+                  ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40"
+                  : "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40"
+              }`}
+            >
+              {eligible ? (
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+              )}
+              <div className="text-sm">
+                <p
+                  className={`font-medium ${
+                    eligible
+                      ? "text-emerald-900 dark:text-emerald-100"
+                      : "text-amber-900 dark:text-amber-100"
+                  }`}
+                >
+                  {eligible ? t("home.eligibleTitle") : t("home.ineligibleTitle")}
+                </p>
+                <p
+                  className={
+                    eligible
+                      ? "text-emerald-800 dark:text-emerald-200"
+                      : "text-amber-800 dark:text-amber-200"
+                  }
+                >
+                  {eligible ? t("home.eligibleDetail") : t("home.ineligibleDetail")}
+                </p>
+              </div>
+            </div>
+
+            <ul className="mt-3 space-y-3">
+              {checklist.map((item) => (
+                <li key={item.id} className="flex items-start gap-3">
+                  <StatusIcon done={item.done} status={profile?.kyc_status} id={item.id} />
+                  <div className="min-w-0 text-sm">
+                    <p className="font-medium text-foreground">{item.label}</p>
+                    <p className="text-muted-foreground">{item.detail}</p>
+                    {/* Typed by a reviewer, up to 500 characters: an unbroken string
                       must wrap rather than push the page sideways. */}
-                  {item.reason && (
-                    <p className="mt-1 text-foreground [overflow-wrap:anywhere]">{item.reason}</p>
-                  )}
-                  {item.fix && (
-                    <Link
-                      to={item.fix.to}
-                      className="mt-1 inline-flex items-center gap-0.5 font-medium text-primary"
-                    >
-                      {item.fix.label}
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+                    {item.reason && (
+                      <p className="mt-1 text-foreground [overflow-wrap:anywhere]">{item.reason}</p>
+                    )}
+                    {item.fix && (
+                      <Link
+                        to={item.fix.to}
+                        className="mt-1 inline-flex items-center gap-0.5 font-medium text-primary"
+                      >
+                        {item.fix.label}
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+// SVC-491 — when an eligible provider's screen is otherwise all green,
+// the three-row readiness list reads as noise. Collapse to a single row
+// with a chevron that expands the full list on tap. The row's own
+// CheckCircle2 matches the pattern Home already uses for "done" items,
+// so a provider recognises the state at a glance. Deliberately not a
+// Radix Collapsible: a 15-line `useState` + conditional render is less
+// machinery for the same affordance, and the row is a native <button>
+// so screen readers announce aria-expanded without extra wiring.
+function AccountHealthCollapsible({
+  checklist,
+  kycStatus,
+}: {
+  checklist: Readiness[];
+  kycStatus: KycStatus | undefined;
+}) {
+  const [open, setOpen] = useState(false);
+  const { t } = useT("provider");
+
+  return (
+    <div className="mt-6">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-left transition-colors hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40"
+      >
+        <span className="flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+            {t("home.accountHealthOk")}
+          </span>
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-emerald-700 transition-transform dark:text-emerald-300 ${
+            open ? "rotate-180" : ""
+          }`}
+          aria-hidden
+        />
+      </button>
+
+      {open && (
+        <ul className="mt-3 space-y-3">
+          {checklist.map((item) => (
+            <li key={item.id} className="flex items-start gap-3">
+              <StatusIcon done={item.done} status={kycStatus} id={item.id} />
+              <div className="min-w-0 text-sm">
+                <p className="font-medium text-foreground">{item.label}</p>
+                <p className="text-muted-foreground">{item.detail}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
