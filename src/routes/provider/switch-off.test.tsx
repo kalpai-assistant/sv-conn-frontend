@@ -38,7 +38,13 @@ vi.mock("@/lib/auth-context", () => ({
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn() }) }));
 vi.mock("framer-motion", () => ({
   AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
-  motion: { div: ({ children }: { children: ReactNode }) => <div>{children}</div> },
+  motion: {
+    div: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    // SVC-491: OnlineToggleCta uses `motion.span` for the glow halo.
+    span: ({ children }: { children: ReactNode }) => <span>{children}</span>,
+  },
+  // SVC-491: OnlineToggleCta reads `useReducedMotion()` to decide pulse vs static.
+  useReducedMotion: () => false,
 }));
 vi.mock("@/components/AccountAvatar", () => ({ AccountAvatar: () => null }));
 vi.mock("@/components/BackButton", () => ({ BackButton: () => null }));
@@ -141,7 +147,10 @@ afterEach(() => resetStoredLanguageForTests());
 
 describe("i18n_enabled false: the SP's screens are today's English", () => {
   it.each([
-    ["/provider", HomeRoute, "Provider Home"],
+    // SVC-491: provider Home's English anchor is now the hero greeting
+    // ("Welcome back"), not the pre-Phase-2 "Provider Home" h1 that was
+    // deleted with ProviderHeader.
+    ["/provider", HomeRoute, "Welcome back"],
     ["/provider/earnings", EarningsRoute, "Total earned"],
     // SVC-490: onboarding opens on step 0 (welcome hero) for a fresh
     // install; its heading is the English check for i18n_enabled=false.
@@ -159,6 +168,7 @@ describe("i18n_enabled false: the SP's screens are today's English", () => {
   it("and the same screens do switch once it is on (the control)", async () => {
     auth.user.i18n_enabled = true;
     renderOn("/provider", page(HomeRoute));
-    expect(await screen.findByText("प्रोवाइडर होम")).toBeInTheDocument();
+    // SVC-491: Hindi anchor follows the hero greeting swap.
+    expect(await screen.findByText("वापसी पर स्वागत है")).toBeInTheDocument();
   });
 });
