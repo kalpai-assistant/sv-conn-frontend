@@ -16,7 +16,7 @@ import {
 import { MarketPanel } from "@/components/provider/MarketPanel";
 import { useSetVariantPrice, type API_SpVariantPricing } from "@/hooks/useApi";
 import { errorText } from "@/i18n/errors";
-import { formatPaise, formatRupees } from "@/i18n/format";
+import { formatDate, formatNumber, formatPaise, formatRupees } from "@/i18n/format";
 import { useT } from "@/i18n/LanguageProvider";
 import type { Translate } from "@/i18n";
 import {
@@ -200,6 +200,21 @@ export function VariantPriceRow({ variant }: { variant: API_SpVariantPricing }) 
             {t("services.pricing.youReceive", { amount: receive.amount })}
           </span>{" "}
           {t("services.pricing.breakdown", { commission: receive.commission, gst: receive.gst })}
+        </p>
+      )}
+
+      {/* SVC-486: a commission change scheduled on this option. effective_from
+          is a date, not a moment: formatted in UTC so it can't shift a day. */}
+      {variant.upcoming_commission && (
+        <p className="mt-1 text-xs font-medium text-primary">
+          {t("services.pricing.upcomingCommission", {
+            pct: formatNumber(variant.upcoming_commission.new_pct, lang),
+            date: formatDate(
+              variant.upcoming_commission.effective_from,
+              { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" },
+              lang,
+            ),
+          })}
         </p>
       )}
 

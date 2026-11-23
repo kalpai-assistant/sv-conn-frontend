@@ -109,6 +109,8 @@
     "kycRejectedTitle": "आपके दस्तावेज़ नामंज़ूर हो गए",
     "kycRejectedBody": "कारण देखें और इन्हें फिर से जमा करें।",
     "variantAddedTitle": "नए विकल्प का दाम तय करें",
-    "variantAddedBody": "अपना दाम तय करें ताकि ग्राहक इसे बुक कर सकें।"
+    "variantAddedBody": "अपना दाम तय करें ताकि ग्राहक इसे बुक कर सकें।",
+    "commissionChangeTitle": "कमीशन में बदलाव",
+    "commissionChangeBody": "आपके एक विकल्प के कमीशन में बदलाव हुआ है। देखने के लिए अपने दाम खोलें।"
   }
 }

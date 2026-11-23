@@ -301,3 +301,30 @@ describe("MarketPanel (SVC-413)", () => {
     expect(marketCalls()).toHaveLength(2);
   });
 });
+
+// Lives here because this file already renders VariantPriceRow from the SP's
+// real pricing query.
+describe("the upcoming commission line (SVC-486)", () => {
+  // en formats in the device's locale, so either order of day and month.
+  const shown = (pct: string, day: string, month: string, year: string) =>
+    new RegExp(
+      `^Commission changes to ${pct}% from (${day} ${month} ${year}|${month} ${day}, ${year})$`,
+    );
+
+  it("shows nothing while no change is scheduled", async () => {
+    await renderRow();
+    expect(screen.queryByText(/Commission changes to/)).toBeNull();
+  });
+
+  it("says the new percent and the date it starts", async () => {
+    row = variant({ upcoming_commission: { new_pct: 25, effective_from: "2026-12-06" } });
+    await renderRow();
+    expect(screen.getByText(shown("25", "6", "Dec", "2026"))).toBeInTheDocument();
+  });
+
+  it("keeps a date-only value on its day, the 1st included, and shows 2 dp", async () => {
+    row = variant({ upcoming_commission: { new_pct: 30.04, effective_from: "2027-01-01" } });
+    await renderRow();
+    expect(screen.getByText(shown("30.04", "1", "Jan", "2027"))).toBeInTheDocument();
+  });
+});

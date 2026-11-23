@@ -49,7 +49,8 @@ export type NotificationEvent =
   | "unassigned" // the SP re-picked, released or gave the job back
   | "kyc_rejected" // to an SP or a team Pro: an admin rejected their documents (SVC-444)
   | "service_available" // to a consumer: a service they asked to be told about is available (SVC-484)
-  | "variant_added"; // to an SP: ops added an option to a service they offer, set its price (SVC-487)
+  | "variant_added" // to an SP: ops added an option to a service they offer, set its price (SVC-487)
+  | "commission_change"; // to an SP: the commission on an option they price is changing (SVC-486)
 
 export interface NotificationPayload {
   event: NotificationEvent | string;
@@ -60,7 +61,11 @@ export interface NotificationPayload {
   service_id?: string;
   count?: string;
   // SVC-487 variant_added: the new option itself, whose row is scrolled to.
+  // SVC-486 commission_change: the option whose commission changes.
   variant_id?: string;
+  // SVC-486 commission_change: the scheduled change (or its cancellation). The
+  // data carries no service name or percent, so nothing shown can quote them.
+  change_id?: string;
   // Future fields land here; unknown keys are ignored.
 }
 
@@ -116,7 +121,11 @@ export function routeForPayload(data: NotificationPayload, role: ViewerRole): st
   // `pricing` search param, on the new option's row from `variant`. Prices are
   // per SP, so never a team Pro (whose account is consumer-role); without a
   // service there is nothing to open.
-  if (event === "variant_added") {
+  //
+  // A commission change on an option the SP prices (SVC-486, scheduled,
+  // applied at once, or cancelled) opens the same panel on that row, where
+  // the upcoming line says what changes and when.
+  if (event === "variant_added" || event === "commission_change") {
     if (role !== "provider" || !data.service_id) return null;
     const params = new URLSearchParams({ pricing: data.service_id });
     if (data.variant_id) params.set("variant", data.variant_id);
@@ -225,11 +234,20 @@ function refreshAfterVariantAdded(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: PROVIDER_PRICING_KEY });
 }
 
+/**
+ * A commission change on an option the SP prices (SVC-486). The pricing list
+ * carries upcoming_commission and the take-home, so it is refetched the same way.
+ */
+function refreshAfterCommissionChange(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: PROVIDER_PRICING_KEY });
+}
+
 /** The per-event refresh a push tap does before routing. */
 function refreshForPushTap(data: NotificationPayload, queryClient: QueryClient): void {
   if (data.event === "kyc_rejected") refreshAfterKycRejected(queryClient);
   if (data.event === "service_available") refreshAfterServiceAvailable(queryClient);
   if (data.event === "variant_added") refreshAfterVariantAdded(queryClient);
+  if (data.event === "commission_change") refreshAfterCommissionChange(queryClient);
 }
 
 /**
@@ -425,6 +443,20 @@ export function useNotificationRouter(): void {
             refreshAfterVariantAdded(queryClient);
             toast(t("pushToast.variantAddedTitle"), {
               description: t("pushToast.variantAddedBody"),
+              action: { label: t("pushToast.open"), onClick: () => navigate({ to: target }) },
+            });
+            return;
+          }
+          // A commission change with the app open (SVC-486). Offered, like
+          // "variant_added". The data has no service name or percent, so the
+          // body is generic; the Prices panel shows the detail.
+          // Neutral on purpose: the data has no kind, so a scheduled change, a decrease applied today and a cancellation look the same.
+          if (data.event === "commission_change") {
+            const target = routeForPayload(data, role);
+            if (!target) return;
+            refreshAfterCommissionChange(queryClient);
+            toast(t("pushToast.commissionChangeTitle"), {
+              description: t("pushToast.commissionChangeBody"),
               action: { label: t("pushToast.open"), onClick: () => navigate({ to: target }) },
             });
             return;

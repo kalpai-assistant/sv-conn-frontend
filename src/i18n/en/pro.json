@@ -109,6 +109,8 @@
     "kycRejectedTitle": "Your documents were rejected",
     "kycRejectedBody": "See why and submit them again.",
     "variantAddedTitle": "New option to price",
-    "variantAddedBody": "Set your price so customers can book it."
+    "variantAddedBody": "Set your price so customers can book it.",
+    "commissionChangeTitle": "Commission update",
+    "commissionChangeBody": "The commission on one of your options has an update. Open your prices to see it."
   }
 }
