@@ -12,7 +12,7 @@
  * push is unavailable, and that it names the right remedy for the right
  * platform. Before SVC-255 it returned null and the provider saw nothing.
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -41,6 +41,7 @@ vi.mock("sonner", () => ({
 }));
 
 import { NotificationsRow } from "@/components/NotificationsRow";
+import { runBackInterceptors } from "@/lib/back-interceptor";
 
 /** Defaults to desktop; individual tests override for the iOS cases. */
 function platform(over: Partial<ReturnType<typeof basePlatform>> = {}) {
@@ -211,6 +212,28 @@ describe("turning notifications off (SVC-277)", () => {
     await user.click(await screen.findByRole("button", { name: /notifications/i }));
     await user.click(await screen.findByRole("button", { name: /keep them on/i }));
 
+    expect(disablePushNotifications).not.toHaveBeenCalled();
+    expect(await screen.findByText("On")).toBeInTheDocument();
+  });
+
+  it("the Android back button closes the dialog and leaves notifications on (SVC-488)", async () => {
+    // Back presses the dialog's Cancel. Before SVC-488 the Cancel was "Turn
+    // off", so back would have silently turned push off.
+    getPushPermission.mockResolvedValue("granted");
+    platform({ platform: "android" });
+    const user = userEvent.setup();
+
+    render(<NotificationsRow />);
+    await user.click(await screen.findByRole("button", { name: /notifications/i }));
+    await screen.findByRole("alertdialog");
+
+    let handled = false;
+    act(() => {
+      handled = runBackInterceptors();
+    });
+
+    expect(handled).toBe(true);
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
     expect(disablePushNotifications).not.toHaveBeenCalled();
     expect(await screen.findByText("On")).toBeInTheDocument();
   });
