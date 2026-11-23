@@ -36,6 +36,7 @@ function variant(over: Partial<API_SpVariantPricing> = {}): API_SpVariantPricing
     take_home: null,
     commission_pct: 30,
     gst_pct: 18,
+    upcoming_commission: null,
     ...over,
   };
 }

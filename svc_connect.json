@@ -7907,7 +7907,7 @@
           "Admin"
         ],
         "summary": "Update Variant",
-        "description": "Change label, price, commission percent, duration or sort order. A price\non its own keeps the commission percent. Raising the percent is a 409\n``COMMISSION_INCREASE_NEEDS_NOTICE`` unless ``confirm: true``. SP prices and\nexisting bookings are not touched. A save that changes nothing is a 200 with\nno audit row.",
+        "description": "Change label, price, commission percent, duration or sort order. A price\non its own keeps the commission percent. Raising the percent is always a 409\n``COMMISSION_INCREASE_NEEDS_NOTICE``: schedule it with ``POST\n.../commission-changes`` (SVC-486; ``confirm`` is ignored). A lower percent\napplies at once and the SPs pricing the option get a notice. Any change of\npercent while a change is scheduled is a 409 ``COMMISSION_CHANGE_SCHEDULED``.\nSP prices and existing bookings are not touched. A save that changes nothing\nis a 200 with no audit row.",
         "operationId": "update_variant_api_v1_admin_catalog_services__service_id__variants__variant_id__patch",
         "security": [
           {
@@ -7953,6 +7953,144 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AdminServiceDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/catalog/services/{service_id}/variants/{variant_id}/commission-changes": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Schedule Commission Change",
+        "description": "Schedule a new commission percent from ``effective_from`` (00:00 IST)\n(SVC-486). An increase needs that date at least 14 days after today (IST),\nelse 422 ``CATALOG_INVALID`` on ``effective_from``. A decrease dated today\napplies at once. 409 ``COMMISSION_CHANGE_SCHEDULED`` while another one is\nscheduled. Every SP with an active price on the option gets a push, an\nemail (when they have one) and an SMS. Each one is recorded.",
+        "operationId": "schedule_commission_change_api_v1_admin_catalog_services__service_id__variants__variant_id__commission_changes_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Service Id"
+            }
+          },
+          {
+            "name": "variant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Variant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCommissionChangeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCommissionChange"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/catalog/services/{service_id}/variants/{variant_id}/commission-changes/{change_id}/cancel": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Cancel Commission Change",
+        "description": "Cancel a scheduled commission change (SVC-486). 409\n``COMMISSION_CHANGE_NOT_SCHEDULED`` once it has applied or been cancelled.\nThe SPs who were told get a cancellation push and email.",
+        "operationId": "cancel_commission_change_api_v1_admin_catalog_services__service_id__variants__variant_id__commission_changes__change_id__cancel_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Service Id"
+            }
+          },
+          {
+            "name": "variant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Variant Id"
+            }
+          },
+          {
+            "name": "change_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Change Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCommissionChange"
                 }
               }
             }
@@ -10182,6 +10320,108 @@
         "title": "AdminCategoryUpdate",
         "description": "Any subset. ``parent_id: null`` makes it an L1 and ``icon_key: null``\nclears the icon; ``null`` is refused for ``name`` and ``sort_order``."
       },
+      "AdminCommissionChange": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "service_variant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Service Variant Id"
+          },
+          "old_pct": {
+            "type": "number",
+            "title": "Old Pct"
+          },
+          "new_pct": {
+            "type": "number",
+            "title": "New Pct"
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Effective From"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "applied_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At"
+          },
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "service_variant_id",
+          "old_pct",
+          "new_pct",
+          "effective_from",
+          "status",
+          "created_at",
+          "applied_at",
+          "cancelled_at"
+        ],
+        "title": "AdminCommissionChange",
+        "description": "One commission change. ``status`` is ``scheduled``, ``applied`` or\n``cancelled``. ``old_pct`` is the percent when it was scheduled. Once it is\napplied, the amounts it set are what the variant row shows."
+      },
+      "AdminCommissionChangeCreate": {
+        "properties": {
+          "new_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "New Pct"
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Effective From"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "new_pct",
+          "effective_from"
+        ],
+        "title": "AdminCommissionChangeCreate",
+        "description": "Schedule a change of a variant's commission percent (SVC-486). It takes\neffect at 00:00 IST on ``effective_from``. An increase needs that date at\nleast 14 days after today (IST). A decrease can be dated today, and then it\napplies at once."
+      },
       "AdminCouponCreate": {
         "properties": {
           "code": {
@@ -11536,6 +11776,38 @@
         ],
         "title": "AdminLoginResponse"
       },
+      "AdminPendingCommissionChange": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "new_pct": {
+            "type": "number",
+            "title": "New Pct"
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Effective From"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "new_pct",
+          "effective_from",
+          "created_at"
+        ],
+        "title": "AdminPendingCommissionChange",
+        "description": "A commission change scheduled on a variant and not yet applied (SVC-486).\nIt takes effect at 00:00 IST on ``effective_from``."
+      },
       "AdminProDetail": {
         "properties": {
           "id": {
@@ -12418,6 +12690,16 @@
           "gst_percent": {
             "type": "number",
             "title": "Gst Percent"
+          },
+          "pending_commission_change": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminPendingCommissionChange"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -12432,7 +12714,8 @@
           "platform_commission",
           "provider_payout",
           "commission_pct",
-          "gst_percent"
+          "gst_percent",
+          "pending_commission_change"
         ],
         "title": "AdminServiceVariantRow",
         "description": "One variant, active or not, edited through ``/variants`` (SVC-481).\n\n``platform_commission + provider_payout == base_price`` always.\n``commission_pct`` is the commission's share of the price rounded half up to\n2 dp, the value the editor shows and a PATCH may send back unchanged.\n``gst_percent`` is the customer's GST and is read-only."
@@ -12762,7 +13045,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "AdminVariantUpdate",
-        "description": "Any subset of the editable fields; ``null`` is refused. Raising\n``commission_pct`` above the current (rounded) percent needs\n``confirm: true``, after the 14 days' notice to pros."
+        "description": "Any subset of the editable fields; ``null`` is refused.\n\nSVC-486: raising ``commission_pct`` above the current (rounded) percent is\nalways a 409 ``COMMISSION_INCREASE_NEEDS_NOTICE``. An increase is scheduled\ninstead (``POST .../commission-changes``). A lower percent still applies at\nonce, and is recorded and notified like a scheduled change. Any change of\npercent while a change is scheduled is a 409 ``COMMISSION_CHANGE_SCHEDULED``.\n``confirm`` is deprecated and ignored. It is still accepted so an older\nconsole that sends it doesn't get a 422."
       },
       "AreaStats": {
         "properties": {
@@ -19784,6 +20067,16 @@
           "gst_pct": {
             "type": "number",
             "title": "Gst Pct"
+          },
+          "upcoming_commission": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpcomingCommission"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -19798,7 +20091,8 @@
           "outside_recommended_range",
           "take_home",
           "commission_pct",
-          "gst_pct"
+          "gst_pct",
+          "upcoming_commission"
         ],
         "title": "SpVariantPricing"
       },
@@ -19875,6 +20169,16 @@
             "type": "number",
             "title": "Gst Pct"
           },
+          "upcoming_commission": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpcomingCommission"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "service_id": {
             "type": "string",
             "format": "uuid",
@@ -19894,6 +20198,7 @@
           "take_home",
           "commission_pct",
           "gst_pct",
+          "upcoming_commission",
           "service_id"
         ],
         "title": "SpVariantPricingUpdateResponse"
@@ -20543,6 +20848,26 @@
         ],
         "title": "TokenResponse"
       },
+      "UpcomingCommission": {
+        "properties": {
+          "new_pct": {
+            "type": "number",
+            "title": "New Pct"
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Effective From"
+          }
+        },
+        "type": "object",
+        "required": [
+          "new_pct",
+          "effective_from"
+        ],
+        "title": "UpcomingCommission",
+        "description": "A commission change scheduled on the variant (SVC-486). From 00:00 IST\non ``effective_from``, the platform takes ``new_pct`` percent of this\noption's price, and ``take_home`` changes with it."
+      },
       "UpdateAddressRequest": {
         "properties": {
           "label": {
@@ -20765,7 +21090,8 @@
           }
         },
         "type": "object",
-        "title": "UpdateProfileRequest"
+        "title": "UpdateProfileRequest",
+        "description": "``email`` (SVC-486): left out or null leaves it as it is. An empty string\nclears it (saved as NULL). Otherwise it is trimmed, checked for a simple\n``name@domain.tld`` shape (a bad one is a 422), and saved lower-cased.\nCommission-change notices go to it."
       },
       "UpdateServiceRequest": {
         "properties": {
