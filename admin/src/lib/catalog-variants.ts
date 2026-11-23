@@ -14,8 +14,8 @@
  * - Edit sends only what changed, as the service form does.
  * - Customer GST is read-only and never sent.
  */
-import { ApiError } from "@/lib/api";
 import { codePointLength } from "@/lib/markdown";
+import { addDays, formatEffectiveDate } from "@/lib/ist-date";
 import { parseMoney, parseWhole } from "@/lib/number-input";
 import {
   DURATION,
@@ -23,6 +23,7 @@ import {
   SORT_ORDER_MAX,
   type Check,
   type FormErrors,
+  type PendingCommissionChange,
   type ServiceVariantRow,
   type VariantCreateBody,
   type VariantPatch,
@@ -241,7 +242,7 @@ export function previewSplit(form: VariantForm, baseline?: ServiceVariantRow): S
   return repricedSplit(baseline, price.value);
 }
 
-// --- The confirm steps -----------------------------------------------------------
+// --- The price-impact step -----------------------------------------------------------
 
 const pros = (count: number) => `${count} ${count === 1 ? "pro" : "pros"}`;
 
@@ -263,25 +264,50 @@ export function impactLines(impact: VariantPriceImpact): string[] {
   return lines;
 }
 
-export interface NoticeRequired {
-  message: string;
-  oldPct: number | null;
-  newPct: number | null;
-  noticeDays: number;
+// --- Scheduled commission changes (SVC-486) ------------------------------------
+// An existing variant's percent never goes in the PATCH: it is scheduled with
+// POST .../commission-changes, from an "effective from" date (00:00 IST).
+
+/** Days of notice an increase needs: the backend's NOTICE_DAYS. */
+export const INCREASE_NOTICE_DAYS = 14;
+
+export type PctChange = "increase" | "decrease";
+
+/** Whether the typed percent (already 2 dp) raises or lowers the row's, or null. */
+export function pctChange(row: ServiceVariantRow, pct: number): PctChange | null {
+  if (pct === row.commission_pct) return null;
+  return pct > row.commission_pct ? "increase" : "decrease";
 }
 
-const num = (value: unknown) =>
-  typeof value === "number" && Number.isFinite(value) ? value : null;
+/**
+ * The earliest date the change can take effect, and the one the field starts at.
+ * Increase: today + 14 (IST), which the backend allows. Decrease: today, which
+ * applies at once.
+ */
+export function effectiveFromMin(change: PctChange, today: string): string {
+  return change === "increase" ? addDays(today, INCREASE_NOTICE_DAYS) : today;
+}
 
-/** COMMISSION_INCREASE_NEEDS_NOTICE's message and percents, when the refusal is one. */
-export function noticeRequired(err: unknown): NoticeRequired | null {
-  if (!(err instanceof ApiError) || err.code !== "COMMISSION_INCREASE_NEEDS_NOTICE") return null;
-  return {
-    message: err.message || "Give pros at least 14 days' notice before saving",
-    oldPct: num(err.details?.old_pct),
-    newPct: num(err.details?.new_pct),
-    noticeDays: num(err.details?.notice_days) ?? 14,
-  };
+/** The field's error, or null. `value` is the date input's "YYYY-MM-DD". */
+export function checkEffectiveFrom(value: string, change: PctChange, today: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "Pick the date it takes effect.";
+  const min = effectiveFromMin(change, today);
+  if (value >= min) return null;
+  return change === "increase"
+    ? `An increase needs ${INCREASE_NOTICE_DAYS} days' notice: ${formatEffectiveDate(min)} or later.`
+    : `Today (${formatEffectiveDate(min)}) or later.`;
+}
+
+/** The PATCH for an existing variant: everything that changed except the percent. */
+export function withoutPct(patch: VariantPatch): VariantPatch {
+  const rest = { ...patch };
+  delete rest.commission_pct;
+  return rest;
+}
+
+/** "→ 25% from 6 Dec 2026". */
+export function pendingLabel(change: PendingCommissionChange): string {
+  return `→ ${pctLabel(change.new_pct)} from ${formatEffectiveDate(change.effective_from)}`;
 }
 
 /** "30.04%", "35%". */

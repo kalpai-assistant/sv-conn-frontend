@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { ApiError } from "./api";
 import type { ServiceVariantRow } from "./catalog";
 import {
   changedVariantFields,
+  checkEffectiveFrom,
+  effectiveFromMin,
   emptyVariantForm,
   impactLines,
-  noticeRequired,
   parsePct,
+  pctChange,
+  pendingLabel,
+  withoutPct,
   pctLabel,
   previewSplit,
   repricedSplit,
@@ -30,6 +33,7 @@ function row(extra: Partial<ServiceVariantRow> = {}): ServiceVariantRow {
     provider_payout: 559,
     commission_pct: 30.04,
     gst_percent: 18,
+    pending_commission_change: null,
     ...extra,
   };
 }
@@ -237,27 +241,60 @@ describe("the confirm steps", () => {
     ).toBe("No pros have a price on this variant yet.");
   });
 
-  it("reads the 14-day notice refusal", () => {
-    const err = new ApiError(
-      409,
-      "Give pros at least 14 days' notice before saving",
-      "COMMISSION_INCREASE_NEEDS_NOTICE",
-      undefined,
-      { old_pct: 30.04, new_pct: 35, notice_days: 14 },
-    );
-    expect(noticeRequired(err)).toEqual({
-      message: "Give pros at least 14 days' notice before saving",
-      oldPct: 30.04,
-      newPct: 35,
-      noticeDays: 14,
-    });
-    expect(noticeRequired(new ApiError(409, "x", "LAST_ACTIVE_VARIANT"))).toBe(null);
-    expect(noticeRequired(new Error("x"))).toBe(null);
-  });
-
   it("labels percents without trailing zeros", () => {
     expect(pctLabel(30.04)).toBe("30.04%");
     expect(pctLabel(35)).toBe("35%");
     expect(pctLabel(18.5)).toBe("18.5%");
+  });
+});
+
+describe("scheduling a commission change (SVC-486)", () => {
+  const today = "2026-11-23";
+
+  it("reads the direction at 2 dp against the row's percent", () => {
+    expect(pctChange(row(), 30.04)).toBe(null);
+    expect(pctChange(row(), 30.05)).toBe("increase");
+    expect(pctChange(row(), 25)).toBe("decrease");
+  });
+
+  it("an increase starts 14 days out; a decrease today", () => {
+    expect(effectiveFromMin("increase", today)).toBe("2026-12-07");
+    expect(effectiveFromMin("decrease", today)).toBe(today);
+  });
+
+  it("allows today+14 for an increase, not the day before", () => {
+    expect(checkEffectiveFrom("2026-12-07", "increase", today)).toBe(null);
+    expect(checkEffectiveFrom("2026-12-06", "increase", today)).toBe(
+      "An increase needs 14 days' notice: 7 Dec 2026 or later.",
+    );
+  });
+
+  it("allows a decrease today, not yesterday", () => {
+    expect(checkEffectiveFrom(today, "decrease", today)).toBe(null);
+    expect(checkEffectiveFrom("2026-11-22", "decrease", today)).toBe(
+      "Today (23 Nov 2026) or later.",
+    );
+  });
+
+  it("needs a date", () => {
+    expect(checkEffectiveFrom("", "decrease", today)).toBe("Pick the date it takes effect.");
+  });
+
+  it("never PATCHes the percent", () => {
+    expect(withoutPct({ base_price: 849, commission_pct: 35, label: "x" })).toEqual({
+      base_price: 849,
+      label: "x",
+    });
+  });
+
+  it("labels the pending change, the date as sent", () => {
+    expect(
+      pendingLabel({
+        id: "c1",
+        new_pct: 25,
+        effective_from: "2026-12-06",
+        created_at: "2026-11-22T10:00:00Z",
+      }),
+    ).toBe("→ 25% from 6 Dec 2026");
   });
 });
