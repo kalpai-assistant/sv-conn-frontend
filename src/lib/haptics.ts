@@ -66,3 +66,19 @@ export function hapticSuccess(): void {
   if (!Capacitor.isNativePlatform()) return;
   void Haptics.notification({ type: NotificationType.Success }).catch(() => undefined);
 }
+
+/**
+ * Fire the attention-grabbing Warning pattern iOS reserves for "pay
+ * attention to this".
+ *
+ * Added for SVC-492 — the incoming-booking-request card appears with a
+ * short countdown the provider has to beat. The pattern is deliberately
+ * louder than a Light tap and distinct from Success so the user can tell
+ * "offer arrived" from "booking confirmed" through-pocket without looking
+ * at the screen. Only one call site, matching the Success/Medium
+ * discipline: reserved for the one gesture that carries this weight.
+ */
+export function hapticWarning(): void {
+  if (!Capacitor.isNativePlatform()) return;
+  void Haptics.notification({ type: NotificationType.Warning }).catch(() => undefined);
+}

@@ -9,14 +9,15 @@
  * see `src/lib/incoming-request.ts`. All of the fetching, status-code and
  * countdown-seed rules live in `useBookingOffer` — read the header there first.
  */
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Clock, MapPin, Navigation } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { Clock, MapPin, Navigation, Target } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { TeamPicker } from "@/components/provider/TeamPicker";
 import type { TeamPickPro } from "@/hooks/useTeam";
 import { formatRupees } from "@/i18n/format";
+import { hapticWarning } from "@/lib/haptics";
 import { useT } from "@/i18n/LanguageProvider";
 import {
   acceptErrorMessage,
@@ -31,6 +32,17 @@ interface IncomingRequestCardProps {
   bookingId: string;
   /** Called exactly once, with why the card closed. */
   onDismiss: (reason: DismissReason) => void;
+  /**
+   * SVC-492 — "why this job" chip. One short string explaining why the
+   * provider was offered this booking (e.g. "Closest provider · 1.2km",
+   * "Repeat customer", "Preferred service"). Null or undefined falls back
+   * to the generic "Nearest match" placeholder, which is what we ship
+   * today — real match reasons live downstream of Tushar's dispatch
+   * logic (SVC-406/407, hands-off). When the backend eventually ships
+   * `match_reason` on the offer payload, the host passes it through
+   * here and the placeholder disappears.
+   */
+  matchReason?: string | null;
 }
 
 /**
@@ -84,10 +96,40 @@ function formatCountdown(totalSeconds: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCardProps) {
+/**
+ * SVC-492 — the countdown pill escalates as time runs out. Pre-Phase-3
+ * the pill stayed `bg-white/20` the whole window; a provider glancing
+ * had to read the digits to know they were running late. Three tiers:
+ *
+ *   > 30s   → default translucent chip. Comfortable zone.
+ *   ≤ 30s   → amber. "Time to decide."
+ *   ≤ 10s   → destructive red + pulse. "Now or never."
+ *
+ * Reduced motion is honoured in the caller — the pulse only animates
+ * when `reduceMotion` is false; the colour escalation still happens
+ * because colour is the signal, pulse is the amplifier.
+ */
+function countdownTone(seconds: number): "calm" | "amber" | "urgent" {
+  if (seconds <= 10) return "urgent";
+  if (seconds <= 30) return "amber";
+  return "calm";
+}
+
+const COUNTDOWN_PILL_CLASS: Record<ReturnType<typeof countdownTone>, string> = {
+  calm: "bg-white/20 text-primary-foreground",
+  amber: "bg-amber-500 text-white",
+  urgent: "bg-destructive text-destructive-foreground",
+};
+
+export function IncomingRequestCard({
+  bookingId,
+  onDismiss,
+  matchReason,
+}: IncomingRequestCardProps) {
   const { data: offer, error, isLoading } = useBookingOffer(bookingId);
   const { t, lang } = useT("provider");
   const acceptOffer = useAcceptOffer();
+  const reduceMotion = useReducedMotion();
   const [acceptError, setAcceptError] = useState<string | null>(null);
   // SVC-321: set when accept answered 202 — this SP has a team and must pick
   // who does the job. Null is the ordinary offer view.
@@ -106,6 +148,22 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
     const reason = dismissReasonForOfferError(error);
     if (reason) onDismiss(reason);
   }, [error, onDismiss]);
+
+  // SVC-492 — fire a Warning haptic the first time the offer is on screen.
+  // The native push already vibrated the device on arrival; this is the
+  // *in-app* signal that the card is now visible + actionable, through
+  // pocket if the user hasn't looked at the screen yet. Guarded on
+  // `offer` (not loading / not errored) because the card reads nothing
+  // without it. Fires once per booking id — if the provider dismisses
+  // and the host re-opens the same card (never happens today, but if the
+  // host ever grew retry), they don't get buzzed a second time.
+  const hapticFiredFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!offer) return;
+    if (hapticFiredFor.current === offer.booking_id) return;
+    hapticFiredFor.current = offer.booking_id;
+    hapticWarning();
+  }, [offer]);
 
   const handleAccept = () => {
     setAcceptError(null);
@@ -148,10 +206,25 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
           {/* Hidden entirely when the backend has not shipped the expiry
                 fields yet — the rest of the card still works. */}
           {hasCountdown && (
-            <span className="flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-sm font-semibold tabular-nums">
+            <motion.span
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-semibold tabular-nums transition-colors ${COUNTDOWN_PILL_CLASS[countdownTone(countdown)]}`}
+              // Pulse only when the window is tight. Reduced-motion: the
+              // colour-escalation already carries the signal, so we drop
+              // the pulse but keep the tint.
+              animate={
+                countdownTone(countdown) === "urgent" && !reduceMotion
+                  ? { opacity: [1, 0.6, 1] }
+                  : { opacity: 1 }
+              }
+              transition={{
+                duration: 0.8,
+                repeat: countdownTone(countdown) === "urgent" && !reduceMotion ? Infinity : 0,
+                ease: "easeInOut",
+              }}
+            >
               <Clock className="h-3.5 w-3.5" />
               {formatCountdown(countdown)}
-            </span>
+            </motion.span>
           )}
         </div>
 
@@ -176,6 +249,17 @@ export function IncomingRequestCard({ bookingId, onDismiss }: IncomingRequestCar
               <p className="mt-1 text-2xl font-bold text-primary">
                 {formatRupees(offer.service_amount, lang)}
               </p>
+
+              {/* SVC-492 "why this job" chip. Pre-Phase-3 the card told the
+                  provider what / where / how far / how much, but not why
+                  this offer landed with them. One line of that reasoning
+                  turns the gesture from "blind tap" to "informed pick".
+                  Placeholder "Nearest match" until SVC-406 ships a real
+                  `match_reason` field. */}
+              <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary dark:bg-primary/20">
+                <Target className="h-3 w-3" aria-hidden />
+                {matchReason ?? t("incoming.matchReasonPlaceholder")}
+              </span>
             </div>
 
             <div className="space-y-2 rounded-xl bg-muted/50 p-3 text-sm">
