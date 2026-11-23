@@ -173,3 +173,53 @@ commitment and the heads-up on the `.dark` toggle.
   (already a transitive dep candidate — audit will confirm).
 
 Nothing from Phase 1 touches `src/components/ui/*` or `src/i18n/*` contents.
+
+### 2026-11-22 22:55 IST — Run 04 Phase 1 shipping
+
+**Agent:** Run 04 (marketing).
+**Branch:** `feature/svc-378-marketing-phase-1` off `main` (post-Phase-0 merge).
+
+**Scope revision vs original design-doc preview:** dropped the
+Devanagari `@import` gating from Phase 1 scope. Rationale: the
+`@font-face` declarations in `src/i18n/devanagari.css` already carry
+proper `unicode-range` (U+0900-097F etc.), so browsers DON'T actually
+download those fonts on English-only pages — Lighthouse's
+`numFonts: 1` confirmed only Inter was downloaded on the baseline. The
+"~210 KB marketing-bundle savings" I projected was bundle-on-disk, not
+bytes-over-wire. Shipping the gating would have been a shared-primitive
+touch (`src/styles.css`) for near-zero user-perf gain. Deferred to a
+Phase 2+ cleanup if/when CDN cost or deploy time becomes a factor.
+
+**What actually shipped in Phase 1:**
+- `index.marketing.html` — non-blocking Inter via `preload`/`onload` swap
+  pattern + `<noscript>` fallback; inline FOUC-shell `<style>` (brand bg
+  + "Loading EazyServ…" while React boots); Cloudflare Web Analytics
+  beacon tag (token from `VITE_CF_ANALYTICS_TOKEN`, empty = benign 404).
+- `src/marketing/main.tsx` — `React.lazy()` wrap of `DownloadPage` with
+  a matching FOUC fallback. ~15 KB gzip moves out of the main entry.
+- `src/marketing/MarketingHome.tsx` — Hero component rewrite:
+  two-column desktop layout (text left, stylized booking-card preview
+  right); mobile stays text-only with fold-fitting type scale
+  (`text-4xl sm:text-5xl md:text-6xl lg:text-7xl`); reassurance strip
+  compacted from three card-chips to a single inline row.
+- `.env.example` — new `VITE_CF_ANALYTICS_TOKEN` documented.
+- `docs/svc-378-baseline/phase-1/` — new JPEGs for before/after
+  comparison.
+
+**ZERO shared-primitive touches.** No `src/styles.css`, no
+`src/components/ui/*`, no `package.json`, no `src/i18n/*`, no `brand/`,
+no touch to `public/` imagery (HeroAnchor is pure Tailwind+lucide, no
+external asset).
+
+**Lighthouse delta (local preview, same methodology as baseline):**
+| Metric          | Baseline | Phase 1 | Delta  | Budget |
+|-----------------|----------|---------|--------|--------|
+| Desktop perf    | 70       | **99**  | +29    | —      |
+| Desktop TBT     | 820 ms   | 0 ms    | -820   | —      |
+| Mobile perf     | 93       | **97**  | +4     | ≥90 ✓  |
+| Mobile LCP      | 2.7 s    | **2.0 s** | -0.7 | <2.5s ✓ |
+| Mobile FCP      | 2.6 s    | 1.4 s   | -1.2   | —      |
+| Mobile CLS      | 0        | 0.079   | +0.079 | <0.1 ✓ |
+| Main JS (gzip)  | 84.92 KB | 77.10 KB | -7.82 | <100 KB ✓ |
+
+Every run-doc budget met. Phase 1 opened as its own PR; CI will confirm.

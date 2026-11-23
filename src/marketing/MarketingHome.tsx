@@ -505,6 +505,31 @@ function Header() {
 // Hero
 // ---------------------------------------------------------------------------
 
+/**
+ * Hero (SVC-378 Phase 1 rewrite).
+ *
+ * The audit identified the hero as the single biggest Linear-tier gap:
+ * previously typography-only on a flat wash, no visual anchor. Linear /
+ * Rippling / Stripe all put a distinct visual element on first fold — a
+ * product shot, a bespoke illustration, a diagram.
+ *
+ * Decision: the visual anchor IS the product. A stylized preview of a
+ * booking card — exactly what the app shows mid-flow — sits in the right
+ * column on desktop and stacks below the CTAs on mobile. This is the
+ * "Linear hero" pattern (their hero shows their app) adapted to our
+ * home-services context.
+ *
+ * Zero external asset. Pure Tailwind + lucide icons so there's nothing to
+ * preload, nothing to 404, nothing to re-generate. The design-doc's
+ * illustrated-direction (`svc-378-marketing-design.md` §6) stays open for
+ * Phase 2+ if we later commission bespoke art; the service-card preview
+ * doesn't block it.
+ *
+ * Layout: `grid-cols-1 lg:grid-cols-[1.1fr_1fr]` — text stays slightly
+ * wider than the anchor at desktop so a long headline doesn't orphan a
+ * word. Both columns are vertically centered via `items-center` so the
+ * hero reads as a pair.
+ */
 function Hero() {
   return (
     <section className="relative overflow-hidden">
@@ -515,64 +540,78 @@ function Hero() {
         <div className="absolute -right-24 top-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-6xl px-6 pt-16 pb-20 md:pt-24 md:pb-28">
-        <div className="mx-auto max-w-3xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+      <div className="mx-auto max-w-6xl px-6 pt-14 pb-16 md:pt-20 md:pb-24">
+        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-14">
+          {/* Text column — left on desktop, top on mobile. */}
+          <div className="text-center lg:text-left">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+              </span>
+              Now in beta · Pune
             </span>
-            Now in beta · Pune
-          </span>
 
-          {/* 800 (extrabold) is already in the Inter request in
-              index.marketing.html but was previously unused — everything
-              topped out at 700, so headings and semibold body text sat too
-              close together. Display type takes 800 with tighter tracking;
-              optical sizing means large text needs less letter-spacing. */}
-          <h1 className="mt-6 text-4xl font-extrabold leading-[1.05] tracking-[-0.02em] text-foreground sm:text-5xl md:text-6xl">
-            Home services at your doorstep in <span className="text-primary">Pune</span>
-          </h1>
+            {/* Type scale: mobile stays near baseline (text-4xl = 36px) so the
+                headline doesn't dominate the 375px viewport and push the CTAs
+                below the fold — Phase 1 tested at text-5xl on mobile and the
+                headline consumed nearly the full fold. Desktop gets the
+                Linear-tier bump (text-6xl → text-7xl, 60 → 72px) where there's
+                room for it. Baseline was text-4xl/md:text-6xl; this keeps the
+                mobile baseline and only lifts large viewports. */}
+            <h1 className="mt-6 text-4xl font-extrabold leading-[1.05] tracking-[-0.022em] text-foreground sm:text-5xl md:text-6xl lg:text-7xl">
+              Home services at your doorstep in <span className="text-primary">Pune</span>
+            </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">
-            Book verified professionals for cleaning, plumbing, electrical, and salon services.
-            Transparent pricing, doorstep OTP verification, no surprises.
-          </p>
+            <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg lg:mx-0">
+              Book verified professionals for cleaning, plumbing, electrical, and salon services.
+              Transparent pricing, doorstep OTP verification, no surprises.
+            </p>
 
-          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a
-              href={DOWNLOAD_URL}
-              className="focus-inset group inline-flex w-full items-center justify-center rounded-xl bg-primary px-7 py-3.5 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30 hover:brightness-110 sm:w-auto"
-            >
-              Download for Android
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </a>
-            <a
-              href="#how-it-works"
-              className="inline-flex w-full items-center justify-center rounded-xl border border-border bg-card px-7 py-3.5 text-base font-semibold text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:w-auto"
-            >
-              How it works
-            </a>
+            <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center lg:justify-start">
+              <a
+                href={DOWNLOAD_URL}
+                className="focus-inset group inline-flex items-center justify-center rounded-xl bg-primary px-7 py-3.5 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30 hover:brightness-110"
+              >
+                Download for Android
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </a>
+              <a
+                href="#how-it-works"
+                className="inline-flex items-center justify-center rounded-xl border border-border bg-card px-7 py-3.5 text-base font-semibold text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                How it works
+              </a>
+            </div>
+
+            <p className="mt-4 text-xs text-muted-foreground">
+              Currently in beta. Serving select localities in Pune.
+            </p>
           </div>
 
-          <p className="mt-4 text-xs text-muted-foreground">
-            Currently in beta. Serving select localities in Pune.
-          </p>
+          {/* Visual anchor — stylized booking-card preview. Desktop-only:
+              on mobile the hero stays text-first (headline + CTAs own the
+              fold), and the preview would otherwise sit below the CTAs where
+              it's not visible before scroll anyway. Services carousel below
+              is the first visual once the visitor scrolls on mobile. */}
+          <div className="hidden lg:block">
+            <HeroAnchor />
+          </div>
         </div>
 
-        {/* Quick reassurance strip. Deliberately qualitative — we don't have
-            audited numbers yet, and inventing "10,000+ bookings" on a beta
-            landing page is the kind of claim that ages badly. */}
-        <ul className="mx-auto mt-14 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3">
+        {/* Trust strip — tightened from three large chips to a single inline
+            row. Gives the three reassurances without competing with the
+            visual anchor above. */}
+        <ul className="mx-auto mt-14 flex max-w-3xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-medium text-muted-foreground sm:text-sm">
           {[
             "KYC-verified professionals",
             "Upfront, fixed pricing",
             "OTP-secured doorstep entry",
-          ].map((item) => (
-            <li
-              key={item}
-              className="flex items-center justify-center gap-2 rounded-xl border border-border/70 bg-card/60 px-4 py-3 text-center text-sm text-muted-foreground"
-            >
+          ].map((item, i) => (
+            <li key={item} className="flex items-center gap-2">
+              {i > 0 && (
+                <span aria-hidden className="hidden h-1 w-1 rounded-full bg-border sm:block" />
+              )}
               <BadgeCheck className="h-4 w-4 shrink-0 text-primary" />
               {item}
             </li>
@@ -580,6 +619,94 @@ function Hero() {
         </ul>
       </div>
     </section>
+  );
+}
+
+/**
+ * Stylized booking-card preview that sits in the hero's right column.
+ *
+ * Decorative, not interactive — it is a *picture* of the app's booking
+ * surface, not a working form. aria-hidden so screen readers skip it (the
+ * hero text to its left is the semantic payload).
+ *
+ * The two offset halo cards behind it (one tinted primary/5, one card/60)
+ * give the main card depth without a heavy drop shadow that would compete
+ * with the primary CTA's shadow. The `rotate-[0.5deg]` on the main card
+ * reads as "preview, not form" — a straight-up card at centre would
+ * misread as a login a visitor might try to type into.
+ *
+ * Deliberately uses the SAME aesthetic as the real app's ServiceSheet +
+ * PricingBreakdown surfaces (SVC-384, SVC-392): sm/md rounded corners,
+ * outlined ring icons, OKLCH tint stack. When the app's design shifts
+ * this card should move with it so the hero never drifts from what the
+ * product actually looks like.
+ */
+function HeroAnchor() {
+  return (
+    <div aria-hidden className="relative mx-auto max-w-sm lg:mx-0 lg:ml-auto">
+      {/* Offset halo cards — depth without a heavy drop shadow. */}
+      <div className="absolute -right-4 -top-4 h-full w-full -rotate-3 rounded-2xl border border-primary/20 bg-primary/5" />
+      <div className="absolute -bottom-4 -left-4 h-full w-full rotate-2 rounded-2xl border border-border/60 bg-card/60" />
+
+      <div className="relative rotate-[0.5deg] overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-[0_18px_40px_-10px_rgba(25,87,210,0.25)]">
+        {/* Service row */}
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <SprayCan className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-foreground">Home Deep Cleaning</p>
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+              <CalendarCheck className="h-3 w-3 shrink-0" />
+              Tomorrow, 10:00 AM
+            </p>
+          </div>
+          <span className="shrink-0 text-base font-bold tabular-nums text-foreground">₹499</span>
+        </div>
+
+        {/* Pro row */}
+        <div className="mt-4 flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-background text-[11px] font-bold text-primary">
+            PR
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1.5 truncate text-xs font-medium text-foreground">
+              Priya R.
+              <BadgeCheck className="h-3 w-3 shrink-0 text-primary" />
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Verified · 2.1 km away · 4.9 ★
+            </p>
+          </div>
+        </div>
+
+        {/* Bill rail — compact version of what PricingBreakdown renders */}
+        <div className="mt-4 space-y-1.5 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between">
+            <span>Service subtotal</span>
+            <span className="tabular-nums">₹499</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>GST (incl.)</span>
+            <span className="tabular-nums">₹76</span>
+          </div>
+          <div className="h-px bg-border" />
+          <div className="flex items-center justify-between pt-1 text-sm font-semibold text-foreground">
+            <span>Total</span>
+            <span className="tabular-nums">₹499</span>
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="mt-4 flex items-center justify-between gap-2 rounded-xl bg-primary px-4 py-3 text-primary-foreground">
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <KeyRound className="h-4 w-4" />
+            Book · OTP on arrival
+          </span>
+          <ArrowRight className="h-4 w-4" />
+        </div>
+      </div>
+    </div>
   );
 }
 

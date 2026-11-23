@@ -12,11 +12,10 @@
  * (/privacy, /terms, /refund) still link out to app.eazyserv.com — the
  * source of truth lives there because reviewers hit those URLs directly.
  */
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 
 import { MarketingHome } from "./MarketingHome";
-import { DownloadPage } from "./DownloadPage";
 import { NotFoundPage } from "./NotFoundPage";
 import { applyRouteMeta, NOT_FOUND_META, ROUTE_META } from "./seo";
 
@@ -25,6 +24,40 @@ import "../styles.css";
 // only, so the marketing site is blue while the app stays purple. Reversing
 // these two imports silently leaves the page purple.
 import "./marketing-theme.css";
+
+// /download carries qrcode.react + a second icon set the home page does not
+// touch; ~15 KB gzip that homepage visitors (the majority) shouldn't pay for.
+// Lazy-loaded so the main chunk only includes what the landing route needs.
+// The Suspense fallback is the same FOUC shell declared inline in
+// index.marketing.html — React swaps it on mount, zero visible flash.
+const DownloadPage = lazy(() =>
+  import("./DownloadPage").then((m) => ({ default: m.DownloadPage })),
+);
+
+// Mirrors the FOUC shell in index.marketing.html so a slow /download
+// chunk fetch shows the same brand background as the initial paint, not
+// a white flash. Uses CSS custom properties directly (no hardcoded
+// oklch) because by the time this renders the real stylesheet is
+// already live — var() resolves to whatever src/styles.css +
+// marketing-theme.css currently define, no drift possible.
+function DownloadFallback() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--background)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "var(--muted-foreground)",
+        fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        fontSize: 14,
+      }}
+    >
+      Loading…
+    </div>
+  );
+}
 
 function App() {
   // No client router; pathname is enough for a handful of static routes.
@@ -54,7 +87,12 @@ function App() {
   // render is harmless — it simply sets the same values twice.
   applyRouteMeta(meta);
 
-  if (isDownload) return <DownloadPage />;
+  if (isDownload)
+    return (
+      <Suspense fallback={<DownloadFallback />}>
+        <DownloadPage />
+      </Suspense>
+    );
   if (isHome) return <MarketingHome />;
   return <NotFoundPage />;
 }
