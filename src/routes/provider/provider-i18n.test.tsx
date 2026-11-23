@@ -33,7 +33,14 @@ vi.mock("framer-motion", () => ({
     div: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
       <div {...props}>{children}</div>
     ),
+    // SVC-491: OnlineToggleCta's glow is an absolutely-positioned
+    // motion.span sibling. In jsdom we stub it to a plain span.
+    span: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
+      <span {...props}>{children}</span>
+    ),
   },
+  // SVC-491: OnlineToggleCta reads this to decide pulse-vs-static glow.
+  useReducedMotion: () => false,
 }));
 vi.mock("@/components/AccountAvatar", () => ({ AccountAvatar: () => null }));
 vi.mock("@/components/InstallSheet", () => ({ InstallSheet: () => null }));
@@ -55,6 +62,14 @@ vi.mock("@/hooks/useApi", () => ({
   useMarkEnRoute: () => ({ mutate: vi.fn(), isPending: false }),
   useStartBooking: () => ({ mutate: vi.fn(), isPending: false }),
   useCompleteBooking: () => ({ mutate: vi.fn(), isPending: false }),
+  // SVC-491: ProviderHomeHero reads lifetime + completed_count. Stub a
+  // zero-state response so these i18n assertions can render Home without
+  // the hook's real network call.
+  useEarningsSummary: () => ({
+    data: { lifetime_payout: 0, completed_count: 0 },
+    isLoading: false,
+    isError: false,
+  }),
 }));
 vi.mock("@/hooks/useTeam", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/hooks/useTeam")>()),
@@ -84,7 +99,11 @@ const Home = (HomeRoute as unknown as { component: () => React.ReactElement }).c
 /** A rendered i18n key looks like `home.title` / `picker.assignTo`. */
 const RAW_KEY = /\b[a-z]+[A-Za-z]*\.[a-z][A-Za-z_]+\b/;
 const DEVANAGARI_DIGIT = /[०-९]/;
-const LATIN_LETTERS_ONLY_ENGLISH = /You're|Provider Home|Identity verified|No jobs right now/;
+// SVC-491: "Provider Home" dropped — the pre-Phase-2 h1 is gone. Hero
+// greeting replaces it; the regex keeps the surrounding English
+// anchors ("You're", "Identity verified", etc.) that would still
+// signal a leak.
+const LATIN_LETTERS_ONLY_ENGLISH = /You're|Welcome back|Identity verified|No jobs right now/;
 
 function inLang(lang: AppLanguage, ui: React.ReactNode) {
   return render(<FixedLanguage lang={lang}>{ui}</FixedLanguage>);
@@ -146,7 +165,9 @@ beforeEach(() => {
 
 const COPY = {
   hi: {
-    homeTitle: "प्रोवाइडर होम",
+    // SVC-491: provider Home's headline is now the hero greeting, not
+    // "Provider Home" (that text was removed with ProviderHeader).
+    homeTitle: "वापसी पर स्वागत है",
     kyc: "पहचान सत्यापित",
     accepted: "स्वीकार किया",
     away: "0.4 km दूर",
@@ -156,7 +177,7 @@ const COPY = {
     busy: "काम पर है",
   },
   mr: {
-    homeTitle: "प्रोव्हायडर होम",
+    homeTitle: "पुन्हा स्वागत आहे",
     kyc: "ओळख पडताळली",
     accepted: "स्वीकारले",
     away: "0.4 km दूर",
@@ -313,23 +334,33 @@ describe("a rejected SP's KYC row (SVC-444)", () => {
 });
 
 describe("SP screens in English", () => {
+  // SVC-491: the Home surface changed in Phase 2 — "Provider Home" h1
+  // and the shadcn Switch are gone. Hero + OnlineToggleCta + collapsed
+  // checklist replace them. Assertions updated to the new shape; the
+  // intent (English copy present, no translation applied) is preserved.
   it("are what they were before translation", () => {
     profile.mockReturnValue({
-      data: { kyc_status: "verified", is_online: true, profile_photo_url: null },
+      // Eligible branch would collapse the checklist; keep it ineligible
+      // so the full "subscribed to 2 services" row is on screen.
+      data: { kyc_status: "submitted", is_online: false, profile_photo_url: null },
       isLoading: false,
     });
     services.mockReturnValue({ data: ["s1", "s2"] });
     inLang("en", <Home />);
-    expect(screen.getByText("Provider Home")).toBeInTheDocument();
-    expect(screen.getByText("You're online")).toBeInTheDocument();
+    // Hero greeting + name replace the old "Provider Home" h1.
+    expect(screen.getByText("Welcome back")).toBeInTheDocument();
+    // OnlineToggleCta button replaces the Switch.
+    expect(screen.getByRole("button", { name: "Accept job requests" })).toBeInTheDocument();
+    // Readiness checklist still renders fully for an ineligible provider.
     expect(screen.getByText("You're subscribed to 2 services.")).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "Accept job requests" })).toBeInTheDocument();
   });
 
   it("keeps the singular service line", () => {
     services.mockReturnValue({ data: ["s1"] });
     profile.mockReturnValue({
-      data: { kyc_status: "verified", is_online: true, profile_photo_url: null },
+      // SVC-491: an eligible provider collapses the checklist to one row,
+      // which hides this detail. Pin to submitted so the full list renders.
+      data: { kyc_status: "submitted", is_online: false, profile_photo_url: null },
       isLoading: false,
     });
     inLang("en", <Home />);

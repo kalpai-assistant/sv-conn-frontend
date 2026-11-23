@@ -22,8 +22,10 @@ const TAB_SCREENS: Array<{ file: string; to: string }> = [
   { file: "@/routes/bookings?raw", to: "/profile" },
   { file: "@/routes/cart?raw", to: "/profile" },
   { file: "@/routes/activity?raw", to: "/profile" },
-  // Provider. Home's avatar comes via ProviderHeader.
-  { file: "@/components/provider/ProviderHeader?raw", to: "/provider/profile" },
+  // Provider. Home's avatar comes via ProviderHomeHero (SVC-491 —
+  // formerly ProviderHeader, replaced by the hero that owns greeting +
+  // stats + avatar).
+  { file: "@/components/provider/ProviderHomeHero?raw", to: "/provider/profile" },
   { file: "@/routes/provider/bookings/index?raw", to: "/provider/profile" },
   { file: "@/routes/provider/earnings?raw", to: "/provider/profile" },
   // Pro (SVC-322). A Pro's account is a consumer account, so its Profile is

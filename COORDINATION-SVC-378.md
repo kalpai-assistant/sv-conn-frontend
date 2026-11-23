@@ -160,3 +160,43 @@ epic tip (post-Phase-0).
 kalpai-review self-review → merge → SVC-490 Done. Then Phase 2
 (SVC-491 — provider home hero + online toggle rework) starts from the
 post-Phase-1 epic tip.
+
+### 2026-11-23 — Run 03 Phase 2 (home hero + toggle) feature-complete
+
+**Agent:** Run 03 (provider UI/UX).
+**Phase 1 status:** ✅ Shipped — PR #310 merged to epic (SHA `45bf91d`).
+SVC-490 → Done.
+**Phase 2 branch:** `feature/svc-378-provider-ux-phase-2-home` off
+epic tip (post-Phase-1).
+**Phase 2 commits:**
+- `6471227` — `ProviderHomeHero` (greeting + lifetime earned + jobs
+  count + streak sentence). Replaces `ProviderHeader` which was
+  deleted. Reach test retargeted; 5 new unit tests.
+- `<toggle>` — `OnlineToggleCta` (full-width glow button, offline
+  pulse, Medium haptic on tap). `hapticImpactMedium` added to
+  `src/lib/haptics.ts`. 5 new unit tests.
+- `bb43e4c` — eligible+idle idle-state collapses the readiness
+  checklist to one `Account health ✓` row with expand chevron.
+  Ineligible path keeps the full checklist unchanged.
+
+**Shared-primitive touches:**
+- `src/lib/haptics.ts` — additive (`hapticImpactMedium`). Existing
+  consumers untouched.
+- `src/i18n/{en,hi,mr}/provider.json` — 9 new keys total
+  (`hero.*` × 8, `home.accountHealthOk` × 1). Parity-tested.
+- `src/components/AccountAvatar.reach.test.ts` — one-line retarget
+  from `ProviderHeader?raw` to `ProviderHomeHero?raw`.
+- `src/components/provider/ProviderHeader.tsx` — deleted (unused
+  after hero replacement).
+- `src/styles.css`: **still not touched.** Run 04's Devanagari-import
+  gating remains clean-rebase on Phase 2 tip.
+
+**Deferred (called out in PR body):**
+- "Customers near you" chip — needs backend scope-check (Tushar's
+  SVC-406/407). Hands-off; frontend placeholder would clutter.
+- Weekly-target progress ring — needs a target-setting UX and a
+  backend field we don't have. Punted to Phase 5 (SVC-494).
+- Today's earnings in hero — no same-day backend field; filtering
+  bookings client-side would double-count. Also Phase 5.
+
+**Next:** PR against epic → CI → kalpai-review → merge → SVC-491 Done.

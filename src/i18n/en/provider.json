@@ -1,4 +1,14 @@
 {
+  "hero": {
+    "sectionLabel": "Your earnings",
+    "greeting": "Welcome back",
+    "fallbackName": "Provider",
+    "lifetimeLabel": "Earned so far",
+    "jobsLabel": "Jobs completed",
+    "statError": "—",
+    "streakWithJobs": "{{count}} jobs done — nice run.",
+    "firstJobComing": "Your first job is on its way."
+  },
   "home": {
     "title": "Provider Home",
     "loading": "Loading…",
@@ -17,6 +27,7 @@
     "eligibleTitle": "You're set up to receive jobs",
     "ineligibleTitle": "You won't receive job requests yet",
     "eligibleDetail": "New requests matching your services will appear here.",
+    "accountHealthOk": "Account health ✓",
     "ineligibleDetail": "All three of these are needed before we can send you a job."
   },
   "checklist": {

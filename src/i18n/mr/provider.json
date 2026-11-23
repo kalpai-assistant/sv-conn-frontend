@@ -1,4 +1,14 @@
 {
+  "hero": {
+    "sectionLabel": "तुमची कमाई",
+    "greeting": "पुन्हा स्वागत आहे",
+    "fallbackName": "प्रोव्हायडर",
+    "lifetimeLabel": "आतापर्यंत कमावले",
+    "jobsLabel": "पूर्ण केलेली कामे",
+    "statError": "—",
+    "streakWithJobs": "{{count}} कामे पूर्ण — मस्त चाललंय.",
+    "firstJobComing": "तुमचं पहिलं काम येतंय."
+  },
   "home": {
     "title": "प्रोव्हायडर होम",
     "loading": "लोड होत आहे…",
@@ -17,6 +27,7 @@
     "eligibleTitle": "तुम्ही कामे मिळवण्यासाठी तयार आहात",
     "ineligibleTitle": "तुम्हाला अजून कामाच्या रिक्वेस्ट मिळणार नाहीत",
     "eligibleDetail": "तुमच्या सर्व्हिसशी जुळणाऱ्या नवीन रिक्वेस्ट इथे दिसतील.",
+    "accountHealthOk": "अकाउंट ठीक आहे ✓",
     "ineligibleDetail": "तुम्हाला काम पाठवण्यापूर्वी या तिन्ही गोष्टी आवश्यक आहेत."
   },
   "checklist": {
