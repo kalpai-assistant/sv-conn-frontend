@@ -206,7 +206,7 @@ export function VariantPriceRow({ variant }: { variant: API_SpVariantPricing }) 
       {/* SVC-486: a commission change scheduled on this option. effective_from
           is a date, not a moment: formatted in UTC so it can't shift a day. */}
       {variant.upcoming_commission && (
-        <p className="mt-1 text-xs font-medium text-primary">
+        <p className="mt-1 text-xs font-medium text-muted-foreground">
           {t("services.pricing.upcomingCommission", {
             pct: formatNumber(variant.upcoming_commission.new_pct, lang),
             date: formatDate(
