@@ -1,6 +1,44 @@
 <!doctype html>
 <html lang="en" class="scroll-smooth">
   <head>
+    <!--
+      Theme bootstrap (SVC-378 Phase 1.5). Runs synchronously BEFORE any
+      stylesheet parses or body paints, so the correct .dark / .light
+      class is on <html> for the very first frame — no flash of wrong
+      theme.
+
+      Three states:
+        "dark"   — user explicitly picked dark (ignores OS)
+        "light"  — user explicitly picked light (ignores OS)
+        "system" — follow prefers-color-scheme (default)
+
+      The stored key is `sc_theme` so SVC-350's logout sweep leaves it
+      alone (not a logged-in user signal — a browser-level preference).
+
+      Wrapped in try/catch because localStorage throws in Safari private
+      mode and when a browser blocks storage; a thrown error here would
+      abort head parsing and blank the page.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("sc_theme");
+          var systemDark =
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var effective =
+            stored === "dark" || (stored !== "light" && systemDark)
+              ? "dark"
+              : "light";
+          var html = document.documentElement;
+          html.classList.remove("dark", "light");
+          html.classList.add(effective);
+        } catch (_e) {
+          // storage blocked — fall through, @media + CSS defaults handle it
+        }
+      })();
+    </script>
+
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>EazyServ — Home Services at Your Doorstep in Pune</title>
@@ -194,6 +232,10 @@
       If either stylesheet changes, mirror the edit here.
     -->
     <style>
+      /*
+        Light defaults — always apply, overridden by .dark selectors below
+        OR by the @media rule when the user hasn't explicitly picked light.
+      */
       html,
       body {
         margin: 0;
@@ -217,14 +259,27 @@
         color: oklch(0.5 0.03 262.7);
         font-size: 14px;
       }
+
+      /* Explicit toggle dark — set by the bootstrap script above. */
+      html.dark,
+      html.dark body {
+        background: oklch(0.18 0.015 260);
+        color: oklch(0.95 0.015 262.7);
+      }
+      html.dark #root:empty::before {
+        color: oklch(0.7 0.025 262.7);
+      }
+
+      /* OS-auto dark (also no-JS fallback). :not(.light) lets an
+         explicit-light pick override even on OS-dark machines. */
       @media (prefers-color-scheme: dark) {
-        html,
-        body {
+        html:not(.light),
+        html:not(.light) body {
           background: oklch(0.18 0.015 260);
-          color: oklch(0.95 0.005 260);
+          color: oklch(0.95 0.015 262.7);
         }
-        #root:empty::before {
-          color: oklch(0.7 0.02 260);
+        html:not(.light) #root:empty::before {
+          color: oklch(0.7 0.025 262.7);
         }
       }
     </style>
