@@ -233,10 +233,21 @@ export function NotificationsRow() {
             <AlertDialogDescription>{t("notifications.confirmBody")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => void turnOff()}>
+            {/* "Keep them on" is the Cancel, so the Android back button
+                (which presses Cancel, SVC-488) and Radix's open-time focus
+                both land on the harmless choice. Variants and margins
+                reproduce the look from before the roles were swapped, and
+                Action comes first in the DOM to keep the same order. */}
+            <AlertDialogAction
+              variant="outline"
+              className="mt-2 sm:mt-0"
+              onClick={() => void turnOff()}
+            >
               {t("notifications.turnOff")}
+            </AlertDialogAction>
+            <AlertDialogCancel variant="default" className="mt-0">
+              {t("notifications.keepOn")}
             </AlertDialogCancel>
-            <AlertDialogAction>{t("notifications.keepOn")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
