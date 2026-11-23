@@ -122,3 +122,41 @@ branch switches.
 **Rebase order noted:** my Phase 0 is Vipul's "first on token changes"
 for the epic. Run 04's Phase 1 (Devanagari gating + CF Web Analytics)
 can rebase on my Phase 0 tip after I push.
+
+### 2026-11-22 ~22:45 IST — Run 03 Phase 1 (onboarding) feature-complete
+
+**Agent:** Run 03 (provider UI/UX).
+**Phase 0 status:** ✅ Shipped — PR #307 merged to epic (SHA `11dc387`).
+SVC-489 → Done.
+**Phase 1 branch:** `feature/svc-378-provider-ux-phase-1-onboarding` off
+epic tip (post-Phase-0).
+**Phase 1 commits (feature-complete, pre-PR):**
+- `39721f3` — step 0 welcome hero + placeholder earnings helper (new
+  `src/lib/onboarding-earnings.ts`, 3 i18n locales).
+- `9f7c89b` — KYC-step lock-icon trust block above the camera tiles.
+- `8937d78` — rejection-aware header banner (reviewer's reason persists
+  through the resubmit).
+- `5ec807a` — Celebration overlay on step 5 + spring-tap Dashboard CTA.
+- `ce04f74` — spring step transitions + Light haptic on forward
+  transitions + Success haptic on step-5 arrival.
+
+**Shared-primitive touches this run:**
+- `src/i18n/{en,hi,mr}/provider.json` — 8 new `onboarding.*` keys
+  (parity-tested; Run 04 remains hands-off this file).
+- `src/lib/onboarding-earnings.ts` — new, self-contained helper. No
+  conflict surface for Run 04.
+- Reused existing: `@/components/Celebration` (SVC-390), `@/lib/haptics`
+  (SVC-398). No shared primitive forks.
+- `src/styles.css`: **still not touched.** Run 04's planned
+  Devanagari-import gating rebases cleanly on Phase 1 tip.
+
+**NOT touching (reaffirmed):**
+- `src/marketing/*`, `index.marketing.html`, `vite.marketing.config.ts`
+- `wrangler.jsonc`, `dist-marketing/`, any `public/` marketing imagery
+- Any Tushar epic (SVC-318, SVC-406, SVC-407, SVC-435). SVC-406 has an
+  informational comment only (earnings-range dep tracked at SVC-495).
+
+**Next:** pre-PR cascade → PR into epic branch → babysit CI →
+kalpai-review self-review → merge → SVC-490 Done. Then Phase 2
+(SVC-491 — provider home hero + online toggle rework) starts from the
+post-Phase-1 epic tip.

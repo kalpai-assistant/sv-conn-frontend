@@ -143,7 +143,9 @@ describe("i18n_enabled false: the SP's screens are today's English", () => {
   it.each([
     ["/provider", HomeRoute, "Provider Home"],
     ["/provider/earnings", EarningsRoute, "Total earned"],
-    ["/provider/onboarding", OnboardingRoute, "Tell us about you"],
+    // SVC-490: onboarding opens on step 0 (welcome hero) for a fresh
+    // install; its heading is the English check for i18n_enabled=false.
+    ["/provider/onboarding", OnboardingRoute, "You're about to earn like a pro"],
     ["/provider/team", TeamRoute, "My Team"],
   ])("%s", async (path, route, english) => {
     renderOn(path, page(route));

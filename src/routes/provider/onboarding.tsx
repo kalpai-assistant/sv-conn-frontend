@@ -1,7 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Camera, Loader2, X } from "lucide-react";
+import {
+  AlertCircle,
+  Camera,
+  CheckCircle2,
+  Loader2,
+  Lock,
+  Rocket,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,9 +21,13 @@ import { ServiceAreaStep } from "@/components/provider/ServiceAreaStep";
 import { BusinessNameField } from "@/components/provider/BusinessNameField";
 import { LogoPicker } from "@/components/provider/LogoPicker";
 import { useAuth } from "@/lib/auth-context";
+import { Celebration } from "@/components/Celebration";
 import { CameraCapture } from "@/components/CameraCapture";
 import { LanguageChip } from "@/components/language/LanguageChip";
 import { captureLivePhoto, captureNativePhoto, isNativePlatform } from "@/lib/camera";
+import { formatRupees } from "@/i18n/format";
+import { hapticImpactLight, hapticSuccess } from "@/lib/haptics";
+import { useOnboardingEarnings } from "@/lib/onboarding-earnings";
 import {
   loadOnboardingDraft,
   saveOnboardingDraft,
@@ -36,7 +49,11 @@ export const Route = createFileRoute("/provider/onboarding")({
   component: ProviderOnboardingPage,
 });
 
-const TOTAL_STEPS = 5;
+// Numbered-step screens the provider walks through (1..5). Step 0 is the
+// SVC-490 welcome hero — unnumbered, hidden from the progress label — so a
+// returning provider seeing the stepper reads "Step 2 of 5" and not an
+// off-by-one caused by the welcome.
+const NUMBERED_STEPS = 5;
 
 function ProviderOnboardingPage() {
   const navigate = useNavigate();
@@ -46,6 +63,7 @@ function ProviderOnboardingPage() {
   // one in the first-run prompt re-renders this wizard in place — same step,
   // same typed fields — rather than remounting it.
   const { t, lang } = useT("provider");
+  const earnings = useOnboardingEarnings();
 
   const updateName = useUpdateName();
   const uploadPhoto = useUploadPhoto();
@@ -55,8 +73,14 @@ function ProviderOnboardingPage() {
   const submitKyc = useSubmitKyc();
 
   // Resume from a saved draft (step + text fields); images are re-captured.
+  // Fresh installs (draft.step undefined) land on step 0 — the SVC-490
+  // welcome hero. A returning provider whose draft persisted mid-flow
+  // resumes where they left off; a rejection-resubmit path has no draft
+  // (it was cleared on prior finish) and so also lands on step 0, which is
+  // the right shape — they see the rejection banner (added below) above
+  // the welcome and tap "Start setup" when ready.
   const draft = useMemo(() => loadOnboardingDraft(), []);
-  const [step, setStep] = useState(draft.step ?? 1);
+  const [step, setStep] = useState(draft.step ?? 0);
   const [error, setError] = useState<string | null>(null);
 
   // Step 1 state
@@ -88,6 +112,32 @@ function ProviderOnboardingPage() {
   const [aadhaarFront, setAadhaarFront] = useState<Blob | null>(null);
   const [aadhaarBack, setAadhaarBack] = useState<Blob | null>(null);
   const [selfie, setSelfie] = useState<Blob | null>(null);
+
+  // SVC-490 — celebrate arriving at step 5 the first time only. A provider
+  // who closes the app mid-flow and reopens on step 5 should not retrigger
+  // the confetti; latch via a ref rather than a state flag so the effect
+  // never fires twice in strict-mode double-invocation either. Pairs with
+  // the stronger Success haptic (triple-buzz on iOS, native vibrate on
+  // Android) so the arrival registers through the pocket, not just visually.
+  const [celebrating, setCelebrating] = useState(false);
+  const hasCelebrated = useRef(false);
+  useEffect(() => {
+    if (step === 5 && !hasCelebrated.current) {
+      hasCelebrated.current = true;
+      setCelebrating(true);
+      hapticSuccess();
+    }
+  }, [step]);
+
+  // SVC-490 — advance-step wrapper. Fires a Light haptic on every
+  // forward transition (0→1 welcome CTA, 1→2 save, 2→3 submit, 3→4
+  // service area, 4→5 payout). Back navigation (step 2 → 1) uses
+  // `setStep` directly — a haptic on back would read as commitment
+  // where none was made.
+  const advanceToStep = (next: number) => {
+    hapticImpactLight();
+    setStep(next);
+  };
 
   // Persist the resumable parts of the wizard on every change.
   useEffect(() => {
@@ -134,7 +184,7 @@ function ProviderOnboardingPage() {
         setBusinessLogo(null);
       }
       if (languages.length) await updateLanguages.mutateAsync(languages);
-      setStep(2);
+      advanceToStep(2);
     } catch (err) {
       setError(errorText(err, t("onboarding.saveFailed"), lang));
     }
@@ -148,7 +198,7 @@ function ProviderOnboardingPage() {
     }
     try {
       await submitKyc.mutateAsync({ aadhaarFront, aadhaarBack, selfie });
-      setStep(3);
+      advanceToStep(3);
     } catch (err) {
       setError(errorText(err, t("onboarding.submitFailed"), lang));
     }
@@ -163,17 +213,56 @@ function ProviderOnboardingPage() {
     <div className="mx-auto flex min-h-screen max-w-md flex-col p-6">
       <header>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium text-muted-foreground">
-            {t("onboarding.stepOf", { step, total: TOTAL_STEPS })}
-          </p>
+          {/* The stepper only labels numbered screens (1..5). The SVC-490
+              welcome hero at step 0 is a landing, not a step — labelling it
+              "Step 0 of 5" would read as broken. A spacer keeps the language
+              chip right-aligned when the label is hidden. */}
+          {step >= 1 ? (
+            <p className="text-xs font-medium text-muted-foreground">
+              {t("onboarding.stepOf", { step, total: NUMBERED_STEPS })}
+            </p>
+          ) : (
+            <span />
+          )}
           {/* SVC-395: no Profile to reach mid-wizard, so the switch is here. */}
           <LanguageChip />
         </div>
-        <Progress value={(step / TOTAL_STEPS) * 100} className="mt-2" />
+        {step >= 1 && <Progress value={(step / NUMBERED_STEPS) * 100} className="mt-2" />}
       </header>
 
       {error && (
         <p className="mt-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
+      )}
+
+      {/* SVC-490 — rejection-aware banner. When a provider lands here after
+          a rejection, the "Resubmit documents" fix link on Home is the only
+          place they see the reviewer's reason — and then it's gone the
+          moment they tap in. Surfacing it on the onboarding header too
+          means the reason stays on screen the whole time they're walking
+          back through the flow. Shown on every step (0..5) because a
+          provider may want to re-read it mid-recapture. */}
+      {profile?.kyc_status === "rejected" && (
+        <div
+          role="status"
+          className="mt-4 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm"
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" aria-hidden />
+          <div className="min-w-0 space-y-1">
+            <p className="font-medium text-destructive">{t("onboarding.rejectionBannerTitle")}</p>
+            {(() => {
+              // Mirror `kycRow` on provider Home (SVC-444): trim the
+              // reviewer's text, drop a trailing period so our template
+              // adds one if needed. Reason is null for a rejection that
+              // predates SVC-444 — hide the line rather than print "Reason: ".
+              const raw = profile.kyc_rejection_reason?.trim().replace(/\.$/, "");
+              return raw ? (
+                <p className="text-foreground wrap-anywhere">
+                  {t("onboarding.rejectionBannerReason", { reason: raw })}
+                </p>
+              ) : null;
+            })()}
+          </div>
+        </div>
       )}
 
       <div className="mt-6 flex-1">
@@ -183,8 +272,78 @@ function ProviderOnboardingPage() {
             initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -16 }}
-            transition={{ duration: 0.2 }}
+            // SVC-490 — spring, not linear 200ms. Matches Wave-2's
+            // IncomingRequestCard (SVC-399) damping/stiffness so the wizard
+            // reads as the same product as the booking-accept moment. Spring
+            // overshoots very slightly on step-change, which reads as
+            // "physical" rather than "programmed".
+            transition={{ type: "spring", stiffness: 320, damping: 28 }}
           >
+            {step === 0 && (
+              // SVC-490 welcome hero. Deliberately a landing, not a form step:
+              // the first screen a new provider sees needs to answer "what am
+              // I about to earn?" and "what do you need from me?" in one
+              // glance. The number is a city-generic placeholder
+              // (`confidence: "placeholder"` on the hook) until SVC-495 wires
+              // per-service per-city ranges from Tushar's pricing corpus —
+              // prefixed "Typical" rather than a specific service name so the
+              // copy reads as an estimate, not a promise.
+              <div className="space-y-6 py-4">
+                <div
+                  className="flex items-center justify-center rounded-3xl bg-linear-to-br from-primary/15 to-primary/5 py-10 dark:from-primary/20 dark:to-primary/10"
+                  data-asset="pending-svc-401"
+                  aria-hidden
+                >
+                  <Sparkles className="h-16 w-16 text-primary" strokeWidth={1.5} />
+                </div>
+
+                <div className="space-y-2 text-center">
+                  <h1 className="text-xl font-semibold text-foreground">
+                    {t("onboarding.welcomeTitle")}
+                  </h1>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {t("onboarding.welcomeEarnings", {
+                      low: formatRupees(earnings.low, lang),
+                      high: formatRupees(earnings.high, lang),
+                    })}
+                  </p>
+                </div>
+
+                <ol className="space-y-3">
+                  {(
+                    [
+                      {
+                        icon: (
+                          <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+                        ),
+                        label: t("onboarding.welcomeStepKyc"),
+                      },
+                      {
+                        icon: <Rocket className="h-5 w-5 shrink-0 text-primary" aria-hidden />,
+                        label: t("onboarding.welcomeStepServices"),
+                      },
+                      {
+                        icon: <Sparkles className="h-5 w-5 shrink-0 text-primary" aria-hidden />,
+                        label: t("onboarding.welcomeStepFirstJob"),
+                      },
+                    ] as const
+                  ).map((row, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-3 rounded-xl border border-border bg-card p-3 text-sm text-foreground"
+                    >
+                      {row.icon}
+                      <span>{row.label}</span>
+                    </li>
+                  ))}
+                </ol>
+
+                <Button className="w-full" onClick={() => advanceToStep(1)}>
+                  {t("onboarding.welcomeCta")}
+                </Button>
+              </div>
+            )}
+
             {step === 1 && (
               <div className="space-y-5">
                 <div>
@@ -296,6 +455,22 @@ function ProviderOnboardingPage() {
                   <p className="mt-1 text-sm text-muted-foreground">{t("onboarding.kycIntro")}</p>
                 </div>
 
+                {/* SVC-490 — trust block. KYC was the drop-off point in the
+                    pre-Phase-1 flow: the provider went from naming their
+                    business to a cold "Capture Aadhaar front" with no
+                    framing. Saying plainly who sees the documents and why
+                    we need them, with a lock icon, turns the ask from an
+                    extraction into a contract. Deliberately short — one
+                    sentence per line — so it reads at a glance, not as
+                    legal boilerplate. */}
+                <div className="flex items-start gap-3 rounded-xl border border-border bg-secondary/40 p-3">
+                  <Lock className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
+                  <div className="min-w-0 space-y-1 text-sm">
+                    <p className="font-medium text-foreground">{t("onboarding.kycTrustTitle")}</p>
+                    <p className="text-muted-foreground">{t("onboarding.kycTrustBody")}</p>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label>{t("onboarding.aadhaarFront")}</Label>
                   <CameraCapture
@@ -341,14 +516,14 @@ function ProviderOnboardingPage() {
               // SVC-257: service-area capture between KYC and payout. Without
               // a centre set, the PostGIS dispatch treats the provider as
               // invisible and the go-online toggle refuses (SERVICE_AREA_MISSING).
-              <ServiceAreaStep onBack={() => setStep(2)} onDone={() => setStep(4)} />
+              <ServiceAreaStep onBack={() => setStep(2)} onDone={() => advanceToStep(4)} />
             )}
 
             {step === 4 && (
               <PayoutStep
                 alreadySet={!!profile?.payout_set}
                 onBack={() => setStep(3)}
-                onDone={() => setStep(5)}
+                onDone={() => advanceToStep(5)}
               />
             )}
 
@@ -369,14 +544,32 @@ function ProviderOnboardingPage() {
                   description={t("onboarding.servicesPickerDescription")}
                 />
 
-                <Button className="w-full" onClick={finish}>
-                  {t("onboarding.dashboard")}
-                </Button>
+                {/* SVC-490: spring-scale motion on the dashboard CTA. The
+                    step-5 arrival is the one moment in the whole wizard
+                    where the provider's reward is "you're done" — a plain
+                    button here reads as "ok, now do the next thing" rather
+                    than "nice, you made it". `whileTap` gives the physical
+                    feedback of a successful press. */}
+                <motion.div
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 24 }}
+                >
+                  <Button className="w-full" onClick={finish}>
+                    {t("onboarding.dashboard")}
+                  </Button>
+                </motion.div>
               </div>
             )}
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Full-screen takeover on the one-way transition to step 5.
+          SVC-390's Celebration auto-dismisses after 1.5s and honours
+          reduced-motion (drops confetti, keeps the hold). Rendered outside
+          the AnimatePresence so a step-transition exit does not race the
+          overlay's own enter. */}
+      {celebrating && <Celebration onComplete={() => setCelebrating(false)} />}
     </div>
   );
 }
