@@ -220,11 +220,32 @@ const STEPS = [
 //
 // Put either back only once someone can point at the thing that makes it
 // true. Everything below maps to shipped behaviour.
+// SVC-378 Phase 2: cut 6→3.
+//
+// The audit flagged this row as a weak feature — six items in a 3×2 grid,
+// mixed icon metaphors (ShieldCheck + Wallet + CreditCard + Navigation),
+// and two claims that read as filler ("Real-time updates", "Customer
+// support — A real person to talk to"). Three bold reasons > six soft ones.
+//
+// The three that stayed:
+//  - Verified professionals — the trust-defining promise.
+//  - Transparent pricing     — the primary objection-killer vs calling a
+//                              plumber/electrician directly.
+//  - Doorstep OTP            — the differentiator vs Urban Company / stock
+//                              marketplace apps. Nobody else does this.
+//
+// Cut (not deleted — if a later copy pass wants them back, they're all
+// honest and shipping-true, just not top-three strong):
+//  - Secure digital payments (Razorpay) — undifferentiated; everyone has
+//    this.
+//  - Real-time updates — true but weak vs "Verified + OTP" story above.
+//  - Customer support — soft in beta; revisit post-launch with concrete
+//    first-response SLA.
 const TRUST = [
   {
     Icon: ShieldCheck,
     title: "Verified professionals",
-    desc: "Every professional clears KYC before taking a single job.",
+    desc: "Every professional clears KYC before taking a single job. We know who shows up at your door.",
   },
   {
     Icon: Wallet,
@@ -232,27 +253,12 @@ const TRUST = [
     // charges for parts. An earlier draft here said "no call-out fees",
     // which the policy contradicts. Keep this to what you see up front.
     title: "Transparent pricing",
-    desc: "You see the price before you confirm. No bidding, no haggling.",
+    desc: "You see the full price before you confirm. No bidding, no haggling, no surprise invoices.",
   },
   {
     Icon: BadgeCheck,
     title: "Doorstep OTP",
-    desc: "Service begins only after you share your code — proof the right person arrived.",
-  },
-  {
-    Icon: CreditCard,
-    title: "Secure digital payments",
-    desc: "Card, UPI or netbanking through Razorpay. Cash on completion if you prefer.",
-  },
-  {
-    Icon: Navigation,
-    title: "Real-time updates",
-    desc: "Track your professional on the way and follow the job as it progresses.",
-  },
-  {
-    Icon: Headphones,
-    title: "Customer support",
-    desc: "A real person to talk to when something needs sorting out.",
+    desc: "Service begins only after you share the code in your app — proof the right person arrived.",
   },
 ];
 
@@ -764,11 +770,19 @@ const CARD_GAP = 18;
  */
 function ServicesGrid() {
   const trackRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const [playing, setPlaying] = useState(true);
   const [paused, setPaused] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [isDesktop, setIsDesktop] = useState(true);
   const [activeDot, setActiveDot] = useState(0);
+  // SVC-378 Phase 2 TBT recovery: the rAF drift loop previously ran as long
+  // as the tab was visible, even with the section far below the fold. On
+  // the Phase 1 baseline that contributed to the desktop 820ms TBT.
+  // IntersectionObserver gates the loop so it only ticks when the services
+  // section is actually in viewport — zero work before scroll, zero after
+  // the visitor moves past.
+  const [onScreen, setOnScreen] = useState(false);
 
   // Mirrors activeDot without causing a render. The scroll handler runs on
   // every frame while drifting; calling setState each time would re-render
@@ -800,6 +814,25 @@ function ServicesGrid() {
     apply();
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  // SVC-378 Phase 2: observe the section itself, not the track, so a long
+  // card that just barely intersects doesn't wake the loop. `threshold: 0`
+  // + rootMargin gives us "any part of the section visible" which is the
+  // right mental model for motion — if a visitor can see the section, it
+  // can move; if they can't, it shouldn't.
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setOnScreen(true); // fail open — older browsers get the old behaviour
+      return;
+    }
+    const io = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting), {
+      threshold: 0,
+      rootMargin: "128px 0px 128px 0px",
+    });
+    io.observe(el);
+    return () => io.disconnect();
   }, []);
 
   // Measured, not assumed: the card is a fixed 320px on desktop but fills the
@@ -843,8 +876,11 @@ function ServicesGrid() {
   // so movement is tied to the display's refresh and stops with the tab.
   // Distance comes from elapsed time, not a fixed step per frame, so it runs
   // at the same speed on a 60Hz and a 120Hz screen.
+  //
+  // SVC-378 Phase 2: gated on `onScreen` — the loop sleeps when the section
+  // isn't visible, recovering the Phase 1 baseline's desktop 820ms TBT.
   useEffect(() => {
-    if (!playing || paused || reduceMotion || !isDesktop) return;
+    if (!playing || paused || reduceMotion || !isDesktop || !onScreen) return;
     const el = trackRef.current;
     if (!el) return;
 
@@ -866,14 +902,17 @@ function ServicesGrid() {
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing, paused, reduceMotion, isDesktop]);
+  }, [playing, paused, reduceMotion, isDesktop, onScreen]);
 
   // Mobile: one card at a time, snapping. The rebase happens BEFORE the step
   // rather than after, so scrollLeft never crosses the loop point during the
   // smooth scroll — crossing it mid-animation is what would make the wrap
   // visible as a rewind.
+  //
+  // Also gated on `onScreen` (Phase 2) — no reason to tick the interval when
+  // the visitor can't see the cards moving.
   useEffect(() => {
-    if (!playing || paused || reduceMotion || isDesktop) return;
+    if (!playing || paused || reduceMotion || isDesktop || !onScreen) return;
     const el = trackRef.current;
     if (!el) return;
 
@@ -911,13 +950,17 @@ function ServicesGrid() {
   };
 
   return (
-    <section id="services" className="scroll-mt-20 border-t border-border/60 py-20 md:py-24">
+    <section
+      ref={sectionRef}
+      id="services"
+      className="scroll-mt-20 border-t border-border/60 py-20 md:py-24"
+    >
       <div className="mx-auto max-w-6xl px-6">
         <Reveal>
           <SectionHeading
-            eyebrow="What we do"
+            eyebrow={`What we do · ${SERVICES.length} services`}
             title="Everything your home needs, in one app"
-            subtitle="Every job is handled by a professional who has cleared verification — not an anonymous marketplace listing."
+            subtitle="Every job is handled by a professional who has cleared KYC verification — not an anonymous marketplace listing."
           />
         </Reveal>
 
@@ -1105,22 +1148,35 @@ function HowItWorks() {
 
           {/* Reveal renders a div, so it wraps the <ol> rather than replacing
               it — a div between a list and its <li> children is invalid HTML
-              and strips the list semantics a screen reader announces. */}
+              and strips the list semantics a screen reader announces.
+
+              SVC-378 Phase 2: the rail went from 1px bg-border (near-invisible
+              on high-DPI at full brightness, per audit) to 2px bg-primary/20
+              — still calm, but visible. Each step gained an inline icon
+              beside its title so the step reads as a labelled chapter
+              rather than just a header. Per-step stagger was considered and
+              dropped: adding it required either Reveal gaining an `as` prop
+              (breaks other callsites) or wrapping each <li> in a <div>
+              (strips list semantics, which is exactly what the comment
+              above warns against). The three steps revealing together is
+              the correct trade. */}
           <Reveal delay={100} className="relative pl-2">
-            {/* Timeline rail behind the numbered dots. left-[23px] is half of
-                the 46px circle, so the line runs through their centres; the
-                circles are opaque and z-10, which is what masks it between
-                steps rather than any gap in the rail itself. */}
-            <div aria-hidden className="absolute bottom-2 left-[23px] top-2 w-px bg-border" />
-            <ol className="space-y-8">
-              {STEPS.map(({ title, desc }, i) => (
+            <div
+              aria-hidden
+              className="absolute bottom-3 left-[23px] top-3 w-[2px] bg-primary/20"
+            />
+            <ol className="space-y-9">
+              {STEPS.map(({ Icon, title, desc }, i) => (
                 <li key={title} className="relative flex gap-5">
-                  <span className="z-10 flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full border-2 border-primary bg-background text-base font-bold text-primary">
+                  <span className="relative z-10 flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full border-2 border-primary bg-background text-base font-bold text-primary">
                     {i + 1}
                   </span>
                   <div className="pt-1.5">
-                    <h3 className="text-base font-semibold text-foreground">{title}</h3>
-                    <p className="mt-1.5 max-w-md text-sm leading-relaxed text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-4 w-4 text-primary" aria-hidden />
+                      <h3 className="text-base font-semibold text-foreground">{title}</h3>
+                    </div>
+                    <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
                       {desc}
                     </p>
                   </div>
@@ -1190,6 +1246,21 @@ function BrandBand() {
 // Trust
 // ---------------------------------------------------------------------------
 
+/**
+ * TrustBar (SVC-378 Phase 2 rewrite).
+ *
+ * The audit flagged the previous 6-item 3×2 row as weak feature: mixed icon
+ * metaphors, two filler claims, outlined ring treatment that repeated About's
+ * icon chip. Phase 2 cuts to the three strongest reasons (see TRUST[]
+ * comment above) and gives each a fuller card so the row reads as three
+ * commitments, not six soft claims.
+ *
+ * Card treatment is deliberately heavier than everything else on the page
+ * besides the hero: a large filled icon tile at the top, title in semibold,
+ * body copy in muted. The staggered Reveal (0 / 80 / 160 ms) animates the
+ * three cards in as a sequence, matching the HowItWorks rhythm this section
+ * now visually echoes.
+ */
 function TrustBar() {
   return (
     <section id="why-us" className="scroll-mt-20 border-t border-border/60 py-20 md:py-24">
@@ -1202,21 +1273,30 @@ function TrustBar() {
           />
         </Reveal>
 
-        <Reveal delay={100} className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
-          {TRUST.map(({ Icon, title, desc }) => (
-            <div key={title} className="flex items-start gap-4">
-              {/* Outlined ring rather than a filled tile — the section is a
-                  row of reassurances, and a lighter mark reads as calmer. */}
-              <div className="shrink-0 rounded-full border-[1.5px] border-primary/30 p-3 text-primary">
-                <Icon className="h-5 w-5" />
+        <div className="mt-14 grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-6">
+          {TRUST.map(({ Icon, title, desc }, i) => (
+            <Reveal
+              key={title}
+              delay={80 * i}
+              className="group relative overflow-hidden rounded-2xl border border-border bg-card p-7 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_18px_40px_-12px_color-mix(in_oklab,var(--primary)_22%,transparent)]"
+            >
+              {/* Decorative corner glow — only shows on hover/focus, keeps the
+                  rest state calm. Tracks --primary so it reads blue in both
+                  themes, no hardcoded colour. */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/10 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
+              />
+              <div className="relative">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Icon className="h-6 w-6" />
+                </span>
+                <p className="mt-5 text-lg font-semibold text-foreground">{title}</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{desc}</p>
               </div>
-              <div>
-                <p className="text-base font-semibold text-foreground">{title}</p>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{desc}</p>
-              </div>
-            </div>
+            </Reveal>
           ))}
-        </Reveal>
+        </div>
       </div>
     </section>
   );
