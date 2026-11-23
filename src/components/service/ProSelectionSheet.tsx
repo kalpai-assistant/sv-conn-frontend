@@ -86,8 +86,11 @@ export const NO_PROS_ONLINE_MESSAGE = "No pros online right now";
 /** Empty list, and nobody covers it — or the from-prices lookup is unavailable. */
 export const NO_PROS_IN_AREA_MESSAGE = "No pros available for this service in your area yet.";
 
-export const OUT_OF_RANGE_HEADING = "Outside the recommended price";
-export const OUT_OF_RANGE_WARNING = "This pro's price is outside our recommended range";
+// SVC-496 copy (Tushar, 2026-11-22): "outside", not "above" — a price can be
+// out of range on either side — and no "the pros above", since there may be none.
+export const OUT_OF_RANGE_HEADING = "Not in EazyServ's recommended price range";
+export const OUT_OF_RANGE_WARNING =
+  "This pro charges outside the price range EazyServ recommends for this service. You can still book them.";
 
 interface ProSelectionSheetProps {
   service: Service;

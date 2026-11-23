@@ -7,7 +7,7 @@
  * label the customer sees. `point` is the unrounded tile point; useFromPrices
  * (and the alert PUT) round it with the same `round4`.
  */
-import { useFromPrices } from "@/hooks/useApi";
+import { useFromPrices, type API_ServiceFromPrice } from "@/hooks/useApi";
 import { useTilePoint, type TilePoint } from "@/hooks/useTilePoint";
 import { tilePriceState, type TilePriceState } from "@/lib/tile-price-state";
 import type { Service } from "@/lib/mock-data";
@@ -15,11 +15,14 @@ import type { Service } from "@/lib/mock-data";
 export interface TileState {
   point: TilePoint | null;
   state: TilePriceState;
+  /** The from-prices row the state came from (undefined = no data). SVC-496's
+   *  option rows read their prices from it, so they share the header's response. */
+  row: API_ServiceFromPrice | undefined;
 }
 
 export function useTileState(service: Pick<Service, "id" | "price">): TileState {
   const point = useTilePoint();
   const { data } = useFromPrices(point);
   const row = data?.find((r) => r.service_id === service.id);
-  return { point, state: tilePriceState(row, service.price) };
+  return { point, state: tilePriceState(row, service.price), row };
 }

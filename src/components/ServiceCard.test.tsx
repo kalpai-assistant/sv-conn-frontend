@@ -55,7 +55,7 @@ beforeEach(() => {
 
 describe("ServiceCard price and status placement", () => {
   it("price: 'from ₹X' in the right column above ADD, no status row", () => {
-    h.rows = [{ service_id: "svc-1", from_price: 2249, served: true }];
+    h.rows = [{ service_id: "svc-1", from_price: 2249, served: true, variants: [] }];
     const { right, labels } = renderCard();
     expect(labels).toHaveLength(1);
     expect(labels[0]).toHaveAttribute("data-tile-price", "price");
@@ -78,7 +78,7 @@ describe("ServiceCard price and status placement", () => {
   ])(
     "$state: the status sits in its own row, the right column is ADD only",
     ({ served, kind, text }) => {
-      h.rows = [{ service_id: "svc-1", from_price: null, served }];
+      h.rows = [{ service_id: "svc-1", from_price: null, served, variants: [] }];
       const { card, right, labels } = renderCard();
       expect(labels).toHaveLength(1);
       const status = labels[0];
@@ -94,7 +94,7 @@ describe("ServiceCard price and status placement", () => {
   );
 
   it("a card tap fires the coming-soon tap once and opens the sheet", async () => {
-    h.rows = [{ service_id: "svc-1", from_price: null, served: false }];
+    h.rows = [{ service_id: "svc-1", from_price: null, served: false, variants: [] }];
     const { card } = renderCard();
     await userEvent.click(card);
     expect(h.tap).toHaveBeenCalledTimes(1);
@@ -102,7 +102,7 @@ describe("ServiceCard price and status placement", () => {
   });
 
   it("a tap on the status line goes through the card", async () => {
-    h.rows = [{ service_id: "svc-1", from_price: null, served: true }];
+    h.rows = [{ service_id: "svc-1", from_price: null, served: true, variants: [] }];
     renderCard();
     await userEvent.click(screen.getByText("No pros online right now"));
     expect(h.tap).toHaveBeenCalledTimes(1);

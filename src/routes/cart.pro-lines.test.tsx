@@ -98,6 +98,7 @@ vi.mock("@/lib/last-payment-method", () => ({
 
 import { CHOOSE_PRO_FOR_EACH, CartPage, REMOVE_UNAVAILABLE } from "@/routes/cart";
 import { runBackInterceptors } from "@/lib/back-interceptor";
+import { OUT_OF_RANGE_WARNING } from "@/components/service/ProSelectionSheet";
 
 const WASH: Service = {
   id: "svc-wash",
@@ -218,7 +219,7 @@ describe("a line with a pro", () => {
 
     expect(screen.getByText("SUV · Rakesh")).toBeTruthy();
     expect(screen.getByText("₹900")).toBeTruthy();
-    expect(screen.queryByText("This pro's price is outside our recommended range")).toBeNull();
+    expect(screen.queryByText(OUT_OF_RANGE_WARNING)).toBeNull();
 
     await userEvent.click(screen.getByRole("button", { name: "Change pro for Car wash SUV" }));
     expect(openProSelection).toHaveBeenCalledWith(WASH, "v-suv");
@@ -233,7 +234,7 @@ describe("a line with a pro", () => {
   it("keeps the out-of-range note from the sheet", () => {
     cartItems = [proLine({ outsideRecommendedRange: true })];
     render(<CartPage />);
-    expect(screen.getByText("This pro's price is outside our recommended range")).toBeTruthy();
+    expect(screen.getByText(OUT_OF_RANGE_WARNING)).toBeTruthy();
   });
 
   it("drops the 'a pro who can do all N services' note: the pro is chosen", () => {
@@ -254,7 +255,7 @@ describe("a line with a pro whose service left the catalogue", () => {
     expect(screen.getByText("No longer available")).toBeTruthy();
     expect(screen.queryByText("₹900")).toBeNull();
     expect(screen.queryByText(/Rakesh/)).toBeNull();
-    expect(screen.queryByText("This pro's price is outside our recommended range")).toBeNull();
+    expect(screen.queryByText(OUT_OF_RANGE_WARNING)).toBeNull();
     expect(screen.queryByRole("button", { name: /change pro/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /increase/i })).toBeNull();
     expect(screen.getByRole("button", { name: "Remove Car wash SUV" })).toBeTruthy();
