@@ -144,10 +144,106 @@
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      Non-blocking Inter stylesheet (SVC-378 Phase 1). Previously this was a
+      plain `<link rel="stylesheet">`, which Lighthouse flagged as
+      render-blocking for ~400ms on the baseline. The preload + onload swap
+      pattern is a well-supported idiom: browsers that honour it defer the
+      network cost off the critical path; browsers that ignore `preload`
+      still get the font via the `<noscript>` fallback, and browsers without
+      JS still render in Inter.
+
+      The onload handler nulls itself to stop a (very rare) double-fire if
+      the preload is applied before DOM-parse completes. Setting
+      this.rel='stylesheet' is what actually starts the parse — `preload`
+      alone fetches but doesn't apply.
+    -->
     <link
-      rel="stylesheet"
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      />
+    </noscript>
+
+    <!--
+      FOUC-prevention shell (SVC-378 Phase 1). Inline so it applies
+      before any CSS fetch resolves. React swaps #root on mount — this is
+      what the visitor sees for the fraction of a second between HTML
+      parse and React boot. Branded, not a white flash.
+
+      "Loading…" text is intentional. On a stuck JS chunk (the 2026-08-17
+      incident) this at least reads as "something is happening" rather
+      than a blank page. Readable in the fallback font stack so it
+      renders even with Inter unloaded.
+
+      ⚠️ TOKEN PARITY — THESE VALUES MUST MATCH src/styles.css + marketing-theme.css.
+      Any drift means the pre-mount shell flashes a different colour than the
+      React-mounted page. Current mapping:
+        --background         → src/styles.css :root           oklch(0.975 0.002 250)
+        --foreground         → marketing-theme.css override   oklch(0.2 0.05 262.7)
+        --muted-foreground   → marketing-theme.css override   oklch(0.5 0.03 262.7)
+        dark --background    → src/styles.css @media dark     oklch(0.18 0.015 260)
+        dark --foreground    → src/styles.css @media dark     oklch(0.95 0.005 260)
+        dark --muted-fg      → src/styles.css @media dark     oklch(0.7 0.02 260)
+      If either stylesheet changes, mirror the edit here.
+    -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: oklch(0.975 0.002 250);
+        color: oklch(0.2 0.05 262.7);
+        font-family:
+          Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+      #root:empty::before {
+        content: "Loading EazyServ…";
+        display: flex;
+        min-height: 100vh;
+        align-items: center;
+        justify-content: center;
+        color: oklch(0.5 0.03 262.7);
+        font-size: 14px;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background: oklch(0.18 0.015 260);
+          color: oklch(0.95 0.005 260);
+        }
+        #root:empty::before {
+          color: oklch(0.7 0.02 260);
+        }
+      }
+    </style>
+
+    <!--
+      Cloudflare Web Analytics (SVC-378 Phase 1). Free, cookieless, no
+      cookie-banner needed; async + `defer` means zero perf impact.
+
+      The token is injected at build time via VITE_CF_ANALYTICS_TOKEN. If
+      unset (local dev, unbootstrapped CF account), vite leaves the placeholder
+      string and the beacon POST returns 404 — benign, no user-visible effect.
+      Set the real UUID in Cloudflare Pages env or in a GitHub Actions secret
+      consumed by .github/workflows/deploy-marketing.yml.
+    -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "%VITE_CF_ANALYTICS_TOKEN%"}'
+    ></script>
   </head>
   <body>
     <div id="root"></div>
