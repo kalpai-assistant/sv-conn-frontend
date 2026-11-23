@@ -67,6 +67,7 @@ import {
 
 import { Reveal } from "./Reveal";
 import { FacebookIcon, InstagramIcon, LinkedInIcon, XIcon, YouTubeIcon } from "./SocialIcons";
+import { ThemeToggle } from "./ThemeToggle";
 import { useActiveSection, useScrolled } from "./use-nav-state";
 
 // Every link on this page is a full navigation (no client router — this
@@ -453,6 +454,12 @@ function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Desktop-only — the mobile nav already has to earn the hamburger
+              and a Download pill side by side; a third square icon there
+              crowds the 375px-width header. Keyboard users on mobile can
+              toggle via browser settings. */}
+          <ThemeToggle className="hidden md:inline-flex" />
+
           <a
             href={DOWNLOAD_URL}
             className="focus-inset inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:shadow-md hover:brightness-110"
@@ -481,7 +488,7 @@ function Header() {
       <div
         id="mobile-nav"
         className={`overflow-hidden border-t border-border/60 bg-background/95 transition-all duration-300 ease-out md:hidden ${
-          menuOpen ? "max-h-80 visible opacity-100" : "invisible max-h-0 opacity-0"
+          menuOpen ? "max-h-96 visible opacity-100" : "invisible max-h-0 opacity-0"
         }`}
       >
         <nav className="mx-auto flex max-w-6xl flex-col px-6 py-2">
@@ -490,11 +497,18 @@ function Header() {
               key={href}
               href={href}
               onClick={() => setMenuOpen(false)}
-              className="border-b border-border/40 py-3 text-sm font-medium text-muted-foreground transition-colors last:border-0 hover:text-foreground"
+              className="border-b border-border/40 py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               {label}
             </a>
           ))}
+          {/* Theme toggle lives at the bottom of the mobile menu drawer,
+              not next to Download — see rationale on the desktop toggle
+              above for why we don't crowd the top bar on small screens. */}
+          <div className="flex items-center justify-between py-3">
+            <span className="text-sm font-medium text-muted-foreground">Theme</span>
+            <ThemeToggle />
+          </div>
         </nav>
       </div>
     </header>
@@ -1575,7 +1589,19 @@ function FooterColumn({
  * screen reader announce the brand twice.
  */
 function BrandMark() {
-  return <img src="/logo-mark.png" alt="" width={32} height={32} className="h-8 w-8 rounded-lg" />;
+  // The source JPEG has a navy background baked in, which disappears into
+  // the dark-mode background. A subtle 1px ring + a touch of brand tint
+  // around the tile in dark mode gives it the same "present, not a
+  // floating glyph" treatment it has on light. CSS-only; no new asset.
+  return (
+    <img
+      src="/logo-mark.png"
+      alt=""
+      width={32}
+      height={32}
+      className="h-8 w-8 rounded-lg dark:shadow-[0_0_0_1px_var(--border),0_0_12px_-2px_color-mix(in_oklab,var(--primary)_35%,transparent)]"
+    />
+  );
 }
 
 function SectionHeading({

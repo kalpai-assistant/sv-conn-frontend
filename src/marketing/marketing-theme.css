@@ -69,6 +69,164 @@
 }
 
 /**
+ * DARK-MODE OVERRIDES (SVC-378 Phase 1.5)
+ * =======================================
+ * WHY THIS BLOCK EXISTS
+ * The :root overrides above ship light-mode token values — navy-tinted
+ * dark text, royal-blue primary. When the page lands in OS-dark mode,
+ * src/styles.css's @media (prefers-color-scheme: dark) block flips the
+ * base tokens to a dark palette. BUT marketing-theme.css is imported
+ * AFTER styles.css, so the :root block up there keeps winning the
+ * cascade on --foreground / --muted-foreground / --card-foreground /
+ * --popover-foreground / --secondary-foreground — giving you dark text
+ * on a dark background. That is the "text unreadable in dark mode"
+ * bug Vipul reported on 2026-11-23.
+ *
+ * TWO SELECTORS, SAME VALUES
+ * `.dark` is the explicit-toggle path — the inline bootstrap script in
+ * index.marketing.html sets it on <html> when the user has picked
+ * "dark" (or picked "system" and the OS is dark). It beats the @media
+ * query via CSS specificity, so a user who picked "light" while on an
+ * OS-dark machine gets light rendering.
+ *
+ * `@media (prefers-color-scheme: dark) :root:not(.light)` is the
+ * OS-auto path AND the no-JS fallback. The :not(.light) narrows it so
+ * a user who explicitly picked "light" while OS is dark still gets
+ * light. If JS fails to run at all, the @media is what rescues OS-dark
+ * visitors from the unreadable-text bug.
+ *
+ * HOW VALUES WERE CHOSEN
+ * Same discipline as the light block: keep hue 262.7, flip lightness,
+ * hold contrast. Primary lifts 0.5 → 0.6 to keep white-on-primary
+ * buttons WCAG AA on the darker background (SVC-383 precedent).
+ * Foreground / muted-foreground / secondary-foreground invert
+ * lightness, keep subtle blue tint. Accent swaps to a tinted dark
+ * surface. Nothing here fights the styles.css dark block — this
+ * supplements it with the marketing-specific tints.
+ *
+ * .footer-navy is INTENTIONALLY untouched — the footer stays on logo
+ * navy in both themes (it already carries its own theme via
+ * class-scoped overrides at L100-119, and consistent navy across light
+ * + dark is the point).
+ */
+/*
+ * DARK — explicit toggle AND OS-auto, both paths set the FULL token set.
+ *
+ * Why the full set and not just the marketing-tinted overlays:
+ * src/styles.css's @media dark block AND its :root light block set the
+ * base tokens (--background, --card, --popover, --secondary, --muted,
+ * --border, --input, --primary-foreground, --destructive, --success).
+ * Marketing's :root above only overrides --foreground / --muted-foreground
+ * / --secondary-foreground / --card-foreground / --popover-foreground /
+ * --primary / --ring / --accent / --accent-foreground / --chart-1 / sidebar-*.
+ *
+ * Both .dark and .light need to redeclare ALL dark-vs-light base tokens
+ * so the "OS is X, user picked NOT-X" scenarios render correctly. The
+ * `@media (prefers-color-scheme: dark) :root:not(.light)` path handles
+ * the no-JS fallback AND the system-preference case cleanly.
+ *
+ * Values for base tokens are copied verbatim from src/styles.css so the
+ * two files cannot drift without this comment flagging it. If styles.css
+ * updates its base palette, mirror the edits here.
+ */
+.dark {
+  /* Base tokens (mirrored from styles.css @media dark) */
+  --background: oklch(0.18 0.015 260);
+  --card: oklch(0.22 0.015 260);
+  --popover: oklch(0.22 0.015 260);
+  --secondary: oklch(0.28 0.01 260);
+  --muted: oklch(0.26 0.01 260);
+  --destructive: oklch(0.6 0.22 27);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.68 0.17 165);
+  --success-foreground: oklch(1 0 0);
+  --border: oklch(0.3 0.01 260);
+  --input: oklch(0.3 0.01 260);
+  --primary-foreground: oklch(1 0 0);
+  --sidebar: oklch(0.2 0.015 260);
+  --sidebar-foreground: oklch(0.95 0.005 260);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(0.3 0.01 260);
+  /* Marketing-tinted overlays (hue 262 tint on text + brand bump) */
+  --foreground: oklch(0.95 0.015 262.7);
+  --muted-foreground: oklch(0.7 0.025 262.7);
+  --secondary-foreground: oklch(0.85 0.02 262.7);
+  --card-foreground: oklch(0.95 0.015 262.7);
+  --popover-foreground: oklch(0.95 0.015 262.7);
+  --primary: oklch(0.6 0.2 262);
+  --ring: oklch(0.6 0.2 262);
+  --accent: oklch(0.3 0.03 262);
+  --accent-foreground: oklch(0.92 0.08 262);
+  --chart-1: oklch(0.6 0.2 262);
+  --sidebar-primary: oklch(0.6 0.2 262);
+  --sidebar-accent: oklch(0.3 0.03 262);
+  --sidebar-accent-foreground: oklch(0.92 0.08 262);
+  --sidebar-ring: oklch(0.6 0.2 262);
+}
+
+/*
+ * LIGHT — explicit override when the user picks light while OS is dark.
+ * Resets the base tokens that styles.css @media dark flipped, so --background,
+ * --card, --border etc. return to their light values. The marketing-tinted
+ * overlays from :root up top already cover text + primary, so we only
+ * redeclare the base set here (and the sidebar block for completeness).
+ * Values mirrored verbatim from styles.css :root light block.
+ */
+.light {
+  --background: oklch(0.975 0.002 250);
+  --card: oklch(1 0 0);
+  --popover: oklch(1 0 0);
+  --secondary: oklch(0.95 0.005 260);
+  --muted: oklch(0.95 0.005 260);
+  --destructive: oklch(0.577 0.245 27);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.6 0.17 165);
+  --success-foreground: oklch(1 0 0);
+  --border: oklch(0.9 0.005 260);
+  --input: oklch(0.9 0.005 260);
+  --primary-foreground: oklch(1 0 0);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.2 0.02 260);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(0.9 0.005 260);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background: oklch(0.18 0.015 260);
+    --card: oklch(0.22 0.015 260);
+    --popover: oklch(0.22 0.015 260);
+    --secondary: oklch(0.28 0.01 260);
+    --muted: oklch(0.26 0.01 260);
+    --destructive: oklch(0.6 0.22 27);
+    --destructive-foreground: oklch(1 0 0);
+    --success: oklch(0.68 0.17 165);
+    --success-foreground: oklch(1 0 0);
+    --border: oklch(0.3 0.01 260);
+    --input: oklch(0.3 0.01 260);
+    --primary-foreground: oklch(1 0 0);
+    --sidebar: oklch(0.2 0.015 260);
+    --sidebar-foreground: oklch(0.95 0.005 260);
+    --sidebar-primary-foreground: oklch(1 0 0);
+    --sidebar-border: oklch(0.3 0.01 260);
+    --foreground: oklch(0.95 0.015 262.7);
+    --muted-foreground: oklch(0.7 0.025 262.7);
+    --secondary-foreground: oklch(0.85 0.02 262.7);
+    --card-foreground: oklch(0.95 0.015 262.7);
+    --popover-foreground: oklch(0.95 0.015 262.7);
+    --primary: oklch(0.6 0.2 262);
+    --ring: oklch(0.6 0.2 262);
+    --accent: oklch(0.3 0.03 262);
+    --accent-foreground: oklch(0.92 0.08 262);
+    --chart-1: oklch(0.6 0.2 262);
+    --sidebar-primary: oklch(0.6 0.2 262);
+    --sidebar-accent: oklch(0.3 0.03 262);
+    --sidebar-accent-foreground: oklch(0.92 0.08 262);
+    --sidebar-ring: oklch(0.6 0.2 262);
+  }
+}
+
+/**
  * NAVY FOOTER SURFACE (option 1)
  * ==============================
  * The page bookends in brand colour: the BrandBand is already navy, and the
