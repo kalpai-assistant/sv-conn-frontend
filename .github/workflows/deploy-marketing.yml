@@ -73,9 +73,18 @@ jobs:
       # VITE_APK_URL is the S3 object URL for the latest signed APK. Bucket
       # policy is public-read, so hardcoding it here is safe (no secret).
       # When a real CDN sits in front of this we move it to a repo variable.
+      #
+      # VITE_CF_ANALYTICS_TOKEN is the Cloudflare Web Analytics site token for
+      # eazyserv.com (SVC-378 Phase 1). The beacon script tag in
+      # index.marketing.html reads it at build time and embeds it in client
+      # JS — so the value is PUBLIC by design (anyone can read it from the
+      # served HTML). Not a secret, safe to commit; the Cloudflare side
+      # validates the origin so the token can't be abused to inflate counts
+      # from another domain.
       - name: Build marketing bundle
         env:
           VITE_APK_URL: https://eazyserv-downloads.s3.ap-south-1.amazonaws.com/apk/latest.apk
+          VITE_CF_ANALYTICS_TOKEN: 397d7f736f35432d95a6d1dcbc8f1147
         run: npm run build:marketing
 
       # Wrangler action handles auth + `wrangler pages deploy`. The Pages

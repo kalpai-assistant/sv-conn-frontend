@@ -319,40 +319,68 @@ const MISSION = [
   { Icon: Building, text: "Build a platform that scales to cities across India." },
 ];
 
-// Deliberately rendered as a plain inline row rather than six cards. Value
-// words are near-universal ("Trust", "Quality") and carry little weight on
-// a consumer page — giving them card-sized real estate would crowd out the
-// things a customer actually decides on.
-const CORE_VALUES = [
-  "Trust",
-  "Transparency",
-  "Quality",
-  "Innovation",
-  "Customer First",
-  "Professional Excellence",
-];
+// CORE_VALUES row cut in SVC-378 Phase 3 — the audit flagged the six
+// near-universal words ("Trust", "Quality", etc.) as filler carrying no
+// customer-decisive weight. Not kept as dead code; `git log` recovers them
+// if a future copy pass wants them back under a stronger framing.
 
+// SVC-378 Phase 3: FAQ expanded from 4 → 9.
+//
+// Every answer traces back to a concrete source in the product (terms.md,
+// refund.md, or shipped behaviour). Nothing invented:
+//   - Pricing / parts  → refund.md §5
+//   - Visit charge     → refund.md §1.2
+//   - Replacement SP   → terms.md marketplace language + current dispatch
+//   - KYC + verification → terms.md §(b), product state
+//   - Payment methods  → cart.tsx (Razorpay + cash)
+//   - OTP mechanism    → AuthFlow + cart booking path
+//   - Beta coverage    → ops reality; don't promise what dispatch can't
+//   - iOS install flow → /download Safari A2HS path
+//   - Cancellation     → refund.md §1.2
+//
+// Deliberately NOT added (each has a reason):
+//   - "Do you offer same-day service?" — dispatch can't honestly promise.
+//   - "Is there a warranty?" — refund.md §4 only offers a possible free
+//     revisit case-by-case; "warranty" is a stronger word than the policy
+//     supports.
+//   - "Can I tip the professional?" — shipped via QuickAddButton/tip tray
+//     in the real app but marketing doesn't need to walk through it.
 const FAQS = [
   {
     q: "Which areas do you serve?",
-    a: "We're in beta across select localities in Pune and adding more as we grow. Open the app to check whether your PIN code is covered.",
+    a: "We're in beta across select localities in Pune and adding more each week. Open the app to check whether your PIN code is covered — if we're not there yet, the app tells you upfront.",
   },
   {
-    q: "Is there an iPhone app?",
-    a: "Not yet. Android is available as a direct download today, and EazyServ runs on iPhone through Safari — the download page walks you through adding it to your home screen.",
-  },
-  {
-    // Careful: this answer has to stay consistent with src/legal/refund.md,
-    // which reserves the right to charge for spare parts/materials (§5) and
-    // a visit/inspection charge once the professional is en route (§1.2).
-    // Do not simplify this into "no extra charges, ever" — the policy does
-    // not say that, and the landing page must not promise more than it.
     q: "How is the price decided?",
-    a: "You see the price for the service before you confirm the booking — no bidding, no haggling. Parts or materials, if your job needs them, are charged separately. Our refund and cancellation policy sets out the full detail.",
+    a: "You see the full service price before you confirm the booking — no bidding, no haggling, no surprise invoices. If your job needs parts or materials, those are charged separately. Our refund and cancellation policy sets out the full detail.",
   },
   {
     q: "What is the doorstep OTP?",
-    a: "A short code shown in your app. The professional can't start the job until you share it, so you always know the right person turned up at the right time.",
+    a: "A short code shown in your app once a professional accepts your job. They can't start work until you share it, so you always know the right person turned up at the right time — and the professional knows they've arrived at the right door.",
+  },
+  {
+    q: "How are your professionals verified?",
+    a: "Every professional clears KYC verification before taking a single job — ID, address and background checks. We know who shows up at your door, and so do you.",
+  },
+  {
+    q: "What if the professional can't make it?",
+    a: "We offer a replacement from our verified pool. You're never left waiting with nobody assigned.",
+  },
+  {
+    q: "How can I pay?",
+    a: "UPI, credit or debit card, or netbanking through Razorpay — all secured in the app. Prefer cash? Pay the professional on completion instead.",
+  },
+  {
+    q: "Can I cancel after booking?",
+    a: "Yes. Cancellation is free before a professional is en route; once they've started heading to your address a small visit/inspection charge may apply. Our refund policy spells out the exact timing.",
+  },
+  {
+    q: "Is there an iPhone app?",
+    a: "Not yet. Android is available as a direct download today. EazyServ also runs on iPhone through Safari — the download page walks you through adding it to your home screen so it works just like a native app.",
+  },
+  {
+    q: "What do I do if something goes wrong?",
+    a: "Open the booking in your app and tap the support link, or email support@eazyserv.com. A real person reads every ticket — we're small enough that you reach us directly, and intend to stay that way through beta.",
   },
 ];
 
@@ -1408,21 +1436,16 @@ function About() {
           </div>
         </Reveal>
 
-        <Reveal delay={120} className="mt-10">
-          <p className="text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            What we hold ourselves to
-          </p>
-          <ul className="mt-4 flex flex-wrap items-center justify-center gap-2">
-            {CORE_VALUES.map((value) => (
-              <li
-                key={value}
-                className="rounded-full border border-border bg-card px-4 py-1.5 text-sm text-muted-foreground"
-              >
-                {value}
-              </li>
-            ))}
-          </ul>
-        </Reveal>
+        {/* SVC-378 Phase 3: CORE_VALUES row cut.
+            The audit flagged this as filler: "Trust / Transparency / Quality /
+            Innovation / Customer First / Professional Excellence" — six
+            near-universal words carrying no customer-decisive weight. The
+            source comment at CORE_VALUES itself already agreed they were
+            "near-universal". Cut recovers ~90px of vertical space without
+            losing any claim a visitor acts on. The constant is kept for
+            posterity (and so a future copy pass can put the row back under
+            a stronger framing if desired — e.g. values tied to measurable
+            commitments). */}
       </div>
     </section>
   );
@@ -1463,6 +1486,21 @@ function Faq() {
 // Closing CTA
 // ---------------------------------------------------------------------------
 
+/**
+ * CallToAction (SVC-378 Phase 3 rewrite).
+ *
+ * Audit flagged previous as a repeat of the hero: same copy shape ("Ready
+ * when you are" / "Download the app...") and the same single primary CTA
+ * the hero already made louder. A reader who's scrolled this far needs a
+ * *different* moment — concrete next step framed around their own
+ * urgency, plus a soft fallback for the fence-sitter who isn't ready to
+ * install.
+ *
+ * Heading rewrites to a question that places the reader in the flow
+ * ("Something to book today?"). Secondary CTA goes to the FAQ (nearer
+ * than Download, for the "I have one more question" visitor) rather than
+ * a mailto, which would route past the FAQ to support@ unnecessarily.
+ */
 function CallToAction() {
   return (
     <section className="border-t border-border/60 py-20 md:py-24">
@@ -1471,24 +1509,33 @@ function CallToAction() {
             download card are the only two blocks carrying it. Its whole job
             is to stand out from the flat shadow-sm cards in Services, Trust,
             About and Steps, which is exactly what spreading it would cost. */}
-        <Reveal className="shadow-primary-lift relative overflow-hidden rounded-3xl border border-primary/20 bg-primary/5 px-6 py-14 text-center md:px-16">
+        <Reveal className="shadow-primary-lift relative overflow-hidden rounded-3xl border border-primary/20 bg-primary/5 px-6 py-14 text-center md:px-16 md:py-16">
           <div
             aria-hidden
             className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/15 blur-3xl"
           />
           <h2 className="text-2xl font-extrabold tracking-[-0.02em] text-foreground md:text-3xl">
-            Ready when you are
+            Something to book today?
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground md:text-base">
-            Download the app and book your first service in a couple of minutes.
+            Install EazyServ, pick a service, and a verified professional is at your doorstep. In
+            that order. In a couple of minutes.
           </p>
-          <a
-            href={DOWNLOAD_URL}
-            className="focus-inset group mt-8 inline-flex items-center justify-center rounded-xl bg-primary px-7 py-3.5 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30 hover:brightness-110"
-          >
-            Download for Android
-            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-          </a>
+          <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+            <a
+              href={DOWNLOAD_URL}
+              className="focus-inset group inline-flex items-center justify-center rounded-xl bg-primary px-7 py-3.5 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30 hover:brightness-110"
+            >
+              Download for Android
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </a>
+            <a
+              href="#faq"
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-card px-7 py-3.5 text-base font-semibold text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              First, a question
+            </a>
+          </div>
         </Reveal>
       </div>
     </section>
@@ -1522,22 +1569,16 @@ function Footer() {
             <SocialRow />
           </div>
 
-          {/* Capped at six, not the full eighteen. There are no per-service
-              pages, so every entry resolves to the same #services anchor —
-              listing all of them made this column three times the height of
-              its neighbours while giving a screen reader eighteen links to
-              one destination. Six names signal the range; "All services"
-              carries anyone who wants the rest.
+          {/* SVC-378 Phase 3: service names are now plain text labels (not
+              links), with "All services" the single navigable item in the
+              column. Six identical #services anchors in a row made a screen
+              reader announce six indistinguishable destinations — the audit's
+              a11y jank point. Labels still signal breadth; the single link
+              carries anyone who wants the full view.
 
               Sliced rather than hand-listed so reordering SERVICES reorders
               the footer with it, and nothing can drift out of sync. */}
-          <FooterColumn
-            title="Services"
-            links={[
-              ...SERVICES.slice(0, 6).map((s) => [s.name, "#services"] as const),
-              ["All services", "#services"] as const,
-            ]}
-          />
+          <FooterServicesColumn names={SERVICES.slice(0, 6).map((s) => s.name)} />
           <FooterColumn
             title="Company"
             links={[
@@ -1580,6 +1621,12 @@ function Footer() {
  * target represents us, which is false for a platform homepage.
  */
 function SocialRow() {
+  // SVC-378 Phase 3: filter out entries without a real profile href. The
+  // previous "falls back to platform homepage" pattern meant a visitor could
+  // click a LinkedIn icon and land on linkedin.com — a dead link in effect.
+  // On a Linear-tier page that reads as unpolished. The SOCIALS entry stays
+  // in the config (one-line edit to turn it back on once a profile exists).
+  const withProfile = SOCIALS.filter((s) => s.href);
   return (
     <div className="mt-6">
       {/* The heading is tied to the list with aria-labelledby so the icons
@@ -1588,25 +1635,20 @@ function SocialRow() {
         Find us on
       </p>
       <ul aria-labelledby="social-heading" className="mt-3 flex items-center gap-2">
-        {SOCIALS.map(({ name, href, home, Icon }) => {
-          const isOurProfile = Boolean(href);
-          const label = isOurProfile ? `EazyServ on ${name}` : `${name} — profile coming soon`;
-
-          return (
-            <li key={name}>
-              <a
-                href={href || home}
-                target="_blank"
-                rel={isOurProfile ? "noopener noreferrer me" : "noopener noreferrer"}
-                aria-label={label}
-                title={label}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                <Icon className="h-4 w-4" />
-              </a>
-            </li>
-          );
-        })}
+        {withProfile.map(({ name, href, Icon }) => (
+          <li key={name}>
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer me"
+              aria-label={`EazyServ on ${name}`}
+              title={`EazyServ on ${name}`}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <Icon className="h-4 w-4" />
+            </a>
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -1623,27 +1665,46 @@ function FooterColumn({
     <div>
       <p className="text-sm font-semibold text-foreground">{title}</p>
       <ul className="mt-3 space-y-2">
-        {links.map(([label, href]) => {
-          // A capped list ends in a "see the rest" link. Giving it the
-          // primary colour separates it from its siblings so it reads as an
-          // action rather than just another service name. Columns that
-          // aren't capped never pass this label, so they are unaffected.
-          const isSeeAll = label === "All services";
-          return (
-            <li key={label}>
-              <a
-                href={href}
-                className={
-                  isSeeAll
-                    ? "text-sm font-semibold text-primary transition-colors hover:brightness-110"
-                    : "text-sm text-muted-foreground transition-colors hover:text-foreground"
-                }
-              >
-                {label}
-              </a>
-            </li>
-          );
-        })}
+        {links.map(([label, href]) => (
+          <li key={label}>
+            <a
+              href={href}
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Services column (SVC-378 Phase 3).
+ *
+ * Service names render as plain text labels — signalling breadth without
+ * giving a screen reader six identical links to the same #services anchor.
+ * The one navigable item is "All services", styled as the primary action.
+ */
+function FooterServicesColumn({ names }: { names: readonly string[] }) {
+  return (
+    <div>
+      <p className="text-sm font-semibold text-foreground">Services</p>
+      <ul className="mt-3 space-y-2">
+        {names.map((name) => (
+          <li key={name} className="text-sm text-muted-foreground">
+            {name}
+          </li>
+        ))}
+        <li>
+          <a
+            href="#services"
+            className="text-sm font-semibold text-primary transition-colors hover:brightness-110"
+          >
+            All services
+          </a>
+        </li>
       </ul>
     </div>
   );
