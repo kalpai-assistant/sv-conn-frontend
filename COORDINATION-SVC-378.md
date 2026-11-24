@@ -200,3 +200,38 @@ epic tip (post-Phase-1).
   bookings client-side would double-count. Also Phase 5.
 
 **Next:** PR against epic → CI → kalpai-review → merge → SVC-491 Done.
+
+### 2026-11-23 — Run 03 Phase 3 (incoming-request escalation) feature-complete
+
+**Agent:** Run 03 (provider UI/UX).
+**Phase 2 status:** ✅ Shipped — PR #313 merged to epic (SHA `0a37be8`).
+SVC-491 → Done.
+**Phase 3 branch:** `feature/svc-378-provider-ux-phase-3-incoming` off
+epic tip (post-Phase-2).
+**Phase 3 commit:** `a7d49af` — one commit, three deliverables:
+- `hapticWarning` added to `src/lib/haptics.ts`; fires once per
+  booking id on `IncomingRequestCard` mount.
+- Countdown-pill urgency escalation: calm > 30s → amber ≤ 30s →
+  destructive + pulse ≤ 10s. Reduced-motion drops pulse, keeps
+  palette.
+- Null-safe `matchReason` prop on `IncomingRequestCard`. Shows
+  "Nearest match" placeholder until SVC-406 ships a real
+  `match_reason` field (hands-off until then).
+- +7 test cases on `IncomingRequestCard.test.tsx`.
+
+**Shared-primitive touches:**
+- `src/lib/haptics.ts` — additive (`hapticWarning`). Existing
+  consumers untouched. Haptic palette is now complete:
+  `Light` / `Medium` / `Warning` / `Success`.
+- `src/i18n/{en,hi,mr}/provider.json` — one new key
+  (`incoming.matchReasonPlaceholder`). Parity-tested.
+- `src/styles.css`: **still not touched** by Run 03.
+
+**Deferred in Phase 3 (contract §6 — no paid services):**
+- Sound asset on arrival (haptic covers through-pocket).
+- Mini-map snippet in the address tile (Google Static Maps paid;
+  Leaflet retrofit non-trivial). Punted.
+
+**Next:** PR against epic → CI → kalpai-review → merge → SVC-492 Done.
+Then: **open the epic PR to `main`** (post-Phase-3 tip). Phases 4
+(SVC-493) and 5 (SVC-494) remain filed for future runs.

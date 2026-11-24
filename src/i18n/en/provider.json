@@ -141,6 +141,7 @@
     "tooMany": "Too many invites in the last hour. Try again later."
   },
   "incoming": {
+    "matchReasonPlaceholder": "Nearest match",
     "title": "New job nearby",
     "away": "{{km}} km away",
     "expired": "This request has expired.",
