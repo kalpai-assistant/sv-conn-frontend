@@ -89,6 +89,8 @@
     "paidOut": "Paid out to your registered payout method.",
     "mapOpenInMaps": "Open in Maps",
     "mapAriaLabel": "Route from you to the customer",
+    "mapLegendYou": "You",
+    "mapLegendCustomer": "Customer",
     "etaApprox": "~{{minutes}} min away",
     "etaApproxLabel": "approx",
     "etaUnavailable": "Distance unknown",

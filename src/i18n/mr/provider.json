@@ -89,6 +89,8 @@
     "paidOut": "तुमच्या नोंदवलेल्या पेआउट पद्धतीवर पाठवले जाते.",
     "mapOpenInMaps": "मॅप्समध्ये उघडा",
     "mapAriaLabel": "तुमच्यापासून ग्राहकापर्यंतचा मार्ग",
+    "mapLegendYou": "तुम्ही",
+    "mapLegendCustomer": "ग्राहक",
     "etaApprox": "~{{minutes}} मिनिटे दूर",
     "etaApproxLabel": "अंदाजे",
     "etaUnavailable": "अंतर माहीत नाही",

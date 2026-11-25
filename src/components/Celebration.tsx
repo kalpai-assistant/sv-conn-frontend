@@ -36,7 +36,23 @@ const CONFETTI_PIECES = [
 
 const AUTO_DISMISS_MS = 1500;
 
-export function Celebration({ onComplete }: { onComplete?: () => void }) {
+/**
+ * SVC-493: `title` and `subtitle` are optional overrides so the Phase-4
+ * completion overlay on the provider job screen can reuse the exact
+ * motion / timing / reduced-motion handling without forking the
+ * component. Callers that omit them (the SVC-390 cart success flow,
+ * the SVC-490 onboarding step-5 arrival) keep the original copy
+ * verbatim — this is additive, not a breaking change.
+ */
+export function Celebration({
+  onComplete,
+  title = "Booking confirmed!",
+  subtitle = "Your pro is on the way",
+}: {
+  onComplete?: () => void;
+  title?: string;
+  subtitle?: string;
+}) {
   const reduceMotion = useReducedMotion();
   const [visible, setVisible] = useState(true);
 
@@ -106,9 +122,9 @@ export function Celebration({ onComplete }: { onComplete?: () => void }) {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.18 }}
           >
-            Booking confirmed!
+            {title}
           </motion.h1>
-          <p className="mt-2 text-base text-muted-foreground">Your pro is on the way</p>
+          <p className="mt-2 text-base text-muted-foreground">{subtitle}</p>
         </motion.div>
       )}
     </AnimatePresence>
