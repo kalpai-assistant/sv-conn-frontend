@@ -18,6 +18,7 @@ import { createRoot } from "react-dom/client";
 import { MarketingHome } from "./MarketingHome";
 import { NotFoundPage } from "./NotFoundPage";
 import { applyRouteMeta, NOT_FOUND_META, ROUTE_META } from "./seo";
+import { getPostBySlug } from "./blog/registry";
 
 import "../styles.css";
 // Must come after styles.css — it redefines the brand tokens for this build
@@ -33,6 +34,12 @@ import "./marketing-theme.css";
 const DownloadPage = lazy(() =>
   import("./DownloadPage").then((m) => ({ default: m.DownloadPage })),
 );
+
+// Blog surfaces lazy-split for the same reason as /download — home page
+// doesn't pay for the blog index or any post body. Posts themselves are
+// lazy-loaded a second time inside BlogPost via the registry.
+const BlogIndex = lazy(() => import("./blog/BlogIndex").then((m) => ({ default: m.BlogIndex })));
+const BlogPost = lazy(() => import("./blog/BlogPost").then((m) => ({ default: m.BlogPost })));
 
 // Mirrors the FOUC shell in index.marketing.html so a slow /download
 // chunk fetch shows the same brand background as the initial paint, not
@@ -69,6 +76,15 @@ function App() {
   // Google indexes those as duplicates of the homepage. They now get a
   // real not-found view carrying `noindex`.
   const isDownload = path === "/download" || path === "/download/";
+  const isBlogIndex = path === "/blog" || path === "/blog/";
+  // Blog post slug extraction: any path matching `/blog/<slug>` (with or
+  // without a trailing slash, no further segments). Trailing `.html` is
+  // allowed because vite.marketing.config.ts emits `<slug>.html` per route
+  // and Pages serves it under that URL even when the canonical is slashless.
+  const blogSlugMatch = path.match(/^\/blog\/([^/]+?)(?:\.html)?\/?$/);
+  const blogSlug = blogSlugMatch && blogSlugMatch[1] !== "" ? blogSlugMatch[1] : null;
+  const blogPost = blogSlug && blogSlug !== "index" ? getPostBySlug(blogSlug) : undefined;
+
   // "/index.marketing.html" is how the home page is reached on the dev
   // server: this build's entry is index.marketing.html, and the npm script
   // only renames it to index.html after `vite build`. Vite serves it under
@@ -79,7 +95,20 @@ function App() {
   // not-found route was introduced.
   const isHome =
     path === "/" || path === "" || path === "/index.html" || path === "/index.marketing.html";
-  const meta = isDownload ? ROUTE_META["/download"] : isHome ? ROUTE_META["/"] : NOT_FOUND_META;
+
+  // Meta tags per route. Blog posts synthesize their meta from the post
+  // registry; blog index uses a static ROUTE_META entry.
+  let meta;
+  if (isDownload) meta = ROUTE_META["/download"];
+  else if (isBlogIndex) meta = ROUTE_META["/blog"];
+  else if (blogPost)
+    meta = {
+      title: `${blogPost.title} · EazyServ`,
+      description: blogPost.description,
+      canonicalPath: `/blog/${blogPost.slug}`,
+    };
+  else if (isHome) meta = ROUTE_META["/"];
+  else meta = NOT_FOUND_META;
 
   // Applied during render rather than in an effect so the tags are set
   // before a crawler's snapshot is taken. Writing to document.head is a
@@ -91,6 +120,18 @@ function App() {
     return (
       <Suspense fallback={<DownloadFallback />}>
         <DownloadPage />
+      </Suspense>
+    );
+  if (blogPost)
+    return (
+      <Suspense fallback={<DownloadFallback />}>
+        <BlogPost meta={blogPost} Component={blogPost.Component} />
+      </Suspense>
+    );
+  if (isBlogIndex)
+    return (
+      <Suspense fallback={<DownloadFallback />}>
+        <BlogIndex />
       </Suspense>
     );
   if (isHome) return <MarketingHome />;

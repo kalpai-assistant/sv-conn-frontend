@@ -39,6 +39,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
       "Get the EazyServ app to book home services in Pune. Direct Android download, plus an install guide for iPhone.",
     canonicalPath: "/download",
   },
+  "/blog": {
+    title: "The EazyServ blog — notes from building in public, in Pune",
+    description:
+      "Honest updates, mistakes, and the occasional win as we build a home-services marketplace for Pune.",
+    canonicalPath: "/blog",
+  },
 };
 
 export const NOT_FOUND_META: RouteMeta = {
