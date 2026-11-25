@@ -86,7 +86,22 @@
     "serviceAmount": "Service amount",
     "platformFee": "Platform fee",
     "yourEarnings": "Your earnings",
-    "paidOut": "Paid out to your registered payout method."
+    "paidOut": "Paid out to your registered payout method.",
+    "mapOpenInMaps": "Open in Maps",
+    "mapAriaLabel": "Route from you to the customer",
+    "etaApprox": "~{{minutes}} min away",
+    "etaApproxLabel": "approx",
+    "etaUnavailable": "Distance unknown",
+    "customerSeenAgo": "Customer saw your ETA {{minutes}} min ago",
+    "customerSeenJustNow": "Customer just saw your ETA",
+    "completionTitle": "Great job!",
+    "completionSubtitle": "You earned {{amount}} on this job.",
+    "rateCustomerTitle": "Rate the customer",
+    "rateCustomerHint": "This helps us match you with great customers next time.",
+    "rateCustomerNotePlaceholder": "Add a note (optional)",
+    "rateCustomerSubmit": "Submit rating",
+    "rateCustomerComingSoon": "Submitting ratings is coming soon.",
+    "rateCustomerStarLabel": "{{stars}} out of 5 stars"
   },
   "assigned": {
     "changed": "This job has changed. Showing the latest.",

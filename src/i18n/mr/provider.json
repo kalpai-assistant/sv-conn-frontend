@@ -86,7 +86,22 @@
     "serviceAmount": "सर्व्हिसची रक्कम",
     "platformFee": "प्लॅटफॉर्म फी",
     "yourEarnings": "तुमची कमाई",
-    "paidOut": "तुमच्या नोंदवलेल्या पेआउट पद्धतीवर पाठवले जाते."
+    "paidOut": "तुमच्या नोंदवलेल्या पेआउट पद्धतीवर पाठवले जाते.",
+    "mapOpenInMaps": "मॅप्समध्ये उघडा",
+    "mapAriaLabel": "तुमच्यापासून ग्राहकापर्यंतचा मार्ग",
+    "etaApprox": "~{{minutes}} मिनिटे दूर",
+    "etaApproxLabel": "अंदाजे",
+    "etaUnavailable": "अंतर माहीत नाही",
+    "customerSeenAgo": "ग्राहकाने तुमची ETA {{minutes}} मिनिटांपूर्वी पाहिली",
+    "customerSeenJustNow": "ग्राहकाने नुकतीच तुमची ETA पाहिली",
+    "completionTitle": "छान काम!",
+    "completionSubtitle": "या कामातून तुमची कमाई {{amount}}.",
+    "rateCustomerTitle": "ग्राहकाला रेट करा",
+    "rateCustomerHint": "यामुळे पुढच्या वेळी आम्ही तुम्हाला चांगल्या ग्राहकांसोबत जुळवू.",
+    "rateCustomerNotePlaceholder": "काही लिहायचे आहे का? (ऐच्छिक)",
+    "rateCustomerSubmit": "रेटिंग पाठवा",
+    "rateCustomerComingSoon": "रेटिंग पाठवणे लवकरच येत आहे.",
+    "rateCustomerStarLabel": "5 पैकी {{stars}} तारे"
   },
   "assigned": {
     "changed": "हे काम बदलले आहे. नवीन माहिती दाखवत आहोत.",
