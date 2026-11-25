@@ -235,3 +235,63 @@ epic tip (post-Phase-2).
 **Next:** PR against epic → CI → kalpai-review → merge → SVC-492 Done.
 Then: **open the epic PR to `main`** (post-Phase-3 tip). Phases 4
 (SVC-493) and 5 (SVC-494) remain filed for future runs.
+
+### 2026-11-22 — Run 03 Phase 4 (in-progress job screen) begins
+
+**Agent:** Run 03 (provider UI/UX) — Phase 4.
+**Branch:** `feature/svc-378-provider-ux-phase-4-job-screen` off
+epic tip (post-Phase-3, `48f2a05`). PRs into the epic branch.
+**Scope (SVC-493):** embedded map strip + approx ETA chip +
+null-safe "customer saw ETA" chip during ACCEPTED/EN_ROUTE/IN_PROGRESS;
+completion overlay with Celebration + earnings spring-roll + Success
+haptic on COMPLETED; rate-the-customer frontend scaffold only
+(no submit, backend endpoint doesn't exist).
+
+**Shared-primitive touches this run:**
+- `src/i18n/{en,hi,mr}/provider.json` — new `jobDetail.*` keys for
+  the strip/chips, completion overlay, and rate scaffold. Parity
+  held; committed early so Phase 5 agent's keys-used / parity tests
+  catch drift fast. This is the only file overlap with Phase 5
+  (SVC-494) agent.
+- `src/components/Celebration.tsx` — extended to accept optional
+  `title` / `subtitle` props with existing "Booking confirmed!" /
+  "Your pro is on the way" defaults. No existing call site changes.
+  Shadcn/primitive discipline: not forking, extending with safe
+  defaults; no new primitive. @Vipul call-out not required (same
+  component, additive API).
+- NEW components (provider-only, no shared surface):
+  - `src/components/provider/JobMapStrip.tsx` — thin Leaflet map,
+    provider + customer pins, floating "Open in Maps" chip.
+  - `src/components/provider/EtaChip.tsx` — straight-line distance
+    ÷ 30 kmh (contract §6 — no Distance Matrix), "approx" label.
+  - `src/components/provider/CustomerSeenChip.tsx` — null-safe;
+    hidden when backend read-receipt timestamp is absent (Tushar
+    hands-off, surfaced as recommendation only).
+  - `src/components/provider/CompletionOverlay.tsx` — reuses
+    Celebration with custom title + earnings spring-roll; fires
+    hapticSuccess once per booking.
+  - `src/components/provider/RateCustomerScaffold.tsx` — stars
+    widget + optional note; no submit wiring (backend endpoint
+    recommendation only).
+- `src/routes/provider/bookings/$bookingId.tsx` — wires the five
+  new components into existing status branches. JobAddress
+  keeps its Navigate hand-off (per the audit/ticket — map is
+  supplemental).
+
+**NOT touching (reaffirmed):**
+- `src/styles.css` — OFF-LIMITS this run.
+- `src/marketing/*`, `index.marketing.html`, `vite.marketing.config.ts`
+- `wrangler.jsonc`, `dist-marketing/`, any `public/` marketing imagery
+- Any Tushar epic (SVC-318, SVC-406, SVC-407, SVC-435). Backend
+  read-receipt field and rate-the-customer endpoint are both
+  recommendations in the PR body only.
+- Phase 5's routes (`/provider/profile.tsx`, `/provider/earnings.tsx`).
+
+**Deferred and called out in PR body:**
+- Google Distance Matrix driving ETA (paid, contract §6). Straight-line
+  ÷ 30 kmh with "approx" label stays in budget.
+- Sound asset on completion (haptic covers it, Phase 3 precedent).
+- Backend `customer_notified_at` read-receipt field — recommendation.
+- Backend `POST /provider/bookings/:id/customer-rating` endpoint —
+  recommendation. Frontend scaffold stores nothing; disables Submit
+  with a "Coming soon" note.
