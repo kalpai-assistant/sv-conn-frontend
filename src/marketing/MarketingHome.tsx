@@ -413,6 +413,12 @@ const NAV_LINKS = [
   ["Why us", "#why-us"],
   ["About", "#about"],
   ["FAQ", "#faq"],
+  // SVC-378 Phase 5: blog lives at a real route, not an anchor. useActiveSection
+  // stores the hash fragment without the "#" (e.g. "services"), so a value
+  // starting with "/" cannot match any observed section id — the active-dot
+  // code never highlights this link, which is the behaviour we want (the dot
+  // tracks scroll position within the homepage, not navigation elsewhere).
+  ["Blog", "/blog"],
 ] as const;
 
 // Module-level so the reference is stable — useActiveSection re-subscribes
@@ -1586,6 +1592,7 @@ function Footer() {
               ["How it works", "#how-it-works"],
               ["Why EazyServ", "#why-us"],
               ["FAQ", "#faq"],
+              ["Blog", "/blog"],
               ["Download", DOWNLOAD_URL],
             ]}
           />

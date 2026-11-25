@@ -27,7 +27,13 @@ const SITE = "https://eazyserv.com";
 // Every URL the marketing SPA actually serves. `main.tsx` routes on
 // pathname, so this list and that switch must stay in step; a sitemap
 // entry with no page behind it is a crawl error.
-const ROUTES = ["/", "/download"];
+//
+// Blog additions (SVC-378 Phase 5): `/blog` is the index; each per-post
+// entry below is a one-line add when a new post is published, and the
+// slug must mirror the one registered in src/marketing/blog/registry.ts.
+// These drive both the sitemap and the pre-rendered .html shells that
+// routingFiles() emits — Google treats each as its own crawlable URL.
+const ROUTES = ["/", "/download", "/blog", "/blog/why-pune"];
 
 /**
  * Emits robots.txt and sitemap.xml into the marketing bundle.
