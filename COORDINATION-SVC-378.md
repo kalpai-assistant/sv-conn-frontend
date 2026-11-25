@@ -295,3 +295,68 @@ haptic on COMPLETED; rate-the-customer frontend scaffold only
 - Backend `POST /provider/bookings/:id/customer-rating` endpoint —
   recommendation. Frontend scaffold stores nothing; disables Submit
   with a "Coming soon" note.
+### 2026-11-22 — Run 03 Phase 5 (profile + earnings) begins
+
+**Agent:** Run 03 (provider UI/UX) — SVC-494.
+**Phase 5 branch:** `feature/svc-378-provider-ux-phase-5-profile-earnings`
+off epic tip (post-Phase-3). Phase 4 (SVC-493) agent is running in
+parallel on a sibling worktree — only shared surface is
+`src/i18n/{en,hi,mr}/provider.json` which I commit early for parity.
+
+**Scope boundaries (per SVC-494 ticket):**
+- Profile: hero (photo + name + rating + jobs count), sectioned
+  grouping of existing rows, referral card (`@capacitor/share` +
+  placeholder code).
+- Earnings: vs-last-period badge, service-mix donut (recharts already
+  installed), window-level tips roll-up (tips field exists per-row).
+- Dark-mode verification on every new surface.
+
+**Open-decision resolutions (frontend grep complete; backend grep is
+hands-off):**
+- **Tips** → `tip_amount` already on `EarningsBookingItem` and surfaced
+  per-row in `EarningRow` as "incl. ₹X tip". Decision: add a window-
+  level **tips total** line (motivational roll-up on the window card),
+  reuse existing `tip_amount` field. No backend change.
+- **Next-payout date** → No `next_payout_date` on
+  `ProviderPayoutSummaryResponse`; `PayoutSummary.tsx` explicitly says
+  "no future date appears anywhere, because payouts are admin-triggered
+  and there is no schedule to name". Decision: **DEFER the chip**,
+  file backend recommendation in PR body.
+- **Serving-since** → No `created_at` on `ProviderProfile` /
+  `ProviderResponse`. Decision: **DEFER the serving-since line**, file
+  recommendation. Hero ships with photo + name + rating + jobs only.
+- **Rating** → `avg_rating` + `total_completed_jobs` EXIST on
+  `ProviderProfile`. Hide the rating cluster when
+  `avg_rating === 0 && total_completed_jobs === 0` (pre-first-job).
+- **Service-mix donut** → Aggregate by `service_name` (no `service_id`
+  on `EarningsBookingItem`). Names collide to the same slice if the
+  provider runs two services with the same name — acceptable.
+
+**Shared-primitive touches this run:**
+- `src/i18n/{en,hi,mr}/provider.json` — new `profile.hero.*` keys,
+  `profile.sections.*` keys, `profile.referral.*` keys; new
+  `earnings.vsLast.*`, `earnings.mix.*`, `earnings.tipsRollup` keys.
+  Committed in own commit before any component code lands, so Phase
+  4's parity.test.ts catches drift fast.
+- `package.json` + `package-lock.json` — add `@capacitor/share`
+  (open-source Capacitor plugin, free per contract §6). Own commit.
+- `src/components/provider/ProfileHero.tsx` — new file.
+- `src/components/provider/ReferralCard.tsx` — new file.
+- `src/components/provider/EarningsVsLastPeriod.tsx` — new file.
+- `src/components/provider/ServiceMixDonut.tsx` — new file.
+- `src/routes/provider/profile.tsx` — grouped rows into sections.
+- `src/routes/provider/earnings.tsx` — inserted badge + donut + tips
+  roll-up.
+- **`src/styles.css`: not touched.**
+- **`src/lib/haptics.ts`: not touched** — reuses existing
+  `hapticImpactLight` for referral share-sheet open.
+
+**NOT touching (reaffirmed):**
+- `src/marketing/*`, `index.marketing.html`, `vite.marketing.config.ts`
+- `wrangler.jsonc`, `dist-marketing/`, any `public/` marketing imagery
+- Phase 4's files (bookings/$bookingId.tsx + job-screen components)
+- Any Tushar epic (SVC-318, SVC-406, SVC-407, SVC-435)
+
+**Next:** i18n keys commit → `@capacitor/share` install commit →
+component commits → tests → pre-PR cascade → PR into epic → CI →
+kalpai-review → merge → SVC-494 Done.
