@@ -46,7 +46,7 @@ import { useLocationAvailability } from "@/hooks/useLocationAvailability";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useEdgeSwipeBack } from "@/hooks/useEdgeSwipeBack";
 import { readSelectedAddressCache } from "@/hooks/useSelectedAddress";
-import { shouldGateLocation } from "@/lib/should-gate-location";
+import { shouldGateConsumerLocation, shouldGateLocation } from "@/lib/should-gate-location";
 import { AppVersionGate } from "@/components/AppVersionGate";
 import { FirstRunLanguagePrompt } from "@/components/language/FirstRunLanguagePrompt";
 import { LanguageProvider } from "@/i18n/LanguageProvider";
@@ -369,9 +369,8 @@ function AppGate({ children }: { children: React.ReactNode }) {
     // they're free to roam the provider surface.
     if (!isProviderOnboardingRoute && !ownerOnInvite) {
       // Deliberately not waiting on the location probe (SVC-281). That call
-      // can take seconds — it is what raises the native permission dialog —
-      // and holding the app blank for it was a worse bug than the flicker it
-      // was meant to prevent. The gate simply appears late if it appears.
+      // can take seconds on a cold GPS, and holding the app blank for it was a
+      // worse bug than the flicker it was meant to prevent. The gate simply appears late if it appears.
       if (providerProfileLoading) {
         return (
           <div className="flex min-h-screen items-center justify-center bg-background">
@@ -474,17 +473,19 @@ function AppGate({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // SVC-281: ask for a location only when we cannot determine one.
+    // SVC-281: a consumer is gated only when they have no saved address to
+    // book against (or the address lookup failed).
     //
-    // This used to fire on every launch, on the theory that the costly failure
-    // is a *stale* address rather than a missing one. The stale case is real —
-    // someone in Pune yesterday and Mumbai today books against their Pune
-    // address and the booking dies as "no partners found nearby" — but asking
-    // everyone daily does not reliably catch it: a daily prompt becomes a
-    // reflex, and a reflex cannot notice the city is wrong.
+    // A consumer WITH an address is never gated, whatever device location
+    // says: bookings use the address's coordinates, not the phone's, so
+    // location being off or not granted does not stop them booking. The
+    // stale-address case — saved in Pune, standing in Mumbai — is left to the
+    // LocationBar, which shows the address in use on every screen. (Gating on
+    // it did not catch that case reliably anyway: a launch-time prompt becomes
+    // a reflex, and a reflex cannot notice the city is wrong.)
     //
-    // So the gate now appears only when we genuinely do not know where they
-    // are, or they have no address to book against at all.
+    // The provider rule above is different and unchanged — see
+    // `should-gate-location.ts`.
     if (isAuthenticated && !skipsLocationGate(pathname, proState)) {
       // SVC-351: offline collapses the "still fetching" state into a decided
       // one. React Query defaults to `networkMode: 'online'` and pauses
@@ -494,7 +495,7 @@ function AppGate({ children }: { children: React.ReactNode }) {
       // us bypass the gate entirely for a returning user; a fresh install
       // with nothing cached falls through to the gate's offline branch.
       const cached = !isOnline && addressesPending ? readSelectedAddressCache() : null;
-      const verdict = shouldGateLocation({
+      const verdict = shouldGateConsumerLocation({
         confirmed: locationConfirmed,
         blocked: availability.isResolving ? null : availability.blocked,
         // A failed fetch resolves to `false`, not `null`. Leaving it null on
@@ -518,10 +519,10 @@ function AppGate({ children }: { children: React.ReactNode }) {
             : !!addresses?.length,
       });
       // Only the address query is worth a spinner — it is one fast request.
-      // The location probe is not: it can take seconds, since it is the call
-      // that raises the native permission dialog, and blocking on it would
-      // mean a blank launch for everyone. So the app renders while it runs and
-      // the gate appears only once the answer comes back negative.
+      // The location probe is not: on a cold GPS it can take seconds, and
+      // blocking on it would mean a blank launch for everyone. A consumer with
+      // an address never waits on it at all; one without renders the app while
+      // it runs, and the gate opens once its answer names the remedy.
       //
       // Online-only: when `navigator.onLine` is false the query is paused and
       // never resolves, so a spinner here is exactly the infinite one SVC-351

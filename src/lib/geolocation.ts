@@ -148,7 +148,8 @@ function classify(err: unknown): LocationFailure {
  * `requestPermissions` is deliberate rather than `checkPermissions` alone:
  * this is the call that raises the native dialog, and a gate that never asks
  * is a gate the user cannot get past. It is only reached from an explicit tap
- * or from the launch check, never speculatively mid-session.
+ * — the gate's Enable, the map's locate button — never on launch (SVC-281
+ * AC4); the launch check uses `probeLocation`, which never asks.
  */
 export async function requestLocation(timeoutMs: number): Promise<LocationResult> {
   const { Geolocation } = await import("@capacitor/geolocation");
@@ -205,6 +206,59 @@ export async function requestLocation(timeoutMs: number): Promise<LocationResult
         !Capacitor.isNativePlatform() &&
         Date.now() - startedAt < INSTANT_REFUSAL_MS,
     };
+  }
+}
+
+/**
+ * Where is the user? Like `requestLocation`, but never asks for permission.
+ *
+ * The launch check uses this. SVC-281 AC4: the OS permission dialog fires only
+ * on an explicit tap, never on its own at launch. So on native this reads the
+ * app's permission and stops there unless it is already granted; the gate's
+ * Enable button is what asks.
+ *
+ * Not `peekLocationPermission`: with the OS location toggle off,
+ * `checkPermissions` itself rejects with LOCATION_DISABLED, and the peek turns
+ * every rejection into "prompt" — the gate would then blame a permission when
+ * the switch is what is off. Here the rejection goes through `classify`, so it
+ * still reads as `location-disabled`.
+ *
+ * On web the plugin has no permission calls worth trusting (see
+ * `requestLocation`), so this goes straight to `getCurrentPosition`, exactly
+ * as `requestLocation` does there.
+ */
+export async function probeLocation(timeoutMs: number): Promise<LocationResult> {
+  const { Geolocation } = await import("@capacitor/geolocation");
+
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const status = await Geolocation.checkPermissions();
+      // Either is enough: a user who picked "Approximate" holds only coarse.
+      if (status.location !== "granted" && status.coarseLocation !== "granted") {
+        // "denied" is final on Android. "prompt" and "prompt-with-rationale"
+        // both mean a tap on Enable can still raise the dialog (the latter is
+        // Android's second ask), so neither is reported as a refusal.
+        return {
+          ok: false,
+          failure: status.location === "denied" ? "permission-denied" : "permission-prompt",
+          coords: null,
+        };
+      }
+    }
+
+    // Already granted, so this cannot raise the permission dialog. It still
+    // runs, because it is the only way to learn the OS toggle is off.
+    const position = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: false,
+      timeout: timeoutMs,
+    });
+    return {
+      ok: true,
+      failure: null,
+      coords: { lat: position.coords.latitude, lng: position.coords.longitude },
+    };
+  } catch (err) {
+    return { ok: false, failure: classify(err), coords: null };
   }
 }
 
@@ -323,9 +377,10 @@ export function isNativeLocation(): boolean {
 /**
  * Can this platform answer a position request that no one tapped for?
  *
- * The launch probe asks where the user is before they have touched anything,
- * so the gate can stay down for someone we can already locate. That is only
- * safe where a request without a user gesture is allowed to prompt.
+ * The launch probe (`probeLocation`) looks for a position before the user has
+ * touched anything, so the gate can stay down for someone we can already
+ * locate. On a browser that is only safe where a request without a user
+ * gesture is allowed to prompt.
  *
  * iOS Safari does not allow it. Measured on an iPhone (iOS 18.7, Safari 26)
  * with Location Services switched off: `getCurrentPosition` came back
@@ -336,7 +391,7 @@ export function isNativeLocation(): boolean {
  * show a denial the user never made.
  *
  * Native is unaffected: the Capacitor plugin talks to the OS rather than to a
- * browser's gesture model.
+ * browser's gesture model, and `probeLocation` never asks for permission there.
  */
 export function canProbeWithoutGesture(): boolean {
   if (Capacitor.isNativePlatform()) return true;

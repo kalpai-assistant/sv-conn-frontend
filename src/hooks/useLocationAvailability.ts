@@ -9,13 +9,20 @@
  * different ways before the cause turned out to be the API, not the logic;
  * `lib/geolocation.ts` records what the web API could not tell us and why.
  *
- * ## Asking is the point
+ * ## It never asks
  *
- * This does not peek at a permission and decide. It *asks*, through the
- * Capacitor plugin, which means a user who has never granted anything gets the
- * native Android dialog here — the same one Urban Company and Zepto show. A
- * gate that reports "permission is off" without ever offering the prompt is a
- * dead end, which is exactly what the earlier web-API version was.
+ * SVC-281 AC4: the OS permission dialog fires only on an explicit tap, never
+ * on its own at launch. So this reads the app's permission through the
+ * Capacitor plugin (`probeLocation`) and, unless it is already granted, stops
+ * there: "permission-prompt" or "permission-denied", with nothing raised.
+ * Asking belongs to the gate's Enable button, which calls `requestLocation`
+ * on the user's tap. That keeps the gate from being a dead end without making
+ * every launch an interruption. (Between #130 and this fix the probe did ask,
+ * and Android showed its dialog on the first launches and after every "Only
+ * this time".)
+ *
+ * With the permission granted it still requests a coarse position, because
+ * that is the only way to learn the OS location toggle is off.
  *
  * ## Nothing waits on the answer
  *
@@ -37,7 +44,7 @@ import { useEffect, useState } from "react";
 import {
   canProbeWithoutGesture,
   peekBrowserPermission,
-  requestLocation,
+  probeLocation,
   type LocationFailure,
 } from "@/lib/geolocation";
 import { MAP_PICKER_LOCATE_TIMEOUT_MS } from "@/lib/map-picker-timeouts";
@@ -71,8 +78,8 @@ export interface LocationAvailability {
  *
  * Generous, and affordable because nothing is blocked on it: the caller
  * renders the app while this runs and raises the gate only if the answer comes
- * back negative. It also has to outlast a human answering the native
- * permission dialog, which this call can raise.
+ * back negative. It is only spent when the permission is already granted, on
+ * a cold GPS; the probe raises no dialog for anyone to answer.
  *
  * Measured on device before the plugin, location on throughout: consecutive
  * cold starts answered in 1ms, 43ms, 836ms and 8256ms. Nothing shorter than
@@ -164,19 +171,19 @@ export function useLocationAvailability(enabled = true): LocationAvailability {
     }
 
     void (async () => {
-      // Asked through the plugin — the only thing that can answer truthfully
-      // on Android, and the call that raises the native permission dialog when
-      // there is one to raise.
+      // Read through the plugin, the only thing that can answer truthfully on
+      // Android. Never `requestLocation` here: that asks, and asking at launch
+      // is what AC4 forbids. See "It never asks" above.
       //
       // A timeout is retried rather than believed. Straight after a cold start
       // the same device answered in 130ms on one launch and not within ten
       // seconds on the next, with location switched on throughout; concluding
       // "cannot locate" from that gated a working user. Every other failure is
       // a real answer and is taken first time.
-      let result = await requestLocation(PROBE_TIMEOUT_MS);
+      let result = await probeLocation(PROBE_TIMEOUT_MS);
       for (let retry = 0; result.failure === "timeout" && retry < TIMEOUT_RETRIES; retry++) {
         if (cancelled) return;
-        result = await requestLocation(PROBE_TIMEOUT_MS);
+        result = await probeLocation(PROBE_TIMEOUT_MS);
       }
       if (cancelled) return;
 
