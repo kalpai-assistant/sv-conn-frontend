@@ -34,9 +34,11 @@ import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 
 import { AccountAvatar } from "@/components/AccountAvatar";
+import { EarningsVsLastPeriod } from "@/components/provider/EarningsVsLastPeriod";
 import { EarningsWindow, RangeTabs } from "@/components/provider/EarningsWindow";
 import { PayoutSummary } from "@/components/provider/PayoutSummary";
 import { ProEarningsBreakdown } from "@/components/provider/ProEarningsBreakdown";
+import { ServiceMixDonut } from "@/components/provider/ServiceMixDonut";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRupees } from "@/i18n/format";
 import { useT } from "@/i18n/LanguageProvider";
@@ -117,12 +119,27 @@ function ProviderEarningsPage() {
 
       <RangeTabs ranges={WINDOW_RANGES} value={range} onChange={setRange} />
 
+      {/* SVC-494: within-window momentum chip. Sits between the range tabs
+          and the window card so the window figure never reads as context-
+          free. Null-safe on today/loading/error/empty — hides itself
+          rather than inventing a figure. Dedupes with the window query
+          below via shared react-query key. */}
+      <EarningsVsLastPeriod range={range} />
+
       <EarningsWindow
         range={range}
         // The by-Pro fields are additive on the same response (backend #198).
         period={{ ...period, data: period.data as EarningsWithProResponse | undefined }}
         showPro={team}
       />
+
+      {/* SVC-494: service-mix donut. Below the window so it never shoves
+          the window rows out from under a reading eye (same reason the
+          team breakdown sits below too). Hidden on a window with no
+          completed bookings. Aggregates by service_name; names collide
+          to one slice if a provider runs two same-named services —
+          acceptable, called out in PR body + backend recommendation. */}
+      <ServiceMixDonut range={range} bookings={period.data?.bookings} />
 
       {/* Below the job list, not between it and the window card: this lands on
           its own request, and appearing above the list would shove the rows the

@@ -36,6 +36,16 @@ vi.mock("@/components/provider/MonthEarningsChart", () => ({
 vi.mock("@/components/provider/PayoutSummary", () => ({
   PayoutSummary: () => <div data-testid="payout-summary" />,
 }));
+// SVC-494: vs-last chip + service-mix donut have their own tests (same
+// window data, different aggregations). Stubbed here so the route-level
+// job-list assertions don't double-match service names between the
+// window row and the donut legend.
+vi.mock("@/components/provider/EarningsVsLastPeriod", () => ({
+  EarningsVsLastPeriod: () => <div data-testid="vs-last-period-stub" />,
+}));
+vi.mock("@/components/provider/ServiceMixDonut", () => ({
+  ServiceMixDonut: () => <div data-testid="service-mix-stub" />,
+}));
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { name: "Ravi" } }) }));
 
 const useEarningsSummary = vi.fn();
