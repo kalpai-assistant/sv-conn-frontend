@@ -98,13 +98,7 @@ const PROVIDER_ICON = divIcon({
  * fires once; on live-location updates (future wire-up via
  * backend/app/routers/tracking.py), it re-centres on each render.
  */
-function FitBothPins({
-  a,
-  b,
-}: {
-  a: [number, number];
-  b: [number, number] | null;
-}) {
+function FitBothPins({ a, b }: { a: [number, number]; b: [number, number] | null }) {
   const map = useMap();
   useEffect(() => {
     if (b) {
@@ -162,9 +156,7 @@ export function JobMapStrip({
 
   const customerPin: [number, number] = [customerLat, customerLng];
   const providerPin: [number, number] | null =
-    providerLocation != null
-      ? [providerLocation.lat, providerLocation.lng]
-      : null;
+    providerLocation != null ? [providerLocation.lat, providerLocation.lng] : null;
 
   return (
     <div

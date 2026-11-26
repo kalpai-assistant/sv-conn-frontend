@@ -74,9 +74,7 @@ export function RateCustomerScaffold({ bookingId }: { bookingId: string }) {
             >
               <Star
                 className={
-                  filled
-                    ? "h-6 w-6 fill-primary text-primary"
-                    : "h-6 w-6 text-muted-foreground"
+                  filled ? "h-6 w-6 fill-primary text-primary" : "h-6 w-6 text-muted-foreground"
                 }
                 aria-hidden="true"
               />

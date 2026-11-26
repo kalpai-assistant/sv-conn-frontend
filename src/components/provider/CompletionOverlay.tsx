@@ -88,8 +88,7 @@ export function CompletionOverlay({
     return () => cancelAnimationFrame(rafId);
   }, [payoutAmount, reduceMotion]);
 
-  const amountText =
-    payoutAmount == null ? "—" : formatRupees(rolled, lang);
+  const amountText = payoutAmount == null ? "—" : formatRupees(rolled, lang);
 
   return (
     <>
