@@ -6,7 +6,7 @@
  * way of anyone we can actually locate.
  */
 import { describe, expect, it } from "vitest";
-import { shouldGateLocation } from "@/lib/should-gate-location";
+import { shouldGateConsumerLocation, shouldGateLocation } from "@/lib/should-gate-location";
 
 /** A user we can locate, who has a location on file. The common case. */
 const FINE = { confirmed: false, blocked: false, hasOwnLocation: true };
@@ -78,5 +78,65 @@ describe("once answered", () => {
     expect(shouldGateLocation({ confirmed: true, blocked: true, hasOwnLocation: false })).toBe(
       "pass",
     );
+  });
+});
+
+/**
+ * The consumer rule. The provider rule above is unchanged; consumers have
+ * their own, because a consumer books against a saved address's coordinates,
+ * not the phone's position.
+ */
+describe("consumers", () => {
+  const WITH_ADDRESS = { confirmed: false, blocked: false, hasOwnLocation: true };
+
+  it("passes a consumer with an address even when we cannot locate them", () => {
+    // The change: location off or permission not granted no longer gates
+    // someone who can book anyway. The stale-city case is left to the
+    // LocationBar.
+    expect(shouldGateConsumerLocation({ ...WITH_ADDRESS, blocked: true })).toBe("pass");
+  });
+
+  it("passes a consumer with an address whom we can locate", () => {
+    expect(shouldGateConsumerLocation(WITH_ADDRESS)).toBe("pass");
+  });
+
+  it("does not wait on the location probe when they have an address", () => {
+    expect(shouldGateConsumerLocation({ ...WITH_ADDRESS, blocked: null })).toBe("pass");
+  });
+
+  it("gates a consumer with no address whom we cannot locate", () => {
+    expect(
+      shouldGateConsumerLocation({ ...WITH_ADDRESS, blocked: true, hasOwnLocation: false }),
+    ).toBe("gate");
+  });
+
+  it("gates a consumer with no address even when we can locate them", () => {
+    // Nothing to book against: the gate is how they get an address.
+    expect(shouldGateConsumerLocation({ ...WITH_ADDRESS, hasOwnLocation: false })).toBe("gate");
+  });
+
+  it("gates when the address lookup failed (passed as false)", () => {
+    // As before: a failed fetch must not spin forever (#121, SVC-351).
+    expect(
+      shouldGateConsumerLocation({ confirmed: false, blocked: true, hasOwnLocation: false }),
+    ).toBe("gate");
+  });
+
+  it("waits for the probe before gating a consumer with no address", () => {
+    // The gate's copy depends on the probe's answer; opening before it lands
+    // would name the wrong remedy.
+    expect(
+      shouldGateConsumerLocation({ ...WITH_ADDRESS, blocked: null, hasOwnLocation: false }),
+    ).toBe("wait");
+  });
+
+  it("waits while the addresses are still loading", () => {
+    expect(shouldGateConsumerLocation({ ...WITH_ADDRESS, hasOwnLocation: null })).toBe("wait");
+  });
+
+  it("stays out of the way once answered", () => {
+    expect(
+      shouldGateConsumerLocation({ confirmed: true, blocked: true, hasOwnLocation: false }),
+    ).toBe("pass");
   });
 });

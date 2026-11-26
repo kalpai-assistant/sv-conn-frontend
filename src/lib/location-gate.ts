@@ -6,9 +6,14 @@
  * This flag alone does **not** decide whether the gate appears. It only records
  * that the user has already answered it during this launch, so the screen does
  * not reappear underneath them mid-session. Whether the gate is shown at all is
- * `shouldGateLocation`, driven by `useLocationAvailability`: the gate appears
- * when we cannot locate the user — OS location off, permission off — or when
- * they have no location on file.
+ * decided in `should-gate-location.ts`, per role:
+ *
+ * - a provider is gated when we cannot locate them (OS location off,
+ *   permission off — from `useLocationAvailability`) or they have no service
+ *   area;
+ * - a consumer is gated only when they have no saved address (or the lookup
+ *   failed). A consumer with an address is never gated: bookings use the
+ *   address's coordinates, and the stale-city case is left to the LocationBar.
  *
  * ## A note on the version this replaced
  *

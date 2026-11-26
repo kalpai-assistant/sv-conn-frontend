@@ -5,18 +5,20 @@
  * the gate.** Four attempts broke it, and the cause turned out to be the web
  * geolocation API rather than the logic on top — see `lib/geolocation.ts`.
  *
- * This hook is now thin: it asks `requestLocation` and maps the failure to the
- * reason the gate's copy is written against. The tests are about that mapping
- * and about *when* the question is asked, which is where the bugs actually
- * were.
+ * This hook is now thin: it reads `probeLocation` and maps the failure to the
+ * reason the gate's copy is written against. The tests are about that mapping,
+ * about *when* the question is asked, which is where the bugs actually were,
+ * and about it never asking for permission (SVC-281 AC4).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 
+const probeLocation = vi.fn();
 const requestLocation = vi.fn();
 const canProbeWithoutGesture = vi.fn();
 const peekBrowserPermission = vi.fn();
 vi.mock("@/lib/geolocation", () => ({
+  probeLocation: (...args: unknown[]) => probeLocation(...args),
   requestLocation: (...args: unknown[]) => requestLocation(...args),
   canProbeWithoutGesture: () => canProbeWithoutGesture(),
   peekBrowserPermission: () => peekBrowserPermission(),
@@ -34,7 +36,7 @@ beforeEach(() => {
 
 describe("a user whose location works", () => {
   it("is never gated", async () => {
-    requestLocation.mockResolvedValue({ ok: true, failure: null });
+    probeLocation.mockResolvedValue({ ok: true, failure: null });
 
     const { result } = renderHook(() => useLocationAvailability());
 
@@ -54,7 +56,7 @@ describe("naming what is actually wrong", () => {
     ["permission-prompt", "permission-prompt"],
     ["unavailable", "unknown"],
   ])("maps %s to %s", async (failure, reason) => {
-    requestLocation.mockResolvedValue({ ok: false, failure });
+    probeLocation.mockResolvedValue({ ok: false, failure });
 
     const { result } = renderHook(() => useLocationAvailability());
 
@@ -70,7 +72,7 @@ describe("a timeout is not an answer", () => {
     // within ten seconds on the next — the GPS was still coming up. Treating
     // that first timeout as "cannot locate" gated a working user, which is the
     // same bug this hook has now had four times in four different disguises.
-    requestLocation
+    probeLocation
       .mockResolvedValueOnce({ ok: false, failure: "timeout", coords: null })
       .mockResolvedValueOnce({ ok: true, failure: null, coords: { lat: 18.5, lng: 73.8 } });
 
@@ -78,11 +80,11 @@ describe("a timeout is not an answer", () => {
 
     await waitFor(() => expect(result.current.isResolving).toBe(false));
     expect(result.current.blocked).toBe(false);
-    expect(requestLocation).toHaveBeenCalledTimes(2);
+    expect(probeLocation).toHaveBeenCalledTimes(2);
   });
 
   it("gives up eventually rather than asking forever", async () => {
-    requestLocation.mockResolvedValue({ ok: false, failure: "timeout", coords: null });
+    probeLocation.mockResolvedValue({ ok: false, failure: "timeout", coords: null });
 
     const { result } = renderHook(() => useLocationAvailability());
 
@@ -95,27 +97,26 @@ describe("a timeout is not an answer", () => {
   it("does not retry a real answer", async () => {
     // A refusal or a disabled toggle is information. Asking again would only
     // delay the gate the user needs.
-    requestLocation.mockResolvedValue({ ok: false, failure: "location-disabled", coords: null });
+    probeLocation.mockResolvedValue({ ok: false, failure: "location-disabled", coords: null });
 
     const { result } = renderHook(() => useLocationAvailability());
 
     await waitFor(() => expect(result.current.blocked).toBe(true));
-    expect(requestLocation).toHaveBeenCalledOnce();
+    expect(probeLocation).toHaveBeenCalledOnce();
   });
 });
 
 describe("the request itself", () => {
-  it("is patient enough for a cold GPS and a human", async () => {
+  it("is patient enough for a cold GPS", async () => {
     // Measured on device before the plugin, location on throughout:
-    // consecutive cold starts answered in 1ms, 43ms, 836ms and 8256ms. This
-    // call can also raise the native permission dialog, which a person has to
-    // read. Affordable because nothing is blocked while it runs.
-    requestLocation.mockResolvedValue({ ok: true, failure: null });
+    // consecutive cold starts answered in 1ms, 43ms, 836ms and 8256ms.
+    // Affordable because nothing is blocked while it runs.
+    probeLocation.mockResolvedValue({ ok: true, failure: null });
 
     const { result } = renderHook(() => useLocationAvailability());
     await waitFor(() => expect(result.current.isResolving).toBe(false));
 
-    expect(requestLocation.mock.calls[0][0]).toBeGreaterThanOrEqual(9_000);
+    expect(probeLocation.mock.calls[0][0]).toBeGreaterThanOrEqual(9_000);
   });
 });
 
@@ -125,23 +126,23 @@ describe("when the question is asked", () => {
     // sees all session. AppGate mounts on the login screen, before any session
     // exists — asking there produced a stale "cannot locate" that survived
     // login. Found on device.
-    requestLocation.mockResolvedValue({ ok: true, failure: null });
+    probeLocation.mockResolvedValue({ ok: true, failure: null });
 
     const { result } = renderHook(() => useLocationAvailability(false));
 
-    expect(requestLocation).not.toHaveBeenCalled();
+    expect(probeLocation).not.toHaveBeenCalled();
     // Still resolving rather than "available": callers must not act on an
     // answer nobody has sought.
     expect(result.current.isResolving).toBe(true);
   });
 
   it("asks once enabled turns true", async () => {
-    requestLocation.mockResolvedValue({ ok: true, failure: null });
+    probeLocation.mockResolvedValue({ ok: true, failure: null });
 
     const { result, rerender } = renderHook(({ enabled }) => useLocationAvailability(enabled), {
       initialProps: { enabled: false },
     });
-    expect(requestLocation).not.toHaveBeenCalled();
+    expect(probeLocation).not.toHaveBeenCalled();
 
     rerender({ enabled: true });
 
@@ -151,8 +152,8 @@ describe("when the question is asked", () => {
 
   it("asks once, not on every render", async () => {
     // Re-asking mid-session could drop a gate the user is part-way through
-    // answering, and would re-raise the permission dialog.
-    requestLocation.mockResolvedValue({ ok: true, failure: null });
+    // answering.
+    probeLocation.mockResolvedValue({ ok: true, failure: null });
 
     const { result, rerender } = renderHook(() => useLocationAvailability(true));
     await waitFor(() => expect(result.current.isResolving).toBe(false));
@@ -160,7 +161,56 @@ describe("when the question is asked", () => {
     rerender();
     rerender();
 
-    expect(requestLocation).toHaveBeenCalledOnce();
+    expect(probeLocation).toHaveBeenCalledOnce();
+  });
+});
+
+/**
+ * SVC-281 AC4: the OS permission dialog fires only on an explicit tap, never
+ * on its own at launch. From #130 until this fix the launch probe called
+ * `requestLocation`, which asks, and Android showed its dialog on the first
+ * launches and after every "Only this time". `requestLocation` is the tap
+ * path (the gate's Enable, the map's locate button); this hook must never
+ * reach it, whatever the permission state.
+ */
+describe("the launch check never asks for permission", () => {
+  it.each([
+    ["never asked", { ok: false, failure: "permission-prompt", coords: null }, "permission-prompt"],
+    ["refused", { ok: false, failure: "permission-denied", coords: null }, "permission-denied"],
+    // Granted, but the position call fails: the OS toggle is off.
+    [
+      "granted, location off",
+      { ok: false, failure: "location-disabled", coords: null },
+      "device-off",
+    ],
+  ])("does not call requestLocation when %s", async (_state, probed, reason) => {
+    probeLocation.mockResolvedValue(probed);
+
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.blocked).toBe(true));
+    expect(result.current.reason).toBe(reason);
+    expect(requestLocation).not.toHaveBeenCalled();
+  });
+
+  it("does not call requestLocation when granted and located", async () => {
+    probeLocation.mockResolvedValue({ ok: true, failure: null, coords: { lat: 18.5, lng: 73.8 } });
+
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+    expect(result.current.blocked).toBe(false);
+    expect(requestLocation).not.toHaveBeenCalled();
+  });
+
+  it("does not call requestLocation while retrying a timeout either", async () => {
+    probeLocation.mockResolvedValue({ ok: false, failure: "timeout", coords: null });
+
+    const { result } = renderHook(() => useLocationAvailability());
+
+    await waitFor(() => expect(result.current.blocked).toBe(true));
+    expect(probeLocation).toHaveBeenCalledTimes(3);
+    expect(requestLocation).not.toHaveBeenCalled();
   });
 });
 
@@ -186,7 +236,7 @@ describe("where a position cannot be asked for without a gesture", () => {
     const { result } = renderHook(() => useLocationAvailability());
 
     await waitFor(() => expect(result.current.isResolving).toBe(false));
-    expect(requestLocation).not.toHaveBeenCalled();
+    expect(probeLocation).not.toHaveBeenCalled();
   });
 
   it("keeps the gate down when the browser has already granted", async () => {

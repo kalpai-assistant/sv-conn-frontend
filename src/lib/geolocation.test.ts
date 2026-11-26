@@ -25,7 +25,7 @@ vi.mock("@capacitor/geolocation", () => ({
 }));
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => true } }));
 
-import { enableDeviceLocation, requestLocation } from "@/lib/geolocation";
+import { enableDeviceLocation, probeLocation, requestLocation } from "@/lib/geolocation";
 
 const PUNE = { coords: { latitude: 18.5204, longitude: 73.8567 } };
 
@@ -172,5 +172,86 @@ describe("classifying what went wrong", () => {
     const result = await requestLocation(5_000);
 
     expect(result.failure).toBe("permission-denied");
+  });
+});
+
+/**
+ * The launch probe (SVC-281 AC4): it reads the permission and never asks.
+ * `requestPermissions` raises the OS dialog, and that may only happen on a
+ * user's tap, through `requestLocation`.
+ */
+describe("probing at launch without asking", () => {
+  it.each([
+    // "prompt-with-rationale" is Android's state after one "Don't allow": a
+    // tap on Enable can still raise the dialog, so it is not a refusal.
+    ["prompt", "permission-prompt"],
+    ["prompt-with-rationale", "permission-prompt"],
+    ["denied", "permission-denied"],
+  ])("reports %s as %s without requesting permission", async (state, failure) => {
+    checkPermissions.mockResolvedValue({ location: state, coarseLocation: state });
+
+    const result = await probeLocation(5_000);
+
+    expect(result).toMatchObject({ ok: false, failure, coords: null });
+    expect(requestPermissions).not.toHaveBeenCalled();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it("probes the position when permission is granted", async () => {
+    checkPermissions.mockResolvedValue({ location: "granted", coarseLocation: "granted" });
+    getCurrentPosition.mockResolvedValue(PUNE);
+
+    const result = await probeLocation(5_000);
+
+    expect(result).toMatchObject({ ok: true, coords: { lat: 18.5204, lng: 73.8567 } });
+    expect(requestPermissions).not.toHaveBeenCalled();
+  });
+
+  it("treats coarse-only as granted (the user picked Approximate)", async () => {
+    checkPermissions.mockResolvedValue({ location: "denied", coarseLocation: "granted" });
+    getCurrentPosition.mockResolvedValue(PUNE);
+
+    const result = await probeLocation(5_000);
+
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ ok: true });
+    expect(requestPermissions).not.toHaveBeenCalled();
+  });
+
+  it("still detects the OS toggle being off when granted", async () => {
+    checkPermissions.mockResolvedValue({ location: "granted", coarseLocation: "granted" });
+    getCurrentPosition.mockRejectedValue(
+      err("OS-PLUG-GLOC-0007", "Location services are not enabled."),
+    );
+
+    const result = await probeLocation(5_000);
+
+    expect(result).toMatchObject({ ok: false, failure: "location-disabled" });
+    expect(requestPermissions).not.toHaveBeenCalled();
+  });
+
+  it("reads checkPermissions refusing with LOCATION_DISABLED as the toggle, not the permission", async () => {
+    // With the toggle off the plugin rejects checkPermissions itself.
+    // `peekLocationPermission` would call that "prompt" and blame the
+    // permission; the probe must name the switch.
+    checkPermissions.mockRejectedValue(
+      err("OS-PLUG-GLOC-0007", "Location services are not enabled."),
+    );
+
+    const result = await probeLocation(5_000);
+
+    expect(result).toMatchObject({ ok: false, failure: "location-disabled" });
+    expect(requestPermissions).not.toHaveBeenCalled();
+  });
+
+  it("passes a timeout through for the caller to retry", async () => {
+    checkPermissions.mockResolvedValue({ location: "granted", coarseLocation: "granted" });
+    getCurrentPosition.mockRejectedValue(
+      err("OS-PLUG-GLOC-0010", "Could not obtain location in time."),
+    );
+
+    const result = await probeLocation(5_000);
+
+    expect(result).toMatchObject({ ok: false, failure: "timeout" });
   });
 });
