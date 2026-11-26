@@ -60,6 +60,23 @@ describe("Celebration overlay", () => {
       });
     }).not.toThrow();
   });
+
+  /**
+   * SVC-493: the overlay now accepts optional title/subtitle overrides so
+   * the Phase-4 completion overlay can read "Great job!" / "You earned
+   * ₹350 on this job." without forking. The failure mode this locks:
+   *
+   *   - A caller passes a custom title but the default "Booking
+   *     confirmed!" leaks through, lying to the provider at job
+   *     completion.
+   */
+  it("accepts custom title and subtitle so the reuse at completion reads right", () => {
+    render(<Celebration title="Great job!" subtitle="You earned ₹350." />);
+    expect(screen.getByText("Great job!")).toBeInTheDocument();
+    expect(screen.getByText("You earned ₹350.")).toBeInTheDocument();
+    expect(screen.queryByText("Booking confirmed!")).toBeNull();
+    expect(screen.queryByText("Your pro is on the way")).toBeNull();
+  });
 });
 
 describe("InlineCelebration", () => {

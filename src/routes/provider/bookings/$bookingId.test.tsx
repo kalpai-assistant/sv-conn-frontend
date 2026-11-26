@@ -29,6 +29,25 @@ vi.mock("@/components/provider/JobActions", () => ({
   DoorstepOtpStep: () => <div />,
   CompleteStep: () => <div />,
 }));
+// SVC-493: the Phase-4 pieces. Stubbed so this file stays about the
+// route's status-branching, not the sub-components' internals (each
+// has its own test file).
+vi.mock("@/components/provider/JobMapStrip", () => ({
+  JobMapStrip: () => <div data-testid="map-strip" />,
+}));
+vi.mock("@/components/provider/CustomerSeenChip", () => ({
+  CustomerSeenChip: () => <div data-testid="seen-chip" />,
+}));
+vi.mock("@/components/provider/CompletionOverlay", () => ({
+  CompletionOverlay: ({ onDismissed }: { onDismissed: () => void }) => (
+    <button type="button" data-testid="completion-overlay" onClick={onDismissed}>
+      overlay
+    </button>
+  ),
+}));
+vi.mock("@/components/provider/RateCustomerScaffold", () => ({
+  RateCustomerScaffold: () => <div data-testid="rate-scaffold" />,
+}));
 
 import { Route } from "@/routes/provider/bookings/$bookingId";
 
@@ -103,5 +122,78 @@ describe("any other failure", () => {
 
     expect(screen.getByText("API error: 500 Internal Server Error")).toBeInTheDocument();
     expect(screen.queryByText("This job is no longer yours")).toBeNull();
+  });
+});
+
+/**
+ * SVC-493 — Phase 4 failure modes locked by these tests:
+ *
+ *   - Travel statuses (ACCEPTED/EN_ROUTE/IN_PROGRESS) must show the
+ *     map strip; a regression that hides it leaves providers back on
+ *     the text-only job screen.
+ *   - COMPLETED must NOT show the map strip — nothing to travel to.
+ *   - COMPLETED shows the completion overlay AND the rate-customer
+ *     scaffold; they must coexist (overlay dismisses, scaffold stays).
+ *   - The overlay auto-dismiss handoff to EarningsBreakdown is wired —
+ *     once dismissed, the overlay is gone and doesn't re-show.
+ */
+import { fireEvent } from "@testing-library/react";
+
+const baseBooking = {
+  id: "b1",
+  service: { name: "Bathroom deep cleaning" },
+  totalAmount: 499,
+  paymentMethod: "cash",
+  providerPayout: 350,
+  platformCommission: 149,
+  address: { id: "a1", label: "Home", full: "123 Street", lat: 12.97, lng: 77.59 },
+};
+
+const seeded = (booking: Record<string, unknown>) =>
+  bookingQuery.mockReturnValue({ data: booking, isLoading: false, isError: false, error: null });
+
+describe("Phase 4 — map strip visibility by status", () => {
+  it.each(["ACCEPTED", "EN_ROUTE", "IN_PROGRESS"] as const)(
+    "shows the map strip during %s so the provider doesn't lose the app to Maps",
+    (status) => {
+      seeded({ ...baseBooking, status });
+      render(<Page />);
+      expect(screen.getByTestId("map-strip")).toBeInTheDocument();
+      expect(screen.getByTestId("seen-chip")).toBeInTheDocument();
+    },
+  );
+
+  it.each(["COMPLETED", "CANCELLED", "EXPIRED"] as const)(
+    "hides the map strip for %s (nothing left to travel to)",
+    (status) => {
+      seeded({ ...baseBooking, status });
+      render(<Page />);
+      expect(screen.queryByTestId("map-strip")).toBeNull();
+    },
+  );
+});
+
+describe("Phase 4 — completion overlay + rate scaffold on COMPLETED", () => {
+  it("shows the overlay + rate scaffold when a job completes", () => {
+    seeded({ ...baseBooking, status: "COMPLETED" });
+    render(<Page />);
+    expect(screen.getByTestId("completion-overlay")).toBeInTheDocument();
+    expect(screen.getByTestId("rate-scaffold")).toBeInTheDocument();
+  });
+
+  it("removes the overlay once onDismissed fires but keeps the rate scaffold", () => {
+    seeded({ ...baseBooking, status: "COMPLETED" });
+    render(<Page />);
+    fireEvent.click(screen.getByTestId("completion-overlay"));
+    expect(screen.queryByTestId("completion-overlay")).toBeNull();
+    // Rate scaffold is persistent, not tied to overlay dismiss state.
+    expect(screen.getByTestId("rate-scaffold")).toBeInTheDocument();
+  });
+
+  it("does not show the overlay on ACCEPTED (status is the gate, not the data)", () => {
+    seeded({ ...baseBooking, status: "ACCEPTED" });
+    render(<Page />);
+    expect(screen.queryByTestId("completion-overlay")).toBeNull();
+    expect(screen.queryByTestId("rate-scaffold")).toBeNull();
   });
 });
