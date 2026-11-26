@@ -152,9 +152,7 @@ function ProviderProfilePage() {
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">{t("profile.team")}</p>
               <p className="truncate text-sm text-muted-foreground">
-                {teamSize > 0
-                  ? t("profile.teamCount", { count: teamSize })
-                  : t("profile.teamNone")}
+                {teamSize > 0 ? t("profile.teamCount", { count: teamSize }) : t("profile.teamNone")}
               </p>
             </div>
           </div>

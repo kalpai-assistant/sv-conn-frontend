@@ -100,9 +100,7 @@ export function ReferralCard({ userId }: ReferralCardProps) {
           <Gift className="h-5 w-5 text-primary" aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold text-foreground">
-            {t("profile.referralTitle")}
-          </p>
+          <p className="text-base font-semibold text-foreground">{t("profile.referralTitle")}</p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             {t("profile.referralBody")}
           </p>

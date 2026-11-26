@@ -72,10 +72,7 @@ export function ProfileHero({ name }: ProfileHeroProps) {
                 absent, so a slow photo shows initials rather than a blank
                 hole. Same pattern as `AccountAvatar`. */}
             {profile?.profile_photo_url && (
-              <AvatarImage
-                src={profile.profile_photo_url}
-                alt={t("profile.heroAvatarAlt")}
-              />
+              <AvatarImage src={profile.profile_photo_url} alt={t("profile.heroAvatarAlt")} />
             )}
             <AvatarFallback className="bg-secondary text-lg font-semibold text-foreground">
               {initials ?? <UserIcon className="h-6 w-6 text-muted-foreground" />}
